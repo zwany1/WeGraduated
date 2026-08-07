@@ -1,0 +1,144 @@
+package com.graduate.thesis.engine.formatter;
+
+import com.graduate.thesis.engine.model.RuleSet;
+import com.graduate.thesis.entity.FormatRule;
+import org.apache.poi.xwpf.usermodel.BreakType;
+import org.apache.poi.xwpf.usermodel.ParagraphAlignment;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import org.apache.poi.xwpf.usermodel.XWPFRun;
+
+import java.util.regex.Pattern;
+
+/**
+ * 摘要/关键词页面格式化(按桂林信息科技学院规范):
+ * 摘要 三号黑体居中加粗("摘要"两字空两格); 摘要内容 小四宋体首行缩进两字;
+ * 关键词 小四黑体顶格, 内容小四宋体接排; Abstract 三号 Times 加粗居中;
+ * 摘要内容 小四 Times; Key words 小四 Times 加粗顶格, 内容小四 Times.
+ */
+public class AbstractFormatter {
+
+    private static final Pattern ABSTRACT_TITLE = Pattern.compile("^摘\\s*要\\s*$");
+    private static final Pattern KEYWORDS = Pattern.compile("^关键词[:：].*");
+    private static final Pattern EN_TITLE = Pattern.compile("^\\s*Abstract\\s*$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern EN_KEYWORDS = Pattern.compile("^Key\\s*words\\s*[:：].*", Pattern.CASE_INSENSITIVE);
+
+    private static final String SONG = "宋体";
+    private static final String HEI = "黑体";
+    private static final String TIMES = "Times New Roman";
+
+    public void apply(XWPFDocument doc, RuleSet ruleSet) {
+        FormatRule bodyRule = ruleSet.rule("body");
+        boolean inZh = false;
+        boolean inEn = false;
+        for (XWPFParagraph p : doc.getParagraphs()) {
+            String text = p.getText() == null ? "" : p.getText().trim();
+            if (ABSTRACT_TITLE.matcher(text).matches()) {
+                setTitle(p, "摘  要", HEI, 16, true, SONG, true);
+                inZh = true;
+                inEn = false;
+                continue;
+            }
+            if (KEYWORDS.matcher(text).matches()) {
+                setLabelBody(p, "关键词", HEI, SONG, 12);
+                inZh = false;
+                inEn = false;
+                continue;
+            }
+            if (EN_TITLE.matcher(text).matches()) {
+                setTitle(p, text, TIMES, 16, true, TIMES, true);
+                inEn = true;
+                inZh = false;
+                continue;
+            }
+            if (EN_KEYWORDS.matcher(text).matches()) {
+                setLabelBody(p, "Key words", TIMES, TIMES, 12);
+                inEn = false;
+                inZh = false;
+                continue;
+            }
+            if (inZh && !text.isEmpty()) {
+                setBody(p, SONG, 12, bodyRule);
+            } else if (inEn && !text.isEmpty()) {
+                setBody(p, TIMES, 12, null);
+            }
+        }
+    }
+
+    private static void setTitle(XWPFParagraph p, String text, String font, int sizePt, boolean bold,
+                                 String latin, boolean pageBreak) {
+        clearRuns(p);
+        if (pageBreak) {
+            // 显式分页符(兼容 Word/WPS): 标题前插入 <w:br w:type="page"/>
+            XWPFRun brRun = p.createRun();
+            brRun.addBreak(BreakType.PAGE);
+        }
+        XWPFRun run = p.createRun();
+        run.setText(text);
+        TextFormatter.setFont(run, font, latin);
+        run.setFontSize(sizePt);
+        run.setBold(bold);
+        p.setAlignment(ParagraphAlignment.CENTER);
+        p.setSpacingBefore(0);
+        p.setSpacingAfter(0);
+    }
+
+    private static void setBody(XWPFParagraph p, String font, int sizePt, FormatRule bodyRule) {
+        for (XWPFRun run : p.getRuns()) {
+            TextFormatter.setFont(run, font, TextFormatter.DEFAULT_LATIN);
+            run.setFontSize(sizePt);
+            run.setBold(false);
+        }
+        if (bodyRule != null) {
+            ParagraphFormatter.apply(p, bodyRule);
+        }
+        p.setAlignment(ParagraphAlignment.BOTH);
+    }
+
+    /**
+     * 标签+接排内容: 标签(关键词:/Key words:)加粗顶格, 内容普通字体接排
+     */
+    private static void setLabelBody(XWPFParagraph p, String fallbackLabel,
+                                     String boldFont, String bodyFont, int sizePt) {
+        String full = p.getText() == null ? "" : p.getText();
+        int splitIdx = -1;
+        for (int i = 0; i < full.length(); i++) {
+            char c = full.charAt(i);
+            if (c == ':' || c == '：') {
+                splitIdx = i + 1;
+                break;
+            }
+        }
+        String label;
+        String body;
+        if (splitIdx > 0) {
+            label = full.substring(0, splitIdx);
+            body = full.substring(splitIdx);
+        } else {
+            label = fallbackLabel;
+            body = full;
+        }
+        clearRuns(p);
+        XWPFRun labelRun = p.createRun();
+        labelRun.setText(label);
+        TextFormatter.setFont(labelRun, boldFont, TextFormatter.DEFAULT_LATIN);
+        labelRun.setFontSize(sizePt);
+        labelRun.setBold(true);
+        if (body != null && !body.isEmpty()) {
+            XWPFRun bodyRun = p.createRun();
+            bodyRun.setText(body);
+            TextFormatter.setFont(bodyRun, bodyFont, TextFormatter.DEFAULT_LATIN);
+            bodyRun.setFontSize(sizePt);
+            bodyRun.setBold(false);
+        }
+        p.setAlignment(ParagraphAlignment.LEFT);
+        p.setSpacingBefore(0);
+        p.setSpacingAfter(0);
+    }
+
+    private static void clearRuns(XWPFParagraph p) {
+        for (int i = p.getRuns().size() - 1; i >= 0; i--) {
+            p.removeRun(i);
+        }
+    }
+}

@@ -1,0 +1,40 @@
+# 构建产物
+backend/target/
+frontend/dist/
+
+# 依赖
+frontend/node_modules/
+
+# 数据与存储(隐私)
+backend/data/
+
+# 日志
+backend/*.log
+backend/*.log.err
+backend/server.pid
+frontend/*.log
+frontend/*.log.err
+frontend/vite.pid
+vite.log
+vite.log.err
+
+# IDE
+.idea/
+*.iml
+
+# 隐私配置(JWT密钥)
+backend/src/main/resources/application.yml
+
+# SQL 脚本
+backend/src/main/resources/db/
+
+# 测试数据与文档
+testdata/
+
+# 本地启动脚本
+start.bat
+build-backend.bat
+
+# 操作系统
+.DS_Store
+Thumbs.db

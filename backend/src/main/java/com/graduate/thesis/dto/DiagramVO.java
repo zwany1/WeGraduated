@@ -17,6 +17,8 @@ public class DiagramVO {
     private String description;
     private List<DiagramNode> nodes = new ArrayList<>();
     private List<DiagramEdge> edges = new ArrayList<>();
+    /** 泳道容器(仅 SWIMLANE 使用) */
+    private List<DiagramLane> lanes = new ArrayList<>();
     private int width;
     private int height;
 }

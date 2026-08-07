@@ -5,8 +5,10 @@ import com.graduate.thesis.common.Result;
 import com.graduate.thesis.common.UserContext;
 import com.graduate.thesis.dto.ArchitectureConfig;
 import com.graduate.thesis.dto.DiagramVO;
+import com.graduate.thesis.dto.SwimlaneConfig;
 import com.graduate.thesis.service.ArchitectureRuleEngine;
 import com.graduate.thesis.service.DiagramGenerator;
+import com.graduate.thesis.service.SwimlaneRuleEngine;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,24 +34,30 @@ public class DiagramController {
 
     private final DiagramGenerator diagramGenerator;
     private final ArchitectureRuleEngine ruleEngine;
+    private final SwimlaneRuleEngine swimlaneEngine;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Path root;
 
     public DiagramController(@Value("${thesis.storage.dir}") String storageDir,
                              DiagramGenerator diagramGenerator,
-                             ArchitectureRuleEngine ruleEngine) {
+                             ArchitectureRuleEngine ruleEngine,
+                             SwimlaneRuleEngine swimlaneEngine) {
         this.root = Paths.get(storageDir).toAbsolutePath().normalize().resolve("diagrams");
         this.diagramGenerator = diagramGenerator;
         this.ruleEngine = ruleEngine;
+        this.swimlaneEngine = swimlaneEngine;
     }
 
     /**
-     * 自动生成设计图: ARCH 支持结构化配置(规则引擎), 其余支持文本描述
+     * 自动生成设计图: ARCH/SWIMLANE 支持结构化配置(规则引擎), 其余支持文本描述
      */
     @PostMapping("/generate")
     public Result<DiagramVO> generate(@RequestBody GenDTO dto) {
         if ("ARCH".equalsIgnoreCase(dto.getType()) && dto.getConfig() != null) {
             return Result.ok(ruleEngine.build(dto.getConfig()));
+        }
+        if ("SWIMLANE".equalsIgnoreCase(dto.getType()) && dto.getSwimlane() != null) {
+            return Result.ok(swimlaneEngine.build(dto.getSwimlane()));
         }
         return Result.ok(diagramGenerator.generate(dto.getType(), dto.getDescription()));
     }
@@ -122,6 +130,7 @@ public class DiagramController {
         private String type;
         private String description;
         private ArchitectureConfig config;
+        private SwimlaneConfig swimlane;
 
         public String getType() { return type; }
         public void setType(String type) { this.type = type; }
@@ -129,5 +138,7 @@ public class DiagramController {
         public void setDescription(String description) { this.description = description; }
         public ArchitectureConfig getConfig() { return config; }
         public void setConfig(ArchitectureConfig config) { this.config = config; }
+        public SwimlaneConfig getSwimlane() { return swimlane; }
+        public void setSwimlane(SwimlaneConfig swimlane) { this.swimlane = swimlane; }
     }
 }

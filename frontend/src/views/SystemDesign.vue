@@ -49,8 +49,8 @@
           </div>
         </template>
 
-        <!-- 流程图/泳道图: 文本描述 -->
-        <template v-else>
+        <!-- 流程图: 文本描述 -->
+        <template v-else-if="type === 'FLOW'">
           <div class="input-title">请输入流程脚本</div>
           <el-input
             v-model="description"
@@ -68,6 +68,55 @@
             <div class="ex-item" v-for="(ex, i) in examples" :key="i" @click="useExample(ex)">
               <span class="ex-tag">{{ ex.typeText }}</span>{{ ex.text }}
             </div>
+          </div>
+        </template>
+
+        <!-- 泳道图: 结构化配置(泳道 + 节点 + 连线) -->
+        <template v-else-if="type === 'SWIMLANE'">
+          <div class="input-title">泳道图配置</div>
+          <el-form label-width="70px" size="small">
+            <el-form-item label="业务名称">
+              <el-input v-model="swimConfig.flowName" placeholder="如：订单流程" />
+            </el-form-item>
+          </el-form>
+          <div class="layer-config">
+            <div v-for="(lane, li) in swimConfig.lanes" :key="li" class="layer-config-card">
+              <div class="layer-config-head">
+                <el-input v-model="lane.name" size="small" placeholder="参与者，如：用户 / SpringBoot / MySQL" class="layer-name-input" />
+                <el-button size="small" text type="danger" @click="removeLane(li)">删除泳道</el-button>
+              </div>
+              <div class="lane-act" v-for="(node, ni) in lane.nodes" :key="ni">
+                <el-select v-model="node.type" size="small" class="act-type" placeholder="类型">
+                  <el-option label="开始" value="start" />
+                  <el-option label="任务" value="task" />
+                  <el-option label="判断" value="gateway" />
+                  <el-option label="结束" value="end" />
+                </el-select>
+                <el-input v-model="node.name" size="small" placeholder="节点，如：提交订单" />
+                <el-button size="small" text type="danger" @click="removeNode(li, ni)">×</el-button>
+              </div>
+              <el-button size="small" class="add-comp-btn" @click="addNode(li)">+ 添加节点</el-button>
+            </div>
+            <el-button size="small" class="add-layer-btn" @click="addLane">+ 添加泳道</el-button>
+          </div>
+          <div class="edge-config">
+            <div class="edge-title">流程连线</div>
+            <div v-for="(eg, ei) in swimConfig.edges" :key="ei" class="edge-row">
+              <el-select v-model="eg.source" size="small" class="edge-sel" placeholder="从节点">
+                <el-option v-for="nd in allNodes" :key="nd.key" :label="nd.label" :value="nd.id" />
+              </el-select>
+              <span class="edge-arrow">→</span>
+              <el-select v-model="eg.target" size="small" class="edge-sel" placeholder="到节点">
+                <el-option v-for="nd in allNodes" :key="nd.key" :label="nd.label" :value="nd.id" />
+              </el-select>
+              <el-button size="small" text type="danger" @click="removeEdge(ei)">×</el-button>
+            </div>
+            <el-button size="small" class="add-comp-btn" @click="addEdge">+ 添加连线</el-button>
+            <div class="tip" style="margin-top:6px">泳道横向排列，流程按连线顺序纵向流动</div>
+          </div>
+          <div class="input-row">
+            <el-button type="primary" :loading="generating" @click="generate">生成泳道图</el-button>
+            <span class="tip">未配连线时按节点顺序自动连</span>
           </div>
         </template>
       </section>
@@ -127,7 +176,7 @@ Graph.registerNode('db', {
 let graph = null
 const container = ref(null)
 const archRef = ref(null)
-const type = ref('ARCH')
+const type = ref('SWIMLANE')
 const description = ref('')
 const generating = ref(false)
 const graphReady = ref(false)
@@ -145,6 +194,39 @@ const config = ref({
     { name: '数据库', components: [{ name: 'MySQL 主' }, { name: 'MySQL 从' }] }
   ]
 })
+
+// 泳道图配置(BPMN 模型): 泳道(Lane) + 节点(Node) + 连线(Edge)
+const swimConfig = ref({
+  flowName: '订单流程',
+  lanes: [
+    { name: '用户', nodes: [
+      { id: 'N1', name: '开始', type: 'start' },
+      { id: 'N2', name: '提交订单', type: 'task' }
+    ]},
+    { name: 'Vue客户端', nodes: [
+      { id: 'N3', name: '发送请求', type: 'task' },
+      { id: 'N4', name: '展示结果', type: 'task' }
+    ]},
+    { name: 'SpringBoot服务', nodes: [
+      { id: 'N5', name: '校验库存', type: 'gateway' },
+      { id: 'N6', name: '创建订单', type: 'task' }
+    ]},
+    { name: 'MySQL数据库', nodes: [
+      { id: 'N7', name: '保存订单', type: 'task' },
+      { id: 'N8', name: '结束', type: 'end' }
+    ]}
+  ],
+  edges: [
+    { source: 'N1', target: 'N2' },
+    { source: 'N2', target: 'N3' },
+    { source: 'N3', target: 'N5' },
+    { source: 'N5', target: 'N6', label: '通过' },
+    { source: 'N6', target: 'N7' },
+    { source: 'N7', target: 'N4' },
+    { source: 'N4', target: 'N8' }
+  ]
+})
+let nodeSeq = 9
 
 function addLayer() {
   config.value.layers.push({ name: '', components: [{ name: '' }] })
@@ -167,11 +249,69 @@ function removeComp(li, ci) {
   config.value.layers[li].components.splice(ci, 1)
 }
 
+// 泳道图: 泳道与节点管理
+function addLane() {
+  swimConfig.value.lanes.push({ name: '', nodes: [{ id: 'N' + (nodeSeq++), name: '', type: 'task' }] })
+}
+function removeLane(li) {
+  if (swimConfig.value.lanes.length <= 1) {
+    ElMessage.warning('至少保留一个泳道')
+    return
+  }
+  swimConfig.value.lanes.splice(li, 1)
+}
+function addNode(li) {
+  swimConfig.value.lanes[li].nodes.push({ id: 'N' + (nodeSeq++), name: '', type: 'task' })
+}
+function removeNode(li, ni) {
+  if (swimConfig.value.lanes[li].nodes.length <= 1) {
+    ElMessage.warning('至少保留一个节点')
+    return
+  }
+  const id = swimConfig.value.lanes[li].nodes[ni].id
+  swimConfig.value.lanes[li].nodes.splice(ni, 1)
+  // 清理引用该节点的连线
+  swimConfig.value.edges = swimConfig.value.edges.filter(e => e.source !== id && e.target !== id)
+}
+function addEdge() {
+  swimConfig.value.edges.push({ source: '', target: '', label: '' })
+}
+function removeEdge(ei) {
+  swimConfig.value.edges.splice(ei, 1)
+}
+// 全部节点(供连线下拉)
+const allNodes = computed(() => {
+  const list = []
+  swimConfig.value.lanes.forEach((lane, li) => {
+    ;(lane.nodes || []).forEach((nd, ni) => {
+      list.push({ id: nd.id, key: li + '-' + ni, label: nd.name || ('节点 ' + nd.id) })
+    })
+  })
+  return list
+})
+// 泳道配置 -> 后端 SwimlaneConfig (生成唯一 id + 构建 lanes/nodes/edges)
+function buildSwimlanePayload() {
+  const lanes = []
+  const nodes = []
+  swimConfig.value.lanes.forEach((lane, li) => {
+    const laneId = 'L' + (li + 1)
+    if (!lane.name || !lane.name.trim()) return
+    lanes.push({ id: laneId, name: lane.name.trim() })
+    ;(lane.nodes || []).forEach(nd => {
+      if (!nd.name || !nd.name.trim()) return
+      nodes.push({ id: nd.id, laneId, name: nd.name.trim(), type: nd.type || 'task' })
+    })
+  })
+  const edges = (swimConfig.value.edges || [])
+    .filter(e => e.source && e.target && e.source !== e.target)
+    .map(e => ({ source: e.source, target: e.target, label: e.label || '' }))
+  return { flowName: swimConfig.value.flowName, lanes, nodes, edges }
+}
+
 const examples = [
   { typeText: '流程', type: 'FLOW', text: '查询会员余额\nif(余额 >= 商品金额)\n    扣除余额\n    保存订单\nelse\n    返回余额不足' },
   { typeText: '流程', type: 'FLOW', text: '用户登录\nif(账号存在)\n    验证密码\n    if(密码正确)\n        登录成功\n    else\n        提示密码错误\nelse\n    提示账号不存在' },
-  { typeText: '架构图', type: 'ARCH', text: '用户通过小程序访问会员服务，会员服务调用订单服务，订单服务查询MySQL数据库' },
-  { typeText: '泳道图', type: 'SWIMLANE', text: '用户提交充值申请，商户审核申请，系统更新余额，用户确认到账' }
+  { typeText: '架构图', type: 'ARCH', text: '用户通过小程序访问会员服务，会员服务调用订单服务，订单服务查询MySQL数据库' }
 ]
 
 const archLayers = computed(() => {
@@ -220,7 +360,11 @@ function onTypeChange() {
 
 function useExample(ex) {
   type.value = ex.type
-  description.value = ex.text
+  if (ex.type === 'SWIMLANE') {
+    description.value = ''
+  } else {
+    description.value = ex.text
+  }
 }
 
 function nodeShapeName(shape, type) {
@@ -262,29 +406,62 @@ function nodeAttrs(node) {
 async function renderGraph(vo) {
   if (vo.type === 'ARCH') return // ARCH 用 HTML 渲染, 不用 X6
   graph.clearCells()
-  const nodes = vo.nodes.map(n => {
+
+  // SWIMLANE: 泳道容器为竖列背景, 节点用后端绝对坐标(已含泳道偏移)
+  const nodes = []
+  const laneIds = new Map() // lane.id -> 容器id
+  if (vo.type === 'SWIMLANE' && vo.lanes && vo.lanes.length > 0) {
+    vo.lanes.forEach(l => {
+      const id = 'lane_' + l.id
+      laneIds.set(l.id, id)
+      nodes.push({
+        id,
+        shape: 'rect',
+        x: l.x,
+        y: l.y,
+        width: l.width,
+        height: l.height,
+        zIndex: 0,
+        attrs: {
+          body: { fill: '#f0f2f7', stroke: '#c0c4cc', strokeWidth: 1.5, strokeDasharray: '6 3', rx: 8, ry: 8 },
+          label: { text: l.name, fill: '#3B6BFF', fontSize: 14, fontWeight: 700, textAnchor: 'start',
+                   textVerticalAnchor: 'top', refX: 12, refY: 8 }
+        }
+      })
+    })
+  }
+
+  vo.nodes.forEach(n => {
     const w = Math.max(120, n.label.length * 14 + 30)
     const h = (n.shape === 'start' || n.shape === 'end') ? 56 : 48
-    return {
+    nodes.push({
       id: n.id,
       shape: nodeShapeName(n.shape, vo.type),
       x: n.x,
       y: n.y,
       width: w,
       height: h,
-      lane: n.lane || '',
-      attrs: nodeAttrs(n)
-    }
+      attrs: nodeAttrs(n),
+      zIndex: 10
+    })
   })
   const edges = vo.edges.map(e => ({
     id: e.id,
     source: e.source,
     target: e.target,
+    router: vo.type === 'SWIMLANE' ? { name: 'manhattan', padding: 12 } : undefined,
     attrs: {
       line: { stroke: '#333333', strokeWidth: 1.5, targetMarker: 'block' },
       label: { text: e.label || '', fill: '#666', fontSize: 11 }
     }
   }))
+
+  // SWIMLANE: 泳道已定位, 节点用后端坐标(相对泳道), 不需 Dagre
+  if (vo.type === 'SWIMLANE') {
+    graph.fromJSON({ nodes, edges })
+    graph.centerContent()
+    return
+  }
 
   // FLOW: 用 Dagre 布局(适合分支流程)
   if (vo.type === 'FLOW' && nodes.length > 0) {
@@ -328,6 +505,13 @@ async function generate() {
       return
     }
     payload = { type: 'ARCH', config: config.value }
+  } else if (type.value === 'SWIMLANE') {
+    const swim = buildSwimlanePayload()
+    if (swim.lanes.length === 0 || swim.nodes.length === 0) {
+      ElMessage.warning('请至少配置一个泳道和一个节点')
+      return
+    }
+    payload = { type: 'SWIMLANE', swimlane: swim }
   } else {
     if (!description.value.trim()) {
       ElMessage.warning('请输入系统描述')
@@ -581,6 +765,16 @@ async function downloadArchSvg() {
 }
 .comp-type {
   width: 90px;
+}
+.lane-act {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.act-type {
+  width: 86px;
+  flex-shrink: 0;
 }
 .add-comp-btn {
   width: 100%;

@@ -22,12 +22,6 @@ vite.log.err
 .idea/
 *.iml
 
-# 隐私配置(JWT密钥)
-backend/src/main/resources/application.yml
-
-# SQL 脚本
-backend/src/main/resources/db/
-
 # 测试数据与文档
 testdata/
 

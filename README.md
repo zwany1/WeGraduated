@@ -8,6 +8,12 @@
 <p align="center">基于规则配置的一站式论文排版工具，让排版从几个小时变成几分钟。</p>
 
 <p align="center">
+  <a href="README.md">简体中文</a> |
+  <a href="README.zht.md">繁體中文</a> |
+  <a href="README.en.md">English</a>
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License" />
   <img src="https://img.shields.io/badge/MySQL-8.0-4479a1?style=flat-square" alt="MySQL" />
   <img src="https://img.shields.io/badge/AntV%20X6-3.x-3B6BFF?style=flat-square" alt="AntV X6" />

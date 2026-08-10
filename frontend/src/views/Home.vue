@@ -307,6 +307,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
+import { getProfile } from '../api/user'
 
 const router = useRouter()
 
@@ -316,10 +317,24 @@ const userAvatar = ref('')
 
 const avatarText = computed(() => (userName.value || 'U').slice(0, 1).toUpperCase())
 
-onMounted(() => {
+onMounted(async () => {
   isLoggedIn.value = !!localStorage.getItem('token')
   userName.value = localStorage.getItem('username') || '用户'
   userAvatar.value = localStorage.getItem('avatar') || ''
+  // 已登录时以数据库为准同步昵称/头像
+  if (isLoggedIn.value) {
+    try {
+      const p = await getProfile()
+      if (p) {
+        userName.value = p.nickname || p.username || userName.value
+        userAvatar.value = p.avatar || ''
+        localStorage.setItem('username', userName.value)
+        localStorage.setItem('avatar', userAvatar.value)
+      }
+    } catch (e) {
+      // 资料拉取失败不影响页面
+    }
+  }
 })
 
 function goLogin() {

@@ -21,6 +21,14 @@
           </span>
         </div>
 
+        <!-- 记住我 -->
+        <label class="remember" @click="rememberMe = !rememberMe">
+          <span class="checkbox" :class="{ checked: rememberMe }">
+            <svg v-if="rememberMe" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7" /></svg>
+          </span>
+          记住我
+        </label>
+
         <!-- 提交按钮(3D 立体) -->
         <button class="button" type="submit" :disabled="loading">
           <span class="side-top-bottom"></span>
@@ -43,15 +51,16 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { login, register } from '../api/user'
+import { login, register, getProfile } from '../api/user'
 
 const router = useRouter()
 const tab = ref('login')
 const loading = ref(false)
 const showPwd = ref(false)
+const rememberMe = ref(false)
 const anim = ref('')   // face-up-left / face-up-right / form-complete / form-error
 const form = reactive({ username: '', password: '' })
 
@@ -61,6 +70,23 @@ const hint = computed(() => {
   if (loading.value) return '请稍候...'
   if (tab.value === 'login') return 'Fill in the form to login'
   return 'Create a new account'
+})
+
+onMounted(() => {
+  // 加载记住的账密
+  const savedUser = localStorage.getItem('remembered_user')
+  const savedPwd = localStorage.getItem('remembered_pwd')
+  if (savedUser) {
+    form.username = savedUser
+    rememberMe.value = true
+    if (savedPwd) {
+      try {
+        form.password = decodeURIComponent(atob(savedPwd))
+      } catch (e) {
+        form.password = ''
+      }
+    }
+  }
 })
 
 function switchTab(t) {
@@ -83,6 +109,16 @@ function formCompleted() {
   return form.username.trim() !== '' && form.password !== ''
 }
 
+function saveRemembered() {
+  if (rememberMe.value) {
+    localStorage.setItem('remembered_user', form.username.trim())
+    localStorage.setItem('remembered_pwd', btoa(encodeURIComponent(form.password)))
+  } else {
+    localStorage.removeItem('remembered_user')
+    localStorage.removeItem('remembered_pwd')
+  }
+}
+
 async function submit() {
   if (loading.value) return
   if (!formCompleted()) {
@@ -100,6 +136,17 @@ async function submit() {
     localStorage.setItem('token', data.token)
     localStorage.setItem('userId', data.userId)
     localStorage.setItem('username', data.username)
+    // 登录后同步资料(昵称/头像), 以数据库为准
+    try {
+      const p = await getProfile()
+      if (p) {
+        localStorage.setItem('username', p.nickname || p.username || data.username)
+        localStorage.setItem('avatar', p.avatar || '')
+      }
+    } catch (e) {
+      // 资料拉取失败不阻塞登录
+    }
+    saveRemembered()
     ElMessage.success(tab.value === 'login' ? '登录成功' : '注册成功')
     // 成功翻转动画
     anim.value = 'form-complete'
@@ -347,6 +394,34 @@ small {
   display: block;
   margin-top: 20px;
   backface-visibility: hidden;
+}
+
+.remember {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: #666;
+  cursor: pointer;
+  user-select: none;
+  transform: translateZ(26px);
+  position: relative;
+}
+.checkbox {
+  width: 15px;
+  height: 15px;
+  border: 1.5px solid #bbb;
+  border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  background: #fff;
+}
+.checkbox.checked {
+  background: #e35d5b;
+  border-color: #e35d5b;
 }
 
 .tab-switch {

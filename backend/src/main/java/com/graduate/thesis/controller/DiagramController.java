@@ -5,10 +5,12 @@ import com.graduate.thesis.common.Result;
 import com.graduate.thesis.common.UserContext;
 import com.graduate.thesis.dto.ArchitectureConfig;
 import com.graduate.thesis.dto.DiagramVO;
+import com.graduate.thesis.dto.SequenceConfig;
 import com.graduate.thesis.dto.SwimlaneConfig;
 import com.graduate.thesis.dto.UseCaseConfig;
 import com.graduate.thesis.service.ArchitectureRuleEngine;
 import com.graduate.thesis.service.DiagramGenerator;
+import com.graduate.thesis.service.SequenceRuleEngine;
 import com.graduate.thesis.service.SwimlaneRuleEngine;
 import com.graduate.thesis.service.UseCaseRuleEngine;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -38,6 +40,7 @@ public class DiagramController {
     private final ArchitectureRuleEngine ruleEngine;
     private final SwimlaneRuleEngine swimlaneEngine;
     private final UseCaseRuleEngine useCaseEngine;
+    private final SequenceRuleEngine sequenceEngine;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Path root;
 
@@ -45,16 +48,18 @@ public class DiagramController {
                              DiagramGenerator diagramGenerator,
                              ArchitectureRuleEngine ruleEngine,
                              SwimlaneRuleEngine swimlaneEngine,
-                             UseCaseRuleEngine useCaseEngine) {
+                             UseCaseRuleEngine useCaseEngine,
+                             SequenceRuleEngine sequenceEngine) {
         this.root = Paths.get(storageDir).toAbsolutePath().normalize().resolve("diagrams");
         this.diagramGenerator = diagramGenerator;
         this.ruleEngine = ruleEngine;
         this.swimlaneEngine = swimlaneEngine;
         this.useCaseEngine = useCaseEngine;
+        this.sequenceEngine = sequenceEngine;
     }
 
     /**
-     * 自动生成设计图: ARCH/SWIMLANE/USECASE 支持结构化配置(规则引擎), 其余支持文本描述
+     * 自动生成设计图: ARCH/SWIMLANE/USECASE/SEQUENCE 支持结构化配置(规则引擎), 其余支持文本描述
      */
     @PostMapping("/generate")
     public Result<DiagramVO> generate(@RequestBody GenDTO dto) {
@@ -66,6 +71,9 @@ public class DiagramController {
         }
         if ("USECASE".equalsIgnoreCase(dto.getType()) && dto.getUseCase() != null) {
             return Result.ok(useCaseEngine.build(dto.getUseCase()));
+        }
+        if ("SEQUENCE".equalsIgnoreCase(dto.getType()) && dto.getSequence() != null) {
+            return Result.ok(sequenceEngine.build(dto.getSequence()));
         }
         return Result.ok(diagramGenerator.generate(dto.getType(), dto.getDescription()));
     }
@@ -140,6 +148,7 @@ public class DiagramController {
         private ArchitectureConfig config;
         private SwimlaneConfig swimlane;
         private UseCaseConfig useCase;
+        private SequenceConfig sequence;
 
         public String getType() { return type; }
         public void setType(String type) { this.type = type; }
@@ -151,5 +160,7 @@ public class DiagramController {
         public void setSwimlane(SwimlaneConfig swimlane) { this.swimlane = swimlane; }
         public UseCaseConfig getUseCase() { return useCase; }
         public void setUseCase(UseCaseConfig useCase) { this.useCase = useCase; }
+        public SequenceConfig getSequence() { return sequence; }
+        public void setSequence(SequenceConfig sequence) { this.sequence = sequence; }
     }
 }

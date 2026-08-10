@@ -11,6 +11,7 @@
           <el-radio-button value="ARCH">架构图</el-radio-button>
           <el-radio-button value="SWIMLANE">泳道图</el-radio-button>
           <el-radio-button value="USECASE">用例图</el-radio-button>
+          <el-radio-button value="SEQUENCE">时序图</el-radio-button>
         </el-radio-group>
       </div>
       <div class="actions">
@@ -166,6 +167,46 @@
 
           <div class="input-row">
             <el-button type="primary" :loading="generating" @click="generate">生成用例图</el-button>
+          </div>
+        </template>
+
+        <!-- 时序图: 结构化配置(参与者 + 消息) -->
+        <template v-else-if="type === 'SEQUENCE'">
+          <div class="input-title">时序图配置</div>
+          <el-form label-width="70px" size="small">
+            <el-form-item label="图标题">
+              <el-input v-model="seqConfig.title" placeholder="如：用户登录流程" />
+            </el-form-item>
+          </el-form>
+
+          <div class="input-title" style="margin-top:12px">参与者 Lifeline</div>
+          <div class="uc-act" v-for="(p, pi) in seqConfig.participants" :key="pi">
+            <el-input v-model="p.name" size="small" placeholder="参与者，如：用户 / Controller / Service / 数据库" />
+            <el-button size="small" text type="danger" @click="removeSeqParticipant(pi)">×</el-button>
+          </div>
+          <el-button size="small" class="add-comp-btn" @click="addSeqParticipant">+ 添加参与者</el-button>
+
+          <div class="input-title" style="margin-top:12px">消息</div>
+          <div v-for="(m, mi) in seqConfig.messages" :key="mi" class="seq-msg">
+            <el-select v-model="m.from" size="small" class="edge-sel" placeholder="来源">
+              <el-option v-for="p in seqParticipants" :key="p.id" :label="p.name || p.id" :value="p.id" />
+            </el-select>
+            <span class="edge-arrow">→</span>
+            <el-select v-model="m.to" size="small" class="edge-sel" placeholder="目标">
+              <el-option v-for="p in seqParticipants" :key="p.id" :label="p.name || p.id" :value="p.id" />
+            </el-select>
+            <el-select v-model="m.type" size="small" class="act-type" placeholder="类型">
+              <el-option label="请求" value="request" />
+              <el-option label="返回" value="return" />
+            </el-select>
+            <el-button size="small" text type="danger" @click="removeSeqMessage(mi)">×</el-button>
+            <el-input v-model="m.text" size="small" placeholder="消息内容，如：登录" style="margin-top:4px" />
+          </div>
+          <el-button size="small" class="add-comp-btn" @click="addSeqMessage">+ 添加消息</el-button>
+          <div class="tip" style="margin-top:6px">消息按添加顺序纵向排列；请求=实线，返回=虚线</div>
+
+          <div class="input-row">
+            <el-button type="primary" :loading="generating" @click="generate">生成时序图</el-button>
           </div>
         </template>
       </section>
@@ -378,6 +419,57 @@ function buildUseCasePayload() {
   return { system: ucConfig.value.system, actors, usecases, relations }
 }
 
+// 时序图配置: 参与者 + 消息
+const seqConfig = ref({
+  title: '用户登录流程',
+  participants: [
+    { id: 'P1', name: '用户' },
+    { id: 'P2', name: 'Vue表现层' },
+    { id: 'P3', name: 'Controller' },
+    { id: 'P4', name: 'Service' },
+    { id: 'P5', name: '数据库' }
+  ],
+  messages: [
+    { id: 'M1', from: 'P1', to: 'P2', text: '登录', type: 'request' },
+    { id: 'M2', from: 'P2', to: 'P3', text: '输入账号密码', type: 'request' },
+    { id: 'M3', from: 'P3', to: 'P4', text: '封装userLogin', type: 'request' },
+    { id: 'M4', from: 'P4', to: 'P5', text: '查询用户', type: 'request' },
+    { id: 'M5', from: 'P5', to: 'P4', text: '返回用户信息', type: 'return' },
+    { id: 'M6', from: 'P4', to: 'P1', text: '登录成功', type: 'return' }
+  ]
+})
+let seqSeq = 7
+
+function addSeqParticipant() {
+  seqConfig.value.participants.push({ id: 'P' + (seqSeq++), name: '' })
+}
+function removeSeqParticipant(pi) {
+  const id = seqConfig.value.participants[pi].id
+  seqConfig.value.participants.splice(pi, 1)
+  seqConfig.value.messages = seqConfig.value.messages.filter(m => m.from !== id && m.to !== id)
+}
+function addSeqMessage() {
+  const from = seqConfig.value.participants[0]?.id || ''
+  const to = seqConfig.value.participants[1]?.id || ''
+  seqConfig.value.messages.push({ id: 'M' + (seqSeq++), from, to, text: '', type: 'request' })
+}
+function removeSeqMessage(mi) {
+  seqConfig.value.messages.splice(mi, 1)
+}
+// 参与者列表(供消息下拉)
+const seqParticipants = computed(() =>
+  seqConfig.value.participants.filter(p => p.name && p.name.trim()).map(p => ({ id: p.id, name: p.name.trim() }))
+)
+function buildSequencePayload() {
+  const participants = seqConfig.value.participants
+    .filter(p => p.name && p.name.trim())
+    .map(p => ({ id: p.id, name: p.name.trim() }))
+  const messages = (seqConfig.value.messages || [])
+    .filter(m => m.from && m.to && m.text && m.text.trim())
+    .map(m => ({ id: m.id, from: m.from, to: m.to, text: m.text.trim(), type: m.type || 'request' }))
+  return { title: seqConfig.value.title, participants, messages }
+}
+
 function addLayer() {
   config.value.layers.push({ name: '', components: [{ name: '' }] })
 }
@@ -559,6 +651,12 @@ function nodeAttrs(node) {
       label: { text: node.label }
     }
   }
+  if (node.shape === 'participant') {
+    return { body: { fill: '#fff', stroke: color, strokeWidth: 1.5, rx: 6, ry: 6 }, label }
+  }
+  if (node.shape === 'activation') {
+    return { body: { fill: '#00aa66', stroke: '#008b55', strokeWidth: 1 }, label }
+  }
   if (node.shape === 'service' || node.shape === 'web' || node.shape === 'gateway' || node.shape === 'third' ||
       node.shape === 'search' || node.shape === 'storage') {
     return { body: { fill: '#fff', stroke: color, strokeWidth: 1.5, rx: 8, ry: 8 }, label }
@@ -601,12 +699,33 @@ async function renderGraph(vo) {
       })
     })
   }
+  // SEQUENCE: 生命线(蓝色竖线)
+  if (vo.type === 'SEQUENCE' && vo.lanes && vo.lanes.length > 0) {
+    vo.lanes.forEach(l => {
+      const id = 'line_' + l.id
+      nodes.push({
+        id,
+        shape: 'rect',
+        x: l.x - 1,
+        y: l.y,
+        width: 2,
+        height: l.height,
+        zIndex: 0,
+        attrs: {
+          body: { fill: '#1890ff', stroke: '#1890ff', strokeWidth: 1 }
+        }
+      })
+    })
+  }
 
   vo.nodes.forEach(n => {
     let w, h
     if (vo.type === 'USECASE') {
       w = n.width || (n.shape === 'actor' ? 120 : 170)
       h = n.height || (n.shape === 'actor' ? 120 : (n.shape === 'system' ? 300 : 56))
+    } else if (vo.type === 'SEQUENCE') {
+      w = n.width || (n.shape === 'activation' ? 12 : 120)
+      h = n.height || (n.shape === 'activation' ? 60 : 44)
     } else {
       w = Math.max(120, n.label.length * 14 + 30)
       h = (n.shape === 'start' || n.shape === 'end') ? 56 : 48
@@ -624,16 +743,22 @@ async function renderGraph(vo) {
   })
   const edges = vo.edges.map(e => {
     const isInclude = e.style === 'include' || e.label === '«include»' || e.label === '«extend»'
+    const isReturn = e.style === 'return'
     const edge = {
       id: e.id,
       source: e.source,
       target: e.target,
       router: vo.type === 'SWIMLANE' ? { name: 'manhattan', padding: 12 } : undefined,
       attrs: {
-        line: isInclude
+        line: isInclude || isReturn
           ? { stroke: '#333333', strokeWidth: 1.2, strokeDasharray: '6 4', targetMarker: { name: 'block', size: 7 } }
           : { stroke: '#333333', strokeWidth: 1.5, targetMarker: 'block' }
       }
+    }
+    // 时序图: 使用坐标定位消息
+    if (vo.type === 'SEQUENCE' && e.sourceX != null) {
+      edge.source = { x: e.sourceX, y: e.sourceY }
+      edge.target = { x: e.targetX, y: e.targetY }
     }
     if (e.label) {
       edge.labels = [{ attrs: { label: { text: e.label, fill: '#666', fontSize: 11 } } }]
@@ -641,8 +766,8 @@ async function renderGraph(vo) {
     return edge
   })
 
-  // SWIMLANE / USECASE: 泳道已定位, 节点用后端坐标, 不需 Dagre
-  if (vo.type === 'SWIMLANE' || vo.type === 'USECASE') {
+  // SWIMLANE / USECASE / SEQUENCE: 泳道已定位, 节点用后端坐标, 不需 Dagre
+  if (vo.type === 'SWIMLANE' || vo.type === 'USECASE' || vo.type === 'SEQUENCE') {
     graph.fromJSON({ nodes, edges })
     graph.centerContent()
     return
@@ -704,6 +829,17 @@ async function generate() {
       return
     }
     payload = { type: 'USECASE', useCase: uc }
+  } else if (type.value === 'SEQUENCE') {
+    const sq = buildSequencePayload()
+    if (sq.participants.length < 2) {
+      ElMessage.warning('请至少配置两个参与者')
+      return
+    }
+    if (sq.messages.length === 0) {
+      ElMessage.warning('请至少配置一条消息')
+      return
+    }
+    payload = { type: 'SEQUENCE', sequence: sq }
   } else {
     if (!description.value.trim()) {
       ElMessage.warning('请输入系统描述')

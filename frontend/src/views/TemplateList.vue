@@ -6,6 +6,19 @@
         <el-button @click="$router.push('/')">首页</el-button>
         <el-button @click="$router.push('/tasks')">排版任务</el-button>
         <el-button type="primary" @click="showCreate = true">新建格式方案</el-button>
+        <el-dropdown trigger="click" @command="onUserCommand">
+          <div class="user-chip">
+            <img v-if="userAvatar" :src="userAvatar" class="user-avatar" alt="" />
+            <span v-else class="user-avatar-text">{{ avatarText }}</span>
+            <span class="user-name">{{ nickname }}</span>
+          </div>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="profile">个人资料</el-dropdown-item>
+              <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
     </header>
 
@@ -38,18 +51,52 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { listTemplates, createTemplate, deleteTemplate } from '../api/template'
+import { getProfile } from '../api/user'
 
 const router = useRouter()
 const templates = ref([])
 const showCreate = ref(false)
 const newName = ref('')
 const creating = ref(false)
+const nickname = ref(localStorage.getItem('username') || '用户')
+const userAvatar = ref(localStorage.getItem('avatar') || '')
 
-onMounted(load)
+const avatarText = computed(() => (nickname.value || 'U').slice(0, 1).toUpperCase())
+
+onMounted(async () => {
+  load()
+  try {
+    const p = await getProfile()
+    if (p) {
+      nickname.value = p.nickname || p.username || '用户'
+      userAvatar.value = p.avatar || ''
+      localStorage.setItem('username', nickname.value)
+      localStorage.setItem('avatar', userAvatar.value)
+    }
+  } catch (e) {
+    // 拦截器已提示
+  }
+})
+
+async function onUserCommand(cmd) {
+  if (cmd === 'profile') {
+    router.push('/profile')
+  } else if (cmd === 'logout') {
+    try {
+      await ElMessageBox.confirm('确定退出登录？', '提示', { type: 'warning' })
+      localStorage.removeItem('token')
+      localStorage.removeItem('username')
+      localStorage.removeItem('avatar')
+      router.push('/')
+    } catch (e) {
+      // 取消
+    }
+  }
+}
 
 async function load() {
   templates.value = await listTemplates()
@@ -99,6 +146,47 @@ function formatTime(t) {
   font-size: 20px;
   font-weight: 700;
   color: #2c3e50;
+}
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid #ebeef5;
+  transition: all 0.2s;
+}
+.user-chip:hover {
+  border-color: #3B6BFF;
+  background: #f5f7ff;
+}
+.user-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.user-avatar-text {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #3B6BFF;
+  color: #fff;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+.user-name {
+  font-size: 13px;
+  color: #303133;
 }
 .content {
   max-width: 1000px;

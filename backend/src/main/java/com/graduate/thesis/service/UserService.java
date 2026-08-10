@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.graduate.thesis.common.BusinessException;
 import com.graduate.thesis.dto.LoginResponse;
 import com.graduate.thesis.dto.UserAuthDTO;
+import com.graduate.thesis.dto.UserProfileDTO;
 import com.graduate.thesis.entity.User;
 import com.graduate.thesis.mapper.UserMapper;
 import com.graduate.thesis.util.JwtUtil;
@@ -58,6 +59,45 @@ public class UserService {
         resp.setNickname(user.getNickname());
         resp.setToken(jwtUtil.generate(user.getId()));
         return resp;
+    }
+
+    public UserProfileDTO getProfile(Long userId) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(404, "用户不存在");
+        }
+        UserProfileDTO dto = new UserProfileDTO();
+        dto.setUsername(user.getUsername());
+        dto.setNickname(user.getNickname());
+        dto.setAvatar(user.getAvatar());
+        return dto;
+    }
+
+    public UserProfileDTO updateProfile(Long userId, UserProfileDTO dto) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(404, "用户不存在");
+        }
+        if (dto.getNickname() != null) {
+            String nick = dto.getNickname().trim();
+            if (nick.length() > 30) {
+                throw new BusinessException("昵称不能超过30个字符");
+            }
+            if (nick.isEmpty()) {
+                throw new BusinessException("昵称不能为空");
+            }
+            user.setNickname(nick);
+        }
+        if (dto.getAvatar() != null) {
+            // 空串视为清除头像
+            user.setAvatar(dto.getAvatar().trim().isEmpty() ? null : dto.getAvatar().trim());
+        }
+        userMapper.updateById(user);
+        UserProfileDTO result = new UserProfileDTO();
+        result.setUsername(user.getUsername());
+        result.setNickname(user.getNickname());
+        result.setAvatar(user.getAvatar());
+        return result;
     }
 
     private String encrypt(String username, String password) {

@@ -4,6 +4,7 @@ const routes = [
   { path: '/', component: () => import('../views/Home.vue') },
   { path: '/login', component: () => import('../views/Login.vue') },
   { path: '/templates', component: () => import('../views/TemplateList.vue'), meta: { requiresAuth: true } },
+  { path: '/profile', component: () => import('../views/Profile.vue'), meta: { requiresAuth: true } },
   { path: '/template/:id', component: () => import('../views/TemplateConfig.vue'), meta: { requiresAuth: true } },
   { path: '/tasks', component: () => import('../views/FormatTask.vue'), meta: { requiresAuth: true } },
   { path: '/table3', component: () => import('../views/ThreeTable.vue'), meta: { requiresAuth: true } },

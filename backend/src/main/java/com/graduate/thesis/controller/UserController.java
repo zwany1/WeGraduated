@@ -1,10 +1,14 @@
 package com.graduate.thesis.controller;
 
 import com.graduate.thesis.common.Result;
+import com.graduate.thesis.common.UserContext;
 import com.graduate.thesis.dto.LoginResponse;
 import com.graduate.thesis.dto.UserAuthDTO;
+import com.graduate.thesis.dto.UserProfileDTO;
 import com.graduate.thesis.service.UserService;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -32,5 +36,17 @@ public class UserController {
     @PostMapping("/login")
     public Result<LoginResponse> login(@Valid @RequestBody UserAuthDTO dto) {
         return Result.ok(userService.login(dto));
+    }
+
+    /** 获取当前用户资料 */
+    @GetMapping("/profile")
+    public Result<UserProfileDTO> profile() {
+        return Result.ok(userService.getProfile(UserContext.get()));
+    }
+
+    /** 更新当前用户资料(昵称/头像) */
+    @PutMapping("/profile")
+    public Result<UserProfileDTO> updateProfile(@RequestBody UserProfileDTO dto) {
+        return Result.ok(userService.updateProfile(UserContext.get(), dto));
     }
 }

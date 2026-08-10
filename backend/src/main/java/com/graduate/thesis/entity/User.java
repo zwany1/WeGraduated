@@ -25,5 +25,8 @@ public class User {
 
     private String nickname;
 
+    /** 头像(data URL base64) */
+    private String avatar;
+
     private LocalDateTime createTime;
 }

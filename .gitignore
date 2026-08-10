@@ -12,6 +12,7 @@ data/
 # 日志
 backend/*.log
 backend/*.log.err
+backend/*.err
 backend/server.pid
 frontend/*.log
 frontend/*.log.err

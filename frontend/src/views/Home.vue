@@ -23,12 +23,14 @@
           <template v-if="isLoggedIn">
             <el-dropdown trigger="click" @command="handleUserCommand">
               <div class="user-chip">
-                <span class="avatar">{{ avatarText }}</span>
+                <img v-if="userAvatar" :src="userAvatar" class="avatar-img" alt="" />
+                <span v-else class="avatar">{{ avatarText }}</span>
                 <span class="username">{{ userName }}</span>
               </div>
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item command="templates">我的工作台</el-dropdown-item>
+                  <el-dropdown-item command="profile">个人资料</el-dropdown-item>
                   <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -310,12 +312,14 @@ const router = useRouter()
 
 const isLoggedIn = ref(false)
 const userName = ref('')
+const userAvatar = ref('')
 
 const avatarText = computed(() => (userName.value || 'U').slice(0, 1).toUpperCase())
 
 onMounted(() => {
   isLoggedIn.value = !!localStorage.getItem('token')
   userName.value = localStorage.getItem('username') || '用户'
+  userAvatar.value = localStorage.getItem('avatar') || ''
 })
 
 function goLogin() {
@@ -331,11 +335,14 @@ function goStart() {
 async function handleUserCommand(cmd) {
   if (cmd === 'templates') {
     router.push('/templates')
+  } else if (cmd === 'profile') {
+    router.push('/profile')
   } else if (cmd === 'logout') {
     try {
       await ElMessageBox.confirm('确定退出登录？', '提示', { type: 'warning' })
       localStorage.removeItem('token')
       localStorage.removeItem('username')
+      localStorage.removeItem('avatar')
       isLoggedIn.value = false
       router.push('/')
     } catch (e) {
@@ -589,7 +596,12 @@ const tools = [
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
+}
+.avatar-img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 .username {
   font-size: 13px;

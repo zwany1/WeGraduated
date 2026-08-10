@@ -31,17 +31,20 @@ public class PaperService {
     private final StorageService storageService;
     private final TemplateService templateService;
     private final FormatEngine formatEngine;
+    private final DocxPdfService docxPdfService;
 
     public PaperService(PaperFileMapper paperFileMapper,
                         FormatTaskMapper taskMapper,
                         StorageService storageService,
                         TemplateService templateService,
-                        FormatEngine formatEngine) {
+                        FormatEngine formatEngine,
+                        DocxPdfService docxPdfService) {
         this.paperFileMapper = paperFileMapper;
         this.taskMapper = taskMapper;
         this.storageService = storageService;
         this.templateService = templateService;
         this.formatEngine = formatEngine;
+        this.docxPdfService = docxPdfService;
     }
 
     public PaperFile upload(Long userId, MultipartFile file) {
@@ -109,6 +112,16 @@ public class PaperService {
             task.setResultPath(resultPath);
             task.setFinishTime(LocalDateTime.now());
             taskMapper.updateById(task);
+
+            // 转 PDF 预览缓存(失败不影响排版结果)
+            try {
+                File pdf = docxPdfService.convert(result);
+                String pdfPath = storageService.storePdf(task.getUserId(), pdf);
+                task.setPdfPath(pdfPath);
+                taskMapper.updateById(task);
+            } catch (Exception pe) {
+                log.warn("PDF 转换失败 taskId={}, 预览不可用", taskId, pe);
+            }
         } catch (Exception e) {
             log.error("排版失败 taskId={}", taskId, e);
             task.setStatus(FormatTask.STATUS_FAILED);
@@ -147,5 +160,24 @@ public class PaperService {
             throw new BusinessException(400, "任务尚未完成");
         }
         return storageService.load(task.getResultPath());
+    }
+
+    /**
+     * 加载预览 PDF: 优先缓存 pdfPath, 否则即时转换 docx->pdf(不写缓存)
+     */
+    public File loadPreviewPdf(Long userId, Long taskId) {
+        FormatTask task = getTask(userId, taskId);
+        if (!FormatTask.STATUS_SUCCESS.equals(task.getStatus()) || task.getResultPath() == null) {
+            throw new BusinessException(400, "任务尚未完成");
+        }
+        if (task.getPdfPath() != null) {
+            try {
+                return storageService.load(task.getPdfPath());
+            } catch (BusinessException ignore) {
+                // 缓存文件丢失, 走即时转换
+            }
+        }
+        File result = storageService.load(task.getResultPath());
+        return docxPdfService.convert(result);
     }
 }

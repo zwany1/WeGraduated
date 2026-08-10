@@ -57,10 +57,6 @@
                 <el-option label="底部居右" value="right" />
               </el-select>
             </el-form-item>
-            <el-form-item label="生成目录">
-              <el-switch v-model="generateToc" />
-              <span class="tip-inline">开启后插入目录(TOC域)，关闭则从摘要开始直接排版正文</span>
-            </el-form-item>
           </el-form>
         </template>
 
@@ -240,37 +236,6 @@
             </el-form>
           </div>
         </template>
-
-        <!-- 封面设置 -->
-        <template v-else>
-          <h3>封面信息</h3>
-          <el-form label-width="120px" style="max-width: 560px">
-            <el-form-item label="启用封面">
-              <el-switch v-model="cover.enabled" />
-              <span class="tip-inline">关闭后排版不再生成封面/声明/授权页，从摘要开始</span>
-            </el-form-item>
-            <el-form-item label="题目"><el-input v-model="cover.title" placeholder="毕业设计(论文)题目" /></el-form-item>
-            <el-form-item label="学院"><el-input v-model="cover.college" /></el-form-item>
-            <el-form-item label="专业"><el-input v-model="cover.major" /></el-form-item>
-            <el-form-item label="学生姓名"><el-input v-model="cover.studentName" /></el-form-item>
-            <el-form-item label="学号"><el-input v-model="cover.studentNo" /></el-form-item>
-            <el-form-item label="指导教师单位"><el-input v-model="cover.teacherUnit" /></el-form-item>
-            <el-form-item label="指导教师"><el-input v-model="cover.teacher" /></el-form-item>
-            <el-form-item label="职称"><el-input v-model="cover.teacherTitle" /></el-form-item>
-            <el-form-item label="题目类型">
-              <el-select v-model="cover.topicType" allow-create filterable clearable>
-                <el-option label="理论研究" value="理论研究" />
-                <el-option label="实验研究" value="实验研究" />
-                <el-option label="工程设计" value="工程设计" />
-                <el-option label="工程技术研究" value="工程技术研究" />
-                <el-option label="软件开发" value="软件开发" />
-                <el-option label="应用研究" value="应用研究" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="日期"><el-input v-model="cover.date" placeholder="如: 2026 年 6 月 15 日" /></el-form-item>
-          </el-form>
-          <div class="tip">启用封面后，排版时自动在文档最前面生成封面页 + 独创性声明 + 版权授权页；关闭则从摘要开始排版，不生成封面。</div>
-        </template>
       </section>
     </main>
   </div>
@@ -280,7 +245,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getTemplateDetail, savePageConfig, saveHeadingPatterns, saveCoverConfig, saveGenerateToc, saveRule } from '../api/template'
+import { getTemplateDetail, savePageConfig, saveHeadingPatterns, saveRule } from '../api/template'
 
 const route = useRoute()
 const router = useRouter()
@@ -290,8 +255,7 @@ const menus = [
   { key: 'page', label: '页面设置' },
   { key: 'heading', label: '标题格式' },
   { key: 'body', label: '正文格式' },
-  { key: 'figure', label: '图表格式' },
-  { key: 'cover', label: '封面设置' }
+  { key: 'figure', label: '图表格式' }
 ]
 const active = ref('page')
 const templateName = ref('格式方案')
@@ -324,13 +288,6 @@ const rules = reactive({
   figure: { ruleType: 'figure', font: '宋体', fontLatin: 'Times New Roman', fontSize: 10, captionPosition: 'below', numberingPattern: '图{chapter}-{no}', captionEnabled: true },
   table: { ruleType: 'table', font: '宋体', fontLatin: 'Times New Roman', fontSize: 10, captionPosition: 'above', numberingPattern: '表{chapter}-{no}', captionEnabled: true }
 })
-
-const cover = reactive({
-  enabled: false, title: '', college: '', major: '', studentName: '', studentNo: '',
-  teacherUnit: '', teacher: '', teacherTitle: '', topicType: '', date: ''
-})
-
-const generateToc = ref(false)
 
 const headings = [
   { key: 'heading1', label: '一级标题格式' },
@@ -365,10 +322,6 @@ onMounted(async () => {
     if (t.headingPatterns) {
       Object.assign(headingPatterns, JSON.parse(t.headingPatterns))
     }
-    if (t.coverConfig) {
-      Object.assign(cover, JSON.parse(t.coverConfig))
-    }
-    generateToc.value = !!t.generateToc
     ;(t.rules || []).forEach(r => {
       if (rules[r.ruleType]) {
         const merged = { ...rules[r.ruleType], ...r }
@@ -387,8 +340,6 @@ async function saveAll() {
   try {
     await savePageConfig(id, JSON.stringify(page))
     await saveHeadingPatterns(id, { ...headingPatterns })
-    await saveCoverConfig(id, { ...cover })
-    await saveGenerateToc(id, generateToc.value)
     for (const key of Object.keys(rules)) {
       const r = { ...rules[key] }
       await saveRule(r)

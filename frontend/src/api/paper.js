@@ -23,3 +23,11 @@ export function listTasks() {
 export function downloadPaper(taskId) {
   return api.get(`/paper/download/${taskId}`, { responseType: 'blob' })
 }
+
+export function previewPaper(taskId) {
+  return api.get(`/paper/preview/${taskId}`, { responseType: 'blob' })
+}
+
+export function downloadPaperPdf(taskId) {
+  return api.get(`/paper/download-pdf/${taskId}`, { responseType: 'blob' })
+}

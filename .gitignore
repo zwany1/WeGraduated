@@ -7,6 +7,7 @@ frontend/node_modules/
 
 # 数据与存储(隐私)
 backend/data/
+data/
 
 # 日志
 backend/*.log
@@ -20,6 +21,8 @@ vite.log.err
 
 # IDE
 .idea/
+.vscode/
+.claude/
 *.iml
 
 # 测试数据与文档

@@ -45,6 +45,9 @@ public class CaptionFormatter {
         int figIndex = 0;
         int tblIndex = 0;
         int lastChapter = -1;
+        int lastFigChapter = -1;
+        int lastTableChapter = -1;
+        boolean inToc = false;
 
         List<IBodyElement> elements = doc.getBodyElements();
         for (int i = 0; i < elements.size(); i++) {
@@ -53,8 +56,21 @@ public class CaptionFormatter {
                 XWPFParagraph p = (XWPFParagraph) el;
                 String text = p.getText() == null ? "" : p.getText().trim();
 
-                if (ruleSet.getHeading1Pattern().matcher(text).matches()) {
-                    lastChapter = ChineseNumber.extract(text);
+                // 目录区: 跳过目录标题与目录条目的章节追踪
+                if (isTocTitle(text)) {
+                    inToc = true;
+                    continue;
+                }
+                if (inToc) {
+                    if (headingLevel(p) > 0) {
+                        inToc = false;
+                    } else {
+                        continue;
+                    }
+                }
+
+                if (isHeading1(p, text, ruleSet)) {
+                    lastChapter = chapterNo(text, lastChapter);
                     continue;
                 }
 
@@ -71,9 +87,9 @@ public class CaptionFormatter {
                             && elements.get(i + 1) instanceof XWPFParagraph
                             && isFigureCaptionText(((XWPFParagraph) elements.get(i + 1)).getText());
                     if (!nextIsCaption) {
-                        if (item.getChapterNo() != lastChapter) {
+                        if (item.getChapterNo() != lastFigChapter) {
                             figIndex = 0;
-                            lastChapter = item.getChapterNo();
+                            lastFigChapter = item.getChapterNo();
                         }
                         figIndex++;
                         String caption = buildCaption(figureRule, item.getChapterNo(), figIndex, "");
@@ -83,9 +99,9 @@ public class CaptionFormatter {
                     if (!figureEnabled) {
                         continue;
                     }
-                    if (item.getChapterNo() != lastChapter) {
+                    if (item.getChapterNo() != lastFigChapter) {
                         figIndex = 0;
-                        lastChapter = item.getChapterNo();
+                        lastFigChapter = item.getChapterNo();
                     }
                     figIndex++;
                     String title = extractTitle(text, true);
@@ -101,17 +117,19 @@ public class CaptionFormatter {
                 IBodyElement prev = i > 0 ? elements.get(i - 1) : null;
                 boolean prevIsCaption = prev instanceof XWPFParagraph
                         && isTableCaptionText(((XWPFParagraph) prev).getText());
-                if (lastChapter < 0) {
-                    lastChapter = 0;
+                int tableChapter = lastChapter < 0 ? 0 : lastChapter;
+                if (tableChapter != lastTableChapter) {
+                    tblIndex = 0;
+                    lastTableChapter = tableChapter;
                 }
                 tblIndex++;
                 if (prevIsCaption) {
                     String title = extractTitle(((XWPFParagraph) prev).getText(), false);
-                    String caption = buildCaption(tableRule, lastChapter, tblIndex, title);
+                    String caption = buildCaption(tableRule, tableChapter, tblIndex, title);
                     setCaptionText((XWPFParagraph) prev, caption);
                     applyCaptionStyle((XWPFParagraph) prev, tableRule);
                 } else {
-                    String caption = buildCaption(tableRule, lastChapter, tblIndex, "");
+                    String caption = buildCaption(tableRule, tableChapter, tblIndex, "");
                     insertParagraphBefore(doc, table, caption, tableRule);
                 }
             }
@@ -195,8 +213,9 @@ public class CaptionFormatter {
     }
 
     private static String buildCaption(FormatRule rule, int chapter, int no, String title) {
-        String pattern = (rule != null && rule.getNumberingPattern() != null)
-                ? rule.getNumberingPattern() : "图{chapter}-{no}";
+        String pattern = (rule != null && rule.getNumberingPattern() != null && !rule.getNumberingPattern().isEmpty())
+                ? rule.getNumberingPattern()
+                : (rule != null && "table".equals(rule.getRuleType()) ? "表{chapter}.{no}" : "图{chapter}.{no}");
         String caption = pattern
                 .replace("{chapter}", String.valueOf(chapter))
                 .replace("{no}", String.valueOf(no));
@@ -224,5 +243,59 @@ public class CaptionFormatter {
             TextFormatter.setFont(run, font);
             run.setFontSize(sizePt);
         }
+    }
+
+    private static boolean isTocTitle(String text) {
+        String t = text == null ? "" : text.replace(" ", "").replace("\u00A0", "");
+        return t.equals("目录") || t.equals("目録");
+    }
+
+    /**
+     * 标题级别: 优先大纲级别/样式, 返回 0=非标题 1=一级 2=二级 3=三级
+     */
+    private static int headingLevel(XWPFParagraph p) {
+        try {
+            org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPPr pPr = p.getCTP().getPPr();
+            if (pPr != null) {
+                if (pPr.isSetOutlineLvl()) {
+                    int lvl = pPr.getOutlineLvl().getVal().intValue();
+                    if (lvl >= 0 && lvl <= 3) {
+                        return lvl + 1;
+                    }
+                }
+                if (pPr.isSetPStyle() && pPr.getPStyle().getVal() != null) {
+                    String style = pPr.getPStyle().getVal().toLowerCase();
+                    if (style.contains("heading1") || style.equals("2") || style.contains("heading 1")) return 1;
+                    if (style.contains("heading2") || style.equals("3") || style.contains("heading 2")) return 2;
+                    if (style.contains("heading3") || style.equals("4") || style.contains("heading 3")) return 3;
+                }
+            }
+        } catch (Exception ignore) {
+        }
+        return 0;
+    }
+
+    /**
+     * 是否一级标题: 样式一级, 或文本匹配一级标题正则
+     */
+    private static boolean isHeading1(XWPFParagraph p, String text, RuleSet ruleSet) {
+        if (headingLevel(p) == 1) {
+            return true;
+        }
+        if (headingLevel(p) > 1) {
+            return false;
+        }
+        return ruleSet.getHeading1Pattern().matcher(text).matches();
+    }
+
+    /**
+     * 章节号: 有编号取编号, 无编号递增
+     */
+    private static int chapterNo(String text, int prev) {
+        int n = ChineseNumber.extract(text);
+        if (n > 0) {
+            return n;
+        }
+        return prev + 1;
     }
 }

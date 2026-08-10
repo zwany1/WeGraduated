@@ -3,16 +3,15 @@ package com.graduate.thesis.engine;
 import com.graduate.thesis.common.BusinessException;
 import com.graduate.thesis.engine.formatter.AbstractFormatter;
 import com.graduate.thesis.engine.formatter.CaptionFormatter;
-import com.graduate.thesis.engine.formatter.CoverFormatter;
 import com.graduate.thesis.engine.formatter.HeaderFooterFormatter;
 import com.graduate.thesis.engine.formatter.HeadingFormatter;
 import com.graduate.thesis.engine.formatter.PageFormatter;
 import com.graduate.thesis.engine.formatter.ParagraphFormatter;
 import com.graduate.thesis.engine.formatter.SectionFormatter;
 import com.graduate.thesis.engine.formatter.TextFormatter;
-import com.graduate.thesis.engine.formatter.TocFormatter;
 import com.graduate.thesis.engine.model.RuleSet;
 import com.graduate.thesis.entity.FormatRule;
+import org.apache.poi.openxml4j.util.ZipSecureFile;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.springframework.stereotype.Service;
 
@@ -46,6 +45,8 @@ public class FormatEngine {
         } catch (IOException e) {
             throw new BusinessException(500, "创建临时文件失败");
         }
+        // 放宽 ZIP 压缩比限制: 论文可能内嵌字体(odttf), 压缩率极高被误判为炸弹
+        ZipSecureFile.setMinInflateRatio(0.001);
         try (XWPFDocument doc = new XWPFDocument(new FileInputStream(source))) {
             progress.accept(10);
 
@@ -53,9 +54,6 @@ public class FormatEngine {
             progress.accept(25);
 
             PageFormatter.apply(doc, ruleSet.getPageConfig());
-            progress.accept(32);
-
-            new CoverFormatter().apply(doc, ruleSet.getCoverConfig());
             progress.accept(40);
 
             new AbstractFormatter().apply(doc, ruleSet);
@@ -67,9 +65,6 @@ public class FormatEngine {
             progress.accept(65);
 
             new CaptionFormatter().apply(doc, items, ruleSet);
-            if (ruleSet.isGenerateToc()) {
-                new TocFormatter().apply(doc, items, ruleSet);
-            }
             progress.accept(85);
 
             HeaderFooterFormatter.apply(doc, ruleSet.getPageConfig());

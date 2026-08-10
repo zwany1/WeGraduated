@@ -3,6 +3,7 @@ package com.graduate.thesis.engine;
 import com.graduate.thesis.engine.model.RuleSet;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPPr;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,14 +30,32 @@ public class StructureDetector {
     public List<DocItem> detect(XWPFDocument doc, RuleSet ruleSet) {
         List<DocItem> items = new ArrayList<>();
         int currentChapter = 0;
+        boolean chapterStarted = false;
+        boolean inToc = false;
         for (XWPFParagraph paragraph : doc.getParagraphs()) {
             String text = paragraph.getText() == null ? "" : paragraph.getText().trim();
             boolean containsImage = containsImage(paragraph);
-            ParagraphKind kind = classify(text, containsImage, ruleSet);
+            ParagraphKind kind = classify(text, containsImage, paragraph, ruleSet);
             DocItem item = new DocItem(paragraph, kind, text, containsImage);
 
+            // 目录区检测: "目 录" 之后到第一个正文标题前为目录区(目录条目不参与章节追踪)
+            if (!chapterStarted && kind == ParagraphKind.HEADING1 && isTocTitle(text)) {
+                inToc = true;
+                kind = ParagraphKind.SECTION_TITLE;
+                item = new DocItem(paragraph, kind, text, containsImage);
+            } else if (inToc && !chapterStarted) {
+                if (headingLevelByStyle(paragraph) > 0) {
+                    inToc = false; // 到达正文第一个样式标题, 目录区结束
+                } else {
+                    kind = ParagraphKind.BODY; // 目录条目, 不识别为标题
+                    item = new DocItem(paragraph, kind, text, containsImage);
+                }
+            }
+
             if (kind == ParagraphKind.HEADING1) {
-                currentChapter = ChineseNumber.extract(text);
+                // 从正文第一章才开始计数
+                currentChapter = chapterStarted ? chapterOf(text, currentChapter) : 1;
+                chapterStarted = true;
                 item.setChapterNo(currentChapter);
             } else if (kind == ParagraphKind.HEADING2) {
                 java.util.regex.Matcher m = H2_CHAPTER.matcher(text);
@@ -50,13 +69,68 @@ public class StructureDetector {
         return items;
     }
 
-    private ParagraphKind classify(String text, boolean containsImage, RuleSet ruleSet) {
+    private static boolean isTocTitle(String text) {
+        return text.replace(" ", "").replace("\u00A0", "").equals("目录")
+                || text.replace(" ", "").replace("\u00A0", "").equals("目  录")
+                || text.replace(" ", "").replace("\u00A0", "").equals("目録");
+    }
+
+    /**
+     * 计算章节号: 有编号取编号(第X章/1 绪论/一、), 无编号标题按文档顺序递增
+     */
+    private int chapterOf(String text, int prevChapter) {
+        int n = ChineseNumber.extract(text);
+        if (n > 0) {
+            return n;
+        }
+        return prevChapter + 1;
+    }
+
+    /**
+     * 段落标题级别: 0=无, 1=一级, 2=二级, 3=三级
+     * 优先用大纲级别(outlineLvl), 其次样式名
+     */
+    private int headingLevelByStyle(XWPFParagraph p) {
+        try {
+            CTPPr pPr = p.getCTP().getPPr();
+            if (pPr != null) {
+                if (pPr.isSetOutlineLvl()) {
+                    int lvl = pPr.getOutlineLvl().getVal().intValue();
+                    if (lvl >= 0 && lvl <= 3) {
+                        return lvl + 1;
+                    }
+                }
+                if (pPr.isSetPStyle() && pPr.getPStyle().getVal() != null) {
+                    String style = pPr.getPStyle().getVal().toLowerCase();
+                    if (style.contains("heading1") || style.equals("2") || style.contains("heading 1")) return 1;
+                    if (style.contains("heading2") || style.equals("3") || style.contains("heading 2")) return 2;
+                    if (style.contains("heading3") || style.equals("4") || style.contains("heading 3")) return 3;
+                }
+            }
+        } catch (Exception ignore) {
+        }
+        return 0;
+    }
+
+    private ParagraphKind classify(String text, boolean containsImage, XWPFParagraph paragraph, RuleSet ruleSet) {
         if (text.isEmpty()) {
             return containsImage ? ParagraphKind.IMAGE : ParagraphKind.EMPTY;
         }
         if (containsImage && !isCaption(text)) {
             return ParagraphKind.IMAGE;
         }
+        // 样式标题优先: 标准 heading 样式是最可靠的章节信号
+        int styleLevel = headingLevelByStyle(paragraph);
+        if (styleLevel == 1) {
+            return ParagraphKind.HEADING1;
+        }
+        if (styleLevel == 2) {
+            return ParagraphKind.HEADING2;
+        }
+        if (styleLevel == 3) {
+            return ParagraphKind.HEADING3;
+        }
+        // 文本正则兜底(无样式但文本像标题)
         if (ruleSet.getHeading3Pattern().matcher(text).matches()) {
             return ParagraphKind.HEADING3;
         }

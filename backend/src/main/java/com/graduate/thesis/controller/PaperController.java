@@ -5,6 +5,7 @@ import com.graduate.thesis.common.UserContext;
 import com.graduate.thesis.dto.PaperFormatDTO;
 import com.graduate.thesis.entity.FormatTask;
 import com.graduate.thesis.entity.PaperFile;
+import com.graduate.thesis.service.DocxPdfService;
 import com.graduate.thesis.service.PaperService;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpHeaders;
@@ -25,16 +26,18 @@ import java.net.URLEncoder;
 import java.util.List;
 
 /**
- * 论文接口: 上传/排版/任务/下载
+ * 论文接口: 上传/排版/任务/下载/预览
  */
 @RestController
 @RequestMapping("/paper")
 public class PaperController {
 
     private final PaperService paperService;
+    private final DocxPdfService docxPdfService;
 
-    public PaperController(PaperService paperService) {
+    public PaperController(PaperService paperService, DocxPdfService docxPdfService) {
         this.paperService = paperService;
+        this.docxPdfService = docxPdfService;
     }
 
     @PostMapping("/upload")
@@ -64,6 +67,30 @@ public class PaperController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + encode("已排版论文.docx"))
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(new FileSystemResource(file));
+    }
+
+    /**
+     * 在线预览排版结果: 返回 PDF(优先缓存, 无缓存则即时转换)
+     */
+    @GetMapping("/preview/{taskId}")
+    public ResponseEntity<FileSystemResource> preview(@PathVariable Long taskId) {
+        File pdf = paperService.loadPreviewPdf(UserContext.get(), taskId);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=" + encode("preview.pdf"))
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(new FileSystemResource(pdf));
+    }
+
+    /**
+     * 下载排版结果的 PDF 版本
+     */
+    @GetMapping("/download-pdf/{taskId}")
+    public ResponseEntity<FileSystemResource> downloadPdf(@PathVariable Long taskId) {
+        File pdf = paperService.loadPreviewPdf(UserContext.get(), taskId);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + encode("已排版论文.pdf"))
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(new FileSystemResource(pdf));
     }
 
     private String encode(String name) {

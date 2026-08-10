@@ -53,8 +53,9 @@
               />
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="140">
+          <el-table-column label="操作" width="180">
             <template #default="{ row }">
+              <el-button v-if="row.status === 'SUCCESS'" size="small" @click="preview(row)">预览</el-button>
               <el-button v-if="row.status === 'SUCCESS'" size="small" type="primary" @click="download(row)">下载</el-button>
               <el-button v-if="row.status === 'FAILED'" size="small" @click="retry(row)">重试</el-button>
             </template>
@@ -65,6 +66,13 @@
         </el-table>
       </section>
     </main>
+
+    <el-dialog v-model="previewVisible" title="排版结果预览" width="80%" top="4vh" destroy-on-close @closed="onPreviewClosed">
+      <div style="height: 72vh">
+        <PdfViewer v-if="previewData.length" :data="previewData" />
+        <el-empty v-else description="预览加载中..." />
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -73,7 +81,8 @@ import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { ElMessage } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
 import { listTemplates } from '../api/template'
-import { uploadPaper, startFormat, listTasks, getTask, downloadPaper } from '../api/paper'
+import { uploadPaper, startFormat, listTasks, getTask, downloadPaper, previewPaper } from '../api/paper'
+import PdfViewer from '../components/PdfViewer.vue'
 
 const templates = ref([])
 const templateId = ref(null)
@@ -81,6 +90,8 @@ const fileList = ref([])
 const selectedFile = ref(null)
 const submitting = ref(false)
 const tasks = ref([])
+const previewVisible = ref(false)
+const previewData = ref([])
 let pollTimer = null
 
 onMounted(async () => {
@@ -151,6 +162,23 @@ async function download(row) {
   a.download = `已排版论文_${row.id}.docx`
   a.click()
   URL.revokeObjectURL(url)
+}
+
+async function preview(row) {
+  previewData.value = []
+  previewVisible.value = true
+  try {
+    const blob = await previewPaper(row.id)
+    const buf = await blob.arrayBuffer()
+    previewData.value = Array.from(new Uint8Array(buf))
+  } catch (e) {
+    ElMessage.error('预览失败')
+    previewVisible.value = false
+  }
+}
+
+function onPreviewClosed() {
+  previewData.value = []
 }
 
 async function retry(row) {

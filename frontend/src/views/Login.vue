@@ -1,29 +1,49 @@
 <template>
   <div class="login-page">
-    <div class="login-box">
-      <h2>论文格式助手</h2>
-      <el-tabs v-model="tab" stretch>
-        <el-tab-pane label="登录" name="login" />
-        <el-tab-pane label="注册" name="register" />
-      </el-tabs>
-      <el-form :model="form" @submit.prevent>
-        <el-form-item>
-          <el-input v-model="form.username" placeholder="用户名(3-32位)" size="large" />
-        </el-form-item>
-        <el-form-item>
-          <el-input v-model="form.password" type="password" placeholder="密码(6位以上)" size="large" show-password @keyup.enter="submit" />
-        </el-form-item>
-        <el-button type="primary" size="large" style="width: 100%" :loading="loading" @click="submit">
-          {{ tab === 'login' ? '登 录' : '注 册' }}
-        </el-button>
-      </el-form>
-      <div class="back" @click="$router.push('/')">返回首页</div>
+    <div class="form-wrap">
+      <form class="form" :class="formClass" @submit.prevent="submit">
+        <!-- 邮箱(用户名) -->
+        <div class="field email">
+          <span class="icon">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#555" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16v12H4z" /><path d="M4 7l8 6 8-6" /></svg>
+          </span>
+          <input v-model="form.username" class="input" type="text" placeholder="Username" autocomplete="off" @focus="onFocus" @blur="onBlur" @input="onInput" />
+        </div>
+
+        <!-- 密码 -->
+        <div class="field password">
+          <span class="icon">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#555" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
+          </span>
+          <input v-model="form.password" class="input" :type="showPwd ? 'text' : 'password'" placeholder="Password" @focus="onFocus" @blur="onBlur" @input="onInput" />
+          <span class="eye" @mousedown.prevent="showPwd = !showPwd">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#999" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+          </span>
+        </div>
+
+        <!-- 提交按钮(3D 立体) -->
+        <button class="button" type="submit" :disabled="loading">
+          <span class="side-top-bottom"></span>
+          <span class="side-left-right"></span>
+          {{ loading ? '提交中...' : (tab === 'login' ? 'LOGIN' : 'REGISTER') }}
+        </button>
+
+        <small>{{ hint }}</small>
+      </form>
     </div>
+
+    <!-- 登录/注册切换 -->
+    <div class="tab-switch">
+      <span :class="{ active: tab === 'login' }" @click="switchTab('login')">登录</span>
+      <span class="divider">|</span>
+      <span :class="{ active: tab === 'register' }" @click="switchTab('register')">注册</span>
+    </div>
+    <div class="back" @click="$router.push('/')">返回首页</div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { login, register } from '../api/user'
@@ -31,22 +51,65 @@ import { login, register } from '../api/user'
 const router = useRouter()
 const tab = ref('login')
 const loading = ref(false)
+const showPwd = ref(false)
+const anim = ref('')   // face-up-left / face-up-right / form-complete / form-error
 const form = reactive({ username: '', password: '' })
 
+const formClass = computed(() => anim.value)
+
+const hint = computed(() => {
+  if (loading.value) return '请稍候...'
+  if (tab.value === 'login') return 'Fill in the form to login'
+  return 'Create a new account'
+})
+
+function switchTab(t) {
+  tab.value = t
+  form.password = ''
+  anim.value = ''
+}
+
+function onFocus() {
+  anim.value = formCompleted() ? 'face-up-right' : 'face-up-left'
+}
+function onBlur() {
+  anim.value = ''
+}
+function onInput() {
+  anim.value = formCompleted() ? 'face-up-right' : 'face-up-left'
+}
+
+function formCompleted() {
+  return form.username.trim() !== '' && form.password !== ''
+}
+
 async function submit() {
-  if (!form.username || !form.password) {
+  if (loading.value) return
+  if (!formCompleted()) {
+    anim.value = ''
     ElMessage.warning('请输入用户名和密码')
+    // 失败抖动
+    setTimeout(() => { anim.value = 'form-error' }, 200)
+    setTimeout(() => { anim.value = '' }, 2600)
     return
   }
   loading.value = true
   try {
     const fn = tab.value === 'login' ? login : register
-    const data = await fn({ username: form.username, password: form.password })
+    const data = await fn({ username: form.username.trim(), password: form.password })
     localStorage.setItem('token', data.token)
     localStorage.setItem('userId', data.userId)
     localStorage.setItem('username', data.username)
     ElMessage.success(tab.value === 'login' ? '登录成功' : '注册成功')
-    router.push('/')
+    // 成功翻转动画
+    anim.value = 'form-complete'
+    setTimeout(() => {
+      router.push('/')
+    }, 1600)
+  } catch (e) {
+    anim.value = ''
+    setTimeout(() => { anim.value = 'form-error' }, 200)
+    setTimeout(() => { anim.value = '' }, 2600)
   } finally {
     loading.value = false
   }
@@ -57,30 +120,264 @@ async function submit() {
 .login-page {
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(45deg, #83a4d4, #b6fbff);
+  font-family: "Helvetica Neue", Arial, sans-serif;
 }
-.login-box {
-  width: 380px;
-  padding: 40px 36px;
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+.form-wrap {
+  perspective: 2000px;
+  perspective-origin: 50px center;
+}
+
+.form {
+  position: relative;
+  margin: auto;
+  width: 400px;
+  padding: 20px 30px;
   background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+  border: 1px solid #dfdfdf;
+  transform-style: preserve-3d;
+  perspective-origin: 50px center;
+  perspective: 2000px;
+  transition: transform 1s ease;
 }
-.login-box h2 {
+.form::before,
+.form::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  left: 0;
+}
+.form::before {
+  height: 100%;
+  top: 0;
+  transform: translateZ(-100px);
+  background: #333;
+  opacity: 0.3;
+}
+.form::after {
+  content: 'SUCCESS!';
+  transform: translateY(-50%) translateZ(-101px) scaleX(-1);
+  top: 50%;
+  color: #fff;
   text-align: center;
+  font-weight: bold;
+}
+
+.field {
+  position: relative;
+  background: #cfcfcf;
+  transform-style: preserve-3d;
+}
+.field + .field {
+  margin-top: 10px;
+}
+
+.icon {
+  width: 24px;
+  height: 24px;
+  position: absolute;
+  top: calc(50% - 12px);
+  left: 12px;
+  transform: translateZ(50px);
+  transform-style: preserve-3d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.input {
+  border: 1px solid #dfdfdf;
+  background: #fff;
+  height: 48px;
+  line-height: 48px;
+  padding: 0 38px 0 48px;
+  width: 100%;
+  transform: translateZ(26px);
+  font-size: 14px;
+}
+.input::placeholder {
+  color: #aaa;
+}
+.input:focus,
+.input:active {
+  outline: none;
+  border: 1px solid #e35d5b;
+}
+
+.eye {
+  position: absolute;
+  right: 12px;
+  top: calc(50% - 12px);
+  transform: translateZ(50px);
+  cursor: pointer;
+  opacity: 0.7;
+  display: flex;
+}
+.eye:hover {
+  opacity: 1;
+}
+
+.button {
+  display: block;
+  width: 100%;
+  border: 0;
+  text-align: center;
+  font-weight: bold;
+  color: #fff;
+  background: linear-gradient(45deg, #e53935, #e35d5b);
+  margin-top: 20px;
+  padding: 14px;
+  position: relative;
+  transform-style: preserve-3d;
+  transform: translateZ(26px);
+  transition: transform 0.3s ease;
+  cursor: pointer;
+  font-size: 15px;
+  font-family: inherit;
+}
+.button:hover:not(:disabled) {
+  transform: translateZ(13px);
+}
+.button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.side-top-bottom {
+  width: 100%;
+}
+.side-top-bottom::before,
+.side-top-bottom::after {
+  content: '';
+  width: 100%;
+  height: 26px;
+  background: linear-gradient(45deg, #d3322e, #d54c4a);
+  position: absolute;
+  left: 0;
+}
+.side-top-bottom::before {
+  transform-origin: center top;
+  transform: translateZ(-26px) rotateX(90deg);
+  top: 0;
+}
+.side-top-bottom::after {
+  transform-origin: center bottom;
+  transform: translateZ(-26px) rotateX(-90deg);
+  bottom: 0;
+}
+.side-left-right {
+  height: 100%;
+}
+.side-left-right::before,
+.side-left-right::after {
+  content: '';
+  height: 100%;
+  width: 26px;
+  position: absolute;
+  top: 0;
+}
+.side-left-right::before {
+  background: #e53935;
+  transform-origin: left center;
+  transform: rotateY(90deg);
+  left: 0;
+}
+.side-left-right::after {
+  background: #e35d5b;
+  transform-origin: right center;
+  transform: rotateY(-90deg);
+  right: 0;
+}
+
+.face-up-left {
+  transform: rotateY(-30deg) rotateX(30deg);
+}
+.face-up-right {
+  transform: rotateY(30deg) rotateX(30deg);
+}
+.face-down-left {
+  transform: rotateY(-30deg) rotateX(-30deg);
+}
+.face-down-right {
+  transform: rotateY(30deg) rotateX(-30deg);
+}
+.form-complete {
+  animation: formComplete 1.6s ease;
+}
+.form-error {
+  animation: formError 2.4s ease;
+}
+
+@keyframes formComplete {
+  50%, 55% {
+    transform: rotateX(30deg) rotateY(180deg);
+  }
+  100% {
+    transform: rotateX(0deg) rotateY(1turn);
+  }
+}
+@keyframes formError {
+  0%, 100% {
+    transform: rotateX(0deg) rotateY(0deg);
+  }
+  25% {
+    transform: rotateX(-25deg);
+  }
+  33% {
+    transform: rotateX(-25deg) rotateY(45deg);
+  }
+  66% {
+    transform: rotateX(-25deg) rotateY(-30deg);
+  }
+}
+
+small {
+  color: #999;
+  text-align: center;
+  display: block;
+  margin-top: 20px;
+  backface-visibility: hidden;
+}
+
+.tab-switch {
+  margin-top: 22px;
   color: #2c3e50;
-  margin-bottom: 20px;
+  font-size: 14px;
+  display: flex;
+  gap: 12px;
+}
+.tab-switch span {
+  cursor: pointer;
+  padding: 2px 4px;
+  color: rgba(255, 255, 255, 0.85);
+  transition: color 0.2s;
+}
+.tab-switch span.active {
+  font-weight: 700;
+  color: #fff;
+  text-decoration: underline;
+}
+.tab-switch .divider {
+  cursor: default;
+  opacity: 0.6;
 }
 .back {
-  margin-top: 16px;
-  text-align: center;
-  color: #909399;
+  margin-top: 12px;
+  color: rgba(255, 255, 255, 0.8);
   font-size: 13px;
   cursor: pointer;
 }
 .back:hover {
-  color: #409eff;
+  color: #fff;
 }
 </style>

@@ -11,4 +11,6 @@ public class DiagramEdge {
     private String source;
     private String target;
     private String label;
+    /** 连线样式: association(实线) / include(虚线箭头) */
+    private String style;
 }

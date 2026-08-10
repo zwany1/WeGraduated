@@ -86,7 +86,11 @@ public class CaptionFormatter {
                     boolean nextIsCaption = i + 1 < elements.size()
                             && elements.get(i + 1) instanceof XWPFParagraph
                             && isFigureCaptionText(((XWPFParagraph) elements.get(i + 1)).getText());
-                    if (!nextIsCaption) {
+                    boolean prevIsCaption = i > 0
+                            && elements.get(i - 1) instanceof XWPFParagraph
+                            && isFigureCaptionText(((XWPFParagraph) elements.get(i - 1)).getText());
+                    // 图前或图后已有题注: 不再自动插入(题注段由 FIGURE_CAPTION 分支重编号)
+                    if (!nextIsCaption && !prevIsCaption) {
                         if (item.getChapterNo() != lastFigChapter) {
                             figIndex = 0;
                             lastFigChapter = item.getChapterNo();
@@ -115,8 +119,11 @@ public class CaptionFormatter {
                 }
                 XWPFTable table = (XWPFTable) el;
                 IBodyElement prev = i > 0 ? elements.get(i - 1) : null;
+                IBodyElement next = i + 1 < elements.size() ? elements.get(i + 1) : null;
                 boolean prevIsCaption = prev instanceof XWPFParagraph
                         && isTableCaptionText(((XWPFParagraph) prev).getText());
+                boolean nextIsCaption = next instanceof XWPFParagraph
+                        && isTableCaptionText(((XWPFParagraph) next).getText());
                 int tableChapter = lastChapter < 0 ? 0 : lastChapter;
                 if (tableChapter != lastTableChapter) {
                     tblIndex = 0;
@@ -128,6 +135,12 @@ public class CaptionFormatter {
                     String caption = buildCaption(tableRule, tableChapter, tblIndex, title);
                     setCaptionText((XWPFParagraph) prev, caption);
                     applyCaptionStyle((XWPFParagraph) prev, tableRule);
+                } else if (nextIsCaption) {
+                    // 表后已有题注: 复用并重编号, 不在表前新增
+                    String title = extractTitle(((XWPFParagraph) next).getText(), false);
+                    String caption = buildCaption(tableRule, tableChapter, tblIndex, title);
+                    setCaptionText((XWPFParagraph) next, caption);
+                    applyCaptionStyle((XWPFParagraph) next, tableRule);
                 } else {
                     String caption = buildCaption(tableRule, tableChapter, tblIndex, "");
                     insertParagraphBefore(doc, table, caption, tableRule);

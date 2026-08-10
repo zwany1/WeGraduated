@@ -10,6 +10,7 @@
           <el-radio-button value="FLOW">流程图</el-radio-button>
           <el-radio-button value="ARCH">架构图</el-radio-button>
           <el-radio-button value="SWIMLANE">泳道图</el-radio-button>
+          <el-radio-button value="USECASE">用例图</el-radio-button>
         </el-radio-group>
       </div>
       <div class="actions">
@@ -119,6 +120,54 @@
             <span class="tip">未配连线时按节点顺序自动连</span>
           </div>
         </template>
+
+        <!-- 用例图: 结构化配置(参与者 + 用例 + 关系) -->
+        <template v-else-if="type === 'USECASE'">
+          <div class="input-title">用例图配置</div>
+          <el-form label-width="70px" size="small">
+            <el-form-item label="系统名称">
+              <el-input v-model="ucConfig.system" placeholder="如：人事管理系统" />
+            </el-form-item>
+          </el-form>
+
+          <div class="input-title" style="margin-top:12px">参与者 Actor</div>
+          <div class="uc-act" v-for="(a, ai) in ucConfig.actors" :key="ai">
+            <el-input v-model="a.name" size="small" placeholder="参与者，如：人事管理员" />
+            <el-button size="small" text type="danger" @click="removeUcActor(ai)">×</el-button>
+          </div>
+          <el-button size="small" class="add-comp-btn" @click="addUcActor">+ 添加参与者</el-button>
+
+          <div class="input-title" style="margin-top:12px">用例 UseCase</div>
+          <div class="uc-act" v-for="(u, ui) in ucConfig.usecases" :key="ui">
+            <el-input v-model="u.name" size="small" placeholder="用例，如：人员规划" />
+            <el-input v-model="u.module" size="small" placeholder="模块(可选)" style="margin-left:6px" />
+            <el-button size="small" text type="danger" @click="removeUcUseCase(ui)">×</el-button>
+          </div>
+          <el-button size="small" class="add-comp-btn" @click="addUcUseCase">+ 添加用例</el-button>
+
+          <div class="input-title" style="margin-top:12px">关系</div>
+          <div class="uc-act" v-for="(r, ri) in ucConfig.relations" :key="ri">
+            <el-select v-model="r.type" size="small" class="act-type" placeholder="类型">
+              <el-option label="关联" value="association" />
+              <el-option label="包含" value="include" />
+              <el-option label="扩展" value="extend" />
+            </el-select>
+            <el-select v-model="r.source" size="small" class="edge-sel" placeholder="来源">
+              <el-option v-for="nd in ucAllNodes" :key="nd.id" :label="nd.label" :value="nd.id" />
+            </el-select>
+            <span class="edge-arrow">→</span>
+            <el-select v-model="r.target" size="small" class="edge-sel" placeholder="目标">
+              <el-option v-for="nd in ucAllNodes" :key="nd.id" :label="nd.label" :value="nd.id" />
+            </el-select>
+            <el-button size="small" text type="danger" @click="removeUcRelation(ri)">×</el-button>
+          </div>
+          <el-button size="small" class="add-comp-btn" @click="addUcRelation">+ 添加关系</el-button>
+          <div class="tip" style="margin-top:6px">关联=实线；包含/扩展=虚线箭头«include»</div>
+
+          <div class="input-row">
+            <el-button type="primary" :loading="generating" @click="generate">生成用例图</el-button>
+          </div>
+        </template>
       </section>
 
       <section class="canvas-wrap">
@@ -143,8 +192,8 @@
             <el-button size="small" type="primary" plain @click="downloadArchPng">PNG</el-button>
           </div>
         </div>
-        <!-- FLOW/SWIMLANE: X6 画布 -->
-        <div v-if="graphReady && currentVO && currentVO.type !== 'ARCH'" ref="container" class="x6-container"></div>
+        <!-- FLOW/SWIMLANE/USECASE: X6 画布 -->
+        <div v-show="graphReady && currentVO && currentVO.type !== 'ARCH'" ref="container" class="x6-container"></div>
       </section>
     </main>
   </div>
@@ -170,6 +219,46 @@ Graph.registerNode('db', {
     top: { cx: 0, cy: 0, rx: 16, ry: 8, fill: '#fff', stroke: '#333', strokeWidth: 1.5, refX: 0.5, refY: 0 },
     body: { refWidth: '100%', refHeight: '100%', fill: '#fff', stroke: '#333', strokeWidth: 1.5 },
     label: { text: '', fontSize: 12, fill: '#333', refX: 0.5, refY: 0.55, textAnchor: 'middle', textVerticalAnchor: 'middle' }
+  }
+})
+
+// 注册 Actor 小人节点(用例图): 使用 xiaoren.svg 图片渲染
+Graph.registerNode('actorNode', {
+  inherit: 'rect',
+  width: 120,
+  height: 120,
+  markup: [
+    { tagName: 'image', selector: 'img' },
+    { tagName: 'text', selector: 'label' }
+  ],
+  attrs: {
+    img: {
+      'xlink:href': '/xiaoren.svg',
+      width: 42,
+      height: 42,
+      x: 0,
+      y: 0,
+      refX: 0.5,
+      refY: 0.25,
+      xAlign: 'middle',
+      yAlign: 'middle'
+    },
+    label: { text: '', fontSize: 12, fill: '#333', refX: 0.5, refY: 0.75, textAnchor: 'middle', textVerticalAnchor: 'middle' }
+  }
+})
+
+// 注册系统边界框节点(用例图)
+Graph.registerNode('systemNode', {
+  inherit: 'rect',
+  markup: [
+    { tagName: 'rect', selector: 'body' },
+    { tagName: 'text', selector: 'title' },
+    { tagName: 'text', selector: 'label' }
+  ],
+  attrs: {
+    body: { refWidth: '100%', refHeight: '100%', fill: 'rgba(255,255,255,0.4)', stroke: '#333', strokeWidth: 2, rx: 4, ry: 4 },
+    title: { text: '', fontSize: 13, fontWeight: 700, fill: '#333', refX: 0.5, refY: 0, refY2: 18, textAnchor: 'middle', textVerticalAnchor: 'middle' },
+    label: { text: '' }
   }
 })
 
@@ -227,6 +316,67 @@ const swimConfig = ref({
   ]
 })
 let nodeSeq = 9
+
+// 用例图配置: 参与者 + 用例 + 关系
+const ucConfig = ref({
+  system: '人事管理系统',
+  actors: [
+    { id: 'A1', name: '人事管理员' },
+    { id: 'A2', name: '普通员工' }
+  ],
+  usecases: [
+    { id: 'U1', name: '人员规划', module: '人员管理' },
+    { id: 'U2', name: '人员现状分析', module: '人员管理' },
+    { id: 'U3', name: '人员年龄分析', module: '人员管理' },
+    { id: 'U4', name: '登录系统', module: '' }
+  ],
+  relations: [
+    { source: 'A1', target: 'U1', type: 'association' },
+    { source: 'U1', target: 'U2', type: 'include' },
+    { source: 'U1', target: 'U3', type: 'include' },
+    { source: 'A2', target: 'U4', type: 'association' }
+  ]
+})
+let ucSeq = 5
+
+// 用例图: 参与者/用例/关系管理
+function addUcActor() {
+  ucConfig.value.actors.push({ id: 'A' + (ucSeq++), name: '' })
+}
+function removeUcActor(ai) {
+  const id = ucConfig.value.actors[ai].id
+  ucConfig.value.actors.splice(ai, 1)
+  ucConfig.value.relations = ucConfig.value.relations.filter(r => r.source !== id && r.target !== id)
+}
+function addUcUseCase() {
+  ucConfig.value.usecases.push({ id: 'U' + (ucSeq++), name: '', module: '' })
+}
+function removeUcUseCase(ui) {
+  const id = ucConfig.value.usecases[ui].id
+  ucConfig.value.usecases.splice(ui, 1)
+  ucConfig.value.relations = ucConfig.value.relations.filter(r => r.source !== id && r.target !== id)
+}
+function addUcRelation() {
+  ucConfig.value.relations.push({ source: '', target: '', type: 'association' })
+}
+function removeUcRelation(ri) {
+  ucConfig.value.relations.splice(ri, 1)
+}
+// 全部参与者+用例(供关系下拉)
+const ucAllNodes = computed(() => {
+  const list = []
+  ucConfig.value.actors.forEach(a => list.push({ id: a.id, label: a.name || ('参与者 ' + a.id) }))
+  ucConfig.value.usecases.forEach(u => list.push({ id: u.id, label: u.name || ('用例 ' + u.id) }))
+  return list
+})
+function buildUseCasePayload() {
+  const actors = ucConfig.value.actors.filter(a => a.name && a.name.trim()).map(a => ({ id: a.id, name: a.name.trim() }))
+  const usecases = ucConfig.value.usecases.filter(u => u.name && u.name.trim()).map(u => ({ id: u.id, name: u.name.trim(), module: u.module || '' }))
+  const relations = (ucConfig.value.relations || [])
+    .filter(r => r.source && r.target && r.source !== r.target)
+    .map(r => ({ source: r.source, target: r.target, type: r.type || 'association' }))
+  return { system: ucConfig.value.system, actors, usecases, relations }
+}
 
 function addLayer() {
   config.value.layers.push({ name: '', components: [{ name: '' }] })
@@ -372,7 +522,9 @@ function nodeShapeName(shape, type) {
   if (shape === 'condition') return 'polygon'
   if (shape === 'database' || shape === 'cache' || shape === 'mq') return 'db'
   if (shape === 'actor' && type === 'ARCH') return 'rect'
-  if (shape === 'actor') return 'ellipse'
+  if (shape === 'actor') return 'actorNode'
+  if (shape === 'usecase') return 'ellipse'
+  if (shape === 'system') return 'systemNode'
   return 'rect'
 }
 
@@ -386,6 +538,25 @@ function nodeAttrs(node) {
     return {
       body: { refPoints: '0,10 10,0 20,10 10,20', fill: '#fff', stroke: color, strokeWidth: 1.5 },
       label
+    }
+  }
+  if (node.shape === 'usecase') {
+    return {
+      body: { fill: '#fff', stroke: color, strokeWidth: 1.5 },
+      label
+    }
+  }
+  if (node.shape === 'system') {
+    return {
+      body: { fill: 'rgba(255,255,255,0.4)', stroke: color, strokeWidth: 2, rx: 4, ry: 4 },
+      title: { text: node.label },
+      label: { text: '' }
+    }
+  }
+  if (node.shape === 'actor') {
+    return {
+      img: { 'xlink:href': '/xiaoren.svg' },
+      label: { text: node.label }
     }
   }
   if (node.shape === 'service' || node.shape === 'web' || node.shape === 'gateway' || node.shape === 'third' ||
@@ -432,8 +603,14 @@ async function renderGraph(vo) {
   }
 
   vo.nodes.forEach(n => {
-    const w = Math.max(120, n.label.length * 14 + 30)
-    const h = (n.shape === 'start' || n.shape === 'end') ? 56 : 48
+    let w, h
+    if (vo.type === 'USECASE') {
+      w = n.width || (n.shape === 'actor' ? 120 : 170)
+      h = n.height || (n.shape === 'actor' ? 120 : (n.shape === 'system' ? 300 : 56))
+    } else {
+      w = Math.max(120, n.label.length * 14 + 30)
+      h = (n.shape === 'start' || n.shape === 'end') ? 56 : 48
+    }
     nodes.push({
       id: n.id,
       shape: nodeShapeName(n.shape, vo.type),
@@ -442,22 +619,30 @@ async function renderGraph(vo) {
       width: w,
       height: h,
       attrs: nodeAttrs(n),
-      zIndex: 10
+      zIndex: n.shape === 'system' ? 0 : 10
     })
   })
-  const edges = vo.edges.map(e => ({
-    id: e.id,
-    source: e.source,
-    target: e.target,
-    router: vo.type === 'SWIMLANE' ? { name: 'manhattan', padding: 12 } : undefined,
-    attrs: {
-      line: { stroke: '#333333', strokeWidth: 1.5, targetMarker: 'block' },
-      label: { text: e.label || '', fill: '#666', fontSize: 11 }
+  const edges = vo.edges.map(e => {
+    const isInclude = e.style === 'include' || e.label === '«include»' || e.label === '«extend»'
+    const edge = {
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      router: vo.type === 'SWIMLANE' ? { name: 'manhattan', padding: 12 } : undefined,
+      attrs: {
+        line: isInclude
+          ? { stroke: '#333333', strokeWidth: 1.2, strokeDasharray: '6 4', targetMarker: { name: 'block', size: 7 } }
+          : { stroke: '#333333', strokeWidth: 1.5, targetMarker: 'block' }
+      }
     }
-  }))
+    if (e.label) {
+      edge.labels = [{ attrs: { label: { text: e.label, fill: '#666', fontSize: 11 } } }]
+    }
+    return edge
+  })
 
-  // SWIMLANE: 泳道已定位, 节点用后端坐标(相对泳道), 不需 Dagre
-  if (vo.type === 'SWIMLANE') {
+  // SWIMLANE / USECASE: 泳道已定位, 节点用后端坐标, 不需 Dagre
+  if (vo.type === 'SWIMLANE' || vo.type === 'USECASE') {
     graph.fromJSON({ nodes, edges })
     graph.centerContent()
     return
@@ -512,6 +697,13 @@ async function generate() {
       return
     }
     payload = { type: 'SWIMLANE', swimlane: swim }
+  } else if (type.value === 'USECASE') {
+    const uc = buildUseCasePayload()
+    if (uc.usecases.length === 0) {
+      ElMessage.warning('请至少配置一个用例')
+      return
+    }
+    payload = { type: 'USECASE', useCase: uc }
   } else {
     if (!description.value.trim()) {
       ElMessage.warning('请输入系统描述')
@@ -561,6 +753,35 @@ async function save() {
   }
 }
 
+// 内联图片资源缓存: 导出时把相对路径图片(如 /xiaoren.svg)替换为 data URL
+const svgImageCache = {}
+async function inlineSvgImages(svgClone) {
+  const images = svgClone.querySelectorAll('image')
+  for (const img of images) {
+    const href = img.getAttribute('href') || img.getAttribute('xlink:href')
+    if (!href) continue
+    if (href.startsWith('data:')) continue
+    let dataUrl = svgImageCache[href]
+    if (!dataUrl) {
+      try {
+        const resp = await fetch(href)
+        const blob = await resp.blob()
+        dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(reader.result)
+          reader.onerror = reject
+          reader.readAsDataURL(blob)
+        })
+        svgImageCache[href] = dataUrl
+      } catch (e) {
+        continue
+      }
+    }
+    img.setAttribute('href', dataUrl)
+    img.removeAttribute('xlink:href')
+  }
+}
+
 function getSvgString() {
   const svgNode = container.value.querySelector('svg')
   if (!svgNode) return ''
@@ -569,9 +790,13 @@ function getSvgString() {
   return '<?xml version="1.0" encoding="UTF-8"?>\n' + new XMLSerializer().serializeToString(clone)
 }
 
-function downloadSvg() {
-  const svg = getSvgString()
-  if (!svg) return
+async function downloadSvg() {
+  const svgNode = container.value.querySelector('svg')
+  if (!svgNode) return
+  const clone = svgNode.cloneNode(true)
+  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+  await inlineSvgImages(clone)
+  const svg = '<?xml version="1.0" encoding="UTF-8"?>\n' + new XMLSerializer().serializeToString(clone)
   const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -581,9 +806,13 @@ function downloadSvg() {
   URL.revokeObjectURL(url)
 }
 
-function downloadPng() {
-  const svg = getSvgString()
-  if (!svg) return
+async function downloadPng() {
+  const svgNode = container.value.querySelector('svg')
+  if (!svgNode) return
+  const clone = svgNode.cloneNode(true)
+  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+  await inlineSvgImages(clone)
+  const svg = '<?xml version="1.0" encoding="UTF-8"?>\n' + new XMLSerializer().serializeToString(clone)
   const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const img = new Image()

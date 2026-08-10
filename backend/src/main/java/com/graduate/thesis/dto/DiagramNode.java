@@ -8,11 +8,13 @@ import lombok.Data;
 @Data
 public class DiagramNode {
     private String id;
-    /** 形状: start / end / process / decision / service / storage / database */
+    /** 形状: start / end / process / decision / service / storage / database / actor / usecase / system */
     private String shape;
     private String label;
     private double x;
     private double y;
+    private double width;
+    private double height;
     /** 泳道名(泳道图用) */
     private String lane;
 }

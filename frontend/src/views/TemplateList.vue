@@ -3,7 +3,7 @@
     <header class="bar">
       <div class="brand">论文格式助手</div>
       <div class="actions">
-        <el-button @click="$router.push('/')">首页</el-button>
+        <el-button @click="$router.push('/home')">首页</el-button>
         <el-button @click="$router.push('/tasks')">排版任务</el-button>
         <el-button type="primary" @click="showCreate = true">新建格式方案</el-button>
         <el-dropdown trigger="click" @command="onUserCommand">
@@ -91,7 +91,7 @@ async function onUserCommand(cmd) {
       localStorage.removeItem('token')
       localStorage.removeItem('username')
       localStorage.removeItem('avatar')
-      router.push('/')
+      router.push('/home')
     } catch (e) {
       // 取消
     }

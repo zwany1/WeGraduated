@@ -1,7 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
-  { path: '/', component: () => import('../views/Home.vue') },
+  { path: '/', component: () => import('../views/Welcome.vue') },
+  { path: '/home', component: () => import('../views/Home.vue') },
   { path: '/login', component: () => import('../views/Login.vue') },
   { path: '/templates', component: () => import('../views/TemplateList.vue'), meta: { requiresAuth: true } },
   { path: '/profile', component: () => import('../views/Profile.vue'), meta: { requiresAuth: true } },

@@ -359,7 +359,7 @@ async function handleUserCommand(cmd) {
       localStorage.removeItem('username')
       localStorage.removeItem('avatar')
       isLoggedIn.value = false
-      router.push('/')
+      router.push('/home')
     } catch (e) {
       // 取消
     }

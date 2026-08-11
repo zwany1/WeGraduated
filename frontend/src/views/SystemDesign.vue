@@ -2,7 +2,7 @@
   <div class="page">
     <header class="bar">
       <div class="brand">
-        <el-button text @click="$router.push('/')">‹ 返回</el-button>
+        <el-button text @click="$router.push('/home')">‹ 返回</el-button>
         <span>系统图设计</span>
       </div>
       <div class="type-tabs">

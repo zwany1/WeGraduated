@@ -51,7 +51,7 @@
       <span class="divider">|</span>
       <span :class="{ active: tab === 'register' }" @click="switchTab('register')">注册</span>
     </div>
-    <div class="back" @click="$router.push('/')">返回首页</div>
+    <div class="back" @click="$router.push('/home')">返回首页</div>
   </div>
 </template>
 
@@ -156,7 +156,7 @@ async function submit() {
     // 成功翻转动画
     anim.value = 'form-complete'
     setTimeout(() => {
-      router.push('/')
+      router.push('/home')
     }, 1600)
   } catch (e) {
     anim.value = ''

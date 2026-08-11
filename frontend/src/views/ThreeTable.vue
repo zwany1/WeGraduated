@@ -2,7 +2,7 @@
   <div class="page">
     <header class="bar">
       <div class="brand">
-        <el-button text @click="$router.push('/')">‹ 返回</el-button>
+        <el-button text @click="$router.push('/home')">‹ 返回</el-button>
         <span>三线表生成</span>
       </div>
       <div class="actions">

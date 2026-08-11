@@ -10,6 +10,7 @@
           <el-radio-button value="FLOW">流程图</el-radio-button>
           <el-radio-button value="ARCH">架构图</el-radio-button>
           <el-radio-button value="SWIMLANE">泳道图</el-radio-button>
+          <el-radio-button value="ACTIVITY">活动图</el-radio-button>
           <el-radio-button value="USECASE">用例图</el-radio-button>
           <el-radio-button value="SEQUENCE">时序图</el-radio-button>
           <el-radio-button value="CLASS">类图</el-radio-button>
@@ -104,7 +105,8 @@
           </div>
           <div class="edge-config">
             <div class="edge-title">流程连线</div>
-            <div v-for="(eg, ei) in swimConfig.edges" :key="ei" class="edge-row">
+            <div v-for="(eg, ei) in swimConfig.edges" :key="ei" class="item-card">
+              <span class="item-num">连线 {{ ei + 1 }}</span>
               <el-select v-model="eg.source" size="small" class="edge-sel" placeholder="从节点">
                 <el-option v-for="nd in allNodes" :key="nd.key" :label="nd.label" :value="nd.id" />
               </el-select>
@@ -123,6 +125,63 @@
           </div>
         </template>
 
+        <!-- 活动图: 结构化配置(泳道 + 节点 + 连线) -->
+        <template v-else-if="type === 'ACTIVITY'">
+          <div class="input-title">活动图配置</div>
+          <el-form label-width="70px" size="small">
+            <el-form-item label="图标题">
+              <el-input v-model="actConfig.title" placeholder="如：借阅流程" />
+            </el-form-item>
+          </el-form>
+
+          <div class="section-divider"></div>
+          <div class="input-title">泳道</div>
+          <div class="uc-act" v-for="(l, li) in actConfig.lanes" :key="li">
+            <el-input v-model="l.name" size="small" placeholder="角色，如：工作人员 / 读者 / 系统" />
+            <el-button size="small" text type="danger" @click="removeActLane(li)">×</el-button>
+          </div>
+          <el-button size="small" class="add-comp-btn" @click="addActLane">+ 添加泳道</el-button>
+
+          <div class="section-divider"></div>
+          <div class="input-title">节点</div>
+          <div v-for="(n, ni) in actConfig.nodes" :key="ni" class="item-card">
+            <span class="item-num">节点 {{ ni + 1 }}</span>
+            <el-select v-model="n.type" size="small" class="act-type" placeholder="类型">
+              <el-option label="开始" value="START" />
+              <el-option label="活动" value="ACTION" />
+              <el-option label="判断" value="DECISION" />
+              <el-option label="结束" value="END" />
+            </el-select>
+            <el-select v-model="n.laneId" size="small" class="edge-sel" placeholder="泳道">
+              <el-option v-for="l in actLanes" :key="l.id" :label="l.name" :value="l.id" />
+            </el-select>
+            <el-button size="small" text type="danger" @click="removeActNode(ni)">×</el-button>
+            <el-input v-model="n.text" size="small" placeholder="节点内容，如：进入借阅界面" style="margin-top:4px;margin-bottom:6px" />
+          </div>
+          <el-button size="small" class="add-comp-btn" @click="addActNode">+ 添加节点</el-button>
+
+          <div class="section-divider"></div>
+          <div class="input-title">连线</div>
+          <div v-for="(e, ei) in actConfig.edges" :key="ei" class="item-card">
+            <span class="item-num">连线 {{ ei + 1 }}</span>
+            <el-select v-model="e.source" size="small" class="edge-sel" placeholder="来源">
+              <el-option v-for="nd in actNodes" :key="nd.id" :label="nd.label" :value="nd.id" />
+            </el-select>
+            <span class="edge-arrow">→</span>
+            <el-select v-model="e.target" size="small" class="edge-sel" placeholder="目标">
+              <el-option v-for="nd in actNodes" :key="nd.id" :label="nd.label" :value="nd.id" />
+            </el-select>
+            <el-button size="small" text type="danger" @click="removeActEdge(ei)">×</el-button>
+            <el-input v-model="e.label" size="small" placeholder="分支条件(可空)" style="margin-top:4px;margin-bottom:6px" />
+          </div>
+          <el-button size="small" class="add-comp-btn" @click="addActEdge">+ 添加连线</el-button>
+          <div class="tip" style="margin-top:6px">判断节点分支需配置条件；泳道横向排列，流程按连线顺序纵向流动</div>
+
+          <div class="input-row">
+            <el-button type="primary" :loading="generating" @click="generate">生成活动图</el-button>
+          </div>
+        </template>
+
         <!-- 用例图: 结构化配置(参与者 + 用例 + 关系) -->
         <template v-else-if="type === 'USECASE'">
           <div class="input-title">用例图配置</div>
@@ -132,14 +191,16 @@
             </el-form-item>
           </el-form>
 
-          <div class="input-title" style="margin-top:12px">参与者 Actor</div>
+          <div class="section-divider"></div>
+          <div class="input-title">参与者 Actor</div>
           <div class="uc-act" v-for="(a, ai) in ucConfig.actors" :key="ai">
             <el-input v-model="a.name" size="small" placeholder="参与者，如：人事管理员" />
             <el-button size="small" text type="danger" @click="removeUcActor(ai)">×</el-button>
           </div>
           <el-button size="small" class="add-comp-btn" @click="addUcActor">+ 添加参与者</el-button>
 
-          <div class="input-title" style="margin-top:12px">用例 UseCase</div>
+          <div class="section-divider"></div>
+          <div class="input-title">用例 UseCase</div>
           <div class="uc-act" v-for="(u, ui) in ucConfig.usecases" :key="ui">
             <el-input v-model="u.name" size="small" placeholder="用例，如：人员规划" />
             <el-input v-model="u.module" size="small" placeholder="模块(可选)" style="margin-left:6px" />
@@ -147,8 +208,10 @@
           </div>
           <el-button size="small" class="add-comp-btn" @click="addUcUseCase">+ 添加用例</el-button>
 
-          <div class="input-title" style="margin-top:12px">关系</div>
-          <div class="uc-act" v-for="(r, ri) in ucConfig.relations" :key="ri">
+          <div class="section-divider"></div>
+          <div class="input-title">关系</div>
+          <div v-for="(r, ri) in ucConfig.relations" :key="ri" class="item-card">
+            <span class="item-num">关系 {{ ri + 1 }}</span>
             <el-select v-model="r.type" size="small" class="act-type" placeholder="类型">
               <el-option label="关联" value="association" />
               <el-option label="包含" value="include" />
@@ -180,15 +243,18 @@
             </el-form-item>
           </el-form>
 
-          <div class="input-title" style="margin-top:12px">参与者 Lifeline</div>
+          <div class="section-divider"></div>
+          <div class="input-title">参与者 Lifeline</div>
           <div class="uc-act" v-for="(p, pi) in seqConfig.participants" :key="pi">
             <el-input v-model="p.name" size="small" placeholder="参与者，如：用户 / Controller / Service / 数据库" />
             <el-button size="small" text type="danger" @click="removeSeqParticipant(pi)">×</el-button>
           </div>
           <el-button size="small" class="add-comp-btn" @click="addSeqParticipant">+ 添加参与者</el-button>
 
-          <div class="input-title" style="margin-top:12px">消息</div>
-          <div v-for="(m, mi) in seqConfig.messages" :key="mi" class="seq-msg">
+          <div class="section-divider"></div>
+          <div class="input-title">消息</div>
+          <div v-for="(m, mi) in seqConfig.messages" :key="mi" class="item-card">
+            <span class="item-num">消息 {{ mi + 1 }}</span>
             <el-select v-model="m.from" size="small" class="edge-sel" placeholder="来源">
               <el-option v-for="p in seqParticipants" :key="p.id" :label="p.name || p.id" :value="p.id" />
             </el-select>
@@ -201,7 +267,7 @@
               <el-option label="返回" value="return" />
             </el-select>
             <el-button size="small" text type="danger" @click="removeSeqMessage(mi)">×</el-button>
-            <el-input v-model="m.text" size="small" placeholder="消息内容，如：登录" style="margin-top:4px" />
+            <el-input v-model="m.text" size="small" placeholder="消息内容，如：登录" style="margin-top:4px;margin-bottom:6px" />
           </div>
           <el-button size="small" class="add-comp-btn" @click="addSeqMessage">+ 添加消息</el-button>
           <div class="tip" style="margin-top:6px">消息按添加顺序纵向排列；请求=实线，返回=虚线</div>
@@ -220,7 +286,8 @@
             </el-form-item>
           </el-form>
 
-          <div class="input-title" style="margin-top:12px">类</div>
+          <div class="section-divider"></div>
+          <div class="input-title">类</div>
           <div v-for="(c, ci) in clsConfig.classes" :key="ci" class="cls-card">
             <div class="cls-head">
               <el-input v-model="c.name" size="small" placeholder="类名，如：用户" class="cls-name-input" />
@@ -253,8 +320,10 @@
           </div>
           <el-button size="small" class="add-layer-btn" @click="addClsClass">+ 添加类</el-button>
 
-          <div class="input-title" style="margin-top:12px">关系</div>
-          <div class="uc-act" v-for="(r, ri) in clsConfig.relations" :key="ri">
+          <div class="section-divider"></div>
+          <div class="input-title">关系</div>
+          <div v-for="(r, ri) in clsConfig.relations" :key="ri" class="item-card">
+            <span class="item-num">关系 {{ ri + 1 }}</span>
             <el-select v-model="r.source" size="small" class="edge-sel" placeholder="来源">
               <el-option v-for="c in clsAllClasses" :key="c.id" :label="c.name" :value="c.id" />
             </el-select>
@@ -392,6 +461,31 @@ Graph.registerNode('classNode', {
       <div style="border-top:1px solid #999"></div>
       ${methodsHtml}
     </div>`
+  }
+})
+
+// 活动图开始节点: UML 实心黑圆 ●
+Graph.registerNode('activityStart', {
+  inherit: 'circle',
+  width: 30,
+  height: 30,
+  attrs: {
+    body: { fill: '#000000', stroke: '#000000', strokeWidth: 1.5 }
+  }
+})
+
+// 活动图结束节点: UML 双圆叠加 ◎(外圈空心 + 内圈实心)
+Graph.registerNode('activityEnd', {
+  inherit: 'circle',
+  width: 34,
+  height: 34,
+  markup: [
+    { tagName: 'circle', selector: 'outer' },
+    { tagName: 'circle', selector: 'inner' }
+  ],
+  attrs: {
+    outer: { cx: 17, cy: 17, r: 13, fill: '#fff', stroke: '#000', strokeWidth: 2 },
+    inner: { cx: 17, cy: 17, r: 6, fill: '#000' }
   }
 })
 
@@ -656,6 +750,81 @@ function buildClassPayload() {
   return { title: clsConfig.value.title, classes, relations }
 }
 
+// 活动图配置: 泳道 + 节点 + 连线
+const actConfig = ref({
+  title: '借阅流程',
+  lanes: [
+    { id: 'L1', name: '图书馆工作人员' },
+    { id: 'L2', name: '读者' },
+    { id: 'L3', name: '系统' }
+  ],
+  nodes: [
+    { id: 'N1', text: '开始', type: 'START', laneId: 'L1' },
+    { id: 'N2', text: '进入借阅界面', type: 'ACTION', laneId: 'L1' },
+    { id: 'N3', text: '刷一卡通', type: 'ACTION', laneId: 'L2' },
+    { id: 'N4', text: '获取读者信息', type: 'ACTION', laneId: 'L3' },
+    { id: 'N5', text: '图书超期或欠款', type: 'DECISION', laneId: 'L3' },
+    { id: 'N6', text: '禁止借阅', type: 'ACTION', laneId: 'L3' },
+    { id: 'N7', text: '借阅成功', type: 'ACTION', laneId: 'L3' },
+    { id: 'N8', text: '结束', type: 'END', laneId: 'L3' }
+  ],
+  edges: [
+    { source: 'N1', target: 'N2', label: '' },
+    { source: 'N2', target: 'N3', label: '' },
+    { source: 'N3', target: 'N4', label: '' },
+    { source: 'N4', target: 'N5', label: '' },
+    { source: 'N5', target: 'N6', label: '是' },
+    { source: 'N5', target: 'N7', label: '否' },
+    { source: 'N6', target: 'N8', label: '' },
+    { source: 'N7', target: 'N8', label: '' }
+  ]
+})
+let actSeq = 9
+
+function addActLane() {
+  actConfig.value.lanes.push({ id: 'L' + (actSeq++), name: '' })
+}
+function removeActLane(li) {
+  const id = actConfig.value.lanes[li].id
+  actConfig.value.lanes.splice(li, 1)
+  actConfig.value.nodes = actConfig.value.nodes.filter(n => n.laneId !== id)
+  actConfig.value.edges = actConfig.value.edges.filter(e => e.source !== id && e.target !== id)
+}
+function addActNode() {
+  actConfig.value.nodes.push({ id: 'N' + (actSeq++), text: '', type: 'ACTION', laneId: actConfig.value.lanes[0]?.id || '' })
+}
+function removeActNode(ni) {
+  const id = actConfig.value.nodes[ni].id
+  actConfig.value.nodes.splice(ni, 1)
+  actConfig.value.edges = actConfig.value.edges.filter(e => e.source !== id && e.target !== id)
+}
+function addActEdge() {
+  const a = actConfig.value.nodes[0]?.id || ''
+  const b = actConfig.value.nodes[1]?.id || ''
+  actConfig.value.edges.push({ source: a, target: b, label: '' })
+}
+function removeActEdge(ei) {
+  actConfig.value.edges.splice(ei, 1)
+}
+const actLanes = computed(() =>
+  actConfig.value.lanes.filter(l => l.name && l.name.trim()).map(l => ({ id: l.id, name: l.name.trim() }))
+)
+const actNodes = computed(() =>
+  actConfig.value.nodes.filter(n => n.text && n.text.trim()).map(n => ({ id: n.id, label: n.text.trim() }))
+)
+function buildActivityPayload() {
+  const lanes = actConfig.value.lanes
+    .filter(l => l.name && l.name.trim())
+    .map(l => ({ id: l.id, name: l.name.trim() }))
+  const nodes = actConfig.value.nodes
+    .filter(n => n.text && n.text.trim() && n.laneId)
+    .map(n => ({ id: n.id, text: n.text.trim(), type: n.type || 'ACTION', laneId: n.laneId }))
+  const edges = (actConfig.value.edges || [])
+    .filter(e => e.source && e.target && e.source !== e.target)
+    .map(e => ({ source: e.source, target: e.target, label: e.label || '' }))
+  return { title: actConfig.value.title, lanes, nodes, edges }
+}
+
 function addLayer() {
   config.value.layers.push({ name: '', components: [{ name: '' }] })
 }
@@ -796,6 +965,8 @@ function useExample(ex) {
 }
 
 function nodeShapeName(shape, type) {
+  if (shape === 'start' && type === 'ACTIVITY') return 'activityStart'
+  if (shape === 'end' && type === 'ACTIVITY') return 'activityEnd'
   if (shape === 'start' || shape === 'end') return 'ellipse'
   if (shape === 'condition') return 'polygon'
   if (shape === 'database' || shape === 'cache' || shape === 'mq') return 'db'
@@ -810,6 +981,16 @@ function nodeShapeName(shape, type) {
 function nodeAttrs(node) {
   const color = '#333333'
   const label = { text: node.label, fill: '#333', fontSize: 12, textAnchor: 'middle', textVerticalAnchor: 'middle' }
+  if (node.shape === 'activityStart') {
+    return { body: { fill: '#000', stroke: '#000', strokeWidth: 1.5 }, label: { text: '' } }
+  }
+  if (node.shape === 'activityEnd') {
+    return {
+      outer: { cx: 17, cy: 17, r: 13, fill: '#fff', stroke: '#000', strokeWidth: 2 },
+      inner: { cx: 17, cy: 17, r: 6, fill: '#000' },
+      label: { text: '' }
+    }
+  }
   if (node.shape === 'start' || node.shape === 'end') {
     return { body: { fill: '#fff', stroke: color, strokeWidth: 1.5 }, label }
   }
@@ -855,21 +1036,22 @@ function nodeAttrs(node) {
       label
     }
   }
-  // action
-  return { body: { fill: '#fff', stroke: color, strokeWidth: 1.5 }, label }
+  // action (圆角矩形)
+  return { body: { fill: '#fff', stroke: color, strokeWidth: 1.5, rx: 10, ry: 10 }, label }
 }
 
 async function renderGraph(vo) {
   if (vo.type === 'ARCH') return // ARCH 用 HTML 渲染, 不用 X6
   graph.clearCells()
 
-  // SWIMLANE: 泳道容器为竖列背景, 节点用后端绝对坐标(已含泳道偏移)
+  // SWIMLANE / ACTIVITY: 泳道容器为竖列背景, 节点用后端绝对坐标(已含泳道偏移)
   const nodes = []
   const laneIds = new Map() // lane.id -> 容器id
-  if (vo.type === 'SWIMLANE' && vo.lanes && vo.lanes.length > 0) {
+  if ((vo.type === 'SWIMLANE' || vo.type === 'ACTIVITY') && vo.lanes && vo.lanes.length > 0) {
     vo.lanes.forEach(l => {
       const id = 'lane_' + l.id
       laneIds.set(l.id, id)
+      const isActivity = vo.type === 'ACTIVITY'
       nodes.push({
         id,
         shape: 'rect',
@@ -879,9 +1061,13 @@ async function renderGraph(vo) {
         height: l.height,
         zIndex: 0,
         attrs: {
-          body: { fill: '#f0f2f7', stroke: '#c0c4cc', strokeWidth: 1.5, strokeDasharray: '6 3', rx: 8, ry: 8 },
-          label: { text: l.name, fill: '#3B6BFF', fontSize: 14, fontWeight: 700, textAnchor: 'start',
-                   textVerticalAnchor: 'top', refX: 12, refY: 8 }
+          body: isActivity
+            ? { fill: '#f7f9fc', stroke: '#909399', strokeWidth: 1.5, rx: 4, ry: 4 }
+            : { fill: '#f0f2f7', stroke: '#c0c4cc', strokeWidth: 1.5, strokeDasharray: '6 3', rx: 8, ry: 8 },
+          label: { text: l.name, fill: '#3B6BFF', fontSize: 14, fontWeight: 700,
+                   textAnchor: isActivity ? 'middle' : 'start',
+                   textVerticalAnchor: 'top',
+                   refX: isActivity ? 0.5 : 12, refY: 8 }
         }
       })
     })
@@ -916,6 +1102,11 @@ async function renderGraph(vo) {
     } else if (vo.type === 'CLASS') {
       w = n.width || 230
       h = n.height || 120
+    } else if (vo.type === 'ACTIVITY') {
+      if (n.shape === 'start') { w = 30; h = 30 }
+      else if (n.shape === 'end') { w = 34; h = 34 }
+      else if (n.shape === 'condition') { w = n.width || 130; h = 72 }
+      else { w = n.width || Math.max(120, n.label.length * 14 + 30); h = 48 }
     } else {
       w = Math.max(120, n.label.length * 14 + 30)
       h = (n.shape === 'start' || n.shape === 'end') ? 56 : 48
@@ -929,6 +1120,17 @@ async function renderGraph(vo) {
       height: h,
       attrs: nodeAttrs(n),
       zIndex: n.shape === 'system' ? 0 : 10
+    }
+    // 活动图: 开始=实心黑圆, 结束=双圆叠加
+    if (vo.type === 'ACTIVITY' && n.shape === 'start') {
+      node.attrs = { body: { fill: '#000', stroke: '#000', strokeWidth: 1.5 }, label: { text: '' } }
+    }
+    if (vo.type === 'ACTIVITY' && n.shape === 'end') {
+      node.attrs = {
+        outer: { cx: 17, cy: 17, r: 13, fill: '#fff', stroke: '#000', strokeWidth: 2 },
+        inner: { cx: 17, cy: 17, r: 6, fill: '#000' },
+        label: { text: '' }
+      }
     }
     if (vo.type === 'CLASS' && n.shape === 'classNode') {
       node.data = { name: n.label, attrs: n.attrsText || '', methods: n.methodsText || '' }
@@ -987,8 +1189,8 @@ async function renderGraph(vo) {
     return edge
   })
 
-  // SWIMLANE / USECASE / SEQUENCE: 泳道已定位, 节点用后端坐标, 不需 Dagre
-  if (vo.type === 'SWIMLANE' || vo.type === 'USECASE' || vo.type === 'SEQUENCE') {
+  // SWIMLANE / ACTIVITY / USECASE / SEQUENCE: 泳道已定位, 节点用后端坐标, 不需 Dagre
+  if (vo.type === 'SWIMLANE' || vo.type === 'ACTIVITY' || vo.type === 'USECASE' || vo.type === 'SEQUENCE') {
     graph.fromJSON({ nodes, edges })
     graph.centerContent()
     return
@@ -1108,6 +1310,17 @@ async function generate() {
       return
     }
     payload = { type: 'CLASS', classConfig: cls }
+  } else if (type.value === 'ACTIVITY') {
+    const act = buildActivityPayload()
+    if (act.lanes.length === 0) {
+      ElMessage.warning('请至少配置一个泳道')
+      return
+    }
+    if (act.nodes.length === 0) {
+      ElMessage.warning('请至少配置一个节点')
+      return
+    }
+    payload = { type: 'ACTIVITY', activity: act }
   } else {
     if (!description.value.trim()) {
       ElMessage.warning('请输入系统描述')
@@ -1360,6 +1573,30 @@ async function downloadArchSvg() {
   font-weight: 600;
   color: #303133;
   margin-bottom: 10px;
+}
+.section-divider {
+  height: 1px;
+  background: linear-gradient(to right, #dcdde0, #f0f1f3);
+  margin: 16px 0 12px;
+}
+.item-card {
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  padding: 10px 10px 4px;
+  margin-bottom: 10px;
+  background: #fafbfc;
+  position: relative;
+}
+.item-card .item-num {
+  position: absolute;
+  top: -7px;
+  left: 10px;
+  font-size: 11px;
+  color: #3B6BFF;
+  background: #fff;
+  padding: 0 6px;
+  border-radius: 8px;
+  border: 1px solid #d6e0ff;
 }
 .dsl-tip {
   font-size: 11px;

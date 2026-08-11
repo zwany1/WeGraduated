@@ -12,6 +12,7 @@
           <el-radio-button value="SWIMLANE">泳道图</el-radio-button>
           <el-radio-button value="USECASE">用例图</el-radio-button>
           <el-radio-button value="SEQUENCE">时序图</el-radio-button>
+          <el-radio-button value="CLASS">类图</el-radio-button>
         </el-radio-group>
       </div>
       <div class="actions">
@@ -209,6 +210,74 @@
             <el-button type="primary" :loading="generating" @click="generate">生成时序图</el-button>
           </div>
         </template>
+
+        <!-- 类图: 结构化配置(类 + 属性/方法 + 关系) -->
+        <template v-else-if="type === 'CLASS'">
+          <div class="input-title">类图配置</div>
+          <el-form label-width="70px" size="small">
+            <el-form-item label="图标题">
+              <el-input v-model="clsConfig.title" placeholder="如：会员系统类图" />
+            </el-form-item>
+          </el-form>
+
+          <div class="input-title" style="margin-top:12px">类</div>
+          <div v-for="(c, ci) in clsConfig.classes" :key="ci" class="cls-card">
+            <div class="cls-head">
+              <el-input v-model="c.name" size="small" placeholder="类名，如：用户" class="cls-name-input" />
+              <el-button size="small" text type="danger" @click="removeClsClass(ci)">删除类</el-button>
+            </div>
+            <div class="cls-sub">属性</div>
+            <div class="cls-row" v-for="(a, ai) in c.attributes" :key="ai">
+              <el-select v-model="a.visibility" size="small" class="vis-sel">
+                <el-option label="+" value="+" />
+                <el-option label="-" value="-" />
+                <el-option label="#" value="#" />
+              </el-select>
+              <el-input v-model="a.name" size="small" placeholder="属性名" style="margin-left:4px" />
+              <el-input v-model="a.type" size="small" placeholder="类型" style="margin-left:4px" />
+              <el-button size="small" text type="danger" @click="removeClsAttr(ci, ai)">×</el-button>
+            </div>
+            <el-button size="small" class="add-comp-btn" @click="addClsAttr(ci)">+ 属性</el-button>
+            <div class="cls-sub">方法</div>
+            <div class="cls-row" v-for="(m, mi) in c.methods" :key="mi">
+              <el-select v-model="m.visibility" size="small" class="vis-sel">
+                <el-option label="+" value="+" />
+                <el-option label="-" value="-" />
+                <el-option label="#" value="#" />
+              </el-select>
+              <el-input v-model="m.name" size="small" placeholder="方法名" style="margin-left:4px" />
+              <el-input v-model="m.returnType" size="small" placeholder="返回" style="margin-left:4px" />
+              <el-button size="small" text type="danger" @click="removeClsMethod(ci, mi)">×</el-button>
+            </div>
+            <el-button size="small" class="add-comp-btn" @click="addClsMethod(ci)">+ 方法</el-button>
+          </div>
+          <el-button size="small" class="add-layer-btn" @click="addClsClass">+ 添加类</el-button>
+
+          <div class="input-title" style="margin-top:12px">关系</div>
+          <div class="uc-act" v-for="(r, ri) in clsConfig.relations" :key="ri">
+            <el-select v-model="r.source" size="small" class="edge-sel" placeholder="来源">
+              <el-option v-for="c in clsAllClasses" :key="c.id" :label="c.name" :value="c.id" />
+            </el-select>
+            <span class="edge-arrow">→</span>
+            <el-select v-model="r.target" size="small" class="edge-sel" placeholder="目标">
+              <el-option v-for="c in clsAllClasses" :key="c.id" :label="c.name" :value="c.id" />
+            </el-select>
+            <el-select v-model="r.type" size="small" class="act-type" placeholder="类型">
+              <el-option label="关联" value="association" />
+              <el-option label="继承" value="inheritance" />
+            </el-select>
+            <el-button size="small" text type="danger" @click="removeClsRelation(ri)">×</el-button>
+            <div class="cls-row" style="margin-top:4px">
+              <el-input v-model="r.left" size="small" placeholder="基数左(1/n)" style="margin-right:4px" />
+              <el-input v-model="r.right" size="small" placeholder="基数右(1/n)" />
+            </div>
+          </div>
+          <el-button size="small" class="add-comp-btn" @click="addClsRelation">+ 添加关系</el-button>
+
+          <div class="input-row">
+            <el-button type="primary" :loading="generating" @click="generate">生成类图</el-button>
+          </div>
+        </template>
       </section>
 
       <section class="canvas-wrap">
@@ -300,6 +369,29 @@ Graph.registerNode('systemNode', {
     body: { refWidth: '100%', refHeight: '100%', fill: 'rgba(255,255,255,0.4)', stroke: '#333', strokeWidth: 2, rx: 4, ry: 4 },
     title: { text: '', fontSize: 13, fontWeight: 700, fill: '#333', refX: 0.5, refY: 0, refY2: 18, textAnchor: 'middle', textVerticalAnchor: 'middle' },
     label: { text: '' }
+  }
+})
+
+// 注册类图节点(类名/属性/方法三段式, HTML 渲染保证文本不溢出)
+Graph.registerNode('classNode', {
+  inherit: 'html',
+  width: 230,
+  height: 120,
+  html(cell) {
+    const { name, attrs, methods } = cell.getData() || {}
+    const esc = s => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    const attrsHtml = attrs
+      ? `<div style="padding:4px 10px;font-size:12px;color:#333;line-height:1.6;white-space:pre-wrap">${esc(attrs)}</div>`
+      : '<div style="padding:4px 10px;font-size:12px;color:#999">(无属性)</div>'
+    const methodsHtml = methods
+      ? `<div style="padding:4px 10px;font-size:12px;color:#333;line-height:1.6;white-space:pre-wrap">${esc(methods)}</div>`
+      : '<div style="padding:4px 10px;font-size:12px;color:#999">(无方法)</div>'
+    return `<div style="width:100%;height:100%;display:flex;flex-direction:column;box-sizing:border-box;background:#fff;border:1.5px solid #333;overflow:hidden">
+      <div style="text-align:center;font-weight:bold;font-size:14px;padding:6px 8px;border-bottom:1.5px solid #333;background:#f5f6fa;color:#333">${esc(name)}</div>
+      ${attrsHtml}
+      <div style="border-top:1px solid #999"></div>
+      ${methodsHtml}
+    </div>`
   }
 })
 
@@ -470,6 +562,100 @@ function buildSequencePayload() {
   return { title: seqConfig.value.title, participants, messages }
 }
 
+// 类图配置: 类 + 属性/方法 + 关系
+const clsConfig = ref({
+  title: '会员系统类图',
+  classes: [
+    {
+      id: 'C1', name: '用户',
+      attributes: [
+        { name: '用户ID', type: 'int', visibility: '-' },
+        { name: '用户名', type: 'string', visibility: '-' },
+        { name: '密码', type: 'string', visibility: '-' }
+      ],
+      methods: [
+        { name: '查询', returnType: '用户', visibility: '+' },
+        { name: '新增', returnType: 'void', visibility: '+' }
+      ]
+    },
+    {
+      id: 'C2', name: '订单',
+      attributes: [
+        { name: '订单ID', type: 'int', visibility: '-' },
+        { name: '用户ID', type: 'int', visibility: '-' }
+      ],
+      methods: [
+        { name: '创建', returnType: 'void', visibility: '+' }
+      ]
+    },
+    {
+      id: 'C3', name: '商品',
+      attributes: [
+        { name: '商品ID', type: 'int', visibility: '-' },
+        { name: '名称', type: 'string', visibility: '-' }
+      ],
+      methods: [
+        { name: '查询', returnType: '商品', visibility: '+' }
+      ]
+    }
+  ],
+  relations: [
+    { source: 'C1', target: 'C2', type: 'association', left: '1', right: 'n' },
+    { source: 'C2', target: 'C3', type: 'association', left: '1', right: 'n' }
+  ]
+})
+let clsSeq = 4
+
+function addClsClass() {
+  clsConfig.value.classes.push({ id: 'C' + (clsSeq++), name: '', attributes: [], methods: [] })
+}
+function removeClsClass(ci) {
+  const id = clsConfig.value.classes[ci].id
+  clsConfig.value.classes.splice(ci, 1)
+  clsConfig.value.relations = clsConfig.value.relations.filter(r => r.source !== id && r.target !== id)
+}
+function addClsAttr(ci) {
+  clsConfig.value.classes[ci].attributes.push({ name: '', type: '', visibility: '-' })
+}
+function removeClsAttr(ci, ai) {
+  clsConfig.value.classes[ci].attributes.splice(ai, 1)
+}
+function addClsMethod(ci) {
+  clsConfig.value.classes[ci].methods.push({ name: '', returnType: 'void', visibility: '+' })
+}
+function removeClsMethod(ci, mi) {
+  clsConfig.value.classes[ci].methods.splice(mi, 1)
+}
+function addClsRelation() {
+  const a = clsConfig.value.classes[0]?.id || ''
+  const b = clsConfig.value.classes[1]?.id || ''
+  clsConfig.value.relations.push({ source: a, target: b, type: 'association', left: '1', right: 'n' })
+}
+function removeClsRelation(ri) {
+  clsConfig.value.relations.splice(ri, 1)
+}
+const clsAllClasses = computed(() =>
+  clsConfig.value.classes.filter(c => c.name && c.name.trim()).map(c => ({ id: c.id, name: c.name.trim() }))
+)
+function buildClassPayload() {
+  const classes = clsConfig.value.classes
+    .filter(c => c.name && c.name.trim())
+    .map(c => ({
+      id: c.id,
+      name: c.name.trim(),
+      attributes: (c.attributes || []).filter(a => a.name && a.name.trim()).map(a => ({
+        name: a.name.trim(), type: a.type || '', visibility: a.visibility || '-'
+      })),
+      methods: (c.methods || []).filter(m => m.name && m.name.trim()).map(m => ({
+        name: m.name.trim(), returnType: m.returnType || 'void', visibility: m.visibility || '+'
+      }))
+    }))
+  const relations = (clsConfig.value.relations || [])
+    .filter(r => r.source && r.target && r.source !== r.target)
+    .map(r => ({ source: r.source, target: r.target, type: r.type || 'association', left: r.left || '', right: r.right || '' }))
+  return { title: clsConfig.value.title, classes, relations }
+}
+
 function addLayer() {
   config.value.layers.push({ name: '', components: [{ name: '' }] })
 }
@@ -617,6 +803,7 @@ function nodeShapeName(shape, type) {
   if (shape === 'actor') return 'actorNode'
   if (shape === 'usecase') return 'ellipse'
   if (shape === 'system') return 'systemNode'
+  if (shape === 'classNode') return 'classNode'
   return 'rect'
 }
 
@@ -726,11 +913,14 @@ async function renderGraph(vo) {
     } else if (vo.type === 'SEQUENCE') {
       w = n.width || (n.shape === 'activation' ? 12 : 120)
       h = n.height || (n.shape === 'activation' ? 60 : 44)
+    } else if (vo.type === 'CLASS') {
+      w = n.width || 230
+      h = n.height || 120
     } else {
       w = Math.max(120, n.label.length * 14 + 30)
       h = (n.shape === 'start' || n.shape === 'end') ? 56 : 48
     }
-    nodes.push({
+    const node = {
       id: n.id,
       shape: nodeShapeName(n.shape, vo.type),
       x: n.x,
@@ -739,7 +929,13 @@ async function renderGraph(vo) {
       height: h,
       attrs: nodeAttrs(n),
       zIndex: n.shape === 'system' ? 0 : 10
-    })
+    }
+    if (vo.type === 'CLASS' && n.shape === 'classNode') {
+      node.data = { name: n.label, attrs: n.attrsText || '', methods: n.methodsText || '' }
+      node.attrs = node.attrs || {}
+      node.attrs.label = { text: '' }
+    }
+    nodes.push(node)
   })
   const edges = vo.edges.map(e => {
     const isInclude = e.style === 'include' || e.label === '«include»' || e.label === '«extend»'
@@ -755,13 +951,38 @@ async function renderGraph(vo) {
           : { stroke: '#333333', strokeWidth: 1.5, targetMarker: 'block' }
       }
     }
+    // 类图: 关系箭头按类型区分
+    if (vo.type === 'CLASS') {
+      if (e.style === 'inheritance') {
+        edge.attrs.line = { stroke: '#333333', strokeWidth: 1.5, targetMarker: { name: 'block', width: 12, height: 12, fill: '#fff', stroke: '#333' } }
+      } else if (e.style === 'composition') {
+        edge.attrs.line = { stroke: '#333333', strokeWidth: 1.5, sourceMarker: { name: 'diamond', width: 12, height: 12, fill: '#333' }, targetMarker: null }
+      } else if (e.style === 'aggregation') {
+        edge.attrs.line = { stroke: '#333333', strokeWidth: 1.5, sourceMarker: { name: 'diamond', width: 12, height: 12, fill: '#fff', stroke: '#333' }, targetMarker: null }
+      } else {
+        edge.attrs.line = { stroke: '#333333', strokeWidth: 1.5, targetMarker: 'block' }
+      }
+    }
     // 时序图: 使用坐标定位消息
     if (vo.type === 'SEQUENCE' && e.sourceX != null) {
       edge.source = { x: e.sourceX, y: e.sourceY }
       edge.target = { x: e.targetX, y: e.targetY }
     }
     if (e.label) {
-      edge.labels = [{ attrs: { label: { text: e.label, fill: '#666', fontSize: 11 } } }]
+      if (vo.type === 'CLASS' && e.label.includes(' ')) {
+        // 基数标签放两端: 左基数靠近源节点, 右基数靠近目标节点
+        const parts = e.label.trim().split(/\s+/)
+        const labels = []
+        if (parts[0]) {
+          labels.push({ attrs: { label: { text: parts[0], fill: '#333', fontSize: 11, fontWeight: 700 } }, position: { distance: 20 } })
+        }
+        if (parts[1]) {
+          labels.push({ attrs: { label: { text: parts[1], fill: '#333', fontSize: 11, fontWeight: 700 } }, position: { distance: -20 } })
+        }
+        edge.labels = labels
+      } else {
+        edge.labels = [{ attrs: { label: { text: e.label, fill: '#666', fontSize: 11 } } }]
+      }
     }
     return edge
   })
@@ -773,17 +994,17 @@ async function renderGraph(vo) {
     return
   }
 
-  // FLOW: 用 Dagre 布局(适合分支流程)
-  if (vo.type === 'FLOW' && nodes.length > 0) {
+  // FLOW / CLASS: 用 Dagre 布局
+  if ((vo.type === 'FLOW' || vo.type === 'CLASS') && nodes.length > 0) {
     try {
       const layout = new DagreLayout({
         type: 'dagre',
         rankdir: 'TB',
-        ranksep: 70,
-        nodesep: 60
+        ranksep: vo.type === 'CLASS' ? 280 : 70,
+        nodesep: vo.type === 'CLASS' ? 120 : 60
       })
       await layout.execute({
-        nodes: nodes.map(n => ({ id: n.id, width: n.width, height: n.height })),
+        nodes: nodes.map(n => ({ id: n.id, size: [n.width, n.height] })),
         edges: edges.map(e => ({ source: e.source, target: e.target }))
       })
       layout.forEachNode(node => {
@@ -800,7 +1021,47 @@ async function renderGraph(vo) {
   }
 
   graph.fromJSON({ nodes, edges })
-  graph.centerContent()
+  // CLASS: Dagre 布局后注入类节点 HTML 并居中
+  if (vo.type === 'CLASS') {
+    // 等待 view 渲染完成
+    await nextTick()
+    setTimeout(() => {
+      vo.nodes.forEach(n => {
+        if (n.shape !== 'classNode') return
+        const cell = graph.getCellById(n.id)
+        if (!cell) return
+        const { name, attrs, methods } = { name: n.label, attrs: n.attrsText || '', methods: n.methodsText || '' }
+        const esc = s => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        const attrsHtml = attrs
+          ? `<div style="padding:4px 10px;font-size:12px;color:#333;line-height:1.6;white-space:pre-wrap">${esc(attrs)}</div>`
+          : '<div style="padding:4px 10px;font-size:12px;color:#999">(无属性)</div>'
+        const methodsHtml = methods
+          ? `<div style="padding:4px 10px;font-size:12px;color:#333;line-height:1.6;white-space:pre-wrap">${esc(methods)}</div>`
+          : '<div style="padding:4px 10px;font-size:12px;color:#999">(无方法)</div>'
+        const htmlStr = `<div style="width:100%;height:100%;display:flex;flex-direction:column;box-sizing:border-box;background:#fff;border:1.5px solid #333;overflow:hidden">
+          <div style="text-align:center;font-weight:bold;font-size:14px;padding:6px 8px;border-bottom:1.5px solid #333;background:#f5f6fa;color:#333">${esc(name)}</div>
+          ${attrsHtml}
+          <div style="border-top:1px solid #999"></div>
+          ${methodsHtml}
+        </div>`
+        if (typeof cell.setHTML === 'function') {
+          cell.setHTML(htmlStr)
+        }
+        const view = graph.findViewByCell(cell)
+        const container = view ? view.container : null
+        if (container) {
+          const fo = container.querySelector('foreignObject')
+          if (fo) {
+            const inner = fo.querySelector('body') || fo
+            inner.innerHTML = htmlStr
+          }
+        }
+      })
+      graph.centerPoint(0, 0)
+    }, 100)
+  } else {
+    graph.centerContent()
+  }
 }
 
 async function generate() {
@@ -840,6 +1101,13 @@ async function generate() {
       return
     }
     payload = { type: 'SEQUENCE', sequence: sq }
+  } else if (type.value === 'CLASS') {
+    const cls = buildClassPayload()
+    if (cls.classes.length === 0) {
+      ElMessage.warning('请至少配置一个类')
+      return
+    }
+    payload = { type: 'CLASS', classConfig: cls }
   } else {
     if (!description.value.trim()) {
       ElMessage.warning('请输入系统描述')
@@ -1139,6 +1407,38 @@ async function downloadArchSvg() {
 }
 .act-type {
   width: 86px;
+  flex-shrink: 0;
+}
+.cls-card {
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+  background: #fafbfc;
+}
+.cls-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.cls-name-input {
+  flex: 1;
+}
+.cls-sub {
+  font-size: 12px;
+  color: #909399;
+  margin: 6px 0 4px;
+  font-weight: 600;
+}
+.cls-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.vis-sel {
+  width: 56px;
   flex-shrink: 0;
 }
 .add-comp-btn {

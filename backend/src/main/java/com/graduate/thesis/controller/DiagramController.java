@@ -4,11 +4,13 @@ import com.graduate.thesis.common.BusinessException;
 import com.graduate.thesis.common.Result;
 import com.graduate.thesis.common.UserContext;
 import com.graduate.thesis.dto.ArchitectureConfig;
+import com.graduate.thesis.dto.ClassConfig;
 import com.graduate.thesis.dto.DiagramVO;
 import com.graduate.thesis.dto.SequenceConfig;
 import com.graduate.thesis.dto.SwimlaneConfig;
 import com.graduate.thesis.dto.UseCaseConfig;
 import com.graduate.thesis.service.ArchitectureRuleEngine;
+import com.graduate.thesis.service.ClassDiagramRuleEngine;
 import com.graduate.thesis.service.DiagramGenerator;
 import com.graduate.thesis.service.SequenceRuleEngine;
 import com.graduate.thesis.service.SwimlaneRuleEngine;
@@ -41,6 +43,7 @@ public class DiagramController {
     private final SwimlaneRuleEngine swimlaneEngine;
     private final UseCaseRuleEngine useCaseEngine;
     private final SequenceRuleEngine sequenceEngine;
+    private final ClassDiagramRuleEngine classEngine;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Path root;
 
@@ -49,17 +52,19 @@ public class DiagramController {
                              ArchitectureRuleEngine ruleEngine,
                              SwimlaneRuleEngine swimlaneEngine,
                              UseCaseRuleEngine useCaseEngine,
-                             SequenceRuleEngine sequenceEngine) {
+                             SequenceRuleEngine sequenceEngine,
+                             ClassDiagramRuleEngine classEngine) {
         this.root = Paths.get(storageDir).toAbsolutePath().normalize().resolve("diagrams");
         this.diagramGenerator = diagramGenerator;
         this.ruleEngine = ruleEngine;
         this.swimlaneEngine = swimlaneEngine;
         this.useCaseEngine = useCaseEngine;
         this.sequenceEngine = sequenceEngine;
+        this.classEngine = classEngine;
     }
 
     /**
-     * 自动生成设计图: ARCH/SWIMLANE/USECASE/SEQUENCE 支持结构化配置(规则引擎), 其余支持文本描述
+     * 自动生成设计图: ARCH/SWIMLANE/USECASE/SEQUENCE/CLASS 支持结构化配置(规则引擎), 其余支持文本描述
      */
     @PostMapping("/generate")
     public Result<DiagramVO> generate(@RequestBody GenDTO dto) {
@@ -74,6 +79,9 @@ public class DiagramController {
         }
         if ("SEQUENCE".equalsIgnoreCase(dto.getType()) && dto.getSequence() != null) {
             return Result.ok(sequenceEngine.build(dto.getSequence()));
+        }
+        if ("CLASS".equalsIgnoreCase(dto.getType()) && dto.getClassConfig() != null) {
+            return Result.ok(classEngine.build(dto.getClassConfig()));
         }
         return Result.ok(diagramGenerator.generate(dto.getType(), dto.getDescription()));
     }
@@ -149,6 +157,7 @@ public class DiagramController {
         private SwimlaneConfig swimlane;
         private UseCaseConfig useCase;
         private SequenceConfig sequence;
+        private ClassConfig classConfig;
 
         public String getType() { return type; }
         public void setType(String type) { this.type = type; }
@@ -162,5 +171,7 @@ public class DiagramController {
         public void setUseCase(UseCaseConfig useCase) { this.useCase = useCase; }
         public SequenceConfig getSequence() { return sequence; }
         public void setSequence(SequenceConfig sequence) { this.sequence = sequence; }
+        public ClassConfig getClassConfig() { return classConfig; }
+        public void setClassConfig(ClassConfig classConfig) { this.classConfig = classConfig; }
     }
 }

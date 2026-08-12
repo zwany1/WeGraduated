@@ -56,6 +56,29 @@
           </div>
 
           <div class="space-y-2">
+            <label class="text-sm font-medium">邮箱验证码 <span class="text-red-500">*</span></label>
+            <div class="flex gap-3">
+              <input
+                v-model="form.emailCode"
+                type="text"
+                maxlength="6"
+                placeholder="6位验证码"
+                autocomplete="off"
+                class="h-12 flex-1 bg-background border border-border/60 focus:border-primary rounded-full px-5 outline-none transition-colors"
+              />
+              <button
+                type="button"
+                @click="sendEmailCode"
+                :disabled="sending || countdown > 0"
+                class="shrink-0 h-12 px-4 rounded-full border border-border/60 text-sm font-medium transition-colors disabled:opacity-50"
+                :class="countdown > 0 ? 'cursor-not-allowed text-muted-foreground' : 'cursor-pointer hover:border-primary hover:text-primary'"
+              >
+                {{ countdown > 0 ? countdown + 's 后重发' : '发送验证码' }}
+              </button>
+            </div>
+          </div>
+
+          <div class="space-y-2">
             <label class="text-sm font-medium">用户名（选填）</label>
             <input
               v-model="form.username"
@@ -104,6 +127,29 @@
             </div>
           </div>
 
+          <div class="space-y-2">
+            <label class="text-sm font-medium">图形验证码 <span class="text-red-500">*</span></label>
+            <div class="flex gap-3">
+              <input
+                v-model="form.captchaCode"
+                type="text"
+                maxlength="4"
+                placeholder="请输入验证码"
+                autocomplete="off"
+                class="h-12 flex-1 bg-background border border-border/60 focus:border-primary rounded-full px-5 outline-none transition-colors"
+              />
+              <button
+                type="button"
+                @click="refreshCaptcha"
+                class="shrink-0 h-12 w-[120px] border border-border/60 rounded-full overflow-hidden cursor-pointer bg-background"
+                :disabled="!captchaImage"
+              >
+                <img v-if="captchaImage" :src="'data:image/png;base64,' + captchaImage" alt="验证码" class="w-full h-full object-cover" />
+                <span v-else class="text-xs text-muted-foreground">加载中</span>
+              </button>
+            </div>
+          </div>
+
           <InteractiveHoverButton
             type="submit"
             :text="loading ? '...' : 'Register'"
@@ -123,10 +169,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { register, getProfile } from '../api/user'
+import { register, getProfile, sendEmailCode } from '../api/user'
+import { generateCaptcha } from '../api/captcha'
 import AnimatedCharacters from '../components/auth/AnimatedCharacters.vue'
 import InteractiveHoverButton from '../components/auth/InteractiveHoverButton.vue'
 
@@ -136,14 +183,30 @@ const loading = ref(false)
 const showPassword = ref(false)
 const isTyping = ref(false)
 const pwdRef = ref(null)
+const captchaImage = ref('')
+const sending = ref(false)
+const countdown = ref(0)
+let countdownTimer = null
 const form = reactive({
   email: '',
   username: '',
   password: '',
-  confirm: ''
+  confirm: '',
+  emailCode: '',
+  captchaCode: '',
+  captchaId: ''
 })
 const hint = ref('')
 const password = computed(() => form.password)
+
+async function refreshCaptcha() {
+  try {
+    const data = await generateCaptcha()
+    form.captchaId = data.captchaId
+    captchaImage.value = data.imageBase64
+    form.captchaCode = ''
+  } catch (e) {}
+}
 
 const strength = computed(() => {
   const p = form.password
@@ -164,14 +227,52 @@ const strengthText = computed(() => {
   return '密码强度：强'
 })
 
+function startCountdown() {
+  countdown.value = 60
+  clearInterval(countdownTimer)
+  countdownTimer = setInterval(() => {
+    countdown.value--
+    if (countdown.value <= 0) clearInterval(countdownTimer)
+  }, 1000)
+}
+
 onMounted(async () => {
   if (localStorage.getItem('token')) {
     router.replace('/home')
+    return
   }
+  refreshCaptcha()
+})
+
+onBeforeUnmount(() => {
+  clearInterval(countdownTimer)
 })
 
 function goLogin() {
   router.push('/login')
+}
+
+async function sendCode() {
+  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!form.email.trim()) { ElMessage.warning('请先输入邮箱'); return }
+  if (!emailRe.test(form.email.trim())) { ElMessage.warning('邮箱格式不正确'); return }
+  if (!form.captchaCode.trim()) { ElMessage.warning('请先输入图形验证码'); return }
+  sending.value = true
+  try {
+    await sendEmailCode({
+      email: form.email.trim(),
+      captchaId: form.captchaId,
+      captchaCode: form.captchaCode
+    })
+    ElMessage.success('验证码已发送，请查收邮箱')
+    startCountdown()
+    refreshCaptcha()
+  } catch (e) {
+    ElMessage.error(e.message || '发送失败')
+    refreshCaptcha()
+  } finally {
+    sending.value = false
+  }
 }
 
 async function submit() {
@@ -179,18 +280,23 @@ async function submit() {
   const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   if (!form.email.trim()) { ElMessage.warning('请输入邮箱'); return }
   if (!emailRe.test(form.email.trim())) { ElMessage.warning('邮箱格式不正确'); return }
+  if (!form.emailCode.trim()) { ElMessage.warning('请输入邮箱验证码'); return }
   if (form.username.trim() && (form.username.trim().length < 3 || form.username.trim().length > 32)) { ElMessage.warning('用户名长度为3-32位'); return }
   if (!form.password) { ElMessage.warning('请输入密码'); return }
   if (form.password.length < 6 || form.password.length > 64) { ElMessage.warning('密码长度为6-64位'); return }
   if (strength.value < 2) { ElMessage.warning('密码强度过弱，请使用字母+数字组合'); return }
   if (form.password !== form.confirm) { ElMessage.warning('两次输入的密码不一致'); return }
+  if (!form.captchaCode.trim()) { ElMessage.warning('请输入图形验证码'); return }
   loading.value = true
   hint.value = '请稍候...'
   try {
     const data = await register({
       email: form.email.trim(),
       username: form.username.trim(),
-      password: form.password
+      password: form.password,
+      emailCode: form.emailCode.trim(),
+      captchaId: form.captchaId,
+      captchaCode: form.captchaCode
     })
     localStorage.setItem('token', data.token)
     localStorage.setItem('userId', data.userId)
@@ -206,6 +312,7 @@ async function submit() {
     router.push('/home')
   } catch (e) {
     hint.value = e.message || ''
+    refreshCaptcha()
   } finally {
     loading.value = false
   }

@@ -19,3 +19,7 @@ export function updateProfile(data) {
 export function logout() {
   return api.post('/user/logout')
 }
+
+export function sendEmailCode(data) {
+  return api.post('/user/send-email-code', data)
+}

@@ -23,6 +23,19 @@ spring:
       mode: always
       schema-locations: classpath:db/schema.sql
       continue-on-error: false
+  mail:
+    host: smtp.qq.com
+    port: 465
+    username: 2651896126@qq.com
+    password: ${MAIL_PASSWORD:kmavtesnmummdjej}
+    protocol: smtp
+    default-encoding: UTF-8
+    properties:
+      mail:
+        smtp:
+          ssl:
+            enable: true
+          auth: true
 
 mybatis-plus:
   configuration:

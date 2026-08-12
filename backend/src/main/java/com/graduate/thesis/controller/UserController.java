@@ -3,8 +3,11 @@ package com.graduate.thesis.controller;
 import com.graduate.thesis.common.Result;
 import com.graduate.thesis.common.UserContext;
 import com.graduate.thesis.dto.LoginResponse;
+import com.graduate.thesis.dto.SendEmailCodeDTO;
 import com.graduate.thesis.dto.UserAuthDTO;
 import com.graduate.thesis.dto.UserProfileDTO;
+import com.graduate.thesis.service.CaptchaService;
+import com.graduate.thesis.service.EmailCodeService;
 import com.graduate.thesis.service.UserService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,19 +27,36 @@ import javax.validation.Valid;
 public class UserController {
 
     private final UserService userService;
+    private final CaptchaService captchaService;
+    private final EmailCodeService emailCodeService;
 
-    public UserController(UserService userService) {
+    public UserController(UserService userService,
+                          CaptchaService captchaService,
+                          EmailCodeService emailCodeService) {
         this.userService = userService;
+        this.captchaService = captchaService;
+        this.emailCodeService = emailCodeService;
     }
 
     @PostMapping("/register")
     public Result<LoginResponse> register(@Valid @RequestBody UserAuthDTO dto) {
+        captchaService.verify(dto.getCaptchaId(), dto.getCaptchaCode());
+        emailCodeService.verify(dto.getEmail(), dto.getEmailCode());
         return Result.ok(userService.register(dto));
     }
 
     @PostMapping("/login")
     public Result<LoginResponse> login(@Valid @RequestBody UserAuthDTO dto) {
+        captchaService.verify(dto.getCaptchaId(), dto.getCaptchaCode());
         return Result.ok(userService.login(dto));
+    }
+
+    /** 发送邮箱验证码(需先通过图形验证码) */
+    @PostMapping("/send-email-code")
+    public Result<Void> sendEmailCode(@Valid @RequestBody SendEmailCodeDTO dto) {
+        captchaService.verify(dto.getCaptchaId(), dto.getCaptchaCode());
+        emailCodeService.sendCode(dto.getEmail());
+        return Result.ok(null);
     }
 
     /** 退出登录: 撤销当前 token */

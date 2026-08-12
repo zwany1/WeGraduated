@@ -84,6 +84,29 @@
             <label class="text-sm font-normal cursor-pointer">记住我 30 天</label>
           </label>
 
+          <div class="space-y-2">
+            <label class="text-sm font-medium">验证码</label>
+            <div class="flex gap-3">
+              <input
+                v-model="form.captchaCode"
+                type="text"
+                maxlength="4"
+                placeholder="请输入验证码"
+                autocomplete="off"
+                class="h-12 flex-1 bg-background border border-border/60 focus:border-primary rounded-full px-5 outline-none transition-colors"
+              />
+              <button
+                type="button"
+                @click="refreshCaptcha"
+                class="shrink-0 h-12 w-[120px] border border-border/60 rounded-full overflow-hidden cursor-pointer bg-background"
+                :disabled="!captchaImage"
+              >
+                <img v-if="captchaImage" :src="'data:image/png;base64,' + captchaImage" alt="验证码" class="w-full h-full object-cover" />
+                <span v-else class="text-xs text-muted-foreground">加载中</span>
+              </button>
+            </div>
+          </div>
+
           <InteractiveHoverButton
             type="submit"
             :text="loading ? '...' : 'Log in'"
@@ -108,6 +131,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { login, getProfile } from '../api/user'
+import { generateCaptcha } from '../api/captcha'
 import AnimatedCharacters from '../components/auth/AnimatedCharacters.vue'
 import InteractiveHoverButton from '../components/auth/InteractiveHoverButton.vue'
 
@@ -118,9 +142,19 @@ const showPassword = ref(false)
 const rememberMe = ref(false)
 const isTyping = ref(false)
 const pwdRef = ref(null)
-const form = reactive({ username: '', password: '' })
+const captchaImage = ref('')
+const form = reactive({ username: '', password: '', captchaCode: '', captchaId: '' })
 const hint = ref('')
 const password = computed(() => form.password)
+
+async function refreshCaptcha() {
+  try {
+    const data = await generateCaptcha()
+    form.captchaId = data.captchaId
+    captchaImage.value = data.imageBase64
+    form.captchaCode = ''
+  } catch (e) {}
+}
 
 onMounted(async () => {
   if (localStorage.getItem('token')) {
@@ -136,6 +170,7 @@ onMounted(async () => {
       try { form.password = decodeURIComponent(atob(savedPwd)) } catch (e) {}
     }
   }
+  refreshCaptcha()
 })
 
 function goRegister() {
@@ -146,10 +181,17 @@ async function submit() {
   if (loading.value) return
   if (!form.username.trim()) { ElMessage.warning('请输入用户名或邮箱'); return }
   if (!form.password) { ElMessage.warning('请输入密码'); return }
+  if (!form.captchaCode.trim()) { ElMessage.warning('请输入图形验证码'); return }
   loading.value = true
   hint.value = '请稍候...'
   try {
-    const data = await login({ email: form.username.trim(), username: form.username.trim(), password: form.password })
+    const data = await login({
+      email: form.username.trim(),
+      username: form.username.trim(),
+      password: form.password,
+      captchaId: form.captchaId,
+      captchaCode: form.captchaCode
+    })
     localStorage.setItem('token', data.token)
     localStorage.setItem('userId', data.userId)
     localStorage.setItem('username', data.username)
@@ -171,6 +213,7 @@ async function submit() {
     router.push('/home')
   } catch (e) {
     hint.value = e.message || ''
+    refreshCaptcha()
   } finally {
     loading.value = false
   }

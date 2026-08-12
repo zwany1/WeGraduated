@@ -159,8 +159,10 @@ async function submit() {
     ElMessage.success('排版任务已提交')
     selectedFile.value = null
     fileList.value = []
-    await loadTasks()
-    startPolling()
+    await loadTasks(true)
+    if (tasks.value.some(t => t.status === 'PROCESSING' || t.status === 'PENDING')) {
+      startPolling()
+    }
   } finally {
     submitting.value = false
   }
@@ -168,15 +170,18 @@ async function submit() {
 
 function startPolling() {
   clearInterval(pollTimer)
-  // 立即刷新一次, 再进入轮询
-  loadTasks(true)
   pollTimer = setInterval(async () => {
     await loadTasks(true)
   }, 1000)
 }
 
 async function loadTasks(silent) {
-  tasks.value = await listTasks()
+  try {
+    tasks.value = await listTasks()
+  } catch (e) {
+    if (!silent) ElMessage.error('任务列表加载失败')
+    return
+  }
   const running = tasks.value.some(t => t.status === 'PROCESSING' || t.status === 'PENDING')
   if (running && !pollTimer) {
     startPolling()
@@ -199,6 +204,7 @@ async function download(row) {
 let previewSeq = 0
 
 async function preview(row) {
+  compareVisible.value = false // 与对比弹窗互斥
   const mySeq = ++previewSeq
   previewData.value = []
   previewVisible.value = true
@@ -221,6 +227,7 @@ function onPreviewClosed() {
 let compareSeq = 0
 
 async function compare(row) {
+  previewVisible.value = false // 与预览弹窗互斥
   const mySeq = ++compareSeq
   compareBefore.value = []
   compareAfter.value = []
@@ -252,10 +259,18 @@ function onCompareClosed() {
 }
 
 async function retry(row) {
-  await startFormat(row.fileId, row.templateId)
-  ElMessage.success('已重新提交')
-  await loadTasks()
-  startPolling()
+  try {
+    await startFormat(row.fileId, row.templateId)
+    ElMessage.success('已重新提交')
+    // 立即刷新任务列表显示新任务
+    await loadTasks(true)
+    // 若有处理中的任务则轮询, 否则等待完成后刷新
+    if (tasks.value.some(t => t.status === 'PROCESSING' || t.status === 'PENDING')) {
+      startPolling()
+    }
+  } catch (e) {
+    ElMessage.error('重试失败：' + (e.message || ''))
+  }
 }
 
 function fileName(row) {

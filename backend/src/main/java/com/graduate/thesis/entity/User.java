@@ -23,17 +23,13 @@ public class User {
     @JsonIgnore
     private String password;
 
+    /** 邮箱 */
+    private String email;
+
     private String nickname;
 
     /** 头像(data URL base64) */
     private String avatar;
-
-    /** 密保问题 */
-    private String securityQuestion;
-
-    /** 密保答案(加密存储) */
-    @JsonIgnore
-    private String securityAnswer;
 
     private LocalDateTime createTime;
 }

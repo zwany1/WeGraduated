@@ -2,7 +2,6 @@ package com.graduate.thesis.controller;
 
 import com.graduate.thesis.common.Result;
 import com.graduate.thesis.common.UserContext;
-import com.graduate.thesis.dto.ForgotPasswordDTO;
 import com.graduate.thesis.dto.LoginResponse;
 import com.graduate.thesis.dto.UserAuthDTO;
 import com.graduate.thesis.dto.UserProfileDTO;
@@ -38,12 +37,6 @@ public class UserController {
     @PostMapping("/login")
     public Result<LoginResponse> login(@Valid @RequestBody UserAuthDTO dto) {
         return Result.ok(userService.login(dto));
-    }
-
-    /** 忘记密码: 密保问答重置并重新签发 token */
-    @PostMapping("/forgot-password")
-    public Result<LoginResponse> forgotPassword(@Valid @RequestBody ForgotPasswordDTO dto) {
-        return Result.ok(userService.forgotPassword(dto));
     }
 
     /** 退出登录: 撤销当前 token */

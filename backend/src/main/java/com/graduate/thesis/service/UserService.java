@@ -2,7 +2,6 @@ package com.graduate.thesis.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.graduate.thesis.common.BusinessException;
-import com.graduate.thesis.dto.ForgotPasswordDTO;
 import com.graduate.thesis.dto.LoginResponse;
 import com.graduate.thesis.dto.UserAuthDTO;
 import com.graduate.thesis.dto.UserProfileDTO;
@@ -14,6 +13,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -31,9 +31,9 @@ public class UserService {
     private final JwtUtil jwtUtil;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
-    /** 登录失败记录: username -> 失败次数 */
+    /** 登录失败记录: 登录名(用户名或邮箱) -> 失败次数 */
     private final ConcurrentHashMap<String, AtomicInteger> failCount = new ConcurrentHashMap<>();
-    /** 锁定记录: username -> 解锁时间戳 */
+    /** 锁定记录: 登录名 -> 解锁时间戳 */
     private final ConcurrentHashMap<String, Long> lockUntil = new ConcurrentHashMap<>();
 
     public UserService(UserMapper userMapper, JwtUtil jwtUtil) {
@@ -42,66 +42,59 @@ public class UserService {
     }
 
     public LoginResponse register(UserAuthDTO dto) {
-        Long exists = userMapper.selectCount(new LambdaQueryWrapper<User>()
-                .eq(User::getUsername, dto.getUsername()));
-        if (exists != null && exists > 0) {
-            throw new BusinessException("用户名已存在");
+        String email = dto.getEmail().trim().toLowerCase();
+        Long emailExists = userMapper.selectCount(new LambdaQueryWrapper<User>()
+                .eq(User::getEmail, email));
+        if (emailExists != null && emailExists > 0) {
+            throw new BusinessException("该邮箱已被注册");
         }
         checkPasswordStrength(dto.getPassword());
 
-        User user = new User();
-        user.setUsername(dto.getUsername());
-        user.setPassword(encoder.encode(dto.getPassword()));
-        user.setNickname(dto.getUsername());
-        if (dto.getSecurityQuestion() != null && !dto.getSecurityQuestion().trim().isEmpty()
-                && dto.getSecurityAnswer() != null && !dto.getSecurityAnswer().trim().isEmpty()) {
-            user.setSecurityQuestion(dto.getSecurityQuestion().trim());
-            user.setSecurityAnswer(encoder.encode(dto.getSecurityAnswer().trim()));
+        String username = dto.getUsername() == null ? "" : dto.getUsername().trim();
+        if (username.isEmpty()) {
+            username = autoGenerateUsername(email);
+        } else if (isUsernameTaken(username)) {
+            throw new BusinessException("用户名已存在");
         }
+
+        User user = new User();
+        user.setUsername(username);
+        user.setEmail(email);
+        user.setPassword(encoder.encode(dto.getPassword()));
+        user.setNickname(username);
         user.setCreateTime(LocalDateTime.now());
         userMapper.insert(user);
         return buildLoginResponse(user);
     }
 
     public LoginResponse login(UserAuthDTO dto) {
-        String username = dto.getUsername();
+        String account = dto.getEmail() != null && !dto.getEmail().trim().isEmpty()
+                ? dto.getEmail().trim().toLowerCase() : dto.getUsername();
+        if (account == null || account.isEmpty()) {
+            throw new BusinessException("请输入用户名或邮箱");
+        }
         // 限流检查
-        Long lockedUntil = lockUntil.get(username);
+        Long lockedUntil = lockUntil.get(account);
         if (lockedUntil != null && System.currentTimeMillis() < lockedUntil) {
             long minutes = (lockedUntil - System.currentTimeMillis()) / 60000 + 1;
             throw new BusinessException("登录失败次数过多，账号已锁定，请 " + minutes + " 分钟后再试");
         }
-        lockUntil.remove(username);
+        lockUntil.remove(account);
 
-        User user = userMapper.selectOne(new LambdaQueryWrapper<User>()
-                .eq(User::getUsername, username));
+        User user = findUserByAccount(account);
         if (user == null || !encoder.matches(dto.getPassword(), user.getPassword())) {
-            AtomicInteger counter = failCount.computeIfAbsent(username, k -> new AtomicInteger());
+            AtomicInteger counter = failCount.computeIfAbsent(account, k -> new AtomicInteger());
             int times = counter.incrementAndGet();
             if (times >= MAX_FAILURES) {
-                lockUntil.put(username, System.currentTimeMillis() + LOCK_MILLIS);
-                failCount.remove(username);
+                lockUntil.put(account, System.currentTimeMillis() + LOCK_MILLIS);
+                failCount.remove(account);
                 throw new BusinessException("登录失败次数过多，账号已锁定 10 分钟");
             }
-            throw new BusinessException("用户名或密码错误，还可尝试 " + (MAX_FAILURES - times) + " 次");
+            throw new BusinessException("用户名/邮箱或密码错误，还可尝试 " + (MAX_FAILURES - times) + " 次");
         }
         // 成功则清零
-        failCount.remove(username);
-        lockUntil.remove(username);
-        return buildLoginResponse(user);
-    }
-
-    public LoginResponse forgotPassword(ForgotPasswordDTO dto) {
-        User user = userMapper.selectOne(new LambdaQueryWrapper<User>()
-                .eq(User::getUsername, dto.getUsername()));
-        if (user == null || user.getSecurityAnswer() == null || !encoder.matches(dto.getAnswer(), user.getSecurityAnswer())) {
-            throw new BusinessException("用户名或密保答案错误");
-        }
-        checkPasswordStrength(dto.getNewPassword());
-        user.setPassword(encoder.encode(dto.getNewPassword()));
-        userMapper.updateById(user);
-        // 重置后清除该用户已发出的 token
-        jwtUtil.revokeAllForUser(user.getId());
+        failCount.remove(account);
+        lockUntil.remove(account);
         return buildLoginResponse(user);
     }
 
@@ -109,6 +102,40 @@ public class UserService {
         if (token != null && !token.isEmpty()) {
             jwtUtil.revoke(token);
         }
+    }
+
+    private User findUserByAccount(String account) {
+        User byUsername = userMapper.selectOne(new LambdaQueryWrapper<User>()
+                .eq(User::getUsername, account));
+        if (byUsername != null) {
+            return byUsername;
+        }
+        return userMapper.selectOne(new LambdaQueryWrapper<User>()
+                .eq(User::getEmail, account.toLowerCase()));
+    }
+
+    private boolean isUsernameTaken(String username) {
+        Long count = userMapper.selectCount(new LambdaQueryWrapper<User>()
+                .eq(User::getUsername, username));
+        return count != null && count > 0;
+    }
+
+    /** 未填用户名时自动生成: 邮箱前缀，冲突则追加随机数字 */
+    private String autoGenerateUsername(String email) {
+        String base = email.substring(0, email.indexOf('@')).replaceAll("[^a-zA-Z0-9_]", "");
+        if (base.length() > 20) {
+            base = base.substring(0, 20);
+        }
+        if (base.isEmpty()) {
+            base = "user";
+        }
+        for (int i = 0; i < 10; i++) {
+            String candidate = base + ThreadLocalRandom.current().nextInt(100, 9999);
+            if (!isUsernameTaken(candidate)) {
+                return candidate;
+            }
+        }
+        throw new BusinessException("用户名生成失败，请手动填写用户名");
     }
 
     private void checkPasswordStrength(String password) {
@@ -124,7 +151,7 @@ public class UserService {
         resp.setUserId(user.getId());
         resp.setUsername(user.getUsername());
         resp.setNickname(user.getNickname());
-        resp.setSecurityQuestion(user.getSecurityQuestion());
+        resp.setEmail(user.getEmail());
         resp.setToken(jwtUtil.generate(user.getId()));
         return resp;
     }
@@ -136,9 +163,9 @@ public class UserService {
         }
         UserProfileDTO dto = new UserProfileDTO();
         dto.setUsername(user.getUsername());
+        dto.setEmail(user.getEmail());
         dto.setNickname(user.getNickname());
         dto.setAvatar(user.getAvatar());
-        dto.setSecurityQuestion(user.getSecurityQuestion());
         return dto;
     }
 
@@ -161,25 +188,12 @@ public class UserService {
             // 空串视为清除头像
             user.setAvatar(dto.getAvatar().trim().isEmpty() ? null : dto.getAvatar().trim());
         }
-        if (dto.getSecurityQuestion() != null) {
-            String q = dto.getSecurityQuestion().trim();
-            if (q.isEmpty()) {
-                user.setSecurityQuestion(null);
-                user.setSecurityAnswer(null);
-            } else {
-                if (dto.getSecurityAnswer() == null || dto.getSecurityAnswer().trim().isEmpty()) {
-                    throw new BusinessException("请填写密保答案");
-                }
-                user.setSecurityQuestion(q);
-                user.setSecurityAnswer(encoder.encode(dto.getSecurityAnswer().trim()));
-            }
-        }
         userMapper.updateById(user);
         UserProfileDTO result = new UserProfileDTO();
         result.setUsername(user.getUsername());
+        result.setEmail(user.getEmail());
         result.setNickname(user.getNickname());
         result.setAvatar(user.getAvatar());
-        result.setSecurityQuestion(user.getSecurityQuestion());
         return result;
     }
 }

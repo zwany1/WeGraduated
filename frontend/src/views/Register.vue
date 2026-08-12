@@ -43,11 +43,11 @@
         <!-- Register Form -->
         <form @submit.prevent="submit" class="space-y-5">
           <div class="space-y-2">
-            <label class="text-sm font-medium">Email / 用户名</label>
+            <label class="text-sm font-medium">邮箱 <span class="text-red-500">*</span></label>
             <input
-              v-model="form.username"
-              type="text"
-              placeholder="3-32位，you@example.com"
+              v-model="form.email"
+              type="email"
+              placeholder="you@example.com"
               autocomplete="off"
               @focus="isTyping = true"
               @blur="isTyping = false"
@@ -56,7 +56,18 @@
           </div>
 
           <div class="space-y-2">
-            <label class="text-sm font-medium">Password</label>
+            <label class="text-sm font-medium">用户名（选填）</label>
+            <input
+              v-model="form.username"
+              type="text"
+              placeholder="不填将根据邮箱自动生成"
+              autocomplete="off"
+              class="h-12 bg-background border border-border/60 focus:border-primary w-full rounded-full px-5 outline-none transition-colors"
+            />
+          </div>
+
+          <div class="space-y-2">
+            <label class="text-sm font-medium">Password <span class="text-red-500">*</span></label>
             <div class="relative">
               <input
                 ref="pwdRef"
@@ -82,7 +93,7 @@
           </div>
 
           <div class="space-y-2">
-            <label class="text-sm font-medium">确认密码</label>
+            <label class="text-sm font-medium">确认密码 <span class="text-red-500">*</span></label>
             <div class="relative">
               <input
                 v-model="form.confirm"
@@ -91,28 +102,6 @@
                 class="h-12 pr-10 bg-background border border-border/60 focus:border-primary w-full rounded-full px-5 outline-none transition-colors"
               />
             </div>
-          </div>
-
-          <div class="space-y-2">
-            <label class="text-sm font-medium">密保问题（用于找回密码）</label>
-            <input
-              v-model="form.securityQuestion"
-              type="text"
-              placeholder="例如：你的母校名称？"
-              autocomplete="off"
-              class="h-12 bg-background border border-border/60 focus:border-primary w-full rounded-full px-5 outline-none transition-colors"
-            />
-          </div>
-
-          <div class="space-y-2">
-            <label class="text-sm font-medium">密保答案</label>
-            <input
-              v-model="form.securityAnswer"
-              type="text"
-              placeholder="请记住你的答案"
-              autocomplete="off"
-              class="h-12 bg-background border border-border/60 focus:border-primary w-full rounded-full px-5 outline-none transition-colors"
-            />
           </div>
 
           <InteractiveHoverButton
@@ -148,11 +137,10 @@ const showPassword = ref(false)
 const isTyping = ref(false)
 const pwdRef = ref(null)
 const form = reactive({
+  email: '',
   username: '',
   password: '',
-  confirm: '',
-  securityQuestion: '',
-  securityAnswer: ''
+  confirm: ''
 })
 const hint = ref('')
 const password = computed(() => form.password)
@@ -186,28 +174,23 @@ function goLogin() {
   router.push('/login')
 }
 
-function goForgot() {
-  router.push('/forgot-password')
-}
-
 async function submit() {
   if (loading.value) return
-  if (!form.username.trim()) { ElMessage.warning('请输入用户名'); return }
-  if (form.username.trim().length < 3 || form.username.trim().length > 32) { ElMessage.warning('用户名长度为3-32位'); return }
+  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!form.email.trim()) { ElMessage.warning('请输入邮箱'); return }
+  if (!emailRe.test(form.email.trim())) { ElMessage.warning('邮箱格式不正确'); return }
+  if (form.username.trim() && (form.username.trim().length < 3 || form.username.trim().length > 32)) { ElMessage.warning('用户名长度为3-32位'); return }
   if (!form.password) { ElMessage.warning('请输入密码'); return }
   if (form.password.length < 6 || form.password.length > 64) { ElMessage.warning('密码长度为6-64位'); return }
   if (strength.value < 2) { ElMessage.warning('密码强度过弱，请使用字母+数字组合'); return }
   if (form.password !== form.confirm) { ElMessage.warning('两次输入的密码不一致'); return }
-  if (form.securityQuestion.trim() && !form.securityAnswer.trim()) { ElMessage.warning('请填写密保答案'); return }
-  if (!form.securityQuestion.trim() && form.securityAnswer.trim()) { ElMessage.warning('请填写密保问题'); return }
   loading.value = true
   hint.value = '请稍候...'
   try {
     const data = await register({
+      email: form.email.trim(),
       username: form.username.trim(),
-      password: form.password,
-      securityQuestion: form.securityQuestion.trim(),
-      securityAnswer: form.securityAnswer.trim()
+      password: form.password
     })
     localStorage.setItem('token', data.token)
     localStorage.setItem('userId', data.userId)

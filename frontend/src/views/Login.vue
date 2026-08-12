@@ -47,7 +47,7 @@
             <input
               v-model="form.username"
               type="text"
-              placeholder="you@example.com"
+              placeholder="you@example.com 或用户名"
               autocomplete="off"
               @focus="isTyping = true"
               @blur="isTyping = false"
@@ -97,8 +97,6 @@
         <div class="text-center text-sm text-muted-foreground mt-8">
           还没有账号？
           <span class="text-foreground font-medium hover:underline cursor-pointer" @click="goRegister">Sign Up</span>
-          <span class="mx-2 text-muted-foreground/40">|</span>
-          <span class="text-foreground font-medium hover:underline cursor-pointer" @click="goForgot">忘记密码</span>
         </div>
       </div>
     </div>
@@ -144,18 +142,14 @@ function goRegister() {
   router.push('/register')
 }
 
-function goForgot() {
-  router.push('/forgot-password')
-}
-
 async function submit() {
   if (loading.value) return
-  if (!form.username.trim()) { ElMessage.warning('请输入用户名'); return }
+  if (!form.username.trim()) { ElMessage.warning('请输入用户名或邮箱'); return }
   if (!form.password) { ElMessage.warning('请输入密码'); return }
   loading.value = true
   hint.value = '请稍候...'
   try {
-    const data = await login({ username: form.username.trim(), password: form.password })
+    const data = await login({ email: form.username.trim(), username: form.username.trim(), password: form.password })
     localStorage.setItem('token', data.token)
     localStorage.setItem('userId', data.userId)
     localStorage.setItem('username', data.username)

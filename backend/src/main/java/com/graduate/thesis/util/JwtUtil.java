@@ -23,8 +23,6 @@ public class JwtUtil {
 
     /** 已撤销 token: token -> 过期时间戳(用于清理) */
     private final ConcurrentHashMap<String, Long> revokedTokens = new ConcurrentHashMap<>();
-    /** 用户级撤销时间点: userId -> 撤销时间戳, 早于此时间签发的 token 全部失效 */
-    private final ConcurrentHashMap<Long, Long> revokedSince = new ConcurrentHashMap<>();
 
     public JwtUtil(@Value("${thesis.jwt.secret}") String secret,
                    @Value("${thesis.jwt.expire-hours}") long expireHours) {
@@ -78,11 +76,6 @@ public class JwtUtil {
         }
     }
 
-    /** 撤销某用户的全部 token(重置密码场景) */
-    public void revokeAllForUser(Long userId) {
-        revokedSince.put(userId, System.currentTimeMillis());
-    }
-
     /** 检查 token 是否已被撤销 */
     public boolean isRevoked(String token) {
         // 清理已过期 token
@@ -91,11 +84,7 @@ public class JwtUtil {
             return true;
         }
         try {
-            Long userId = parseUserId(token);
-            Long since = revokedSince.get(userId);
-            if (since != null && getIssuedAt(token).getTime() < since) {
-                return true;
-            }
+            parseUserId(token);
         } catch (Exception ignored) {
             return true;
         }

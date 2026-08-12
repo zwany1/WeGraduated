@@ -16,10 +16,6 @@ export function updateProfile(data) {
   return api.put('/user/profile', data)
 }
 
-export function forgotPassword(data) {
-  return api.post('/user/forgot-password', data)
-}
-
 export function logout() {
   return api.post('/user/logout')
 }

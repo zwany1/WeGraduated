@@ -32,6 +32,10 @@ export function saveGenerateToc(id, generateToc) {
   return api.put(`/template/${id}/generate-toc`, { generateToc })
 }
 
+export function saveReferenceConfig(id, referenceConfig) {
+  return api.put(`/template/${id}/reference-config`, { referenceConfig: JSON.stringify(referenceConfig) })
+}
+
 export function saveRule(rule) {
   return api.post('/template/rule/save', rule)
 }

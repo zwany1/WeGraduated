@@ -33,6 +33,9 @@ public class FormatTemplate {
     /** 是否生成目录(默认 false) */
     private Boolean generateToc;
 
+    /** 参考文献配置 JSON: {"enabled":true,"title":"参考文献","titleFont":"黑体","titleFontSize":14,"itemFont":"宋体","itemFontLatin":"Times New Roman","itemFontSize":10,"removeDoi":true,"maxAuthors":3,"renumber":true} */
+    private String referenceConfig;
+
     private LocalDateTime createTime;
 
     private LocalDateTime updateTime;

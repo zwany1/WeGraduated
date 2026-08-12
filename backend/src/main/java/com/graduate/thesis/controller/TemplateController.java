@@ -6,6 +6,7 @@ import com.graduate.thesis.dto.CoverConfigSaveDTO;
 import com.graduate.thesis.dto.GenerateTocSaveDTO;
 import com.graduate.thesis.dto.HeadingPatternsSaveDTO;
 import com.graduate.thesis.dto.PageConfigSaveDTO;
+import com.graduate.thesis.dto.ReferenceConfigSaveDTO;
 import com.graduate.thesis.dto.RuleSaveDTO;
 import com.graduate.thesis.dto.TemplateCreateDTO;
 import com.graduate.thesis.entity.FormatRule;
@@ -82,6 +83,12 @@ public class TemplateController {
     @PutMapping("/{id}/generate-toc")
     public Result<Void> saveGenerateToc(@PathVariable Long id, @RequestBody GenerateTocSaveDTO dto) {
         templateService.saveGenerateToc(id, UserContext.get(), dto.getGenerateToc());
+        return Result.ok();
+    }
+
+    @PutMapping("/{id}/reference-config")
+    public Result<Void> saveReferenceConfig(@PathVariable Long id, @RequestBody ReferenceConfigSaveDTO dto) {
+        templateService.saveReferenceConfig(id, UserContext.get(), dto.getReferenceConfig());
         return Result.ok();
     }
 

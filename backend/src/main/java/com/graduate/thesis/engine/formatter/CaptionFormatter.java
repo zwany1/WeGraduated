@@ -103,14 +103,7 @@ public class CaptionFormatter {
                     if (!figureEnabled) {
                         continue;
                     }
-                    if (item.getChapterNo() != lastFigChapter) {
-                        figIndex = 0;
-                        lastFigChapter = item.getChapterNo();
-                    }
-                    figIndex++;
-                    String title = extractTitle(text, true);
-                    String caption = buildCaption(figureRule, item.getChapterNo(), figIndex, title);
-                    setCaptionText(p, caption);
+                    // 已有题注: 保留原编号, 只统一格式(位置/字体), 不重写数字
                     applyCaptionStyle(p, figureRule);
                 }
             } else if (el instanceof XWPFTable) {
@@ -129,19 +122,15 @@ public class CaptionFormatter {
                     tblIndex = 0;
                     lastTableChapter = tableChapter;
                 }
-                tblIndex++;
                 if (prevIsCaption) {
-                    String title = extractTitle(((XWPFParagraph) prev).getText(), false);
-                    String caption = buildCaption(tableRule, tableChapter, tblIndex, title);
-                    setCaptionText((XWPFParagraph) prev, caption);
+                    // 表前已有题注: 保留原编号, 只统一格式
                     applyCaptionStyle((XWPFParagraph) prev, tableRule);
                 } else if (nextIsCaption) {
-                    // 表后已有题注: 复用并重编号, 不在表前新增
-                    String title = extractTitle(((XWPFParagraph) next).getText(), false);
-                    String caption = buildCaption(tableRule, tableChapter, tblIndex, title);
-                    setCaptionText((XWPFParagraph) next, caption);
+                    // 表后已有题注: 保留原编号, 只统一格式
                     applyCaptionStyle((XWPFParagraph) next, tableRule);
                 } else {
+                    // 无题注: 自动补编号
+                    tblIndex++;
                     String caption = buildCaption(tableRule, tableChapter, tblIndex, "");
                     insertParagraphBefore(doc, table, caption, tableRule);
                 }
@@ -289,7 +278,7 @@ public class CaptionFormatter {
     }
 
     /**
-     * 是否一级标题: 样式一级, 或文本匹配一级标题正则
+     * 是否一级标题: 样式一级, 或文本匹配一级标题正则(排除日期/年份等非标题)
      */
     private static boolean isHeading1(XWPFParagraph p, String text, RuleSet ruleSet) {
         if (headingLevel(p) == 1) {
@@ -298,17 +287,55 @@ public class CaptionFormatter {
         if (headingLevel(p) > 1) {
             return false;
         }
+        // 排除日期/年份/纯数字页眉等(如 "2026 年 5 月 23 日")
+        if (isDateLike(text)) {
+            return false;
+        }
         return ruleSet.getHeading1Pattern().matcher(text).matches();
     }
 
     /**
-     * 章节号: 有编号取编号, 无编号递增
+     * 是否日期/年份类文本(避免被误当章节标题)
+     */
+    private static boolean isDateLike(String text) {
+        if (text == null || text.isEmpty()) {
+            return false;
+        }
+        String t = text.trim();
+        // 含 年/月/日 且 数字在前
+        if (java.util.regex.Pattern.matches("\\d+\\s*[年月日].*", t)) {
+            return true;
+        }
+        // 纯数字(可能是页码)
+        if (java.util.regex.Pattern.matches("\\d{3,}", t)) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 章节号: 有编号取编号(排除年月日), 无编号递增
      */
     private static int chapterNo(String text, int prev) {
-        int n = ChineseNumber.extract(text);
+        int n = extractChapter(text);
         if (n > 0) {
             return n;
         }
         return prev + 1;
+    }
+
+    /**
+     * 提取章节号, 排除日期/年份文本(如 "2026 年 5 月 23 日" -> 0)
+     */
+    private static int extractChapter(String text) {
+        if (text == null || text.isEmpty()) {
+            return 0;
+        }
+        String t = text.trim();
+        // 日期/年份: 数字紧邻 年月日 不视为章节
+        if (java.util.regex.Pattern.matches("\\d+\\s*[年月日].*", t)) {
+            return 0;
+        }
+        return ChineseNumber.extract(text);
     }
 }

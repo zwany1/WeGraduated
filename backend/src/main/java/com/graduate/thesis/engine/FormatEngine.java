@@ -7,6 +7,7 @@ import com.graduate.thesis.engine.formatter.HeaderFooterFormatter;
 import com.graduate.thesis.engine.formatter.HeadingFormatter;
 import com.graduate.thesis.engine.formatter.PageFormatter;
 import com.graduate.thesis.engine.formatter.ParagraphFormatter;
+import com.graduate.thesis.engine.formatter.ReferenceFormatter;
 import com.graduate.thesis.engine.formatter.SectionFormatter;
 import com.graduate.thesis.engine.formatter.TextFormatter;
 import com.graduate.thesis.engine.model.RuleSet;
@@ -65,6 +66,7 @@ public class FormatEngine {
             progress.accept(65);
 
             new CaptionFormatter().apply(doc, items, ruleSet);
+            new ReferenceFormatter().apply(doc, ruleSet.getReferenceConfig());
             progress.accept(85);
 
             HeaderFooterFormatter.apply(doc, ruleSet.getPageConfig());

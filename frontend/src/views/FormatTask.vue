@@ -164,14 +164,19 @@ async function download(row) {
   URL.revokeObjectURL(url)
 }
 
+let previewSeq = 0
+
 async function preview(row) {
+  const mySeq = ++previewSeq
   previewData.value = []
   previewVisible.value = true
   try {
     const blob = await previewPaper(row.id)
+    if (mySeq !== previewSeq) return // 已被更新的预览请求取代
     const buf = await blob.arrayBuffer()
     previewData.value = Array.from(new Uint8Array(buf))
   } catch (e) {
+    if (mySeq !== previewSeq) return
     ElMessage.error('预览失败')
     previewVisible.value = false
   }

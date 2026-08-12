@@ -29,12 +29,13 @@ public class RuleSet {
     private final Pattern heading2Pattern;
     private final Pattern heading3Pattern;
     private final CoverConfig coverConfig;
+    private final ReferenceConfig referenceConfig;
     private final boolean generateToc;
 
     private RuleSet(Long templateId, String templateName, PageConfig pageConfig,
                     Map<String, FormatRule> rules,
                     Pattern heading1Pattern, Pattern heading2Pattern, Pattern heading3Pattern,
-                    CoverConfig coverConfig, boolean generateToc) {
+                    CoverConfig coverConfig, ReferenceConfig referenceConfig, boolean generateToc) {
         this.templateId = templateId;
         this.templateName = templateName;
         this.pageConfig = pageConfig;
@@ -43,6 +44,7 @@ public class RuleSet {
         this.heading2Pattern = heading2Pattern;
         this.heading3Pattern = heading3Pattern;
         this.coverConfig = coverConfig;
+        this.referenceConfig = referenceConfig;
         this.generateToc = generateToc;
     }
 
@@ -76,6 +78,7 @@ public class RuleSet {
         return new RuleSet(template.getId(), template.getName(), pageConfig, ruleMap,
                 compileHeading(h1), compileHeading(h2), compileHeading(h3),
                 CoverConfig.parse(template.getCoverConfig()),
+                ReferenceConfig.parse(template.getReferenceConfig()),
                 Boolean.TRUE.equals(template.getGenerateToc()));
     }
 

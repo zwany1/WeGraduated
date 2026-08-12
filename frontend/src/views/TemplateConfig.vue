@@ -236,6 +236,62 @@
             </el-form>
           </div>
         </template>
+
+        <!-- 参考文献设置 -->
+        <template v-else-if="active === 'reference'">
+          <el-form label-width="130px" style="max-width: 620px">
+            <el-form-item label="启用参考文献排版">
+              <el-switch v-model="refConfig.enabled" />
+              <span class="tip-inline">关闭则整体排版不处理参考文献</span>
+            </el-form-item>
+            <template v-if="refConfig.enabled">
+              <el-form-item label="标题文字">
+                <el-input v-model="refConfig.title" placeholder="参考文献" style="max-width: 220px" />
+              </el-form-item>
+              <el-form-item label="标题字体">
+                <el-select v-model="refConfig.titleFont" style="max-width: 220px">
+                  <el-option v-for="f in fonts" :key="f" :label="f" :value="f" />
+                </el-select>
+                <span class="tip-inline">默认黑体四号、顶格</span>
+              </el-form-item>
+              <el-form-item label="标题字号">
+                <el-select v-model="refConfig.titleFontSize" style="max-width: 220px">
+                  <el-option v-for="s in sizes" :key="s.v" :label="s.label" :value="s.v" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="条目中文字体">
+                <el-select v-model="refConfig.itemFont" style="max-width: 220px">
+                  <el-option v-for="f in fonts" :key="f" :label="f" :value="f" />
+                </el-select>
+                <span class="tip-inline">默认宋体五号</span>
+              </el-form-item>
+              <el-form-item label="条目西文字体">
+                <el-select v-model="refConfig.itemFontLatin" style="max-width: 220px">
+                  <el-option v-for="f in latinFonts" :key="f" :label="f" :value="f" />
+                </el-select>
+                <span class="tip-inline">默认 Times New Roman</span>
+              </el-form-item>
+              <el-form-item label="条目字号">
+                <el-select v-model="refConfig.itemFontSize" style="max-width: 220px">
+                  <el-option v-for="s in sizes" :key="s.v" :label="s.label" :value="s.v" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="作者最多保留">
+                <el-input-number v-model="refConfig.maxAuthors" :min="1" :max="10" />
+                <span class="tip-inline">超过后中文加"等"，英文加" et al"</span>
+              </el-form-item>
+              <el-form-item label="删除 DOI">
+                <el-switch v-model="refConfig.removeDoi" />
+                <span class="tip-inline">删除条目中 DOI 及其后内容</span>
+              </el-form-item>
+              <el-form-item label="序号重排">
+                <el-switch v-model="refConfig.renumber" />
+                <span class="tip-inline">按文档顺序重新编号 [1][2]...</span>
+              </el-form-item>
+            </template>
+          </el-form>
+          <div class="tip">参考文献另起一页、置于正文后。条目格式：序号 [1] 中括号+空两格，换行第二行对齐序号（悬挂缩进）。作者只写前 3 位，余者"等"/"et al"。</div>
+        </template>
       </section>
     </main>
   </div>
@@ -245,7 +301,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getTemplateDetail, savePageConfig, saveHeadingPatterns, saveRule } from '../api/template'
+import { getTemplateDetail, savePageConfig, saveHeadingPatterns, saveReferenceConfig, saveRule } from '../api/template'
 
 const route = useRoute()
 const router = useRouter()
@@ -255,7 +311,8 @@ const menus = [
   { key: 'page', label: '页面设置' },
   { key: 'heading', label: '标题格式' },
   { key: 'body', label: '正文格式' },
-  { key: 'figure', label: '图表格式' }
+  { key: 'figure', label: '图表格式' },
+  { key: 'reference', label: '参考文献' }
 ]
 const active = ref('page')
 const templateName = ref('格式方案')
@@ -301,6 +358,19 @@ const headingPatterns = reactive({
   heading3: '^\\d+\\.\\d+\\.\\d+'
 })
 
+const refConfig = reactive({
+  enabled: false,
+  title: '参考文献',
+  titleFont: '黑体',
+  titleFontSize: 14,
+  itemFont: '宋体',
+  itemFontLatin: 'Times New Roman',
+  itemFontSize: 10,
+  removeDoi: true,
+  maxAuthors: 3,
+  renumber: true
+})
+
 const presets = {
   chinese: { heading1: '^第[一二三四五六七八九十百]+章', heading2: '^\\d+\\.\\d+', heading3: '^\\d+\\.\\d+\\.\\d+' },
   number: { heading1: '^\\d+', heading2: '^\\d+\\.\\d+', heading3: '^\\d+\\.\\d+\\.\\d+' },
@@ -322,6 +392,9 @@ onMounted(async () => {
     if (t.headingPatterns) {
       Object.assign(headingPatterns, JSON.parse(t.headingPatterns))
     }
+    if (t.referenceConfig) {
+      Object.assign(refConfig, JSON.parse(t.referenceConfig))
+    }
     ;(t.rules || []).forEach(r => {
       if (rules[r.ruleType]) {
         const merged = { ...rules[r.ruleType], ...r }
@@ -340,8 +413,9 @@ async function saveAll() {
   try {
     await savePageConfig(id, JSON.stringify(page))
     await saveHeadingPatterns(id, { ...headingPatterns })
+    await saveReferenceConfig(id, { ...refConfig })
     for (const key of Object.keys(rules)) {
-      const r = { ...rules[key] }
+      const r = { ...rules[key], templateId: id }
       await saveRule(r)
     }
     ElMessage.success('配置保存成功')

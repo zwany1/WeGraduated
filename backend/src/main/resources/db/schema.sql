@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS t_format_template (
     heading_patterns  TEXT         DEFAULT NULL,
     cover_config      TEXT         DEFAULT NULL,
     generate_toc      TINYINT(1)   NOT NULL DEFAULT 0,
+    reference_config  TEXT         DEFAULT NULL,
     create_time       DATETIME     DEFAULT NULL,
     update_time       DATETIME     DEFAULT NULL,
     KEY idx_user (user_id)

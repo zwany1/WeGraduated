@@ -56,6 +56,7 @@ public class TemplateService {
         templateMap.put("headingPatterns", template.getHeadingPatterns());
         templateMap.put("coverConfig", template.getCoverConfig());
         templateMap.put("generateToc", template.getGenerateToc());
+        templateMap.put("referenceConfig", template.getReferenceConfig());
         templateMap.put("createTime", template.getCreateTime());
         templateMap.put("rules", rules);
         return java.util.Collections.singletonMap("template", templateMap);
@@ -92,6 +93,13 @@ public class TemplateService {
     public void saveGenerateToc(Long templateId, Long userId, Boolean generateToc) {
         FormatTemplate template = getOwned(templateId, userId);
         template.setGenerateToc(Boolean.TRUE.equals(generateToc));
+        template.setUpdateTime(LocalDateTime.now());
+        templateMapper.updateById(template);
+    }
+
+    public void saveReferenceConfig(Long templateId, Long userId, String referenceConfig) {
+        FormatTemplate template = getOwned(templateId, userId);
+        template.setReferenceConfig(referenceConfig);
         template.setUpdateTime(LocalDateTime.now());
         templateMapper.updateById(template);
     }

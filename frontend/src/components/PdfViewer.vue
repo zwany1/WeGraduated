@@ -40,6 +40,7 @@ const loading = ref(true)
 
 let pdfDoc = null
 let renderTask = null
+let renderSeq = 0
 
 onMounted(async () => {
   try {
@@ -60,8 +61,15 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
-  if (renderTask) renderTask.cancel()
-  if (pdfDoc) pdfDoc.destroy()
+  renderSeq++
+  if (renderTask) {
+    renderTask.cancel()
+    renderTask = null
+  }
+  if (pdfDoc) {
+    pdfDoc.destroy()
+    pdfDoc = null
+  }
 })
 
 watch(scale, async () => {
@@ -70,12 +78,14 @@ watch(scale, async () => {
 
 async function renderPage() {
   if (!pdfDoc) return
+  const mySeq = ++renderSeq
   if (renderTask) {
-    renderTask.cancel()
+    try { renderTask.cancel() } catch (e) {}
     renderTask = null
   }
   await nextTick()
   const page = await pdfDoc.getPage(pageNum.value)
+  if (mySeq !== renderSeq) return
   const viewport = page.getViewport({ scale: scale.value })
   const canvas = canvasRef.value
   if (!canvas) return
@@ -87,7 +97,11 @@ async function renderPage() {
   const ctx = canvas.getContext('2d')
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
   renderTask = page.render({ canvasContext: ctx, viewport })
-  await renderTask.promise
+  try {
+    await renderTask.promise
+  } catch (e) {
+    if (mySeq !== renderSeq) return // 被新渲染取消
+  }
   renderTask = null
 }
 
@@ -151,6 +165,7 @@ function scrollTop() {
   overflow: auto;
   background: #525659;
   display: flex;
+  align-items: flex-start;
   justify-content: center;
   padding: 20px;
   position: relative;
@@ -158,6 +173,8 @@ function scrollTop() {
 canvas {
   background: #fff;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  margin: auto;
+  flex-shrink: 0;
 }
 .loading {
   position: absolute;

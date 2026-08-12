@@ -131,13 +131,13 @@ public class StructureDetector {
             return ParagraphKind.HEADING3;
         }
         // 文本正则兜底(无样式但文本像标题)
-        if (ruleSet.getHeading3Pattern().matcher(text).matches()) {
+        if (isDateLike(text)) {
+            // 日期/年份等不识别为标题
+        } else if (ruleSet.getHeading3Pattern().matcher(text).matches()) {
             return ParagraphKind.HEADING3;
-        }
-        if (ruleSet.getHeading2Pattern().matcher(text).matches()) {
+        } else if (ruleSet.getHeading2Pattern().matcher(text).matches()) {
             return ParagraphKind.HEADING2;
-        }
-        if (ruleSet.getHeading1Pattern().matcher(text).matches()) {
+        } else if (ruleSet.getHeading1Pattern().matcher(text).matches()) {
             return ParagraphKind.HEADING1;
         }
         if (ABSTRACT_TITLE.matcher(text).matches()) {
@@ -174,5 +174,22 @@ public class StructureDetector {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    /**
+     * 是否日期/年份类文本(避免被误当章节标题)
+     */
+    private static boolean isDateLike(String text) {
+        if (text == null || text.isEmpty()) {
+            return false;
+        }
+        String t = text.trim();
+        if (java.util.regex.Pattern.matches("\\d+\\s*[年月日].*", t)) {
+            return true;
+        }
+        if (java.util.regex.Pattern.matches("\\d{3,}", t)) {
+            return true;
+        }
+        return false;
     }
 }

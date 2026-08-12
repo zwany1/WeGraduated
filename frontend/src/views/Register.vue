@@ -68,7 +68,7 @@
               />
               <button
                 type="button"
-                @click="sendEmailCode"
+                @click="sendCode"
                 :disabled="sending || countdown > 0"
                 class="shrink-0 h-12 px-4 rounded-full border border-border/60 text-sm font-medium transition-colors disabled:opacity-50"
                 :class="countdown > 0 ? 'cursor-not-allowed text-muted-foreground' : 'cursor-pointer hover:border-primary hover:text-primary'"
@@ -292,7 +292,7 @@ async function submit() {
   try {
     const data = await register({
       email: form.email.trim(),
-      username: form.username.trim(),
+      username: form.username.trim() || null,
       password: form.password,
       emailCode: form.emailCode.trim(),
       captchaId: form.captchaId,

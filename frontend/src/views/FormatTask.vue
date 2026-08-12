@@ -53,9 +53,10 @@
               />
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="180">
+          <el-table-column label="操作" width="240">
             <template #default="{ row }">
               <el-button v-if="row.status === 'SUCCESS'" size="small" @click="preview(row)">预览</el-button>
+              <el-button v-if="row.status === 'SUCCESS'" size="small" type="success" @click="compare(row)">对比</el-button>
               <el-button v-if="row.status === 'SUCCESS'" size="small" type="primary" @click="download(row)">下载</el-button>
               <el-button v-if="row.status === 'FAILED'" size="small" @click="retry(row)">重试</el-button>
             </template>
@@ -73,6 +74,32 @@
         <el-empty v-else description="预览加载中..." />
       </div>
     </el-dialog>
+
+    <el-dialog v-model="compareVisible" title="排版前后对比" width="94%" top="3vh" destroy-on-close @closed="onCompareClosed">
+      <div class="compare-layout">
+        <div class="compare-col">
+          <div class="compare-header">
+            <span class="compare-badge before">排版前</span>
+            <span class="compare-name">{{ compareName }}</span>
+          </div>
+          <div class="compare-body">
+            <DocxCompare v-if="compareBefore.length" :data="compareBefore" />
+            <el-empty v-else description="加载中..." />
+          </div>
+        </div>
+        <div class="compare-divider"></div>
+        <div class="compare-col">
+          <div class="compare-header">
+            <span class="compare-badge after">排版后</span>
+            <span class="compare-name">{{ compareName }}</span>
+          </div>
+          <div class="compare-body">
+            <DocxCompare v-if="compareAfter.length" :data="compareAfter" />
+            <el-empty v-else description="加载中..." />
+          </div>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -81,8 +108,9 @@ import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { ElMessage } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
 import { listTemplates } from '../api/template'
-import { uploadPaper, startFormat, listTasks, getTask, downloadPaper, previewPaper } from '../api/paper'
+import { uploadPaper, startFormat, listTasks, getTask, downloadPaper, previewPaper, downloadPaperOriginal } from '../api/paper'
 import PdfViewer from '../components/PdfViewer.vue'
+import DocxCompare from '../components/DocxCompare.vue'
 
 const templates = ref([])
 const templateId = ref(null)
@@ -92,6 +120,10 @@ const submitting = ref(false)
 const tasks = ref([])
 const previewVisible = ref(false)
 const previewData = ref([])
+const compareVisible = ref(false)
+const compareBefore = ref([])
+const compareAfter = ref([])
+const compareName = ref('')
 let pollTimer = null
 
 onMounted(async () => {
@@ -136,12 +168,9 @@ async function submit() {
 
 function startPolling() {
   clearInterval(pollTimer)
+  // 立即刷新一次, 再进入轮询
+  loadTasks(true)
   pollTimer = setInterval(async () => {
-    const running = tasks.value.some(t => t.status === 'PROCESSING' || t.status === 'PENDING')
-    if (!running) {
-      clearInterval(pollTimer)
-      return
-    }
     await loadTasks(true)
   }, 1000)
 }
@@ -151,6 +180,9 @@ async function loadTasks(silent) {
   const running = tasks.value.some(t => t.status === 'PROCESSING' || t.status === 'PENDING')
   if (running && !pollTimer) {
     startPolling()
+  } else if (!running && pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
   }
 }
 
@@ -186,9 +218,43 @@ function onPreviewClosed() {
   previewData.value = []
 }
 
+let compareSeq = 0
+
+async function compare(row) {
+  const mySeq = ++compareSeq
+  compareBefore.value = []
+  compareAfter.value = []
+  compareName.value = fileName(row)
+  compareVisible.value = true
+  try {
+    const [beforeBlob, afterBlob] = await Promise.all([
+      downloadPaperOriginal(row.id),
+      downloadPaper(row.id)
+    ])
+    if (mySeq !== compareSeq) return
+    const [beforeBuf, afterBuf] = await Promise.all([
+      beforeBlob.arrayBuffer(),
+      afterBlob.arrayBuffer()
+    ])
+    if (mySeq !== compareSeq) return
+    compareBefore.value = Array.from(new Uint8Array(beforeBuf))
+    compareAfter.value = Array.from(new Uint8Array(afterBuf))
+  } catch (e) {
+    if (mySeq !== compareSeq) return
+    ElMessage.error('对比加载失败：' + (e.message || ''))
+    compareVisible.value = false
+  }
+}
+
+function onCompareClosed() {
+  compareBefore.value = []
+  compareAfter.value = []
+}
+
 async function retry(row) {
   await startFormat(row.fileId, row.templateId)
   ElMessage.success('已重新提交')
+  await loadTasks()
   startPolling()
 }
 
@@ -253,5 +319,55 @@ function formatTime(t) {
 .task-list h3 {
   color: #303133;
   margin-bottom: 16px;
+}
+.compare-layout {
+  display: flex;
+  gap: 0;
+  height: 72vh;
+}
+.compare-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.compare-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: #fafbfc;
+  border-bottom: 1px solid #ebeef5;
+}
+.compare-badge {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.compare-badge.before {
+  background: #fef3c7;
+  color: #b45309;
+}
+.compare-badge.after {
+  background: #d1fae5;
+  color: #047857;
+}
+.compare-name {
+  font-size: 13px;
+  color: #606266;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.compare-body {
+  flex: 1;
+  min-height: 0;
+}
+.compare-divider {
+  width: 2px;
+  background: #ebeef5;
+  flex-shrink: 0;
 }
 </style>

@@ -78,6 +78,9 @@ public class CaptionFormatter {
                 if (item == null) {
                     continue;
                 }
+                if (item.isFrontMatter()) {
+                    continue; // 封面/摘要/目录等前置内容不改图表题注
+                }
                 ParagraphKind kind = item.getKind();
                 if (kind == ParagraphKind.IMAGE) {
                     if (!figureEnabled) {
@@ -107,8 +110,8 @@ public class CaptionFormatter {
                     applyCaptionStyle(p, figureRule);
                 }
             } else if (el instanceof XWPFTable) {
-                if (!tableEnabled) {
-                    continue;
+                if (!tableEnabled || lastChapter < 0) {
+                    continue; // 前置内容(第一章前)的表格不处理
                 }
                 XWPFTable table = (XWPFTable) el;
                 IBodyElement prev = i > 0 ? elements.get(i - 1) : null;

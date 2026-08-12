@@ -27,11 +27,20 @@ public class AbstractFormatter {
     private static final String HEI = "黑体";
     private static final String TIMES = "Times New Roman";
 
-    public void apply(XWPFDocument doc, RuleSet ruleSet) {
+    public void apply(XWPFDocument doc, RuleSet ruleSet, java.util.List<com.graduate.thesis.engine.DocItem> items) {
+        java.util.Set<org.apache.poi.xwpf.usermodel.XWPFParagraph> frontMatter = new java.util.HashSet<>();
+        for (com.graduate.thesis.engine.DocItem item : items) {
+            if (item.isFrontMatter()) {
+                frontMatter.add(item.getParagraph());
+            }
+        }
         FormatRule bodyRule = ruleSet.rule("body");
         boolean inZh = false;
         boolean inEn = false;
         for (XWPFParagraph p : doc.getParagraphs()) {
+            if (frontMatter.contains(p)) {
+                continue; // 前置内容(封面/摘要/目录)不改格式
+            }
             String text = p.getText() == null ? "" : p.getText().trim();
             if (ABSTRACT_TITLE.matcher(text).matches()) {
                 setTitle(p, "摘  要", HEI, 16, true, SONG, true);

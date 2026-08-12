@@ -34,7 +34,11 @@ public class DocxPdfService {
         if (configured != null && !configured.trim().isEmpty()) {
             return configured.trim();
         }
-        // Windows 常见路径
+        // Windows 常见路径: 优先 soffice.com(控制台版, 命令行转换稳定)
+        File winCom1 = new File("C:\\Program Files\\LibreOffice\\program\\soffice.com");
+        File winCom2 = new File("C:\\Program Files (x86)\\LibreOffice\\program\\soffice.com");
+        if (winCom1.exists()) return winCom1.getAbsolutePath();
+        if (winCom2.exists()) return winCom2.getAbsolutePath();
         File win1 = new File("C:\\Program Files\\LibreOffice\\program\\soffice.exe");
         File win2 = new File("C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe");
         if (win1.exists()) return win1.getAbsolutePath();

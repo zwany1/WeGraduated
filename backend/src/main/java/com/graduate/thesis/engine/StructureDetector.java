@@ -64,6 +64,8 @@ public class StructureDetector {
                     || kind == ParagraphKind.TABLE_CAPTION || kind == ParagraphKind.IMAGE) {
                 item.setChapterNo(currentChapter);
             }
+            // 第一个正文一级标题之前的内容视为前置内容(封面/声明/摘要/目录), 不做格式修改
+            item.setFrontMatter(!chapterStarted);
             items.add(item);
         }
         return items;

@@ -105,7 +105,27 @@ public class RuleSet {
         }
     }
 
+    /**
+     * 获取规则; 缺失时返回默认规范值, 避免 NPE
+     */
     public FormatRule rule(String ruleType) {
-        return rules.get(ruleType);
+        FormatRule rule = rules.get(ruleType);
+        if (rule != null) {
+            return rule;
+        }
+        FormatRule fallback = new FormatRule();
+        fallback.setRuleType(ruleType);
+        fallback.setFont("宋体");
+        fallback.setFontLatin("Times New Roman");
+        fallback.setFontSize(12);
+        fallback.setBold(false);
+        fallback.setAlign("left");
+        fallback.setLineSpacing(1.5f);
+        fallback.setLineSpacingType("multiple");
+        fallback.setFirstLineIndent(2);
+        fallback.setSpaceAfter(0);
+        fallback.setCaptionEnabled(true);
+        rules.put(ruleType, fallback);
+        return fallback;
     }
 }

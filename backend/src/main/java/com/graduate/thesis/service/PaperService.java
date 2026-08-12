@@ -163,6 +163,18 @@ public class PaperService {
     }
 
     /**
+     * 加载原始上传的 docx 文件(用于排版前后对比)
+     */
+    public File loadOriginal(Long userId, Long taskId) {
+        FormatTask task = getTask(userId, taskId);
+        PaperFile paperFile = paperFileMapper.selectById(task.getFileId());
+        if (paperFile == null || !paperFile.getUserId().equals(userId)) {
+            throw new BusinessException(404, "原始文件不存在");
+        }
+        return storageService.load(paperFile.getStoredPath());
+    }
+
+    /**
      * 加载预览 PDF: 优先缓存 pdfPath, 否则即时转换 docx->pdf(不写缓存)
      */
     public File loadPreviewPdf(Long userId, Long taskId) {

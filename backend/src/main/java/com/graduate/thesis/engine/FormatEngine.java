@@ -57,7 +57,7 @@ public class FormatEngine {
             PageFormatter.apply(doc, ruleSet.getPageConfig());
             progress.accept(40);
 
-            new AbstractFormatter().apply(doc, ruleSet);
+            new AbstractFormatter().apply(doc, ruleSet, items);
             new SectionFormatter().apply(doc);
             progress.accept(50);
 
@@ -80,7 +80,7 @@ public class FormatEngine {
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            throw new BusinessException(500, "文档处理失败: " + e.getMessage());
+            throw new BusinessException(500, "文档处理失败[" + e.getClass().getSimpleName() + "]: " + e.getMessage());
         }
     }
 
@@ -90,6 +90,9 @@ public class FormatEngine {
         NumberUnifier.Style style = NumberUnifier.detectStyle(items);
 
         for (DocItem item : items) {
+            if (item.isFrontMatter()) {
+                continue; // 封面/摘要/目录等前置内容不改正文格式
+            }
             if (item.getKind() == ParagraphKind.BODY) {
                 NumberUnifier.apply(item.getParagraph(), style);
                 TextFormatter.apply(item.getParagraph(), bodyRule);

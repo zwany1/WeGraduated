@@ -82,6 +82,18 @@ public class PaperController {
     }
 
     /**
+     * 原始上传文档(排版前 docx), 用于前后对比
+     */
+    @GetMapping("/download-original/{taskId}")
+    public ResponseEntity<FileSystemResource> downloadOriginal(@PathVariable Long taskId) {
+        File file = paperService.loadOriginal(UserContext.get(), taskId);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=" + encode("original.docx"))
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(new FileSystemResource(file));
+    }
+
+    /**
      * 下载排版结果的 PDF 版本
      */
     @GetMapping("/download-pdf/{taskId}")

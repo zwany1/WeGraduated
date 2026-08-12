@@ -28,6 +28,14 @@ export function previewPaper(taskId) {
   return api.get(`/paper/preview/${taskId}`, { responseType: 'blob' })
 }
 
+export function previewPaperOriginal(taskId) {
+  return api.get(`/paper/preview-original/${taskId}`, { responseType: 'blob' })
+}
+
+export function downloadPaperOriginal(taskId) {
+  return api.get(`/paper/download-original/${taskId}`, { responseType: 'blob' })
+}
+
 export function downloadPaperPdf(taskId) {
   return api.get(`/paper/download-pdf/${taskId}`, { responseType: 'blob' })
 }

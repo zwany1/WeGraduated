@@ -1,7 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 // 无需登录即可访问的白名单页面
-const PUBLIC_PAGES = ['/login', '/register', '/forgot-password']
+const PUBLIC_PAGES = [
+  '/login', '/register', '/forgot-password',
+  '/features', '/template-market', '/guide', '/cases', '/pricing'
+]
 
 const routes = [
   { path: '/', component: () => import('../views/Welcome.vue') },
@@ -15,7 +18,12 @@ const routes = [
   { path: '/tasks', component: () => import('../views/FormatTask.vue') },
   { path: '/table3', component: () => import('../views/ThreeTable.vue') },
   { path: '/er', component: () => import('../views/ErDiagram.vue') },
-  { path: '/system-design', component: () => import('../views/SystemDesign.vue') }
+  { path: '/system-design', component: () => import('../views/SystemDesign.vue') },
+  { path: '/features', component: () => import('../views/Features.vue') },
+  { path: '/template-market', component: () => import('../views/TemplateMarket.vue') },
+  { path: '/guide', component: () => import('../views/Guide.vue') },
+  { path: '/cases', component: () => import('../views/Cases.vue') },
+  { path: '/pricing', component: () => import('../views/Pricing.vue') }
 ]
 
 const router = createRouter({

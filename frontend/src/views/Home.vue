@@ -12,12 +12,12 @@
           <span class="brand-sub">文档工具箱</span>
         </div>
         <div class="nav-links">
-          <a class="nav-link active" href="#">首页</a>
-          <a class="nav-link" href="#">功能</a>
-          <a class="nav-link" href="#">模板</a>
-          <a class="nav-link" href="#">使用教程</a>
-          <a class="nav-link" href="#">案例</a>
-          <a class="nav-link" href="#">价格</a>
+          <a class="nav-link active" @click="goPage('/home')">首页</a>
+          <a class="nav-link" @click="goPage('/features')">功能</a>
+          <a class="nav-link" @click="goPage('/template-market')">模板</a>
+          <a class="nav-link" @click="goPage('/guide')">使用教程</a>
+          <a class="nav-link" @click="goPage('/cases')">案例</a>
+          <a class="nav-link" @click="goPage('/pricing')">价格</a>
         </div>
         <div class="nav-actions">
           <template v-if="isLoggedIn">
@@ -295,7 +295,7 @@
           <a href="#">关于我们</a>
           <a href="#">使用条款</a>
           <a href="#">隐私政策</a>
-          <a href="#">联系我们</a>
+          <a href="mailto:2651896126@qq.com">联系我们</a>
         </div>
         <div class="footer-copy">&copy; 2026 Word 排版助手. All rights reserved.</div>
       </div>
@@ -346,6 +346,9 @@ onMounted(async () => {
 
 function goLogin() {
   router.push('/login')
+}
+function goPage(path) {
+  router.push(path)
 }
 function goStart() {
   if (localStorage.getItem('token')) {

@@ -18,6 +18,9 @@ public final class HeadingFormatter {
 
     public static void apply(XWPFDocument doc, List<DocItem> items, RuleSet ruleSet) {
         for (DocItem item : items) {
+            if (item.isFrontMatter()) {
+                continue; // 封面/摘要/目录等前置内容不改标题格式
+            }
             FormatRule rule = ruleFor(item.getKind(), ruleSet);
             if (rule != null) {
                 TextFormatter.apply(item.getParagraph(), rule);

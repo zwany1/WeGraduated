@@ -28,7 +28,7 @@
       <div class="absolute bottom-1/4 left-1/4 size-96 bg-gray-300/20 rounded-full blur-3xl"></div>
     </div>
 
-    <!-- Right Login Section -->
+    <!-- Right Register Section -->
     <div class="flex items-center justify-center p-8 bg-background">
       <div class="w-full max-w-[420px]">
         <!-- Mobile Logo -->
@@ -36,11 +36,11 @@
 
         <!-- Header -->
         <div class="text-center mb-10">
-          <h1 class="text-3xl font-bold tracking-tight mb-2">Welcome back!</h1>
-          <p class="text-muted-foreground text-sm">请输入你的详细信息</p>
+          <h1 class="text-3xl font-bold tracking-tight mb-2">Create Account</h1>
+          <p class="text-muted-foreground text-sm">请填写你的注册信息</p>
         </div>
 
-        <!-- Login Form -->
+        <!-- Register Form -->
         <form @submit.prevent="submit" class="space-y-5">
           <div class="space-y-2">
             <label class="text-sm font-medium">Email / 用户名</label>
@@ -77,16 +77,9 @@
             </div>
           </div>
 
-          <label class="flex items-center space-x-2 cursor-pointer select-none" @click="rememberMe = !rememberMe">
-            <span :class="['size-4 rounded border flex items-center justify-center transition-colors', rememberMe ? 'bg-primary border-primary' : 'border-input']">
-              <svg v-if="rememberMe" viewBox="0 0 24 24" class="size-3 text-white" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
-            </span>
-            <label class="text-sm font-normal cursor-pointer">记住我 30 天</label>
-          </label>
-
           <InteractiveHoverButton
             type="submit"
-            :text="loading ? '...' : 'Log in'"
+            :text="loading ? '...' : 'Register'"
             class="w-full h-12 text-base font-medium"
             :disabled="loading"
           />
@@ -95,8 +88,8 @@
         </form>
 
         <div class="text-center text-sm text-muted-foreground mt-8">
-          还没有账号？
-          <span class="text-foreground font-medium hover:underline cursor-pointer" @click="goRegister">Sign Up</span>
+          已有账号？
+          <span class="text-foreground font-medium hover:underline cursor-pointer" @click="goLogin">Log in</span>
         </div>
       </div>
     </div>
@@ -107,15 +100,14 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { login, getProfile } from '../api/user'
+import { register, getProfile } from '../api/user'
 import AnimatedCharacters from '../components/auth/AnimatedCharacters.vue'
 import InteractiveHoverButton from '../components/auth/InteractiveHoverButton.vue'
 
-// ===== 登录页状态 =====
+// ===== 注册页状态 =====
 const router = useRouter()
 const loading = ref(false)
 const showPassword = ref(false)
-const rememberMe = ref(false)
 const isTyping = ref(false)
 const pwdRef = ref(null)
 const form = reactive({ username: '', password: '' })
@@ -125,21 +117,11 @@ const password = computed(() => form.password)
 onMounted(async () => {
   if (localStorage.getItem('token')) {
     router.replace('/home')
-    return
-  }
-  const savedUser = localStorage.getItem('remembered_user')
-  const savedPwd = localStorage.getItem('remembered_pwd')
-  if (savedUser) {
-    form.username = savedUser
-    rememberMe.value = true
-    if (savedPwd) {
-      try { form.password = decodeURIComponent(atob(savedPwd)) } catch (e) {}
-    }
   }
 })
 
-function goRegister() {
-  router.push('/register')
+function goLogin() {
+  router.push('/login')
 }
 
 async function submit() {
@@ -149,7 +131,7 @@ async function submit() {
   loading.value = true
   hint.value = '请稍候...'
   try {
-    const data = await login({ username: form.username.trim(), password: form.password })
+    const data = await register({ username: form.username.trim(), password: form.password })
     localStorage.setItem('token', data.token)
     localStorage.setItem('userId', data.userId)
     localStorage.setItem('username', data.username)
@@ -160,14 +142,7 @@ async function submit() {
         localStorage.setItem('avatar', p.avatar || '')
       }
     } catch (e) {}
-    if (rememberMe.value) {
-      localStorage.setItem('remembered_user', form.username.trim())
-      localStorage.setItem('remembered_pwd', btoa(encodeURIComponent(form.password)))
-    } else {
-      localStorage.removeItem('remembered_user')
-      localStorage.removeItem('remembered_pwd')
-    }
-    ElMessage.success('登录成功')
+    ElMessage.success('注册成功')
     router.push('/home')
   } catch (e) {
   } finally {

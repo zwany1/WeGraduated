@@ -18,4 +18,10 @@ public class UserAuthDTO {
     @NotBlank(message = "密码不能为空")
     @Size(min = 6, max = 64, message = "密码长度为6-64位")
     private String password;
+
+    /** 注册时可选的密保问题 */
+    private String securityQuestion;
+
+    /** 注册时可选的密保答案 */
+    private String securityAnswer;
 }

@@ -36,8 +36,13 @@ public class LoginInterceptor implements HandlerInterceptor {
         }
         try {
             Long userId = jwtUtil.parseUserId(token);
+            if (jwtUtil.isRevoked(token)) {
+                throw new BusinessException(401, "登录已失效，请重新登录");
+            }
             UserContext.set(userId);
             return true;
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
             throw new BusinessException(401, "未登录或登录已过期");
         }

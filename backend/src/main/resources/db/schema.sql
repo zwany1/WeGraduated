@@ -1,10 +1,12 @@
 CREATE TABLE IF NOT EXISTS t_user (
-    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
-    username    VARCHAR(32)  NOT NULL,
-    password    VARCHAR(64)  NOT NULL,
-    nickname    VARCHAR(64)  DEFAULT NULL,
-    avatar      LONGTEXT     DEFAULT NULL,
-    create_time DATETIME     DEFAULT NULL,
+    id                BIGINT AUTO_INCREMENT PRIMARY KEY,
+    username          VARCHAR(32)  NOT NULL,
+    password          VARCHAR(64)  NOT NULL,
+    nickname          VARCHAR(64)  DEFAULT NULL,
+    avatar            LONGTEXT     DEFAULT NULL,
+    security_question VARCHAR(128) DEFAULT NULL,
+    security_answer   VARCHAR(128) DEFAULT NULL,
+    create_time       DATETIME     DEFAULT NULL,
     UNIQUE KEY uk_username (username)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='用户表';
 

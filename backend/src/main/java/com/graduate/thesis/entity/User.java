@@ -28,5 +28,12 @@ public class User {
     /** 头像(data URL base64) */
     private String avatar;
 
+    /** 密保问题 */
+    private String securityQuestion;
+
+    /** 密保答案(加密存储) */
+    @JsonIgnore
+    private String securityAnswer;
+
     private LocalDateTime createTime;
 }

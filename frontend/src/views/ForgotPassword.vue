@@ -28,7 +28,7 @@
       <div class="absolute bottom-1/4 left-1/4 size-96 bg-gray-300/20 rounded-full blur-3xl"></div>
     </div>
 
-    <!-- Right Register Section -->
+    <!-- Right Forgot Password Section -->
     <div class="flex items-center justify-center p-8 bg-background">
       <div class="w-full max-w-[420px]">
         <!-- Mobile Logo -->
@@ -36,18 +36,18 @@
 
         <!-- Header -->
         <div class="text-center mb-10">
-          <h1 class="text-3xl font-bold tracking-tight mb-2">Create Account</h1>
-          <p class="text-muted-foreground text-sm">请填写你的注册信息</p>
+          <h1 class="text-3xl font-bold tracking-tight mb-2">重置密码</h1>
+          <p class="text-muted-foreground text-sm">通过密保问题验证后重置密码</p>
         </div>
 
-        <!-- Register Form -->
+        <!-- Forgot Form -->
         <form @submit.prevent="submit" class="space-y-5">
           <div class="space-y-2">
-            <label class="text-sm font-medium">Email / 用户名</label>
+            <label class="text-sm font-medium">用户名</label>
             <input
               v-model="form.username"
               type="text"
-              placeholder="3-32位，you@example.com"
+              placeholder="请输入注册用户名"
               autocomplete="off"
               @focus="isTyping = true"
               @blur="isTyping = false"
@@ -56,11 +56,22 @@
           </div>
 
           <div class="space-y-2">
-            <label class="text-sm font-medium">Password</label>
+            <label class="text-sm font-medium">密保答案</label>
+            <input
+              v-model="form.answer"
+              type="text"
+              placeholder="注册时填写的密保答案"
+              autocomplete="off"
+              class="h-12 bg-background border border-border/60 focus:border-primary w-full rounded-full px-5 outline-none transition-colors"
+            />
+          </div>
+
+          <div class="space-y-2">
+            <label class="text-sm font-medium">新密码</label>
             <div class="relative">
               <input
                 ref="pwdRef"
-                v-model="form.password"
+                v-model="form.newPassword"
                 :type="showPassword ? 'text' : 'password'"
                 placeholder="6-64位，需含字母和数字"
                 @focus="isTyping = true"
@@ -76,48 +87,11 @@
                 <svg v-else viewBox="0 0 24 24" class="size-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
               </button>
             </div>
-            <p :class="['text-xs min-h-4', strength > 0 ? (strength >= 4 ? 'text-green-600' : strength >= 2 ? 'text-amber-600' : 'text-red-500') : 'text-muted-foreground']">
-              {{ strengthText }}
-            </p>
-          </div>
-
-          <div class="space-y-2">
-            <label class="text-sm font-medium">确认密码</label>
-            <div class="relative">
-              <input
-                v-model="form.confirm"
-                :type="showPassword ? 'text' : 'password'"
-                placeholder="再次输入密码"
-                class="h-12 pr-10 bg-background border border-border/60 focus:border-primary w-full rounded-full px-5 outline-none transition-colors"
-              />
-            </div>
-          </div>
-
-          <div class="space-y-2">
-            <label class="text-sm font-medium">密保问题（用于找回密码）</label>
-            <input
-              v-model="form.securityQuestion"
-              type="text"
-              placeholder="例如：你的母校名称？"
-              autocomplete="off"
-              class="h-12 bg-background border border-border/60 focus:border-primary w-full rounded-full px-5 outline-none transition-colors"
-            />
-          </div>
-
-          <div class="space-y-2">
-            <label class="text-sm font-medium">密保答案</label>
-            <input
-              v-model="form.securityAnswer"
-              type="text"
-              placeholder="请记住你的答案"
-              autocomplete="off"
-              class="h-12 bg-background border border-border/60 focus:border-primary w-full rounded-full px-5 outline-none transition-colors"
-            />
           </div>
 
           <InteractiveHoverButton
             type="submit"
-            :text="loading ? '...' : 'Register'"
+            :text="loading ? '...' : '重置密码'"
             class="w-full h-12 text-base font-medium"
             :disabled="loading"
           />
@@ -126,9 +100,10 @@
         </form>
 
         <div class="text-center text-sm text-muted-foreground mt-8">
-          已有账号？
-          <span class="text-foreground font-medium hover:underline cursor-pointer" @click="goLogin">Log in</span>
-        </div>      </div>
+          想起密码了？
+          <span class="text-foreground font-medium hover:underline cursor-pointer" @click="goLogin">返回登录</span>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -137,44 +112,19 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { register, getProfile } from '../api/user'
+import { forgotPassword } from '../api/user'
 import AnimatedCharacters from '../components/auth/AnimatedCharacters.vue'
 import InteractiveHoverButton from '../components/auth/InteractiveHoverButton.vue'
 
-// ===== 注册页状态 =====
+// ===== 忘记密码状态 =====
 const router = useRouter()
 const loading = ref(false)
 const showPassword = ref(false)
 const isTyping = ref(false)
 const pwdRef = ref(null)
-const form = reactive({
-  username: '',
-  password: '',
-  confirm: '',
-  securityQuestion: '',
-  securityAnswer: ''
-})
+const form = reactive({ username: '', answer: '', newPassword: '' })
 const hint = ref('')
-const password = computed(() => form.password)
-
-const strength = computed(() => {
-  const p = form.password
-  if (!p) return 0
-  let score = 0
-  if (p.length >= 6) score++
-  if (p.length >= 12) score++
-  if (/[a-z]/.test(p) && /[A-Z]/.test(p)) score++
-  if (/\d/.test(p)) score++
-  if (/[^a-zA-Z0-9]/.test(p)) score++
-  return score
-})
-
-const strengthText = computed(() => {
-  if (!form.password) return '密码强度：至少6位，建议字母+数字+符号'
-  if (strength.value <= 1) return '密码强度：弱'
-  if (strength.value <= 3) return '密码强度：中'
-  return '密码强度：强'
-})
+const password = computed(() => form.newPassword)
 
 onMounted(async () => {
   if (localStorage.getItem('token')) {
@@ -186,40 +136,27 @@ function goLogin() {
   router.push('/login')
 }
 
-function goForgot() {
-  router.push('/forgot-password')
-}
-
 async function submit() {
   if (loading.value) return
   if (!form.username.trim()) { ElMessage.warning('请输入用户名'); return }
-  if (form.username.trim().length < 3 || form.username.trim().length > 32) { ElMessage.warning('用户名长度为3-32位'); return }
-  if (!form.password) { ElMessage.warning('请输入密码'); return }
-  if (form.password.length < 6 || form.password.length > 64) { ElMessage.warning('密码长度为6-64位'); return }
-  if (strength.value < 2) { ElMessage.warning('密码强度过弱，请使用字母+数字组合'); return }
-  if (form.password !== form.confirm) { ElMessage.warning('两次输入的密码不一致'); return }
-  if (form.securityQuestion.trim() && !form.securityAnswer.trim()) { ElMessage.warning('请填写密保答案'); return }
-  if (!form.securityQuestion.trim() && form.securityAnswer.trim()) { ElMessage.warning('请填写密保问题'); return }
+  if (!form.answer.trim()) { ElMessage.warning('请输入密保答案'); return }
+  if (!form.newPassword) { ElMessage.warning('请输入新密码'); return }
+  if (form.newPassword.length < 6 || form.newPassword.length > 64) { ElMessage.warning('密码长度为6-64位'); return }
+  const hasLetter = /[a-zA-Z]/.test(form.newPassword)
+  const hasDigit = /\d/.test(form.newPassword)
+  if (!(hasLetter && hasDigit)) { ElMessage.warning('密码必须同时包含字母和数字'); return }
   loading.value = true
   hint.value = '请稍候...'
   try {
-    const data = await register({
+    const data = await forgotPassword({
       username: form.username.trim(),
-      password: form.password,
-      securityQuestion: form.securityQuestion.trim(),
-      securityAnswer: form.securityAnswer.trim()
+      answer: form.answer.trim(),
+      newPassword: form.newPassword
     })
     localStorage.setItem('token', data.token)
     localStorage.setItem('userId', data.userId)
     localStorage.setItem('username', data.username)
-    try {
-      const p = await getProfile()
-      if (p) {
-        localStorage.setItem('username', p.nickname || p.username || data.username)
-        localStorage.setItem('avatar', p.avatar || '')
-      }
-    } catch (e) {}
-    ElMessage.success('注册成功')
+    ElMessage.success('密码重置成功')
     router.push('/home')
   } catch (e) {
     hint.value = e.message || ''

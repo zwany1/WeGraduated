@@ -26,6 +26,12 @@
           <el-form-item label="昵称">
             <el-input v-model="nickname" maxlength="30" placeholder="自定义昵称" />
           </el-form-item>
+          <el-form-item label="密保问题">
+            <el-input v-model="securityQuestion" maxlength="60" placeholder="用于忘记密码时找回，留空则不设置" />
+          </el-form-item>
+          <el-form-item label="密保答案">
+            <el-input v-model="securityAnswer" maxlength="60" :placeholder="hasSecurity ? '填写新答案以修改' : '回答你的密保问题'" />
+          </el-form-item>
           <el-form-item>
             <el-button type="primary" :loading="saving" @click="save">保存修改</el-button>
             <el-button v-if="avatarPreview" @click="removeAvatar">移除头像</el-button>
@@ -47,6 +53,9 @@ const username = ref('')
 const nickname = ref('')
 const avatar = ref('')
 const avatarPreview = ref('')
+const securityQuestion = ref('')
+const securityAnswer = ref('')
+const hasSecurity = ref(false)
 const saving = ref(false)
 const fileInput = ref(null)
 
@@ -59,6 +68,8 @@ onMounted(async () => {
     nickname.value = p.nickname || ''
     avatar.value = p.avatar || ''
     avatarPreview.value = p.avatar || ''
+    securityQuestion.value = p.securityQuestion || ''
+    hasSecurity.value = !!(p.securityQuestion)
   } catch (e) {
     // 拦截器已提示
   }
@@ -96,18 +107,33 @@ async function save() {
     ElMessage.warning('昵称不能为空')
     return
   }
+  if (securityQuestion.value.trim() && !securityAnswer.value.trim()) {
+    ElMessage.warning('请填写密保答案')
+    return
+  }
+  if (!securityQuestion.value.trim() && securityAnswer.value.trim()) {
+    ElMessage.warning('请填写密保问题')
+    return
+  }
   saving.value = true
   try {
     const p = await updateProfile({
       nickname: nickname.value.trim(),
-      avatar: avatarPreview.value
+      avatar: avatarPreview.value,
+      securityQuestion: securityQuestion.value.trim(),
+      securityAnswer: securityAnswer.value.trim()
     })
     nickname.value = p.nickname
     avatar.value = p.avatar || ''
     avatarPreview.value = p.avatar || ''
+    securityQuestion.value = p.securityQuestion || ''
+    hasSecurity.value = !!(p.securityQuestion)
+    securityAnswer.value = ''
     localStorage.setItem('username', p.nickname || p.username || '用户')
     localStorage.setItem('avatar', p.avatar || '')
     ElMessage.success('资料已保存')
+  } catch (e) {
+    ElMessage.error(e.message || '保存失败')
   } finally {
     saving.value = false
   }

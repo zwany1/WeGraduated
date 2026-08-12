@@ -97,6 +97,8 @@
         <div class="text-center text-sm text-muted-foreground mt-8">
           还没有账号？
           <span class="text-foreground font-medium hover:underline cursor-pointer" @click="goRegister">Sign Up</span>
+          <span class="mx-2 text-muted-foreground/40">|</span>
+          <span class="text-foreground font-medium hover:underline cursor-pointer" @click="goForgot">忘记密码</span>
         </div>
       </div>
     </div>
@@ -142,6 +144,10 @@ function goRegister() {
   router.push('/register')
 }
 
+function goForgot() {
+  router.push('/forgot-password')
+}
+
 async function submit() {
   if (loading.value) return
   if (!form.username.trim()) { ElMessage.warning('请输入用户名'); return }
@@ -170,9 +176,9 @@ async function submit() {
     ElMessage.success('登录成功')
     router.push('/home')
   } catch (e) {
+    hint.value = e.message || ''
   } finally {
     loading.value = false
-    hint.value = ''
   }
 }
 </script>

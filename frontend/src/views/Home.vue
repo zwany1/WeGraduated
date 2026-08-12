@@ -307,7 +307,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
-import { getProfile } from '../api/user'
+import { getProfile, logout } from '../api/user'
 
 const router = useRouter()
 
@@ -355,6 +355,7 @@ async function handleUserCommand(cmd) {
   } else if (cmd === 'logout') {
     try {
       await ElMessageBox.confirm('确定退出登录？', '提示', { type: 'warning' })
+      try { await logout() } catch (e) {}
       localStorage.removeItem('token')
       localStorage.removeItem('username')
       localStorage.removeItem('avatar')

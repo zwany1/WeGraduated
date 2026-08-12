@@ -5,6 +5,7 @@ const routes = [
   { path: '/home', component: () => import('../views/Home.vue') },
   { path: '/login', component: () => import('../views/Login.vue') },
   { path: '/register', component: () => import('../views/Register.vue') },
+  { path: '/forgot-password', component: () => import('../views/ForgotPassword.vue') },
   { path: '/templates', component: () => import('../views/TemplateList.vue'), meta: { requiresAuth: true } },
   { path: '/profile', component: () => import('../views/Profile.vue'), meta: { requiresAuth: true } },
   { path: '/template/:id', component: () => import('../views/TemplateConfig.vue'), meta: { requiresAuth: true } },

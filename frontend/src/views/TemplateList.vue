@@ -55,7 +55,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { listTemplates, createTemplate, deleteTemplate } from '../api/template'
-import { getProfile } from '../api/user'
+import { getProfile, logout } from '../api/user'
 
 const router = useRouter()
 const templates = ref([])
@@ -88,6 +88,7 @@ async function onUserCommand(cmd) {
   } else if (cmd === 'logout') {
     try {
       await ElMessageBox.confirm('确定退出登录？', '提示', { type: 'warning' })
+      try { await logout() } catch (e) {}
       localStorage.removeItem('token')
       localStorage.removeItem('username')
       localStorage.removeItem('avatar')

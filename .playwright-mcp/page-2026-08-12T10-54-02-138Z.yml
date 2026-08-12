@@ -1,0 +1,36 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e6]:
+      - generic [ref=e7]: 📄
+      - generic [ref=e8]: 论文格式助手
+    - generic [ref=e32]:
+      - generic [ref=e33] [cursor=pointer]: Privacy Policy
+      - generic [ref=e34] [cursor=pointer]: Terms of Service
+  - generic [ref=e40]:
+    - generic [ref=e41]:
+      - heading "Welcome!" [level=1] [ref=e42]
+      - paragraph [ref=e43]: 登录论文格式助手，继续你的论文排版
+    - generic [ref=e44]:
+      - generic [ref=e45]:
+        - generic [ref=e46]: Email / 用户名
+        - textbox "Email / 用户名" [ref=e47]:
+          - /placeholder: you@example.com 或用户名
+      - generic [ref=e48]:
+        - generic [ref=e49]: Password
+        - generic [ref=e50]:
+          - textbox "Password" [ref=e51]:
+            - /placeholder: ••••••••
+          - button [ref=e52]:
+            - img [ref=e53]
+      - generic [ref=e56]:
+        - generic [ref=e57]: 验证码
+        - generic [ref=e58]:
+          - textbox "验证码" [ref=e59]:
+            - /placeholder: 请输入验证码
+          - button "加载中" [disabled] [ref=e60] [cursor=pointer]
+      - generic [ref=e61]:
+        - generic [ref=e62] [cursor=pointer]: 记住我 30 天
+        - generic [ref=e64] [cursor=pointer]: Forgot your password?
+      - button "Login" [ref=e65] [cursor=pointer]
+      - paragraph [ref=e66]
+    - paragraph [ref=e67]: 还没有账号？ Sign up now

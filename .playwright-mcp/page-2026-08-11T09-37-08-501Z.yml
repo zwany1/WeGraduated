@@ -1,0 +1,68 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - link "CareerCompass logo CareerCompass" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img "CareerCompass logo" [ref=e6]
+        - generic [ref=e7]: CareerCompass
+      - generic [ref=e31]:
+        - link "Privacy Policy" [ref=e32] [cursor=pointer]:
+          - /url: /privacy-policy
+        - link "Terms of Service" [ref=e33] [cursor=pointer]:
+          - /url: /terms
+    - generic [ref=e38]:
+      - generic [ref=e39]:
+        - heading "Create an account" [level=1] [ref=e40]
+        - paragraph [ref=e41]: Join CareerCompass to find your next opportunity
+      - generic [ref=e42]:
+        - generic [ref=e43]:
+          - text: I am a...
+          - radiogroup [ref=e44]:
+            - generic [ref=e45] [cursor=pointer]:
+              - radio "Job Seeker" [checked] [ref=e46]:
+                - img [ref=e48]
+              - radio [checked]
+              - generic [ref=e50]: Job Seeker
+            - generic [ref=e51] [cursor=pointer]:
+              - radio "Employer" [ref=e52]
+              - radio
+              - generic [ref=e53]: Employer
+        - generic [ref=e54]:
+          - text: Full Name or Company Name
+          - textbox "Full Name or Company Name" [ref=e55]:
+            - /placeholder: John Doe or Acme Inc.
+        - generic [ref=e56]:
+          - text: Email
+          - textbox "Email" [ref=e57]:
+            - /placeholder: you@example.com
+        - generic [ref=e58]:
+          - text: Password
+          - generic [ref=e59]:
+            - textbox "Password" [ref=e60]:
+              - /placeholder: ••••••••
+            - button [ref=e61] [cursor=pointer]:
+              - img [ref=e62]
+        - generic [ref=e65]:
+          - checkbox "I agree to thePrivacy PolicyandTerms of Service" [ref=e66] [cursor=pointer]
+          - checkbox
+          - generic [ref=e67] [cursor=pointer]:
+            - text: I agree to the
+            - link "Privacy Policy" [ref=e68]:
+              - /url: /privacy-policy
+            - text: and
+            - link "Terms of Service" [ref=e69]:
+              - /url: /terms
+        - button "Create Account Create Account" [ref=e70] [cursor=pointer]:
+          - generic [ref=e71]: Create Account
+          - generic [ref=e72]:
+            - generic [ref=e73]: Create Account
+            - img [ref=e74]
+      - generic [ref=e76]:
+        - text: Already have an account?
+        - link "Sign in" [ref=e77] [cursor=pointer]:
+          - /url: /login
+  - region "Notifications (F8)":
+    - list
+  - region "Notifications (F8)":
+    - list
+  - alert [ref=e78]

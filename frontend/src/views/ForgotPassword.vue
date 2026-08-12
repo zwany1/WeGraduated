@@ -29,7 +29,7 @@
       <div class="absolute -bottom-24 right-1/4 size-80 bg-white/10 rounded-full blur-3xl"></div>
     </div>
 
-    <!-- Right Register Section -->
+    <!-- Right Reset Password Section -->
     <div class="flex items-center justify-center p-8" style="background:#f5f0e8">
       <div class="w-full max-w-[420px] bg-white rounded-2xl shadow-[0_10px_40px_rgba(62,44,28,0.10)] p-10">
         <!-- Mobile Logo -->
@@ -40,11 +40,11 @@
 
         <!-- Header -->
         <div class="text-left mb-8">
-          <h1 class="text-[26px] font-semibold tracking-tight mb-1" style="color:#3e2c1c">Create Account</h1>
-          <p class="text-sm mb-4" style="color:#8c7b6a">注册后即可开始使用论文排版服务</p>
+          <h1 class="text-[26px] font-semibold tracking-tight mb-1" style="color:#3e2c1c">重置密码</h1>
+          <p class="text-sm mb-4" style="color:#8c7b6a">通过邮箱验证码重置你的密码</p>
         </div>
 
-        <!-- Register Form -->
+        <!-- Reset Form -->
         <form @submit.prevent="submit" class="space-y-5">
           <div class="input-block">
             <label for="email" class="input-label">邮箱 <span style="color:#e74c3c">*</span></label>
@@ -84,23 +84,12 @@
           </div>
 
           <div class="input-block">
-            <label for="username" class="input-label">用户名（选填）</label>
-            <input
-              id="username"
-              v-model="form.username"
-              type="text"
-              placeholder="不填将根据邮箱自动生成"
-              autocomplete="off"
-            />
-          </div>
-
-          <div class="input-block">
-            <label for="password" class="input-label">Password <span style="color:#e74c3c">*</span></label>
+            <label for="newPassword" class="input-label">新密码 <span style="color:#e74c3c">*</span></label>
             <div class="relative">
               <input
-                id="password"
+                id="newPassword"
                 ref="pwdRef"
-                v-model="form.password"
+                v-model="form.newPassword"
                 :type="showPassword ? 'text' : 'password'"
                 placeholder="6-64位，需含字母和数字"
                 @focus="isTyping = true"
@@ -116,55 +105,18 @@
                 <svg v-else viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
               </button>
             </div>
-            <p :class="['text-xs min-h-4 mt-1', strength > 0 ? (strength >= 4 ? 'text-green-600' : strength >= 2 ? 'text-amber-600' : 'text-red-500') : 'text-muted-foreground']">
-              {{ strengthText }}
-            </p>
-          </div>
-
-          <div class="input-block">
-            <label for="confirm" class="input-label">确认密码 <span style="color:#e74c3c">*</span></label>
-            <input
-              id="confirm"
-              v-model="form.confirm"
-              :type="showPassword ? 'text' : 'password'"
-              placeholder="再次输入密码"
-            />
-          </div>
-
-          <div class="input-block">
-            <label for="captcha" class="input-label">图形验证码 <span style="color:#e74c3c">*</span></label>
-            <div class="flex items-center gap-3">
-              <input
-                id="captcha"
-                v-model="form.captchaCode"
-                type="text"
-                maxlength="4"
-                placeholder="请输入验证码"
-                autocomplete="off"
-                class="flex-1"
-              />
-              <button
-                type="button"
-                @click="refreshCaptcha"
-                class="shrink-0 h-10 w-[110px] rounded-md overflow-hidden cursor-pointer border border-[#e3d8c8] bg-white"
-                :disabled="!captchaImage"
-              >
-                <img v-if="captchaImage" :src="'data:image/png;base64,' + captchaImage" alt="验证码" class="w-full h-full object-cover" />
-                <span v-else class="text-xs text-muted-foreground">加载中</span>
-              </button>
-            </div>
           </div>
 
           <button type="submit" :disabled="loading" class="input-button w-full">
-            {{ loading ? '...' : 'Register' }}
+            {{ loading ? '...' : '重置密码' }}
           </button>
 
           <p class="text-center text-sm min-h-5" style="color:#8c7b6a">{{ hint }}</p>
         </form>
 
         <p class="sign-up">
-          已有账号？
-          <a class="cursor-pointer" @click="goLogin">Log in</a>
+          想起密码了？
+          <a class="cursor-pointer" @click="goLogin">返回登录</a>
         </p>
       </div>
     </div>
@@ -175,59 +127,21 @@
 import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { register, getProfile, sendEmailCode } from '../api/user'
-import { generateCaptcha } from '../api/captcha'
+import { resetPassword, sendEmailCode } from '../api/user'
 import AnimatedCharacters from '../components/auth/AnimatedCharacters.vue'
 
-// ===== 注册页状态 =====
+// ===== 重置密码状态 =====
 const router = useRouter()
 const loading = ref(false)
+const sending = ref(false)
 const showPassword = ref(false)
 const isTyping = ref(false)
 const pwdRef = ref(null)
-const captchaImage = ref('')
-const sending = ref(false)
 const countdown = ref(0)
 let countdownTimer = null
-const form = reactive({
-  email: '',
-  username: '',
-  password: '',
-  confirm: '',
-  emailCode: '',
-  captchaCode: '',
-  captchaId: ''
-})
+const form = reactive({ email: '', emailCode: '', newPassword: '' })
 const hint = ref('')
-const password = computed(() => form.password)
-
-async function refreshCaptcha() {
-  try {
-    const data = await generateCaptcha()
-    form.captchaId = data.captchaId
-    captchaImage.value = data.imageBase64
-    form.captchaCode = ''
-  } catch (e) {}
-}
-
-const strength = computed(() => {
-  const p = form.password
-  if (!p) return 0
-  let score = 0
-  if (p.length >= 6) score++
-  if (p.length >= 12) score++
-  if (/[a-z]/.test(p) && /[A-Z]/.test(p)) score++
-  if (/\d/.test(p)) score++
-  if (/[^a-zA-Z0-9]/.test(p)) score++
-  return score
-})
-
-const strengthText = computed(() => {
-  if (!form.password) return '密码强度：至少6位，建议字母+数字+符号'
-  if (strength.value <= 1) return '密码强度：弱'
-  if (strength.value <= 3) return '密码强度：中'
-  return '密码强度：强'
-})
+const password = computed(() => form.newPassword)
 
 function startCountdown() {
   countdown.value = 60
@@ -241,9 +155,7 @@ function startCountdown() {
 onMounted(async () => {
   if (localStorage.getItem('token')) {
     router.replace('/home')
-    return
   }
-  refreshCaptcha()
 })
 
 onBeforeUnmount(() => {
@@ -260,9 +172,7 @@ async function sendCode() {
   if (!emailRe.test(form.email.trim())) { ElMessage.warning('邮箱格式不正确'); return }
   sending.value = true
   try {
-    await sendEmailCode({
-      email: form.email.trim()
-    })
+    await sendEmailCode({ email: form.email.trim() })
     ElMessage.success('验证码已发送，请查收邮箱')
     startCountdown()
   } catch (e) {
@@ -278,38 +188,28 @@ async function submit() {
   if (!form.email.trim()) { ElMessage.warning('请输入邮箱'); return }
   if (!emailRe.test(form.email.trim())) { ElMessage.warning('邮箱格式不正确'); return }
   if (!form.emailCode.trim()) { ElMessage.warning('请输入邮箱验证码'); return }
-  if (form.username.trim() && (form.username.trim().length < 3 || form.username.trim().length > 32)) { ElMessage.warning('用户名长度为3-32位'); return }
-  if (!form.password) { ElMessage.warning('请输入密码'); return }
-  if (form.password.length < 6 || form.password.length > 64) { ElMessage.warning('密码长度为6-64位'); return }
-  if (strength.value < 2) { ElMessage.warning('密码强度过弱，请使用字母+数字组合'); return }
-  if (form.password !== form.confirm) { ElMessage.warning('两次输入的密码不一致'); return }
-  if (!form.captchaCode.trim()) { ElMessage.warning('请输入图形验证码'); return }
+  if (!form.newPassword) { ElMessage.warning('请输入新密码'); return }
+  if (form.newPassword.length < 6 || form.newPassword.length > 64) { ElMessage.warning('密码长度为6-64位'); return }
+  const hasLetter = /[a-zA-Z]/.test(form.newPassword)
+  const hasDigit = /\d/.test(form.newPassword)
+  if (!(hasLetter && hasDigit)) { ElMessage.warning('密码必须同时包含字母和数字'); return }
   loading.value = true
   hint.value = '请稍候...'
   try {
-    const data = await register({
+    await resetPassword({
       email: form.email.trim(),
-      username: form.username.trim() || null,
-      password: form.password,
       emailCode: form.emailCode.trim(),
-      captchaId: form.captchaId,
-      captchaCode: form.captchaCode
+      newPassword: form.newPassword
     })
-    localStorage.setItem('token', data.token)
-    localStorage.setItem('userId', data.userId)
-    localStorage.setItem('username', data.username)
-    try {
-      const p = await getProfile()
-      if (p) {
-        localStorage.setItem('username', p.nickname || p.username || data.username)
-        localStorage.setItem('avatar', p.avatar || '')
-      }
-    } catch (e) {}
-    ElMessage.success('注册成功')
-    router.push(router.currentRoute.value.query.redirect || '/home')
+    // 重置成功后不自动登录, 清除本地状态回登录页用新密码登录
+    localStorage.removeItem('token')
+    localStorage.removeItem('userId')
+    localStorage.removeItem('username')
+    localStorage.removeItem('avatar')
+    ElMessage.success('密码重置成功，请用新密码登录')
+    router.replace('/login')
   } catch (e) {
     hint.value = e.message || ''
-    refreshCaptcha()
   } finally {
     loading.value = false
   }

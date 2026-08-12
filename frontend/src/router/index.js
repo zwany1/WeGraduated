@@ -1,17 +1,21 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
+// 无需登录即可访问的白名单页面
+const PUBLIC_PAGES = ['/login', '/register', '/forgot-password']
+
 const routes = [
   { path: '/', component: () => import('../views/Welcome.vue') },
   { path: '/home', component: () => import('../views/Home.vue') },
   { path: '/login', component: () => import('../views/Login.vue') },
   { path: '/register', component: () => import('../views/Register.vue') },
-  { path: '/templates', component: () => import('../views/TemplateList.vue'), meta: { requiresAuth: true } },
-  { path: '/profile', component: () => import('../views/Profile.vue'), meta: { requiresAuth: true } },
-  { path: '/template/:id', component: () => import('../views/TemplateConfig.vue'), meta: { requiresAuth: true } },
-  { path: '/tasks', component: () => import('../views/FormatTask.vue'), meta: { requiresAuth: true } },
-  { path: '/table3', component: () => import('../views/ThreeTable.vue'), meta: { requiresAuth: true } },
-  { path: '/er', component: () => import('../views/ErDiagram.vue'), meta: { requiresAuth: true } },
-  { path: '/system-design', component: () => import('../views/SystemDesign.vue'), meta: { requiresAuth: true } }
+  { path: '/forgot-password', component: () => import('../views/ForgotPassword.vue') },
+  { path: '/templates', component: () => import('../views/TemplateList.vue') },
+  { path: '/profile', component: () => import('../views/Profile.vue') },
+  { path: '/template/:id', component: () => import('../views/TemplateConfig.vue') },
+  { path: '/tasks', component: () => import('../views/FormatTask.vue') },
+  { path: '/table3', component: () => import('../views/ThreeTable.vue') },
+  { path: '/er', component: () => import('../views/ErDiagram.vue') },
+  { path: '/system-design', component: () => import('../views/SystemDesign.vue') }
 ]
 
 const router = createRouter({
@@ -21,8 +25,8 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token')
-  if (to.meta.requiresAuth && !token) {
-    next('/login')
+  if (!PUBLIC_PAGES.includes(to.path) && !token) {
+    next({ path: '/login', query: { redirect: to.fullPath } })
   } else {
     next()
   }

@@ -17,14 +17,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * 图形验证码(内存存储, 一次性, 60 秒过期)
+ * 图形验证码(内存存储, 一次性, 5 分钟过期)
  */
 @Service
 public class CaptchaService {
 
     private static final int WIDTH = 120;
     private static final int HEIGHT = 44;
-    private static final int EXPIRE_MILLIS = 60 * 1000;
+    private static final int EXPIRE_MILLIS = 5 * 60 * 1000;
     private static final String CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
     private final ConcurrentHashMap<String, Entry> store = new ConcurrentHashMap<>();

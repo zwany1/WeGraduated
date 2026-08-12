@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen max-h-screen overflow-hidden grid lg:grid-cols-2">
-    <!-- Left Content Section with Animated Characters (照抄 careercompass page.tsx) -->
+    <!-- Left Content Section with Animated Characters -->
     <div class="relative hidden lg:flex flex-col justify-between bg-gradient-to-br from-gray-400 via-gray-500 to-gray-600 p-12 text-white">
       <div class="relative z-20">
         <div class="flex items-center gap-2 text-lg font-semibold">
@@ -17,88 +17,87 @@
         />
       </div>
 
-      <div class="relative z-20 flex items-center gap-8 text-sm text-gray-600">
-        <span class="hover:text-gray-900 transition-colors">Privacy Policy</span>
-        <span class="hover:text-gray-900 transition-colors">Terms of Service</span>
+      <div class="relative z-20 flex items-center gap-8 text-sm text-white/60">
+        <span class="hover:text-white transition-colors cursor-pointer">Privacy Policy</span>
+        <span class="hover:text-white transition-colors cursor-pointer">Terms of Service</span>
       </div>
 
       <!-- Decorative elements -->
       <div class="absolute inset-0 bg-grid-white/[0.05] bg-[size:20px_20px]"></div>
-      <div class="absolute top-1/4 right-1/4 size-64 bg-gray-400/20 rounded-full blur-3xl"></div>
-      <div class="absolute bottom-1/4 left-1/4 size-96 bg-gray-300/20 rounded-full blur-3xl"></div>
+      <div class="absolute -top-20 -right-20 size-80 bg-white/10 rounded-full blur-3xl"></div>
+      <div class="absolute top-1/2 -left-24 size-96 bg-white/20 rounded-full blur-3xl"></div>
+      <div class="absolute -bottom-24 right-1/4 size-80 bg-white/10 rounded-full blur-3xl"></div>
     </div>
 
     <!-- Right Login Section -->
-    <div class="flex items-center justify-center p-8 bg-background">
-      <div class="w-full max-w-[420px]">
+    <div class="flex items-center justify-center p-8" style="background:#f5f0e8">
+      <div class="w-full max-w-[420px] bg-white rounded-2xl shadow-[0_10px_40px_rgba(62,44,28,0.10)] p-10">
         <!-- Mobile Logo -->
-        <div class="lg:hidden flex items-center justify-center gap-2 text-lg font-semibold mb-12">📄 论文格式助手</div>
+        <div class="lg:hidden flex items-center justify-center gap-2 text-lg font-semibold mb-8">
+          <span class="inline-flex items-center justify-center size-8 bg-[#3e2c1c] text-white rounded-lg">📄</span>
+          论文格式助手
+        </div>
 
         <!-- Header -->
-        <div class="text-center mb-10">
-          <h1 class="text-3xl font-bold tracking-tight mb-2">Welcome back!</h1>
-          <p class="text-muted-foreground text-sm">请输入你的详细信息</p>
+        <div class="text-left mb-8">
+          <h1 class="text-[26px] font-semibold tracking-tight mb-1" style="color:#3e2c1c">Welcome!</h1>
+          <p class="text-sm mb-4" style="color:#8c7b6a">登录论文格式助手，继续你的论文排版</p>
         </div>
 
         <!-- Login Form -->
         <form @submit.prevent="submit" class="space-y-5">
-          <div class="space-y-2">
-            <label class="text-sm font-medium">Email / 用户名</label>
+          <div class="input-block">
+            <label for="username" class="input-label">Email / 用户名</label>
             <input
+              id="username"
               v-model="form.username"
               type="text"
               placeholder="you@example.com 或用户名"
               autocomplete="off"
               @focus="isTyping = true"
               @blur="isTyping = false"
-              class="h-12 bg-background border border-border/60 focus:border-primary w-full rounded-full px-5 outline-none transition-colors"
             />
           </div>
 
-          <div class="space-y-2">
-            <label class="text-sm font-medium">Password</label>
+          <div class="input-block">
+            <label for="password" class="input-label">Password</label>
             <div class="relative">
               <input
+                id="password"
                 ref="pwdRef"
                 v-model="form.password"
                 :type="showPassword ? 'text' : 'password'"
                 placeholder="••••••••"
                 @keyup.enter="submit"
-                class="h-12 pr-10 bg-background border border-border/60 focus:border-primary w-full rounded-full px-5 outline-none transition-colors"
+                class="pr-8"
               />
               <button
                 type="button"
                 @click="showPassword = !showPassword"
-                class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                class="absolute right-0 top-1/2 -translate-y-1/2 text-[#a67b5b] hover:text-[#3e2c1c] transition-colors"
               >
-                <svg v-if="showPassword" viewBox="0 0 24 24" class="size-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><path d="M1 1l22 22" /></svg>
-                <svg v-else viewBox="0 0 24 24" class="size-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+                <svg v-if="showPassword" viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><path d="M1 1l22 22" /></svg>
+                <svg v-else viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
               </button>
             </div>
           </div>
 
-          <label class="flex items-center space-x-2 cursor-pointer select-none" @click="rememberMe = !rememberMe">
-            <span :class="['size-4 rounded border flex items-center justify-center transition-colors', rememberMe ? 'bg-primary border-primary' : 'border-input']">
-              <svg v-if="rememberMe" viewBox="0 0 24 24" class="size-3 text-white" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
-            </span>
-            <label class="text-sm font-normal cursor-pointer">记住我 30 天</label>
-          </label>
-
-          <div class="space-y-2">
-            <label class="text-sm font-medium">验证码</label>
-            <div class="flex gap-3">
+          <div class="input-block">
+            <label for="captcha" class="input-label">验证码</label>
+            <div class="flex items-center gap-3">
               <input
+                id="captcha"
                 v-model="form.captchaCode"
                 type="text"
                 maxlength="4"
                 placeholder="请输入验证码"
                 autocomplete="off"
-                class="h-12 flex-1 bg-background border border-border/60 focus:border-primary rounded-full px-5 outline-none transition-colors"
+                class="flex-1"
               />
               <button
                 type="button"
                 @click="refreshCaptcha"
-                class="shrink-0 h-12 w-[120px] border border-border/60 rounded-full overflow-hidden cursor-pointer bg-background"
+                class="shrink-0 h-10 w-[110px] rounded-md overflow-hidden cursor-pointer border border-[#e3d8c8] bg-white"
                 :disabled="!captchaImage"
               >
                 <img v-if="captchaImage" :src="'data:image/png;base64,' + captchaImage" alt="验证码" class="w-full h-full object-cover" />
@@ -107,20 +106,29 @@
             </div>
           </div>
 
-          <InteractiveHoverButton
-            type="submit"
-            :text="loading ? '...' : 'Log in'"
-            class="w-full h-12 text-base font-medium"
-            :disabled="loading"
-          />
+          <div class="flex items-center justify-between">
+            <label class="flex items-center gap-2 cursor-pointer select-none text-sm" style="color:#8c7b6a" @click="rememberMe = !rememberMe">
+              <span :class="['size-4 rounded border flex items-center justify-center transition-colors', rememberMe ? 'bg-[#3e2c1c] border-[#3e2c1c]' : 'border-[#d8c9b5]']">
+                <svg v-if="rememberMe" viewBox="0 0 24 24" class="size-3 text-white" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+              </span>
+              记住我 30 天
+            </label>
+            <span class="text-sm cursor-pointer hover:underline" style="color:#a67b5b" @click="goForgot">Forgot your password?</span>
+          </div>
 
-          <p class="text-center text-sm text-muted-foreground min-h-5">{{ hint }}</p>
+          <button
+            type="submit"
+            :disabled="loading"
+            class="input-button w-full"
+          >{{ loading ? '...' : 'Login' }}</button>
+
+          <p class="text-center text-sm min-h-5" style="color:#8c7b6a">{{ hint }}</p>
         </form>
 
-        <div class="text-center text-sm text-muted-foreground mt-8">
+        <p class="sign-up">
           还没有账号？
-          <span class="text-foreground font-medium hover:underline cursor-pointer" @click="goRegister">Sign Up</span>
-        </div>
+          <a class="cursor-pointer" @click="goRegister">Sign up now</a>
+        </p>
       </div>
     </div>
   </div>
@@ -133,7 +141,6 @@ import { ElMessage } from 'element-plus'
 import { login, getProfile } from '../api/user'
 import { generateCaptcha } from '../api/captcha'
 import AnimatedCharacters from '../components/auth/AnimatedCharacters.vue'
-import InteractiveHoverButton from '../components/auth/InteractiveHoverButton.vue'
 
 // ===== 登录页状态 =====
 const router = useRouter()
@@ -177,6 +184,10 @@ function goRegister() {
   router.push('/register')
 }
 
+function goForgot() {
+  router.push('/forgot-password')
+}
+
 async function submit() {
   if (loading.value) return
   if (!form.username.trim()) { ElMessage.warning('请输入用户名或邮箱'); return }
@@ -210,7 +221,7 @@ async function submit() {
       localStorage.removeItem('remembered_pwd')
     }
     ElMessage.success('登录成功')
-    router.push('/home')
+    router.push(router.currentRoute.value.query.redirect || '/home')
   } catch (e) {
     hint.value = e.message || ''
     refreshCaptcha()
@@ -219,3 +230,77 @@ async function submit() {
   }
 }
 </script>
+
+<style scoped>
+/* 老钱风棕色表单 (参考 JD 登录配色) */
+.input-block {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 10px 8px;
+  border: 1px solid #e3d8c8;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  background: #fffdf9;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.input-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.7px;
+  color: #a67b5b;
+  transition: color 0.3s;
+}
+.input-block input {
+  outline: 0;
+  border: 0;
+  padding: 4px 0 0;
+  font-size: 14px;
+  width: 100%;
+  color: #3e2c1c;
+  background: transparent;
+}
+.input-block input::placeholder {
+  color: #c9bcaa;
+  opacity: 1;
+}
+.input-block:focus-within {
+  border-color: #3e2c1c;
+  box-shadow: 0 0 0 3px rgba(62, 44, 28, 0.08);
+}
+.input-block:focus-within .input-label {
+  color: #3e2c1c;
+}
+.input-button {
+  padding: 11px 12px;
+  outline: none;
+  border: 0;
+  color: #fff;
+  border-radius: 6px;
+  background: #3e2c1c;
+  font-size: 15px;
+  font-weight: 600;
+  transition: background 0.3s;
+  cursor: pointer;
+}
+.input-button:hover {
+  background: #6b5138;
+}
+.input-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.sign-up {
+  margin: 36px 0 0;
+  font-size: 14px;
+  text-align: center;
+  color: #8c7b6a;
+}
+.sign-up a {
+  color: #a67b5b;
+  font-weight: 600;
+}
+.sign-up a:hover {
+  color: #3e2c1c;
+}
+</style>

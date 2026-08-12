@@ -3,6 +3,7 @@ package com.graduate.thesis.controller;
 import com.graduate.thesis.common.Result;
 import com.graduate.thesis.common.UserContext;
 import com.graduate.thesis.dto.LoginResponse;
+import com.graduate.thesis.dto.ResetPasswordDTO;
 import com.graduate.thesis.dto.SendEmailCodeDTO;
 import com.graduate.thesis.dto.UserAuthDTO;
 import com.graduate.thesis.dto.UserProfileDTO;
@@ -51,12 +52,17 @@ public class UserController {
         return Result.ok(userService.login(dto));
     }
 
-    /** 发送邮箱验证码(需先通过图形验证码) */
+    /** 发送邮箱验证码 */
     @PostMapping("/send-email-code")
     public Result<Void> sendEmailCode(@Valid @RequestBody SendEmailCodeDTO dto) {
-        captchaService.verify(dto.getCaptchaId(), dto.getCaptchaCode());
         emailCodeService.sendCode(dto.getEmail());
         return Result.ok(null);
+    }
+
+    /** 忘记密码: 邮箱验证码重置并重新签发 token */
+    @PostMapping("/reset-password")
+    public Result<LoginResponse> resetPassword(@Valid @RequestBody ResetPasswordDTO dto) {
+        return Result.ok(userService.resetPassword(dto));
     }
 
     /** 退出登录: 撤销当前 token */

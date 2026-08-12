@@ -321,7 +321,7 @@ onMounted(async () => {
   isLoggedIn.value = !!localStorage.getItem('token')
   userName.value = localStorage.getItem('username') || '用户'
   userAvatar.value = localStorage.getItem('avatar') || ''
-  // 已登录时以数据库为准同步昵称/头像
+  // 已登录时以数据库为准同步昵称/头像; token 失效则清除本地状态
   if (isLoggedIn.value) {
     try {
       const p = await getProfile()
@@ -332,7 +332,14 @@ onMounted(async () => {
         localStorage.setItem('avatar', userAvatar.value)
       }
     } catch (e) {
-      // 资料拉取失败不影响页面
+      // token 失效: 清除本地登录状态, 显示未登录
+      isLoggedIn.value = false
+      userName.value = ''
+      userAvatar.value = ''
+      localStorage.removeItem('token')
+      localStorage.removeItem('userId')
+      localStorage.removeItem('username')
+      localStorage.removeItem('avatar')
     }
   }
 })

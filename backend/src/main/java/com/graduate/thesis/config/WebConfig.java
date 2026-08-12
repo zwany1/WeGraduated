@@ -39,6 +39,7 @@ public class WebConfig implements WebMvcConfigurer {
                         "/user/login",
                         "/user/register",
                         "/user/send-email-code",
+                        "/user/reset-password",
                         "/captcha/**",
                         "/health",
                         "/file/download/**",

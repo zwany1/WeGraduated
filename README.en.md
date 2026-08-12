@@ -1,4 +1,4 @@
-<p align="center">
+﻿<p align="center">
   <img src="https://img.shields.io/badge/Spring%20Boot-2.7.18-brightgreen?style=for-the-badge" alt="Spring Boot" />
   <img src="https://img.shields.io/badge/Vue-3.4-blue?style=for-the-badge" alt="Vue" />
   <img src="https://img.shields.io/badge/Java-1.8-orange?style=for-the-badge" alt="Java" />
@@ -17,7 +17,7 @@
   <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License" />
   <img src="https://img.shields.io/badge/MySQL-8.0-4479a1?style=flat-square" alt="MySQL" />
   <img src="https://img.shields.io/badge/AntV%20X6-3.x-3B6BFF?style=flat-square" alt="AntV X6" />
-  <img src="https://img.shields.io/badge/build-v1.0.0-3B6BFF?style=flat-square" alt="Version" />
+  <img src="https://img.shields.io/badge/build-v1.0.1-3B6BFF?style=flat-square" alt="Version" />
 </p>
 
 ---
@@ -37,6 +37,13 @@ Core idea: **configure rules → engine formats automatically → download compl
 - **Automatic formatting engine**: detects chapter structure, unifies fonts/sizes, auto-generates TOC, abstract/English abstract on separate pages, reference formatting
 - **Figure & table captions**: auto-numbering (`图3-1`, `表3-1`), toggleable
 - **Number unification**: auto-detects and unifies chapter/list numbering styles
+
+### 🔐 Account Security (new in v1.0.1)
+- **Dual captcha**: graphic captcha required for login/register; email verification code also required for registration (sent via QQ SMTP, valid 5 min, 60 s rate limit)
+- **BCrypt password hashing**: salted hash storage, no plaintext
+- **Login rate limiting**: locks account 10 min after 5 consecutive failures
+- **Forgot password**: reset via email code; all old tokens invalidated after reset
+- **XSS protection**: global filter escapes JSON request bodies; SQL injection prevented natively by MyBatis-Plus parameterized queries
 
 ### 📊 Three-Line Table Generator
 - One-click standard three-line table Word document (top/bottom 1.5pt, column line 0.75pt, no vertical lines)
@@ -90,11 +97,13 @@ mysql -u root -p -e "CREATE DATABASE thesis_format DEFAULT CHARACTER SET utf8mb4
 ```bash
 cd backend
 set DB_PASSWORD=your_db_password
+set MAIL_PASSWORD=your_email_smtp_code   # optional, for email verification codes
 mvn package -DskipTests
 java -jar target/thesis-format.jar
 ```
 
 > Backend runs at `http://localhost:8080`
+> Default sender is `2651896126@qq.com` (see `spring.mail` in `application.yml`)
 
 ### 3. Start Frontend
 
@@ -132,6 +141,7 @@ Graduated/
 | Key | Description |
 | --- | --- |
 | `DB_PASSWORD` | Database password via environment variable |
+| `MAIL_PASSWORD` | Email SMTP authorization code (for sending verification codes) |
 | `thesis.jwt.secret` | JWT secret (repo ignores `application.yml`, create yourself) |
 | `thesis.storage.dir` | Storage directory, default `backend/data/storage` |
 

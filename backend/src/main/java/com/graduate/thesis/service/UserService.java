@@ -3,6 +3,7 @@ package com.graduate.thesis.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.graduate.thesis.common.BusinessException;
 import com.graduate.thesis.dto.LoginResponse;
+import com.graduate.thesis.dto.ResetPasswordDTO;
 import com.graduate.thesis.dto.UserAuthDTO;
 import com.graduate.thesis.dto.UserProfileDTO;
 import com.graduate.thesis.entity.User;
@@ -29,6 +30,7 @@ public class UserService {
 
     private final UserMapper userMapper;
     private final JwtUtil jwtUtil;
+    private final EmailCodeService emailCodeService;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
     /** 登录失败记录: 登录名(用户名或邮箱) -> 失败次数 */
@@ -36,9 +38,26 @@ public class UserService {
     /** 锁定记录: 登录名 -> 解锁时间戳 */
     private final ConcurrentHashMap<String, Long> lockUntil = new ConcurrentHashMap<>();
 
-    public UserService(UserMapper userMapper, JwtUtil jwtUtil) {
+    public UserService(UserMapper userMapper, JwtUtil jwtUtil, EmailCodeService emailCodeService) {
         this.userMapper = userMapper;
         this.jwtUtil = jwtUtil;
+        this.emailCodeService = emailCodeService;
+    }
+
+    public LoginResponse resetPassword(ResetPasswordDTO dto) {
+        String email = dto.getEmail().trim().toLowerCase();
+        User user = userMapper.selectOne(new LambdaQueryWrapper<User>()
+                .eq(User::getEmail, email));
+        if (user == null) {
+            throw new BusinessException("该邮箱未注册");
+        }
+        emailCodeService.verify(email, dto.getEmailCode());
+        checkPasswordStrength(dto.getNewPassword());
+        user.setPassword(encoder.encode(dto.getNewPassword()));
+        userMapper.updateById(user);
+        // 重置后失效该用户所有旧 token
+        jwtUtil.revokeAllForUser(user.getId());
+        return buildLoginResponse(user);
     }
 
     public LoginResponse register(UserAuthDTO dto) {

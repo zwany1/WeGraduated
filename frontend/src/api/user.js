@@ -23,3 +23,7 @@ export function logout() {
 export function sendEmailCode(data) {
   return api.post('/user/send-email-code', data)
 }
+
+export function resetPassword(data) {
+  return api.post('/user/reset-password', data)
+}

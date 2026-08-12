@@ -1,4 +1,4 @@
-<p align="center">
+﻿<p align="center">
   <img src="https://img.shields.io/badge/Spring%20Boot-2.7.18-brightgreen?style=for-the-badge" alt="Spring Boot" />
   <img src="https://img.shields.io/badge/Vue-3.4-blue?style=for-the-badge" alt="Vue" />
   <img src="https://img.shields.io/badge/Java-1.8-orange?style=for-the-badge" alt="Java" />
@@ -17,7 +17,7 @@
   <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License" />
   <img src="https://img.shields.io/badge/MySQL-8.0-4479a1?style=flat-square" alt="MySQL" />
   <img src="https://img.shields.io/badge/AntV%20X6-3.x-3B6BFF?style=flat-square" alt="AntV X6" />
-  <img src="https://img.shields.io/badge/build-v1.0.0-3B6BFF?style=flat-square" alt="Version" />
+  <img src="https://img.shields.io/badge/build-v1.0.1-3B6BFF?style=flat-square" alt="Version" />
 </p>
 
 ---
@@ -37,6 +37,13 @@
 - **自動排版引擎**：識別章節結構、統一字體字號、自動生成目錄、摘要/英文摘要獨立分頁、參考文獻格式化
 - **圖表題注**：圖片/表格自動編號（`圖3-1`、`表3-1`），可開關控制
 - **編號統一化**：自動識別並統一章節/列表編號風格
+
+### 🔐 帳戶安全（v1.0.1 新增）
+- **雙重驗證碼**：註冊/登入需通過圖形驗證碼，註冊還須信箱驗證碼（QQ 信箱 SMTP 發送，5 分鐘有效，60 秒限流）
+- **BCrypt 密碼加密**：密碼加鹽雜湊儲存，不存明文
+- **登入限流**：連續 5 次失敗鎖定 10 分鐘，防暴力破解
+- **忘記密碼**：信箱驗證碼重設密碼，重設後舊 Token 全部失效
+- **XSS 防護**：全域過濾器對 JSON 請求體轉義，SQL 注入由 MyBatis-Plus 參數化查詢天然防護
 
 ### 📊 三線表生成
 - 一鍵生成規範三線表 Word 文檔（頂線/底線 1.5pt、欄目線 0.75pt、無豎線）
@@ -90,11 +97,13 @@ mysql -u root -p -e "CREATE DATABASE thesis_format DEFAULT CHARACTER SET utf8mb4
 ```bash
 cd backend
 set DB_PASSWORD=你的數據庫密碼
+set MAIL_PASSWORD=你的信箱SMTP授權碼   # 可選, 用於信箱驗證碼發送
 mvn package -DskipTests
 java -jar target/thesis-format.jar
 ```
 
 > 服務運行於 `http://localhost:8080`
+> 默認發件信箱為 `2651896126@qq.com`（SMTP 配置見 `application.yml` 的 `spring.mail`）
 
 ### 3. 啟動前端
 
@@ -132,6 +141,7 @@ Graduated/
 | 配置項 | 說明 |
 | --- | --- |
 | `DB_PASSWORD` | 數據庫密碼，通過環境變數配置 |
+| `MAIL_PASSWORD` | 信箱 SMTP 授權碼（用於發送信箱驗證碼） |
 | `thesis.jwt.secret` | JWT 密鑰（倉庫已忽略 `application.yml`，需自行創建） |
 | `thesis.storage.dir` | 文件存儲目錄，默認 `backend/data/storage` |
 

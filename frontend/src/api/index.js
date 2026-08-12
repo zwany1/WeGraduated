@@ -30,7 +30,10 @@ api.interceptors.response.use(
     if (err.response && err.response.status === 401) {
       ElMessage.warning('登录已过期，请重新登录')
       localStorage.removeItem('token')
-      router.push('/login')
+      localStorage.removeItem('userId')
+      localStorage.removeItem('username')
+      localStorage.removeItem('avatar')
+      router.push({ path: '/login', query: { redirect: router.currentRoute.value.fullPath } })
     } else {
       const msg = err.response?.data?.message || err.message || '网络错误'
       ElMessage.error(msg)

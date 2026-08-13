@@ -80,8 +80,34 @@ public class FormatEngine {
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            throw new BusinessException(500, "文档处理失败[" + e.getClass().getSimpleName() + "]: " + e.getMessage());
+            throw new BusinessException(500, friendlyError(e));
         }
+    }
+
+    /** 将排版异常转为用户可读的错误信息 */
+    private String friendlyError(Exception e) {
+        Throwable cause = e;
+        while (cause.getCause() != null && cause.getCause() != cause) {
+            cause = cause.getCause();
+        }
+        String cls = cause.getClass().getSimpleName();
+        String msg = cause.getMessage() == null ? "" : cause.getMessage();
+        if (cls.contains("NullPointer")) {
+            return "排版失败：模板配置不完整或文档存在特殊格式，请检查模板规则是否齐全后重试";
+        }
+        if (cls.contains("OfficeXmlFileException") || cls.contains("NotOfficeXmlFileException")
+                || cls.contains("EncryptedDocumentException") || cls.contains("IllegalArgumentException")
+                && msg.toLowerCase().contains("zip")) {
+            return "排版失败：文件不是有效的 Word 文档，请确认文件未被损坏或不是其他格式改名";
+        }
+        if (cls.contains("OutOfMemory")) {
+            return "排版失败：文档过大或过于复杂，超出处理能力，请尝试拆分文档";
+        }
+        if (cls.contains("InvalidFormatException")) {
+            return "排版失败：Word 文档结构异常，请尝试用 Word 另存为 .docx 后重试";
+        }
+        String shortMsg = msg.length() > 120 ? msg.substring(0, 120) + "..." : msg;
+        return "排版失败：处理文档时发生错误" + (shortMsg.isEmpty() ? "" : "（" + cls + ": " + shortMsg + "）");
     }
 
     private void applyBody(XWPFDocument doc, List<DocItem> items, RuleSet ruleSet) {

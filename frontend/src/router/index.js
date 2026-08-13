@@ -3,7 +3,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 // 无需登录即可访问的白名单页面
 const PUBLIC_PAGES = [
   '/login', '/register', '/forgot-password',
-  '/features', '/template-market', '/guide', '/cases', '/pricing'
+  '/features', '/template-market', '/guide', '/cases', '/pricing',
+  '/privacy'
 ]
 
 const routes = [
@@ -23,7 +24,8 @@ const routes = [
   { path: '/template-market', component: () => import('../views/TemplateMarket.vue') },
   { path: '/guide', component: () => import('../views/Guide.vue') },
   { path: '/cases', component: () => import('../views/Cases.vue') },
-  { path: '/pricing', component: () => import('../views/Pricing.vue') }
+  { path: '/pricing', component: () => import('../views/Pricing.vue') },
+  { path: '/privacy', component: () => import('../views/Privacy.vue') }
 ]
 
 const router = createRouter({

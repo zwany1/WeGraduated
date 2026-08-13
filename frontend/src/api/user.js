@@ -20,6 +20,10 @@ export function logout() {
   return api.post('/user/logout')
 }
 
+export function deleteAccount() {
+  return api.delete('/user/account')
+}
+
 export function sendEmailCode(data) {
   return api.post('/user/send-email-code', data)
 }

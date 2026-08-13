@@ -59,6 +59,23 @@ public class StorageService {
     }
 
     /**
+     * 删除文件(不存在时静默)
+     */
+    public void delete(String relativePath) {
+        if (relativePath == null || relativePath.trim().isEmpty()) {
+            return;
+        }
+        try {
+            Path target = root.resolve(relativePath).normalize();
+            if (target.startsWith(root)) {
+                Files.deleteIfExists(target);
+            }
+        } catch (IOException ignore) {
+            // 删除失败不影响账号注销主流程
+        }
+    }
+
+    /**
      * 保存排版结果文件, 返回相对路径
      */
     public String storeResult(Long userId, File file) {

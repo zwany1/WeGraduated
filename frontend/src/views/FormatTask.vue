@@ -40,10 +40,10 @@
           <el-table-column label="格式方案" min-width="140">
             <template #default="{ row }">{{ templateName(row) }}</template>
           </el-table-column>
-          <el-table-column label="状态" width="180">
+          <el-table-column label="状态" width="120">
             <template #default="{ row }">
               <el-tag v-if="row.status === 'SUCCESS'" type="success">已完成</el-tag>
-              <el-tag v-else-if="row.status === 'FAILED'" type="danger">失败</el-tag>
+              <el-tag v-else-if="row.status === 'FAILED'" type="danger" class="fail-tag" @click="showError(row)">失败</el-tag>
               <el-tag v-else type="warning">处理中</el-tag>
               <el-progress
                 v-if="row.status === 'PROCESSING' || row.status === 'PENDING'"
@@ -51,6 +51,15 @@
                 :stroke-width="6"
                 style="width: 120px; margin-top: 4px"
               />
+            </template>
+          </el-table-column>
+          <el-table-column label="失败原因" min-width="200">
+            <template #default="{ row }">
+              <el-button v-if="row.status === 'FAILED' && row.errorMsg" text type="danger" size="small" @click="showError(row)">
+                查看原因
+              </el-button>
+              <span v-else-if="row.status === 'FAILED'" style="color:#c0c4cc">无</span>
+              <span v-else style="color:#c0c4cc">—</span>
             </template>
           </el-table-column>
           <el-table-column label="操作" width="240">
@@ -100,6 +109,14 @@
         </div>
       </div>
     </el-dialog>
+
+    <el-dialog v-model="errorVisible" title="排版失败原因" width="520px" top="10vh">
+      <div class="error-detail">
+        <p class="error-label">任务 #{{ errorTaskId }} 排版失败，原因如下：</p>
+        <div class="error-box">{{ errorMsg }}</div>
+        <p class="error-tip">提示：可检查模板规则是否配置完整，或确认 Word 文档格式正常后点击「重试」。</p>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -124,6 +141,9 @@ const compareVisible = ref(false)
 const compareBefore = ref([])
 const compareAfter = ref([])
 const compareName = ref('')
+const errorVisible = ref(false)
+const errorMsg = ref('')
+const errorTaskId = ref(null)
 let pollTimer = null
 
 onMounted(async () => {
@@ -258,6 +278,12 @@ function onCompareClosed() {
   compareAfter.value = []
 }
 
+function showError(row) {
+  errorTaskId.value = row.id
+  errorMsg.value = row.errorMsg || '未知错误'
+  errorVisible.value = true
+}
+
 async function retry(row) {
   try {
     await startFormat(row.fileId, row.templateId)
@@ -384,5 +410,30 @@ function formatTime(t) {
   width: 2px;
   background: #ebeef5;
   flex-shrink: 0;
+}
+.fail-tag {
+  cursor: pointer;
+}
+.error-label {
+  color: #606266;
+  font-size: 14px;
+  margin: 0 0 10px;
+}
+.error-box {
+  background: #fef0f0;
+  border: 1px solid #fde2e2;
+  border-radius: 8px;
+  color: #f56c6c;
+  font-size: 13px;
+  line-height: 1.7;
+  padding: 12px 16px;
+  word-break: break-all;
+  max-height: 240px;
+  overflow: auto;
+}
+.error-tip {
+  color: #909399;
+  font-size: 13px;
+  margin: 12px 0 0;
 }
 </style>

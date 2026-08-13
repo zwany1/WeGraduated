@@ -31,6 +31,14 @@
             <el-button v-if="avatarPreview" @click="removeAvatar">移除头像</el-button>
           </el-form-item>
         </el-form>
+
+        <el-divider />
+
+        <div class="danger-zone">
+          <h3 class="danger-title">危险操作</h3>
+          <p class="danger-desc">注销后你的账号、模板、排版任务及上传的论文文件将被永久删除，且无法恢复。</p>
+          <el-button type="danger" plain :loading="deleting" @click="confirmDelete">注销账号</el-button>
+        </div>
       </div>
     </main>
   </div>
@@ -39,8 +47,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { getProfile, updateProfile } from '../api/user'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { getProfile, updateProfile, deleteAccount } from '../api/user'
 
 const router = useRouter()
 const username = ref('')
@@ -48,6 +56,7 @@ const nickname = ref('')
 const avatar = ref('')
 const avatarPreview = ref('')
 const saving = ref(false)
+const deleting = ref(false)
 const fileInput = ref(null)
 
 const avatarText = computed(() => (nickname.value || username.value || 'U').slice(0, 1).toUpperCase())
@@ -112,6 +121,29 @@ async function save() {
     ElMessage.error(e.message || '保存失败')
   } finally {
     saving.value = false
+  }
+}
+
+async function confirmDelete() {
+  try {
+    await ElMessageBox.confirm(
+      '确定注销账号吗？此操作会永久删除你的账号、模板、排版任务及全部论文文件，且无法恢复。',
+      '注销账号',
+      { type: 'warning', confirmButtonText: '确认注销', cancelButtonText: '取消', confirmButtonClass: 'el-button--danger' }
+    )
+  } catch (e) {
+    return // 用户取消
+  }
+  deleting.value = true
+  try {
+    await deleteAccount()
+    localStorage.clear()
+    ElMessage.success('账号已注销')
+    router.replace('/login')
+  } catch (e) {
+    ElMessage.error(e.message || '注销失败')
+  } finally {
+    deleting.value = false
   }
 }
 </script>
@@ -196,5 +228,22 @@ async function save() {
   margin-top: 8px;
   font-size: 12px;
   color: #909399;
+}
+.danger-zone {
+  max-width: 420px;
+  margin: 0 auto;
+  text-align: center;
+  padding: 8px 0 4px;
+}
+.danger-title {
+  color: #f56c6c;
+  font-size: 15px;
+  margin: 0 0 8px;
+}
+.danger-desc {
+  color: #909399;
+  font-size: 13px;
+  line-height: 1.7;
+  margin: 0 0 16px;
 }
 </style>

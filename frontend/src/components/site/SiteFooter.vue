@@ -13,6 +13,7 @@
         <a @click="go('/guide')">使用教程</a>
         <a @click="go('/cases')">案例</a>
         <a @click="go('/pricing')">价格</a>
+        <a @click="go('/privacy')">隐私政策</a>
         <a href="mailto:2651896126@qq.com">联系我们</a>
       </div>
       <div class="footer-copy">&copy; 2026 Word 排版助手. All rights reserved.</div>

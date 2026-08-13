@@ -18,7 +18,7 @@
       </div>
 
       <div class="relative z-20 flex items-center gap-8 text-sm text-white/60">
-        <span class="hover:text-white transition-colors cursor-pointer">Privacy Policy</span>
+        <span class="hover:text-white transition-colors cursor-pointer" @click="goPrivacy">Privacy Policy</span>
         <span class="hover:text-white transition-colors cursor-pointer">Terms of Service</span>
       </div>
 
@@ -164,6 +164,10 @@ onBeforeUnmount(() => {
 
 function goLogin() {
   router.push('/login')
+}
+
+function goPrivacy() {
+  router.push('/privacy')
 }
 
 async function sendCode() {

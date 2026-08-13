@@ -11,6 +11,7 @@ import com.graduate.thesis.service.CaptchaService;
 import com.graduate.thesis.service.EmailCodeService;
 import com.graduate.thesis.service.UserService;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -73,6 +74,20 @@ public class UserController {
             token = token.substring(7);
         }
         userService.logout(UserContext.get(), token);
+        return Result.ok(null);
+    }
+
+    /** 注销账号: 永久删除账号及全部数据 */
+    @DeleteMapping("/account")
+    public Result<Void> deleteAccount(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+        String token = authHeader;
+        if (token != null && token.startsWith("Bearer ")) {
+            token = token.substring(7);
+        }
+        userService.deleteAccount(UserContext.get());
+        if (token != null && !token.isEmpty()) {
+            userService.logout(UserContext.get(), token);
+        }
         return Result.ok(null);
     }
 

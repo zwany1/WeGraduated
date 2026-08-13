@@ -6,13 +6,23 @@ import com.graduate.thesis.dto.LoginResponse;
 import com.graduate.thesis.dto.ResetPasswordDTO;
 import com.graduate.thesis.dto.UserAuthDTO;
 import com.graduate.thesis.dto.UserProfileDTO;
+import com.graduate.thesis.entity.FormatRule;
+import com.graduate.thesis.entity.FormatTask;
+import com.graduate.thesis.entity.FormatTemplate;
+import com.graduate.thesis.entity.PaperFile;
 import com.graduate.thesis.entity.User;
+import com.graduate.thesis.mapper.FormatRuleMapper;
+import com.graduate.thesis.mapper.FormatTaskMapper;
+import com.graduate.thesis.mapper.FormatTemplateMapper;
+import com.graduate.thesis.mapper.PaperFileMapper;
 import com.graduate.thesis.mapper.UserMapper;
 import com.graduate.thesis.util.JwtUtil;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -31,6 +41,11 @@ public class UserService {
     private final UserMapper userMapper;
     private final JwtUtil jwtUtil;
     private final EmailCodeService emailCodeService;
+    private final FormatTemplateMapper templateMapper;
+    private final FormatRuleMapper ruleMapper;
+    private final FormatTaskMapper taskMapper;
+    private final PaperFileMapper paperFileMapper;
+    private final StorageService storageService;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
     /** 登录失败记录: 登录名(用户名或邮箱) -> 失败次数 */
@@ -38,10 +53,18 @@ public class UserService {
     /** 锁定记录: 登录名 -> 解锁时间戳 */
     private final ConcurrentHashMap<String, Long> lockUntil = new ConcurrentHashMap<>();
 
-    public UserService(UserMapper userMapper, JwtUtil jwtUtil, EmailCodeService emailCodeService) {
+    public UserService(UserMapper userMapper, JwtUtil jwtUtil, EmailCodeService emailCodeService,
+                       FormatTemplateMapper templateMapper, FormatRuleMapper ruleMapper,
+                       FormatTaskMapper taskMapper, PaperFileMapper paperFileMapper,
+                       StorageService storageService) {
         this.userMapper = userMapper;
         this.jwtUtil = jwtUtil;
         this.emailCodeService = emailCodeService;
+        this.templateMapper = templateMapper;
+        this.ruleMapper = ruleMapper;
+        this.taskMapper = taskMapper;
+        this.paperFileMapper = paperFileMapper;
+        this.storageService = storageService;
     }
 
     public LoginResponse resetPassword(ResetPasswordDTO dto) {
@@ -121,6 +144,46 @@ public class UserService {
         if (token != null && !token.isEmpty()) {
             jwtUtil.revoke(token);
         }
+    }
+
+    /**
+     * 注销账号: 删除该用户全部数据(模板/规则/任务/论文文件)及磁盘文件
+     */
+    @Transactional
+    public void deleteAccount(Long userId) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(404, "用户不存在");
+        }
+        // 1. 模板与规则
+        List<FormatTemplate> templates = templateMapper.selectList(
+                new LambdaQueryWrapper<FormatTemplate>().eq(FormatTemplate::getUserId, userId));
+        for (FormatTemplate t : templates) {
+            ruleMapper.delete(new LambdaQueryWrapper<FormatRule>()
+                    .eq(FormatRule::getTemplateId, t.getId()));
+        }
+        templateMapper.delete(new LambdaQueryWrapper<FormatTemplate>()
+                .eq(FormatTemplate::getUserId, userId));
+        // 2. 任务与磁盘文件
+        List<FormatTask> tasks = taskMapper.selectList(
+                new LambdaQueryWrapper<FormatTask>().eq(FormatTask::getUserId, userId));
+        for (FormatTask t : tasks) {
+            storageService.delete(t.getResultPath());
+            storageService.delete(t.getPdfPath());
+        }
+        taskMapper.delete(new LambdaQueryWrapper<FormatTask>()
+                .eq(FormatTask::getUserId, userId));
+        // 3. 上传的论文文件
+        List<PaperFile> files = paperFileMapper.selectList(
+                new LambdaQueryWrapper<PaperFile>().eq(PaperFile::getUserId, userId));
+        for (PaperFile f : files) {
+            storageService.delete(f.getStoredPath());
+        }
+        paperFileMapper.delete(new LambdaQueryWrapper<PaperFile>()
+                .eq(PaperFile::getUserId, userId));
+        // 4. 用户本身
+        userMapper.deleteById(userId);
+        jwtUtil.revokeAllForUser(userId);
     }
 
     private User findUserByAccount(String account) {

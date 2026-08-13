@@ -103,7 +103,7 @@
             <span class="compare-name">{{ compareName }}</span>
           </div>
           <div class="compare-body">
-            <DocxCompare v-if="compareAfter.length" :data="compareAfter" />
+            <PdfViewer v-if="compareAfter.length" :data="compareAfter" />
             <el-empty v-else description="加载中..." />
           </div>
         </div>
@@ -256,7 +256,7 @@ async function compare(row) {
   try {
     const [beforeBlob, afterBlob] = await Promise.all([
       downloadPaperOriginal(row.id),
-      downloadPaper(row.id)
+      previewPaper(row.id)
     ])
     if (mySeq !== compareSeq) return
     const [beforeBuf, afterBuf] = await Promise.all([

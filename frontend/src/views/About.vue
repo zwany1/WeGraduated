@@ -15,6 +15,7 @@
         <div class="person">
           <div class="container">
             <div class="container-inner">
+              <img class="circle" src="/circle_1.jpg" alt="" />
               <img class="img img1" src="/keysqiu.png" alt="keysqiu" />
             </div>
           </div>
@@ -25,6 +26,7 @@
         <div class="person">
           <div class="container">
             <div class="container-inner">
+              <img class="circle" src="/circle_2.jpg" alt="" />
               <img class="img img2" src="/zwany1.png" alt="zwany1" />
             </div>
           </div>

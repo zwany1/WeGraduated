@@ -15,35 +15,22 @@
         <div class="person">
           <div class="container">
             <div class="container-inner">
-              <img class="circle" src="/circle_1.jpg" alt="" />
-              <img class="img img1" src="/person_1.png" alt="Alma" />
+              <img class="img img1" src="/keysqiu.png" alt="keysqiu" />
             </div>
           </div>
           <div class="divider"></div>
-          <div class="name">Alma</div>
+          <div class="name">keysqiu</div>
           <div class="title">Product Manager</div>
         </div>
         <div class="person">
           <div class="container">
             <div class="container-inner">
-              <img class="circle" src="/circle_2.jpg" alt="" />
-              <img class="img img2" src="/person_2.png" alt="Irma" />
+              <img class="img img2" src="/zwany1.png" alt="zwany1" />
             </div>
           </div>
           <div class="divider"></div>
-          <div class="name">Irma</div>
+          <div class="name">zwany1</div>
           <div class="title">Senior Developer</div>
-        </div>
-        <div class="person">
-          <div class="container">
-            <div class="container-inner">
-              <img class="circle" src="/circle_3.jpg" alt="" />
-              <img class="img img3" src="/person_3.png" alt="Anton" />
-            </div>
-          </div>
-          <div class="divider"></div>
-          <div class="name">Anton</div>
-          <div class="title">Senior UX</div>
         </div>
       </div>
     </section>
@@ -267,19 +254,20 @@ const sections = [
   transform: translateY(0) scale(1.2);
 }
 .img1 {
-  left: 22px;
-  top: 164px;
-  width: 340px;
+  left: 70px;
+  top: 90px;
+  width: 260px;
+  height: 560px;
+  object-fit: cover;
+  object-position: center 12%;
 }
 .img2 {
-  left: -46px;
-  top: 174px;
-  width: 444px;
-}
-.img3 {
-  left: -16px;
-  top: 144px;
-  width: 466px;
+  left: 30px;
+  top: 90px;
+  width: 340px;
+  height: 560px;
+  object-fit: cover;
+  object-position: center 12%;
 }
 .divider {
   background-color: #ca6060;

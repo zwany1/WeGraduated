@@ -605,13 +605,6 @@ function initGraph() {
   g.on('node:click', ({ node }) => {
     if (tool.value === 'select') selectNode(node)
   })
-  // draw.io 风格: 悬停节点显示连接锚点, 离开隐藏
-  g.on('node:mouseenter', ({ node }) => {
-    showPorts(node, true)
-  })
-  g.on('node:mouseleave', ({ node }) => {
-    showPorts(node, false)
-  })
   // 连接完成: 选中边以展示属性面板
   g.on('edge:selected', ({ edge }) => {
     current.value = edge
@@ -652,17 +645,6 @@ function initGraph() {
   }
   document.addEventListener('keydown', keyHandler)
   g.on('dispose', () => document.removeEventListener('keydown', keyHandler))
-}
-
-function showPorts(node, show) {
-  try {
-    const ports = node.getPorts && node.getPorts()
-    if (!ports || !ports.length) return
-    const v = show ? 'visible' : 'hidden'
-    ports.forEach(p => {
-      node.setPortProp(p.id, 'attrs/portBody/style', { visibility: v })
-    })
-  } catch (e) {}
 }
 
 function selectNode(node) {
@@ -1000,6 +982,13 @@ onBeforeUnmount(() => {
 .x6-container {
   width: 100%;
   height: 100%;
+}
+/* 连接锚点: 节点悬停显示, 离开隐藏 (draw.io 交互) */
+:deep(.x6-port-body) {
+  visibility: hidden;
+}
+:deep(.x6-node:hover .x6-port-body) {
+  visibility: visible;
 }
 .canvas-loading {
   position: absolute;

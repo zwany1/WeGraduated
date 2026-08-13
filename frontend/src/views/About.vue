@@ -3,7 +3,7 @@
     <header class="bar">
       <div class="brand">
         <el-button text @click="goBack">‹ 返回</el-button>
-        <span>关于我们</span>
+        <span class="page-title">关于我们</span>
       </div>
     </header>
 
@@ -166,6 +166,28 @@ const sections = [
   font-size: 17px;
   font-weight: 700;
   color: #2c3e50;
+}
+.page-title {
+  cursor: pointer;
+  position: relative;
+  transition: color 0.3s;
+}
+.page-title:hover {
+  color: #3B6BFF;
+}
+.page-title::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  width: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: #3B6BFF;
+  transition: width 0.3s ease;
+}
+.page-title:hover::after {
+  width: 100%;
 }
 
 /* ===== 核心人物 (原版 QWGNzYm 照抄) ===== */

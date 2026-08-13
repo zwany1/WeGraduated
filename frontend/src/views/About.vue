@@ -7,16 +7,90 @@
       </div>
     </header>
 
-    <main class="content">
-      <div class="card">
-        <div class="hero">
-          <div class="logo-w">
-            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h4l3 12 3-12h4"/></svg>
+    <!-- ===== 核心人物 (参考 ain.alem QWGNzYm Pop-Out Effect) ===== -->
+    <section class="team-section">
+      <h2 class="team-heading">核心团队</h2>
+      <p class="team-sub">一群热爱技术的同学，致力于让排版变得简单</p>
+      <div class="team">
+        <div class="person" v-for="(m, i) in members" :key="i">
+          <div class="container">
+            <div class="container-inner">
+              <div class="circle" :style="{ background: m.bg }"></div>
+              <div class="img" :class="'img' + (i + 1)" :style="avatarStyle(m)">
+                <span class="avatar-letter">{{ m.name.slice(0, 1) }}</span>
+              </div>
+            </div>
           </div>
-          <h1 class="title">Word 排版助手</h1>
-          <p class="slogan">让论文排版，从几个小时变成几分钟</p>
+          <div class="divider"></div>
+          <div class="name">{{ m.name }}</div>
+          <div class="title">{{ m.role }}</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 产品介绍 Slider (参考 damianmuti OgBWej) ===== -->
+    <section class="product-section">
+      <h2 class="team-heading">产品介绍</h2>
+      <p class="team-sub">一站式论文排版与图表生成工具</p>
+      <div class="slider">
+        <div class="slide" :class="{ active: currentSlide === 0 }" id="prod-1">
+          <div class="slide__bg" :style="{ background: 'linear-gradient(135deg,#3B6BFF,#7c3aed)' }"></div>
+          <div class="slide__images">
+            <div class="slide__image slide__image--left" :style="slideImgStyle(0)">
+              <div class="card-mock mock-a">
+                <div class="mock-line" style="width:60%"></div>
+                <div class="mock-line" style="width:80%"></div>
+                <div class="mock-line" style="width:45%"></div>
+              </div>
+            </div>
+            <div class="slide__image slide__image--right" :style="slideImgStyle(0)">
+              <div class="card-mock mock-b">
+                <div class="mock-title"></div>
+                <div class="mock-line" style="width:70%"></div>
+                <div class="mock-line" style="width:50%"></div>
+              </div>
+            </div>
+          </div>
+          <div class="slide__text">
+            <h3>智能排版</h3>
+            <p>自动识别章节结构，统一标题、正文、图表编号，一键生成规范论文。</p>
+          </div>
         </div>
 
+        <div class="slide" :class="{ active: currentSlide === 1 }" id="prod-2">
+          <div class="slide__bg" :style="{ background: 'linear-gradient(135deg,#10b981,#0ea5e9)' }"></div>
+          <div class="slide__images">
+            <div class="slide__image slide__image--left" :style="slideImgStyle(1)">
+              <div class="card-mock mock-a">
+                <div class="mock-line" style="width:55%"></div>
+                <div class="mock-line" style="width:75%"></div>
+                <div class="mock-line" style="width:40%"></div>
+              </div>
+            </div>
+            <div class="slide__image slide__image--right" :style="slideImgStyle(1)">
+              <div class="card-mock mock-b">
+                <div class="mock-title"></div>
+                <div class="mock-line" style="width:65%"></div>
+                <div class="mock-line" style="width:48%"></div>
+              </div>
+            </div>
+          </div>
+          <div class="slide__text">
+            <h3>图表工具</h3>
+            <p>三线表、ER 图、系统架构图、流程图等专业图表一键生成。</p>
+          </div>
+        </div>
+
+        <div class="slider__pagination">
+          <button class="dot" :class="{ active: currentSlide === 0 }" @click="currentSlide = 0">智能排版</button>
+          <button class="dot" :class="{ active: currentSlide === 1 }" @click="currentSlide = 1">图表工具</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 底部信息 ===== -->
+    <main class="content">
+      <div class="card">
         <section v-for="(s, i) in sections" :key="i" class="section">
           <h2>{{ s.title }}</h2>
           <p v-for="(p, j) in s.paragraphs" :key="j" class="para">{{ p }}</p>
@@ -24,7 +98,6 @@
             <li v-for="(li, k) in s.list" :key="k">{{ li }}</li>
           </ul>
         </section>
-
         <p class="contact">
           欢迎通过邮箱
           <a href="mailto:2651896126@qq.com">2651896126@qq.com</a>
@@ -36,11 +109,31 @@
 </template>
 
 <script setup>
+import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 const router = useRouter()
 
 function goBack() {
   router.back()
+}
+
+const currentSlide = ref(0)
+
+const members = [
+  { name: '阿明', role: 'Product Manager', bg: '#fee7d3', color: '#c0694a' },
+  { name: '小美', role: 'Senior Developer', bg: '#d7ecff', color: '#3a7ca5' },
+  { name: '阿远', role: 'Senior UX', bg: '#e0f7e9', color: '#4a9a6e' }
+]
+
+const gradient = ['#3B6BFF', '#7c3aed', '#10b981']
+
+function avatarStyle(m) {
+  return { background: `linear-gradient(135deg, ${m.color}, ${m.color}cc)`, color: '#fff' }
+}
+
+function slideImgStyle(i) {
+  const g = gradient[i]
+  return { background: `linear-gradient(135deg, ${g}, ${g}99)` }
 }
 
 const sections = [
@@ -52,29 +145,11 @@ const sections = [
     ]
   },
   {
-    title: '核心能力',
-    list: [
-      '智能排版：自动识别章节结构，统一标题、正文、图表编号等格式',
-      '三线表生成：一键生成符合学术规范的三线表',
-      'ER 图 / 系统设计图：Chen 记法 ER 图、流程图、架构图等专业图表',
-      '模板复用：自定义排版规则保存为模板，一次配置长期复用'
-    ]
-  },
-  {
     title: '设计理念',
     paragraphs: [
       '· 规则配置驱动：用清晰直观的规则描述代替手工逐段调整；',
       '· 保留内容聚焦内容：排版引擎尊重你的论文内容，只处理格式；',
       '· 安全可信：数据加密存储、参数化查询防注入、全程登录认证。'
-    ]
-  },
-  {
-    title: '适用人群',
-    list: [
-      '本科 / 硕士 / 博士毕业论文撰写者',
-      '需要规范格式的学术论文作者',
-      '需要绘制三线表、ER 图、系统设计图的研究人员',
-      '希望统一课题组排版规范的学生与导师'
     ]
   }
 ]
@@ -83,7 +158,7 @@ const sections = [
 <style scoped>
 .page {
   min-height: 100vh;
-  background: #f5f6fa;
+  background: #f2f2f2;
 }
 .bar {
   display: flex;
@@ -100,41 +175,256 @@ const sections = [
   font-weight: 700;
   color: #2c3e50;
 }
+
+/* ===== 核心人物 (参考 QWGNzYm) ===== */
+.team-section {
+  padding: 56px 32px 40px;
+  text-align: center;
+}
+.team-heading {
+  font-size: 28px;
+  font-weight: 700;
+  color: #404245;
+  margin: 0 0 8px;
+}
+.team-sub {
+  color: #6e6e6e;
+  font-size: 15px;
+  margin: 0 0 36px;
+}
+.team {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+}
+.person {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  width: 280px;
+}
+.container {
+  border-radius: 50%;
+  height: 312px;
+  transform: scale(0.48);
+  transition: transform 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  width: 400px;
+  position: relative;
+}
+.container:hover {
+  transform: scale(0.54);
+}
+.container-inner {
+  clip-path: path("M 390,400 C 390,504.9341 304.9341,590 200,590 95.065898,590 10,504.9341 10,400 V 10 H 200 390 Z");
+  position: relative;
+  transform-origin: 50%;
+  top: -200px;
+}
+.circle {
+  border-radius: 50%;
+  height: 380px;
+  left: 10px;
+  position: absolute;
+  top: 210px;
+  width: 380px;
+}
+.img {
+  position: relative;
+  transform: translateY(20px) scale(1.15);
+  transform-origin: 50% bottom;
+  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.container:hover .img {
+  transform: translateY(0) scale(1.2);
+}
+.avatar-letter {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 56px;
+  font-weight: 700;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+.divider {
+  background-color: #ca6060;
+  height: 1px;
+  width: 160px;
+}
+.name {
+  color: #404245;
+  font-size: 30px;
+  font-weight: 600;
+  margin-top: 16px;
+  text-align: center;
+}
+.title {
+  color: #6e6e6e;
+  font-size: 14px;
+  font-style: italic;
+  margin-top: 4px;
+}
+
+/* ===== 产品 Slider (参考 OgBWej) ===== */
+.product-section {
+  padding: 40px 0 60px;
+  background: #fff;
+  text-align: center;
+}
+.slider {
+  position: relative;
+  max-width: 1000px;
+  margin: 0 auto;
+  height: 460px;
+}
+.slide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+}
+.slide.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+.slide__bg {
+  position: absolute;
+  z-index: 0;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(2);
+  filter: blur(50px);
+  width: 100%;
+  height: 100%;
+  opacity: 0.25;
+}
+.slide__images {
+  position: relative;
+  width: 100%;
+  max-width: 900px;
+  height: 365px;
+  margin: 0 20px;
+  z-index: 1;
+}
+.slide__image {
+  position: absolute;
+  width: 100%;
+  opacity: 0;
+  transform: translate(30px, 0);
+  transition: all 0.6s ease-in-out;
+  filter: blur(8px);
+}
+.slide.active .slide__image {
+  opacity: 1;
+  transform: translate(0, 0);
+  filter: blur(0) drop-shadow(0px 10px 30px rgba(0, 0, 0, 0.25));
+  transition-delay: 0.3s;
+}
+.slide__image--left {
+  clip-path: polygon(0 0, 100% 0, 60% 100%, 0 100%);
+  transform: translate(0.75%, -10px);
+}
+.slide__image--right {
+  top: 5vmin;
+  clip-path: polygon(40% 0, 100% 0, 100% 100%, 0 100%);
+  transform: translate(-0.75%, 10px);
+}
+.slide.active .slide__image--left {
+  transform: translate(0.75%, -10px);
+}
+.slide.active .slide__image--right {
+  transform: translate(-0.75%, 10px);
+}
+.card-mock {
+  height: 365px;
+  border-radius: 12px;
+  padding: 60px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  justify-content: center;
+}
+.mock-line {
+  height: 14px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.9);
+}
+.mock-title {
+  height: 26px;
+  width: 50%;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.95);
+  margin-bottom: 8px;
+}
+.slide__text {
+  position: relative;
+  z-index: 2;
+  margin-top: 20px;
+  max-width: 500px;
+}
+.slide__text h3 {
+  font-size: 22px;
+  color: #303133;
+  margin: 0 0 6px;
+}
+.slide__text p {
+  font-size: 14px;
+  color: #6e6e6e;
+  margin: 0;
+}
+.slider__pagination {
+  position: absolute;
+  bottom: -10px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  z-index: 3;
+}
+.dot {
+  padding: 8px 20px;
+  border: 2px solid #d5d5d5;
+  border-radius: 999px;
+  background: transparent;
+  color: #6e6e6e;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+.dot:hover {
+  border-color: #3B6BFF;
+  color: #3B6BFF;
+}
+.dot.active {
+  background: #3B6BFF;
+  border-color: #3B6BFF;
+  color: #fff;
+}
+
+/* ===== 底部 ===== */
 .content {
   max-width: 760px;
-  margin: 32px auto;
-  padding: 0 20px;
+  margin: 0 auto;
+  padding: 48px 20px 40px;
 }
 .card {
   background: #fff;
   border-radius: 12px;
   padding: 36px 40px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-}
-.hero {
-  text-align: center;
-  margin-bottom: 32px;
-}
-.logo-w {
-  width: 52px;
-  height: 52px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #3B6BFF, #7c3aed);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 14px;
-}
-.title {
-  font-size: 26px;
-  font-weight: 700;
-  color: #303133;
-  margin: 0 0 6px;
-}
-.slogan {
-  color: #909399;
-  font-size: 15px;
-  margin: 0;
 }
 .section {
   margin-bottom: 26px;

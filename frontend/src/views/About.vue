@@ -247,19 +247,19 @@ const sections = [
   left: 22px;
   top: 164px;
   width: 340px;
-  height: 380px;
+  height: 520px;
   object-fit: cover;
-  object-position: center 20%;
-  border-radius: 50% 50% 4px 4px;
+  object-position: center 15%;
+  border-radius: 50% 50% 0 0;
 }
 .img2 {
-  left: 22px;
-  top: 164px;
-  width: 340px;
-  height: 380px;
+  left: -46px;
+  top: 174px;
+  width: 444px;
+  height: 520px;
   object-fit: cover;
-  object-position: center 20%;
-  border-radius: 50% 50% 4px 4px;
+  object-position: center 15%;
+  border-radius: 50% 50% 0 0;
 }
 .divider {
   background-color: #ca6060;

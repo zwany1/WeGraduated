@@ -14,6 +14,7 @@
           <el-radio-button value="USECASE">用例图</el-radio-button>
           <el-radio-button value="SEQUENCE">时序图</el-radio-button>
           <el-radio-button value="CLASS">类图</el-radio-button>
+          <el-radio-button value="FREE">自由绘画</el-radio-button>
         </el-radio-group>
       </div>
       <div class="actions">
@@ -374,6 +375,9 @@
         <!-- FLOW/SWIMLANE/USECASE: X6 画布 -->
         <div v-show="graphReady && currentVO && currentVO.type !== 'ARCH'" ref="container" class="x6-container"></div>
       </section>
+
+      <!-- 自由绘画模式: 独立画板 -->
+      <FreeDraw v-if="type === 'FREE'" class="free-draw-area" />
     </main>
   </div>
 </template>
@@ -385,6 +389,7 @@ import { Graph } from '@antv/x6'
 import { DagreLayout } from '@antv/layout'
 import html2canvas from 'html2canvas'
 import { generateDiagram, saveDiagram } from '../api/diagram'
+import FreeDraw from '../components/FreeDraw.vue'
 
 // 注册数据库圆柱形状
 Graph.registerNode('db', {
@@ -1560,6 +1565,10 @@ async function downloadArchSvg() {
   display: grid;
   grid-template-columns: 360px 1fr;
   gap: 0;
+  min-height: 0;
+}
+.free-draw-area {
+  grid-column: 1 / -1;
   min-height: 0;
 }
 .input-panel {

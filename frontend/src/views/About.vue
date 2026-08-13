@@ -516,6 +516,9 @@ const sections = [
   transform-origin: left;
   transition: .7s;
 }
+.flip-card:hover .imgBox {
+  transform: rotateY(-135deg);
+}
 .flip-card .bark {
   position: absolute;
   background: #e0e1dc;
@@ -523,6 +526,11 @@ const sections = [
   height: 100%;
   opacity: 0;
   transition: .7s;
+}
+.flip-card:hover .bark {
+  opacity: 1;
+  transition: .6s;
+  box-shadow: 300px 200px 100px rgba(0,0,0,.4) inset;
 }
 .flip-front {
   width: 100%;

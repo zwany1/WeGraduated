@@ -531,8 +531,9 @@ const sections = [
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  background-size: cover;
+  background-size: contain;
   background-position: center;
+  background-repeat: no-repeat;
   padding-bottom: 24px;
   box-sizing: border-box;
 }

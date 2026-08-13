@@ -73,8 +73,7 @@
         <div class="flip-card" v-for="(s, i) in sections" :key="i">
           <div class="imgBox">
             <div class="bark"></div>
-            <div class="flip-front" :style="{ background: s.bg }">
-              <div class="flip-icon">📄</div>
+            <div class="flip-front" :style="{ backgroundImage: 'url(' + s.image + ')' }">
               <div class="flip-title">{{ s.title }}</div>
             </div>
           </div>
@@ -130,7 +129,7 @@ function onTilt(e, i) {
 const sections = [
   {
     title: '项目简介',
-    bg: 'linear-gradient(135deg,#3B6BFF,#7c3aed)',
+    image: '/gugugaga.png',
     paragraphs: [
       'Word 排版助手是一套基于规则配置驱动的学术文档排版工具，解决毕业论文排版繁琐、格式不统一的痛点。',
       '支持论文智能排版、三线表生成、ER 图绘制、系统设计图生成等实用功能。'
@@ -138,7 +137,7 @@ const sections = [
   },
   {
     title: '设计理念',
-    bg: 'linear-gradient(135deg,#10b981,#0ea5e9)',
+    image: '/lulu.jpg',
     paragraphs: [
       '· 规则配置驱动：用清晰直观的规则描述代替手工逐段调整；',
       '· 保留内容聚焦内容：排版引擎尊重你的论文内容，只处理格式；',
@@ -495,17 +494,21 @@ const sections = [
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 16px;
+  justify-content: flex-end;
+  background-size: cover;
+  background-position: center;
+  padding-bottom: 24px;
+  box-sizing: border-box;
 }
 .flip-icon {
   font-size: 56px;
 }
 .flip-title {
   color: #fff;
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
   letter-spacing: 0.2ch;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
 }
 .flip-card:hover .imgBox {
   transform: rotateY(-135deg);

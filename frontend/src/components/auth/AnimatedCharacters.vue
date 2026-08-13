@@ -1,7 +1,6 @@
 <script>
 import { h, ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 
-// ===== Pupil (照抄 careercompass animated-characters.tsx) =====
 const Pupil = {
   props: {
     size: { type: Number, default: 12 },
@@ -44,7 +43,6 @@ const Pupil = {
   }
 }
 
-// ===== EyeBall (照抄 careercompass) =====
 const EyeBall = {
   props: {
     size: { type: Number, default: 48 },
@@ -98,7 +96,6 @@ const EyeBall = {
   }
 }
 
-// ===== AnimatedCharacters (照抄 careercompass) =====
 export default {
   name: 'AnimatedCharacters',
   props: {

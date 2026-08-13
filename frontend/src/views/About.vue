@@ -7,7 +7,6 @@
       </div>
     </header>
 
-    <!-- ===== 核心人物 (原版 QWGNzYm 照抄) ===== -->
     <section class="team-section">
       <h2 class="team-heading">核心团队</h2>
       <p class="team-sub">一群热爱技术的同学，致力于让排版变得简单</p>
@@ -37,7 +36,6 @@
       </div>
     </section>
 
-    <!-- ===== 产品介绍 3D Cover Flow (参考 keyframers rNxmVZN) ===== -->
     <section class="product-section">
       <h2 class="team-heading">产品介绍</h2>
       <p class="team-sub">一站式论文排版与图表生成工具</p>
@@ -65,7 +63,6 @@
       </div>
     </section>
 
-    <!-- ===== 底部信息 (3D 翻卡, 参考 rikanutyy PEJBxX) ===== -->
     <section class="flip-section">
       <h2 class="team-heading">了解更多</h2>
       <p class="team-sub">悬停卡片查看详情</p>
@@ -199,7 +196,6 @@ const sections = [
   width: 100%;
 }
 
-/* ===== 核心人物 (原版 QWGNzYm 照抄) ===== */
 .team-section {
   padding: 56px 32px 40px;
   text-align: center;
@@ -316,7 +312,6 @@ const sections = [
   margin-top: 4px;
 }
 
-/* ===== 产品 Slider (参考 OgBWej) ===== */
 .product-section {
   padding: 60px 0 80px;
   background: #151515;
@@ -456,7 +451,6 @@ const sections = [
   transform: perspective(1000px) rotateY(calc(var(--x) * 45deg)) rotateX(calc(var(--y) * -45deg));
 }
 
-/* ===== 3D 翻卡 (参考 rikanutyy PEJBxX) ===== */
 @import url('https://fonts.googleapis.com/css?family=Indie+Flower');
 @import url('https://fonts.googleapis.com/css?family=Amatic+SC');
 .flip-section {

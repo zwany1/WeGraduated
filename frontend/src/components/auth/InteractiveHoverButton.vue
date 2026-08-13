@@ -1,7 +1,6 @@
 <script>
 import { h } from 'vue'
 
-// ===== InteractiveHoverButton (照抄 careercompass) =====
 export default {
   name: 'InteractiveHoverButton',
   props: {

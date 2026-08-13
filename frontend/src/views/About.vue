@@ -65,23 +65,31 @@
       </div>
     </section>
 
-    <!-- ===== 底部信息 ===== -->
-    <main class="content">
-      <div class="card">
-        <section v-for="(s, i) in sections" :key="i" class="section">
-          <h2>{{ s.title }}</h2>
-          <p v-for="(p, j) in s.paragraphs" :key="j" class="para">{{ p }}</p>
-          <ul v-if="s.list" class="list">
-            <li v-for="(li, k) in s.list" :key="k">{{ li }}</li>
-          </ul>
-        </section>
-        <p class="contact">
-          欢迎通过邮箱
-          <a href="mailto:2651896126@qq.com">2651896126@qq.com</a>
-          与我们联系，期待你的反馈与建议。
-        </p>
+    <!-- ===== 底部信息 (3D 翻卡, 参考 rikanutyy PEJBxX) ===== -->
+    <section class="flip-section">
+      <h2 class="team-heading">了解更多</h2>
+      <p class="team-sub">悬停卡片查看详情</p>
+      <div class="flip-row">
+        <div class="flip-card" v-for="(s, i) in sections" :key="i">
+          <div class="imgBox">
+            <div class="bark"></div>
+            <div class="flip-front" :style="{ background: s.bg }">
+              <div class="flip-icon">📄</div>
+              <div class="flip-title">{{ s.title }}</div>
+            </div>
+          </div>
+          <div class="details">
+            <h4 class="color1">{{ s.title }}</h4>
+            <p v-for="(p, j) in s.paragraphs" :key="j">{{ p }}</p>
+          </div>
+        </div>
       </div>
-    </main>
+      <p class="contact">
+        欢迎通过邮箱
+        <a href="mailto:2651896126@qq.com">2651896126@qq.com</a>
+        与我们联系，期待你的反馈与建议。
+      </p>
+    </section>
   </div>
 </template>
 
@@ -122,13 +130,15 @@ function onTilt(e, i) {
 const sections = [
   {
     title: '项目简介',
+    bg: 'linear-gradient(135deg,#3B6BFF,#7c3aed)',
     paragraphs: [
-      'Word 排版助手是一套基于规则配置驱动的学术文档排版工具。我们致力于解决毕业论文排版繁琐、格式不统一、反复调整的痛点，让同学们把精力放在论文内容本身，而不是消耗在排版细节上。',
-      '系统支持论文智能排版、三线表生成、ER 图绘制、系统设计图生成等实用功能，覆盖毕业论文从撰写到定稿的主要环节。'
+      'Word 排版助手是一套基于规则配置驱动的学术文档排版工具，解决毕业论文排版繁琐、格式不统一的痛点。',
+      '支持论文智能排版、三线表生成、ER 图绘制、系统设计图生成等实用功能。'
     ]
   },
   {
     title: '设计理念',
+    bg: 'linear-gradient(135deg,#10b981,#0ea5e9)',
     paragraphs: [
       '· 规则配置驱动：用清晰直观的规则描述代替手工逐段调整；',
       '· 保留内容聚焦内容：排版引擎尊重你的论文内容，只处理格式；',
@@ -414,45 +424,127 @@ const sections = [
   transform: perspective(1000px) rotateY(calc(var(--x) * 45deg)) rotateX(calc(var(--y) * -45deg));
 }
 
-/* ===== 底部 ===== */
-.content {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 48px 20px 40px;
+/* ===== 3D 翻卡 (参考 rikanutyy PEJBxX) ===== */
+.flip-section {
+  padding: 60px 32px 60px;
+  background: #fde3a7;
+  text-align: center;
 }
-.card {
-  background: #fff;
-  border-radius: 12px;
-  padding: 36px 40px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+.flip-row {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 80px;
+  padding: 40px 0;
 }
-.section {
-  margin-bottom: 26px;
+.flip-card {
+  color: #013243;
+  position: relative;
+  width: 300px;
+  height: 400px;
+  background: #e0e1dc;
+  transform-style: preserve-3d;
+  transform: perspective(2000px);
+  box-shadow: inset 300px 0 50px rgba(0,0,0,.5), 20px 0 60px rgba(0,0,0,.5);
+  transition: 1s;
 }
-.section h2 {
-  font-size: 17px;
-  color: #303133;
-  margin: 0 0 10px;
+.flip-card:hover {
+  transform: perspective(2000px) rotate(15deg) scale(1.2);
+  box-shadow: inset 20px 0 50px rgba(0,0,0,.5), 0 10px 100px rgba(0,0,0,.5);
 }
-.para {
-  color: #606266;
-  font-size: 14px;
-  line-height: 1.9;
+.flip-card:before {
+  content:'';
+  position: absolute;
+  top: -5px;
+  left: 0;
+  width: 100%;
+  height: 5px;
+  background: #bac1ba;
+  transform-origin: bottom;
+  transform: skewX(-45deg);
+}
+.flip-card:after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -5px;
+  width: 5px;
+  height: 100%;
+  background: #92a29c;
+  transform-origin: left;
+  transform: skewY(-45deg);
+}
+.flip-card .imgBox {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-origin: left;
+  transition: .7s;
+}
+.flip-card .bark {
+  position: absolute;
+  background: #e0e1dc;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: .7s;
+}
+.flip-front {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+.flip-icon {
+  font-size: 56px;
+}
+.flip-title {
+  color: #fff;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.2ch;
+}
+.flip-card:hover .imgBox {
+  transform: rotateY(-135deg);
+}
+.flip-card:hover .bark {
+  opacity: 1;
+  transition: .6s;
+  box-shadow: 300px 200px 100px rgba(0,0,0,.4) inset;
+}
+.flip-card .details {
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  padding: 60px 40px 0 50px;
+  z-index: -1;
+}
+.flip-card .details h4 {
+  font-size: 24px;
+  line-height: 1;
+  color: #1bbc9b;
+  text-align: center;
+  margin: 0 0 20px;
+}
+.flip-card .details p {
+  font-size: 15px;
+  line-height: 1.8;
+  transform: rotate(-10deg);
+  padding: 0;
   margin: 0 0 8px;
-}
-.list {
-  margin: 6px 0 0;
-  padding-left: 20px;
-  color: #606266;
-  font-size: 14px;
-  line-height: 1.9;
+  color: #013243;
 }
 .contact {
-  margin-top: 30px;
+  margin: 30px auto 0;
   padding-top: 20px;
-  border-top: 1px solid #ebeef5;
-  color: #909399;
+  border-top: 1px solid #d9c48f;
+  color: #8a6d3b;
   font-size: 14px;
+  max-width: 600px;
 }
 .contact a {
   color: #3B6BFF;

@@ -131,17 +131,26 @@ const sections = [
     title: '设计初衷',
     image: '/gugugaga.png',
     paragraphs: [
-      'Word 排版助手是一套基于规则配置驱动的学术文档排版工具，解决毕业论文排版繁琐、格式不统一的痛点。',
-      '支持论文智能排版、三线表生成、ER 图绘制、系统设计图生成等实用功能。'
+      '系统设计阶段需要绘制大量专业图表',
+      '架构图、用例图、类图、时序图、活动图',
+      '手工绘制繁琐，调整布局耗费大量时间',
+      '功能一变，图表又要重新修改',
+      '于是想做一套自动生成设计图的系统',
+      '按需求配置即可自动生成规范图表',
+      '帮助更多学生减少绘图重复工作',
+      '无需学习复杂绘图软件，配置即出图'
     ]
   },
   {
     title: '设计理念',
     image: '/lulu.jpg',
     paragraphs: [
-      '· 规则配置驱动：用清晰直观的规则描述代替手工逐段调整；',
-      '· 保留内容聚焦内容：排版引擎尊重你的论文内容，只处理格式；',
-      '· 安全可信：数据加密存储、参数化查询防注入、全程登录认证。'
+      '规则配置驱动',
+      '用清晰规则代替手工逐段调整',
+      '保留内容聚焦内容',
+      '排版引擎只处理格式不碰内容',
+      '安全可信',
+      '加密存储 · 参数化查询 · 全程认证'
     ]
   }
 ]
@@ -448,6 +457,8 @@ const sections = [
 }
 
 /* ===== 3D 翻卡 (参考 rikanutyy PEJBxX) ===== */
+@import url('https://fonts.googleapis.com/css?family=Indie+Flower');
+@import url('https://fonts.googleapis.com/css?family=Amatic+SC');
 .flip-section {
   padding: 60px 32px 60px;
   background: #fde3a7;
@@ -464,7 +475,7 @@ const sections = [
   color: #013243;
   position: relative;
   width: 300px;
-  height: 400px;
+  height: 500px;
   background: #e0e1dc;
   transform-style: preserve-3d;
   transform: perspective(2000px);
@@ -548,23 +559,36 @@ const sections = [
   top: 0;
   left: 0;
   box-sizing: border-box;
-  padding: 60px 40px 0 50px;
+  padding: 50px 40px 30px 50px;
   z-index: -1;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+}
+.flip-card .details::-webkit-scrollbar {
+  width: 4px;
+}
+.flip-card .details::-webkit-scrollbar-thumb {
+  background: #c9b98a;
+  border-radius: 4px;
 }
 .flip-card .details h4 {
-  font-size: 24px;
-  line-height: 1;
+  font-size: 26px;
+  line-height: 1px;
+  font-family: 'Amatic SC', cursive;
   color: #1bbc9b;
   text-align: center;
-  margin: 0 0 20px;
+  margin: 0 0 16px;
 }
 .flip-card .details p {
   font-size: 15px;
-  line-height: 1.8;
+  line-height: 1.9;
   transform: rotate(-10deg);
   padding: 0;
-  margin: 0 0 8px;
+  margin: 0 0 6px;
   color: #013243;
+  text-align: left;
+  font-family: 'Indie Flower', cursive;
 }
 .contact {
   margin: 30px auto 0;

@@ -1,0 +1,19 @@
+# 部署构建上下文排除
+**/node_modules
+**/target
+**/dist
+**/data
+.git
+.idea
+.vscode
+.claude
+.codegraph
+*.log
+*.pid
+backend/data
+frontend/dist
+frontend/node_modules
+testdata
+vite.log
+vite.log.err
+data

@@ -11,9 +11,9 @@ spring:
     name: thesis-format
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/thesis_format?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-    username: root
-    password: 123456
+    url: ${DB_URL:jdbc:mysql://localhost:3306/thesis_format?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:123456}
   servlet:
     multipart:
       max-file-size: 50MB
@@ -27,7 +27,7 @@ spring:
     host: smtp.qq.com
     port: 465
     username: 2651896126@qq.com
-    password: kmavtesnmummdjej
+    password: ${MAIL_PASSWORD:kmavtesnmummdjej}
     protocol: smtp
     default-encoding: UTF-8
     properties:
@@ -47,12 +47,12 @@ mybatis-plus:
 
 thesis:
   jwt:
-    secret: graduate-thesis-format-secret-key-2026-please-change-me
+    secret: ${JWT_SECRET:graduate-thesis-format-secret-key-2026-please-change-me}
     expire-hours: 72
   storage:
     dir: ${STORAGE_DIR:./data/storage}
   cors:
-    allowed-origins: http://localhost:5173,http://localhost:5174
+    allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:5174}
 
 logging:
   level:

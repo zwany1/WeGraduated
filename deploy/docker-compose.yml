@@ -1,0 +1,71 @@
+version: "3.8"
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: thesis-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: thesis_format
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - thesis-net
+
+  backend:
+    build:
+      context: .
+      dockerfile: deploy/backend.Dockerfile
+    container_name: thesis-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DB_USERNAME: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DB_URL: jdbc:mysql://mysql:3306/thesis_format?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      STORAGE_DIR: /app/data/storage
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
+    volumes:
+      - thesis-data:/app/data
+    networks:
+      - thesis-net
+
+  frontend:
+    build:
+      context: .
+      dockerfile: deploy/frontend.Dockerfile
+    container_name: thesis-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      # HTTPS 部署时映射 443
+      # - "443:443"
+    volumes:
+      # 如使用 HTTPS 证书, 挂载证书目录
+      # - ./certs:/etc/nginx/certs:ro
+    networks:
+      - thesis-net
+
+volumes:
+  mysql-data:
+  thesis-data:
+
+networks:
+  thesis-net:
+    driver: bridge

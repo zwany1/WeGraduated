@@ -468,6 +468,13 @@ const tools = [
     color: 'purple',
     route: '/system-design',
     icon: '<rect x="3" y="3" width="7" height="5" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="8" y="14" width="7" height="5" rx="1"/><line x1="6.5" y1="8" x2="6.5" y2="11" stroke-dasharray="2"/><line x1="17.5" y1="8" x2="17.5" y2="11" stroke-dasharray="2"/><line x1="6.5" y1="11" x2="11.5" y2="14"/><line x1="17.5" y1="11" x2="11.5" y2="14"/>'
+  },
+  {
+    name: '自由绘画',
+    desc: '自由画板 · UML 设计<br/>拖拽节点、连线、导出 PNG。',
+    color: 'orange',
+    route: '/free-draw',
+    icon: '<path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5z"/><path d="M15 5l4 4"/>'
   }
 ]
 </script>

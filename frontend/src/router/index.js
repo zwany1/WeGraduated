@@ -21,6 +21,7 @@ const routes = [
   { path: '/table3', component: () => import('../views/ThreeTable.vue') },
   { path: '/er', component: () => import('../views/ErDiagram.vue') },
   { path: '/system-design', component: () => import('../views/SystemDesign.vue') },
+  { path: '/free-draw', component: () => import('../components/FreeDraw.vue') },
   { path: '/features', component: () => import('../views/Features.vue') },
   { path: '/template-market', component: () => import('../views/TemplateMarket.vue') },
   { path: '/guide', component: () => import('../views/Guide.vue') },

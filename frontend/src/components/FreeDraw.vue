@@ -1,14 +1,23 @@
 <template>
-  <div class="free-draw">
-    <!-- 工具栏 -->
-    <div class="toolbar">
-      <el-button size="small" :type="tool === 'select' ? 'primary' : ''" @click="tool = 'select'">选择</el-button>
-      <el-button size="small" :type="tool === 'edge' ? 'primary' : ''" @click="tool = 'edge'">连线</el-button>
-      <el-divider direction="vertical" />
-      <el-button size="small" :disabled="!graph" @click="clearAll">清空</el-button>
-      <el-button size="small" :disabled="!graph" @click="save">保存</el-button>
-      <el-button size="small" type="primary" plain :disabled="!graph" @click="downloadPng">导出 PNG</el-button>
-    </div>
+  <div class="page">
+    <header class="bar">
+      <div class="brand">
+        <el-button text @click="goBack">‹ 返回</el-button>
+        <span>自由绘画</span>
+        <span class="brand-sub">自由画板 · UML 设计工具</span>
+      </div>
+    </header>
+
+    <div class="free-draw">
+      <!-- 工具栏 -->
+      <div class="toolbar">
+        <el-button size="small" :type="tool === 'select' ? 'primary' : ''" @click="tool = 'select'">选择</el-button>
+        <el-button size="small" :type="tool === 'edge' ? 'primary' : ''" @click="tool = 'edge'">连线</el-button>
+        <el-divider direction="vertical" />
+        <el-button size="small" :disabled="!graph" @click="clearAll">清空</el-button>
+        <el-button size="small" :disabled="!graph" @click="save">保存</el-button>
+        <el-button size="small" type="primary" plain :disabled="!graph" @click="downloadPng">导出 PNG</el-button>
+      </div>
 
     <div class="editor-body">
       <!-- 左侧组件库 -->
@@ -70,14 +79,21 @@
         </div>
       </aside>
     </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Graph } from '@antv/x6'
 import { saveDiagram, listDiagrams, loadDiagram, deleteDiagram } from '../api/diagram'
+
+const router = useRouter()
+function goBack() {
+  router.back()
+}
 
 const containerRef = ref(null)
 const graph = ref(null)
@@ -454,10 +470,36 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.free-draw {
+.page {
+  height: 100vh;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  background: #f5f6fa;
+}
+.bar {
+  display: flex;
+  align-items: center;
+  padding: 14px 30px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #2c3e50;
+}
+.brand-sub {
+  font-size: 13px;
+  font-weight: 400;
+  color: #909399;
+}
+.free-draw {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   min-height: 0;
   background: #f5f6fa;
 }

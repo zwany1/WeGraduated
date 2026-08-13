@@ -200,10 +200,19 @@ const sections = [
 .container {
   border-radius: 50%;
   height: 312px;
+  -webkit-tap-highlight-color: transparent;
   transform: scale(0.48);
   transition: transform 250ms cubic-bezier(0.4, 0, 0.2, 1);
   width: 400px;
-  position: relative;
+}
+.container:after {
+  background-color: #f2f2f2;
+  content: "";
+  height: 10px;
+  position: absolute;
+  top: 390px;
+  width: 100%;
+  left: 0;
 }
 .container:hover {
   transform: scale(0.54);
@@ -216,18 +225,20 @@ const sections = [
 }
 .circle {
   border-radius: 50%;
+  cursor: pointer;
   height: 380px;
   left: 10px;
+  pointer-events: none;
   position: absolute;
   top: 210px;
   width: 380px;
 }
 .img {
+  pointer-events: none;
   position: relative;
   transform: translateY(20px) scale(1.15);
   transform-origin: 50% bottom;
   transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
-  pointer-events: none;
 }
 .container:hover .img {
   transform: translateY(0) scale(1.2);
@@ -236,19 +247,19 @@ const sections = [
   left: 22px;
   top: 164px;
   width: 340px;
-  height: 400px;
+  height: 380px;
   object-fit: cover;
-  border-radius: 50% 50% 8px 8px;
-  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.2));
+  object-position: center 20%;
+  border-radius: 50% 50% 4px 4px;
 }
 .img2 {
-  left: 30px;
+  left: 22px;
   top: 164px;
   width: 340px;
-  height: 400px;
+  height: 380px;
   object-fit: cover;
-  border-radius: 50% 50% 8px 8px;
-  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.2));
+  object-position: center 20%;
+  border-radius: 50% 50% 4px 4px;
 }
 .divider {
   background-color: #ca6060;
@@ -257,13 +268,14 @@ const sections = [
 }
 .name {
   color: #404245;
-  font-size: 30px;
+  font-size: 36px;
   font-weight: 600;
   margin-top: 16px;
   text-align: center;
 }
 .title {
   color: #6e6e6e;
+  font-family: arial;
   font-size: 14px;
   font-style: italic;
   margin-top: 4px;

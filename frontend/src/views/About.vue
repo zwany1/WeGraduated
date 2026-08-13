@@ -245,21 +245,19 @@ const sections = [
 }
 .img1 {
   left: 22px;
-  top: 164px;
+  top: 60px;
   width: 340px;
-  height: 400px;
+  height: 520px;
   object-fit: cover;
-  border-radius: 50% 50% 8px 8px;
-  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.2));
+  object-position: center 8%;
 }
 .img2 {
-  left: 30px;
-  top: 164px;
-  width: 340px;
-  height: 400px;
+  left: -46px;
+  top: 60px;
+  width: 444px;
+  height: 520px;
   object-fit: cover;
-  border-radius: 50% 50% 8px 8px;
-  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.2));
+  object-position: center 8%;
 }
 .divider {
   background-color: #ca6060;

@@ -256,20 +256,20 @@ const sections = [
   transform: translateY(0) scale(1.2);
 }
 .img1 {
-  left: 70px;
-  top: 90px;
-  width: 260px;
-  height: 560px;
+  left: 10px;
+  top: 60px;
+  width: 380px;
+  height: 540px;
   object-fit: cover;
-  object-position: center 12%;
+  object-position: center 10%;
 }
 .img2 {
-  left: 30px;
-  top: 90px;
-  width: 340px;
-  height: 560px;
+  left: -20px;
+  top: 60px;
+  width: 440px;
+  height: 540px;
   object-fit: cover;
-  object-position: center 12%;
+  object-position: center 10%;
 }
 .divider {
   background-color: #ca6060;

@@ -4,7 +4,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 const PUBLIC_PAGES = [
   '/login', '/register', '/forgot-password',
   '/features', '/template-market', '/guide', '/cases', '/pricing',
-  '/privacy'
+  '/privacy', '/about', '/terms'
 ]
 
 const routes = [
@@ -25,7 +25,9 @@ const routes = [
   { path: '/guide', component: () => import('../views/Guide.vue') },
   { path: '/cases', component: () => import('../views/Cases.vue') },
   { path: '/pricing', component: () => import('../views/Pricing.vue') },
-  { path: '/privacy', component: () => import('../views/Privacy.vue') }
+  { path: '/privacy', component: () => import('../views/Privacy.vue') },
+  { path: '/about', component: () => import('../views/About.vue') },
+  { path: '/terms', component: () => import('../views/Terms.vue') }
 ]
 
 const router = createRouter({

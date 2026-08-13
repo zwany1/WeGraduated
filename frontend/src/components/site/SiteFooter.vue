@@ -13,6 +13,8 @@
         <a @click="go('/guide')">使用教程</a>
         <a @click="go('/cases')">案例</a>
         <a @click="go('/pricing')">价格</a>
+        <a @click="go('/about')">关于我们</a>
+        <a @click="go('/terms')">使用条款</a>
         <a @click="go('/privacy')">隐私政策</a>
         <a href="mailto:2651896126@qq.com">联系我们</a>
       </div>

@@ -292,9 +292,9 @@
           <span>Word 排版助手</span>
         </div>
         <div class="footer-links">
-          <a href="#">关于我们</a>
-          <a href="#">使用条款</a>
-          <a href="#">隐私政策</a>
+          <a @click="goPage('/about')">关于我们</a>
+          <a @click="goPage('/terms')">使用条款</a>
+          <a @click="goPage('/privacy')">隐私政策</a>
           <a href="mailto:2651896126@qq.com">联系我们</a>
         </div>
         <div class="footer-copy">&copy; 2026 Word 排版助手. All rights reserved.</div>

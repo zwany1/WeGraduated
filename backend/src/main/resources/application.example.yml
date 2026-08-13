@@ -12,8 +12,8 @@ spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/thesis_format?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-    username: root
-    password: 123456
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD} # 必填: MySQL 密码
   servlet:
     multipart:
       max-file-size: 50MB
@@ -27,7 +27,7 @@ spring:
     host: smtp.qq.com
     port: 465
     username: 2651896126@qq.com
-    password: ${MAIL_PASSWORD:kmavtesnmummdjej}
+    password: ${MAIL_PASSWORD} # 必填: 邮箱SMTP授权码
     protocol: smtp
     default-encoding: UTF-8
     properties:
@@ -47,7 +47,7 @@ mybatis-plus:
 
 thesis:
   jwt:
-    secret: graduate-thesis-format-secret-key-2026-please-change-me
+    secret: ${JWT_SECRET} # 必填: JWT签名密钥(至少32字符)
     expire-hours: 72
   storage:
     dir: ${STORAGE_DIR:./data/storage}

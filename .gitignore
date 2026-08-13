@@ -9,6 +9,12 @@ frontend/node_modules/
 backend/data/
 data/
 
+# 敏感配置(含数据库密码/邮箱授权码/JWT密钥), 勿提交
+backend/src/main/resources/application.yml
+backend/src/main/resources/application-local.yml
+.env
+.env.local
+
 # 日志
 backend/*.log
 backend/*.log.err

@@ -1,0 +1,59 @@
+﻿server:
+  port: 13355
+  servlet:
+    context-path: /api
+  tomcat:
+    max-http-form-post-size: 20MB
+    max-swallow-size: 20MB
+
+spring:
+  application:
+    name: thesis-format
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/thesis_format?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 60MB
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/schema.sql
+      continue-on-error: false
+  mail:
+    host: smtp.qq.com
+    port: 465
+    username: 2651896126@qq.com
+    password: kmavtesnmummdjej
+    protocol: smtp
+    default-encoding: UTF-8
+    properties:
+      mail:
+        smtp:
+          ssl:
+            enable: true
+          auth: true
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  global-config:
+    db-config:
+      id-type: auto
+
+thesis:
+  jwt:
+    secret: graduate-thesis-format-secret-key-2026-please-change-me
+    expire-hours: 72
+  storage:
+    dir: ${STORAGE_DIR:./data/storage}
+  cors:
+    allowed-origins: http://localhost:5173,http://localhost:5174
+
+logging:
+  level:
+    com.graduate.thesis: debug

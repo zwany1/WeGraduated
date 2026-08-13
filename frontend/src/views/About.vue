@@ -37,62 +37,30 @@
       </div>
     </section>
 
-    <!-- ===== 产品介绍 Slider (参考 damianmuti OgBWej) ===== -->
+    <!-- ===== 产品介绍 3D Cover Flow (参考 keyframers rNxmVZN) ===== -->
     <section class="product-section">
       <h2 class="team-heading">产品介绍</h2>
       <p class="team-sub">一站式论文排版与图表生成工具</p>
-      <div class="slider">
-        <div class="slide" :class="{ active: currentSlide === 0 }" id="prod-1">
-          <div class="slide__bg" :style="{ background: 'linear-gradient(135deg,#3B6BFF,#7c3aed)' }"></div>
-          <div class="slide__images">
-            <div class="slide__image slide__image--left" :style="slideImgStyle(0)">
-              <div class="card-mock mock-a">
-                <div class="mock-line" style="width:60%"></div>
-                <div class="mock-line" style="width:80%"></div>
-                <div class="mock-line" style="width:45%"></div>
-              </div>
-            </div>
-            <div class="slide__image slide__image--right" :style="slideImgStyle(0)">
-              <div class="card-mock mock-b">
-                <div class="mock-title"></div>
-                <div class="mock-line" style="width:70%"></div>
-                <div class="mock-line" style="width:50%"></div>
-              </div>
-            </div>
-          </div>
-          <div class="slide__text">
-            <h3>智能排版</h3>
-            <p>自动识别章节结构，统一标题、正文、图表编号，一键生成规范论文。</p>
-          </div>
-        </div>
-
-        <div class="slide" :class="{ active: currentSlide === 1 }" id="prod-2">
-          <div class="slide__bg" :style="{ background: 'linear-gradient(135deg,#10b981,#0ea5e9)' }"></div>
-          <div class="slide__images">
-            <div class="slide__image slide__image--left" :style="slideImgStyle(1)">
-              <div class="card-mock mock-a">
-                <div class="mock-line" style="width:55%"></div>
-                <div class="mock-line" style="width:75%"></div>
-                <div class="mock-line" style="width:40%"></div>
-              </div>
-            </div>
-            <div class="slide__image slide__image--right" :style="slideImgStyle(1)">
-              <div class="card-mock mock-b">
-                <div class="mock-title"></div>
-                <div class="mock-line" style="width:65%"></div>
-                <div class="mock-line" style="width:48%"></div>
+      <div class="cf">
+        <div class="slides">
+          <button class="nav-btn prev" @click="prevSlide">‹</button>
+          <button class="nav-btn next" @click="nextSlide">›</button>
+          <div
+            class="slide"
+            v-for="(s, i) in cfSlides"
+            :key="i"
+            :data-active="i === cfIndex ? true : null"
+            :style="{ '--offset': i - cfIndex, '--dir': i === cfIndex ? 0 : (i - cfIndex > 0 ? 1 : -1) }"
+          >
+            <div class="slideBackground" :style="{ backgroundImage: 'url(' + s.image + ')' }"></div>
+            <div class="slideContent" :style="{ backgroundImage: 'url(' + s.image + ')' }" @mousemove="onTilt($event, i)">
+              <div class="slideContentInner">
+                <div class="slideSubtitle">{{ s.subtitle }}</div>
+                <div class="slideTitle">{{ s.title }}</div>
+                <div class="slideDescription">{{ s.desc }}</div>
               </div>
             </div>
           </div>
-          <div class="slide__text">
-            <h3>图表工具</h3>
-            <p>三线表、ER 图、系统架构图、流程图等专业图表一键生成。</p>
-          </div>
-        </div>
-
-        <div class="slider__pagination">
-          <button class="dot" :class="{ active: currentSlide === 0 }" @click="currentSlide = 0">智能排版</button>
-          <button class="dot" :class="{ active: currentSlide === 1 }" @click="currentSlide = 1">图表工具</button>
         </div>
       </div>
     </section>
@@ -126,13 +94,29 @@ function goBack() {
   router.back()
 }
 
-const currentSlide = ref(0)
+const cfIndex = ref(0)
 
-const gradient = ['#3B6BFF', '#7c3aed', '#10b981']
+const cfSlides = [
+  { title: '智能排版', subtitle: '格式助手', desc: '自动识别章节结构，统一格式', image: '/1.png' },
+  { title: '三线表', subtitle: '表格工具', desc: '一键生成规范三线表', image: '/2.png' },
+  { title: 'ER 图', subtitle: '绘图工具', desc: 'Chen 记法实体关系图', image: '/3.png' },
+  { title: '系统设计', subtitle: '设计工具', desc: '流程图/架构图一键生成', image: '/4.png' }
+]
 
-function slideImgStyle(i) {
-  const g = gradient[i]
-  return { background: `linear-gradient(135deg, ${g}, ${g}99)` }
+function prevSlide() {
+  cfIndex.value = (cfIndex.value - 1 + cfSlides.length) % cfSlides.length
+}
+function nextSlide() {
+  cfIndex.value = (cfIndex.value + 1) % cfSlides.length
+}
+function onTilt(e, i) {
+  if (i !== cfIndex.value) return
+  const el = e.currentTarget
+  const rect = el.getBoundingClientRect()
+  const px = (e.clientX - rect.left) / rect.width
+  const py = (e.clientY - rect.top) / rect.height
+  el.style.setProperty('--px', px)
+  el.style.setProperty('--py', py)
 }
 
 const sections = [
@@ -259,7 +243,7 @@ const sections = [
   left: 10px;
   top: 60px;
   width: 380px;
-  height: 540px;
+  height: 530px;
   object-fit: cover;
   object-position: center 10%;
 }
@@ -267,7 +251,7 @@ const sections = [
   left: -20px;
   top: 60px;
   width: 440px;
-  height: 540px;
+  height: 530px;
   object-fit: cover;
   object-position: center 10%;
 }
@@ -293,144 +277,141 @@ const sections = [
 
 /* ===== 产品 Slider (参考 OgBWej) ===== */
 .product-section {
-  padding: 40px 0 60px;
-  background: #fff;
+  padding: 60px 0 80px;
+  background: #151515;
+  color: #fff;
   text-align: center;
+  overflow: hidden;
 }
-.slider {
+.product-section .team-heading {
+  color: #fff;
+}
+.product-section .team-sub {
+  color: #aaa;
+}
+.cf {
   position: relative;
-  max-width: 1000px;
-  margin: 0 auto;
-  height: 460px;
-}
-.slide {
-  position: absolute;
-  inset: 0;
   display: flex;
-  align-items: center;
   justify-content: center;
-  flex-direction: column;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.5s ease;
+  align-items: center;
+  min-height: 70vh;
+  perspective: 1200px;
 }
-.slide.active {
-  opacity: 1;
-  pointer-events: auto;
-}
-.slide__bg {
-  position: absolute;
-  z-index: 0;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) scale(2);
-  filter: blur(50px);
+.slides {
+  display: grid;
+  position: relative;
   width: 100%;
   height: 100%;
-  opacity: 0.25;
 }
-.slide__images {
-  position: relative;
-  width: 100%;
-  max-width: 900px;
-  height: 365px;
-  margin: 0 20px;
-  z-index: 1;
-}
-.slide__image {
-  position: absolute;
-  width: 100%;
-  opacity: 0;
-  transform: translate(30px, 0);
-  transition: all 0.6s ease-in-out;
-  filter: blur(8px);
-}
-.slide.active .slide__image {
-  opacity: 1;
-  transform: translate(0, 0);
-  filter: blur(0) drop-shadow(0px 10px 30px rgba(0, 0, 0, 0.25));
-  transition-delay: 0.3s;
-}
-.slide__image--left {
-  clip-path: polygon(0 0, 100% 0, 60% 100%, 0 100%);
-  transform: translate(0.75%, -10px);
-}
-.slide__image--right {
-  top: 5vmin;
-  clip-path: polygon(40% 0, 100% 0, 100% 100%, 0 100%);
-  transform: translate(-0.75%, 10px);
-}
-.slide.active .slide__image--left {
-  transform: translate(0.75%, -10px);
-}
-.slide.active .slide__image--right {
-  transform: translate(-0.75%, 10px);
-}
-.card-mock {
-  height: 365px;
-  border-radius: 12px;
-  padding: 60px 48px;
+.slides > .slide {
+  grid-area: 1/-1;
   display: flex;
-  flex-direction: column;
-  gap: 18px;
   justify-content: center;
+  align-items: center;
 }
-.mock-line {
-  height: 14px;
-  border-radius: 7px;
-  background: rgba(255, 255, 255, 0.9);
+.slides > button {
+  -webkit-appearance: none;
+     -moz-appearance: none;
+          appearance: none;
+  background: transparent;
+  border: none;
+  color: white;
+  position: absolute;
+  font-size: 3rem;
+  width: 3.5rem;
+  height: 3.5rem;
+  top: 35%;
+  transition: opacity 0.3s;
+  opacity: 0.7;
+  z-index: 5;
+  cursor: pointer;
+  line-height: 1;
 }
-.mock-title {
-  height: 26px;
-  width: 50%;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.95);
-  margin-bottom: 8px;
+.slides > button:hover {
+  opacity: 1;
 }
-.slide__text {
-  position: relative;
-  z-index: 2;
-  margin-top: 20px;
-  max-width: 500px;
+.slides > button:focus {
+  outline: none;
 }
-.slide__text h3 {
-  font-size: 22px;
-  color: #303133;
-  margin: 0 0 6px;
+.nav-btn.prev {
+  left: -12%;
 }
-.slide__text p {
-  font-size: 14px;
-  color: #6e6e6e;
+.nav-btn.next {
+  right: -12%;
+}
+.slideContent {
+  width: 30vw;
+  height: 40vw;
+  max-width: 420px;
+  max-height: 560px;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  transition: transform 0.5s ease-in-out;
+  opacity: 0.7;
+  display: grid;
+  align-content: center;
+  transform-style: preserve-3d;
+  transform: perspective(1000px) translateX(calc(100% * var(--offset))) rotateY(calc(-45deg * var(--dir)));
+}
+.slideContentInner {
+  transform-style: preserve-3d;
+  transform: translateZ(2rem);
+  transition: opacity 0.3s linear;
+  text-shadow: 0 0.1rem 1rem #000;
+  opacity: 0;
+  padding: 0 2rem;
+}
+.slideContentInner .slideSubtitle,
+.slideContentInner .slideTitle {
+  font-size: 1.6rem;
+  font-weight: normal;
+  letter-spacing: 0.2ch;
+  text-transform: uppercase;
   margin: 0;
 }
-.slider__pagination {
-  position: absolute;
-  bottom: -10px;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: center;
-  gap: 16px;
-  z-index: 3;
+.slideContentInner .slideSubtitle::before {
+  content: "— ";
 }
-.dot {
-  padding: 8px 20px;
-  border: 2px solid #d5d5d5;
-  border-radius: 999px;
-  background: transparent;
-  color: #6e6e6e;
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.25s ease;
+.slideContentInner .slideDescription {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  letter-spacing: 0.1ch;
 }
-.dot:hover {
-  border-color: #3B6BFF;
-  color: #3B6BFF;
+.slideBackground {
+  position: fixed;
+  top: 0;
+  left: -10%;
+  right: -10%;
+  bottom: 0;
+  background-size: cover;
+  background-position: center center;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s linear, transform 0.3s ease-in-out;
+  pointer-events: none;
+  transform: translateX(calc(10% * var(--dir)));
 }
-.dot.active {
-  background: #3B6BFF;
-  border-color: #3B6BFF;
-  color: #fff;
+.slide[data-active] {
+  z-index: 2;
+  pointer-events: auto;
+}
+.slide[data-active] .slideBackground {
+  opacity: 0.18;
+  transform: none;
+}
+.slide[data-active] .slideContentInner {
+  opacity: 1;
+}
+.slide[data-active] .slideContent {
+  --x: calc(var(--px) - 0.5);
+  --y: calc(var(--py) - 0.5);
+  opacity: 1;
+  transform: perspective(1000px);
+}
+.slide[data-active] .slideContent:hover {
+  transition: none;
+  transform: perspective(1000px) rotateY(calc(var(--x) * 45deg)) rotateX(calc(var(--y) * -45deg));
 }
 
 /* ===== 底部 ===== */

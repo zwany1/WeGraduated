@@ -531,14 +531,11 @@ const sections = [
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  background-size: contain;
+  background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   padding-bottom: 24px;
   box-sizing: border-box;
-}
-.flip-icon {
-  font-size: 56px;
 }
 .flip-title {
   color: #fff;
@@ -546,14 +543,6 @@ const sections = [
   font-weight: 700;
   letter-spacing: 0.2ch;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
-}
-.flip-card:hover .imgBox {
-  transform: rotateY(-135deg);
-}
-.flip-card:hover .bark {
-  opacity: 1;
-  transition: .6s;
-  box-shadow: 300px 200px 100px rgba(0,0,0,.4) inset;
 }
 .flip-card .details {
   position: absolute;

@@ -7,21 +7,43 @@
       </div>
     </header>
 
-    <!-- ===== 核心人物 (参考 ain.alem QWGNzYm Pop-Out Effect) ===== -->
+    <!-- ===== 核心人物 (原版 QWGNzYm 照抄) ===== -->
     <section class="team-section">
       <h2 class="team-heading">核心团队</h2>
       <p class="team-sub">一群热爱技术的同学，致力于让排版变得简单</p>
       <div class="team">
-        <div class="person" v-for="(m, i) in members" :key="i">
+        <div class="person">
           <div class="container">
             <div class="container-inner">
-              <div class="circle" :style="{ background: m.bg }"></div>
-              <img class="img" :class="'img' + (i + 1)" :src="m.img" :alt="m.name" />
+              <img class="circle" src="/circle_1.jpg" alt="" />
+              <img class="img img1" src="/person_1.png" alt="Alma" />
             </div>
           </div>
           <div class="divider"></div>
-          <div class="name">{{ m.name }}</div>
-          <div class="title">{{ m.role }}</div>
+          <div class="name">Alma</div>
+          <div class="title">Product Manager</div>
+        </div>
+        <div class="person">
+          <div class="container">
+            <div class="container-inner">
+              <img class="circle" src="/circle_2.jpg" alt="" />
+              <img class="img img2" src="/person_2.png" alt="Irma" />
+            </div>
+          </div>
+          <div class="divider"></div>
+          <div class="name">Irma</div>
+          <div class="title">Senior Developer</div>
+        </div>
+        <div class="person">
+          <div class="container">
+            <div class="container-inner">
+              <img class="circle" src="/circle_3.jpg" alt="" />
+              <img class="img img3" src="/person_3.png" alt="Anton" />
+            </div>
+          </div>
+          <div class="divider"></div>
+          <div class="name">Anton</div>
+          <div class="title">Senior UX</div>
         </div>
       </div>
     </section>
@@ -117,11 +139,6 @@ function goBack() {
 
 const currentSlide = ref(0)
 
-const members = [
-  { name: 'keysqiu', role: 'Product Manager', bg: '#d7ecff', img: '/keysqiu.png' },
-  { name: 'zwany1', role: 'Senior Developer', bg: '#fee7d3', img: '/zwany1.jpg' }
-]
-
 const gradient = ['#3B6BFF', '#7c3aed', '#10b981']
 
 function slideImgStyle(i) {
@@ -169,10 +186,11 @@ const sections = [
   color: #2c3e50;
 }
 
-/* ===== 核心人物 (参考 QWGNzYm) ===== */
+/* ===== 核心人物 (原版 QWGNzYm 照抄) ===== */
 .team-section {
   padding: 56px 32px 40px;
   text-align: center;
+  background-color: #f2f2f2;
 }
 .team-heading {
   font-size: 28px;
@@ -189,6 +207,7 @@ const sections = [
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
+  align-items: center;
   gap: 20px;
 }
 .person {
@@ -204,6 +223,7 @@ const sections = [
   transform: scale(0.48);
   transition: transform 250ms cubic-bezier(0.4, 0, 0.2, 1);
   width: 400px;
+  position: relative;
 }
 .container:after {
   background-color: #f2f2f2;
@@ -222,8 +242,11 @@ const sections = [
   position: relative;
   transform-origin: 50%;
   top: -200px;
+  height: 590px;
+  width: 400px;
 }
 .circle {
+  background-color: #fee7d3;
   border-radius: 50%;
   cursor: pointer;
   height: 380px;
@@ -245,19 +268,18 @@ const sections = [
 }
 .img1 {
   left: 22px;
-  top: 60px;
+  top: 164px;
   width: 340px;
-  height: 520px;
-  object-fit: cover;
-  object-position: center 8%;
 }
 .img2 {
   left: -46px;
-  top: 60px;
+  top: 174px;
   width: 444px;
-  height: 520px;
-  object-fit: cover;
-  object-position: center 8%;
+}
+.img3 {
+  left: -16px;
+  top: 144px;
+  width: 466px;
 }
 .divider {
   background-color: #ca6060;

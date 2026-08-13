@@ -1,9 +1,10 @@
-<template>
+﻿<template>
   <div class="page">
     <header class="bar">
       <div class="brand">
         <el-button text @click="goBack">‹ 返回</el-button>
         <span>自由绘画</span>
+        <span class="brand-sub">自由画板工具</span>
       </div>
     </header>
 
@@ -11,8 +12,7 @@
       <!-- 顶部工具栏 -->
       <div class="toolbar">
         <button class="tb-btn" :class="{ active: tool === 'select' }" title="选择 (V)" @click="tool = 'select'">↖</button>
-        <button class="tb-btn" :class="{ active: tool === 'text' }" title="文本 (T)" @click="tool = 'text'">T</button>
-        <button class="tb-btn" :class="{ active: tool === 'edge' }" title="连线" @click="tool = 'edge'">╱</button>
+        <button class="tb-btn" :class="{ active: tool === 'edge' }" title="连线：从节点边缘锚点拖出" @click="tool = 'edge'">╱</button>
         <span class="tb-sep"></span>
         <button class="tb-btn" :disabled="!canUndo" title="撤销 (Ctrl+Z)" @click="undo">↩</button>
         <button class="tb-btn" :disabled="!canRedo" title="重做 (Ctrl+Y)" @click="redo">↪</button>
@@ -20,8 +20,8 @@
         <button class="tb-btn" title="粘贴 (Ctrl+V)" @click="paste">📋</button>
         <button class="tb-btn" title="删除 (Delete)" @click="removeCurrent">✕</button>
         <span class="tb-sep"></span>
-        <button class="tb-btn" title="放大 (Ctrl++)" @click="zoomIn">＋</button>
-        <button class="tb-btn" title="缩小 (Ctrl+-)" @click="zoomOut">－</button>
+        <button class="tb-btn" title="放大" @click="zoomIn">＋</button>
+        <button class="tb-btn" title="缩小" @click="zoomOut">－</button>
         <button class="tb-btn" title="适应画布" @click="zoomToFit">⤢</button>
         <span class="tb-sep"></span>
         <button class="tb-btn" title="清空" @click="clearAll">🗑</button>
@@ -46,32 +46,30 @@
                   <g v-else-if="c.type === 'hexagon'"><path d="M14 6 L46 6 L56 20 L46 34 L14 34 L4 20 Z" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
                   <g v-else-if="c.type === 'triangle'"><path d="M30 6 L54 34 L6 34 Z" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
                   <g v-else-if="c.type === 'text'"><text x="30" y="24" text-anchor="middle" font-size="12" fill="#333">Text</text></g>
-                  <g v-else-if="c.type === 'line'"><line x1="6" y1="30" x2="54" y2="10" stroke="#333" stroke-width="1.5"/><path d="M50 8 l6 1 l-3 5 Z" fill="#333"/></g>
-                  <g v-else-if="c.type === 'doubleArrow'"><line x1="10" y1="20" x2="50" y2="20" stroke="#333" stroke-width="1.5"/><path d="M8 17 l4 3 l-4 3 Z" fill="#333"/><path d="M52 17 l-4 3 l4 3 Z" fill="#333"/></g>
-                  <g v-else-if="c.type === 'process'"><rect x="4" y="6" width="52" height="28" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
-                  <g v-else-if="c.type === 'start'"><circle cx="30" cy="20" r="14" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
-                  <g v-else-if="c.type === 'end'"><circle cx="30" cy="20" r="14" fill="#fff" stroke="#333" stroke-width="1.5"/><circle cx="30" cy="20" r="8" fill="#333"/></g>
-                  <g v-else-if="c.type === 'decision'"><path d="M30 6 L52 20 L30 34 L8 20 Z" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
                   <g v-else-if="c.type === 'document'"><path d="M8 6 h44 v22 c0 3 -5 6 -11 6 s-11 -3 -11 -6 s5 -6 11 -6 c4 0 8 1 11 3 V6 Z" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
-                  <g v-else-if="c.type === 'database'"><ellipse cx="30" cy="10" rx="22" ry="6" fill="#fff" stroke="#333" stroke-width="1.5"/><path d="M8 10v20c0 3.3 9.8 6 22 6s22-2.7 22-6V10" fill="#fff" stroke="#333" stroke-width="1.5"/><path d="M8 20c0 3.3 9.8 6 22 6s22-2.7 22-6" fill="none" stroke="#333" stroke-width="1.5"/></g>
                   <g v-else-if="c.type === 'cloud'"><path d="M18 30 a12 12 0 0 1 0-24 h6 a10 10 0 0 1 19 4 a9 9 0 0 1 0 20 Z" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
-                  <g v-else-if="c.type === 'actor'"><circle cx="30" cy="12" r="6" fill="#fff" stroke="#333" stroke-width="1.5"/><line x1="30" y1="18" x2="30" y2="30" stroke="#333" stroke-width="1.5"/><line x1="22" y1="24" x2="38" y2="24" stroke="#333" stroke-width="1.5"/><line x1="30" y1="30" x2="24" y2="36" stroke="#333" stroke-width="1.5"/><line x1="30" y1="30" x2="36" y2="36" stroke="#333" stroke-width="1.5"/></g>
-                  <g v-else-if="c.type === 'class'"><rect x="4" y="4" width="52" height="12" rx="1" fill="#fff" stroke="#333" stroke-width="1.5"/><rect x="4" y="16" width="52" height="8" fill="#fff" stroke="#333" stroke-width="1.5"/><rect x="4" y="24" width="52" height="8" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
-                  <g v-else-if="c.type === 'note'"><path d="M46 4 H14 a3 3 0 0 0 -3 3 v20 a3 3 0 0 0 3 3 h12 l8 6 v-6 h12 a3 3 0 0 0 3 -3 V7 a3 3 0 0 0 -3 -3 Z" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
-                  <g v-else-if="c.type === 'usecase'"><ellipse cx="30" cy="20" rx="24" ry="13" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
-                  <g v-else-if="c.type === 'entity'"><rect x="8" y="10" width="44" height="20" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
-                  <g v-else-if="c.type === 'attribute'"><ellipse cx="30" cy="20" rx="20" ry="11" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
-                  <g v-else-if="c.type === 'relation'"><path d="M30 6 L52 20 L30 34 L8 20 Z" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'cylinder'"><ellipse cx="30" cy="10" rx="20" ry="6" fill="#fff" stroke="#333" stroke-width="1.5"/><path d="M10 10v18c0 3.3 9 6 20 6s20-2.7 20-6V10" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'box'"><rect x="6" y="6" width="48" height="28" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
                   <g v-else-if="c.type === 'arrow'"><line x1="6" y1="20" x2="50" y2="20" stroke="#333" stroke-width="1.5"/><path d="M46 15 l6 5 l-6 5 Z" fill="#333"/></g>
+                  <g v-else-if="c.type === 'doubleArrow'"><line x1="10" y1="20" x2="50" y2="20" stroke="#333" stroke-width="1.5"/><path d="M8 17 l4 3 l-4 3 Z" fill="#333"/><path d="M52 17 l-4 3 l4 3 Z" fill="#333"/></g>
                   <g v-else-if="c.type === 'dashedArrow'"><line x1="6" y1="20" x2="50" y2="20" stroke="#333" stroke-width="1.5" stroke-dasharray="4,3"/><path d="M46 15 l6 5 l-6 5 Z" fill="#333"/></g>
                   <g v-else-if="c.type === 'curvedArrow'"><path d="M10 10 Q30 34 50 10" fill="none" stroke="#333" stroke-width="1.5"/><path d="M46 7 l6 2 l-4 5 Z" fill="#333"/></g>
                   <g v-else-if="c.type === 'blockArrow'"><path d="M6 14 h30 v-6 l18 12 l-18 12 v-6 h-30 Z" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
-                  <g v-else-if="c.type === 'folder'"><path d="M8 8 h18 l4 6 h22 a3 3 0 0 1 3 3 v13 a3 3 0 0 1 -3 3 H8 a3 3 0 0 1 -3 -3 V11 a3 3 0 0 1 3 -3 Z" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
-                  <g v-else-if="c.type === 'cylinder'"><ellipse cx="30" cy="10" rx="20" ry="6" fill="#fff" stroke="#333" stroke-width="1.5"/><path d="M10 10v18c0 3.3 9 6 20 6s20-2.7 20-6V10" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
-                  <g v-else-if="c.type === 'box'"><rect x="6" y="6" width="48" height="28" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'start'"><circle cx="30" cy="20" r="12" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'process'"><rect x="4" y="6" width="52" height="28" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'decision'"><path d="M30 6 L52 20 L30 34 L8 20 Z" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
                   <g v-else-if="c.type === 'preparation'"><path d="M20 6 L50 20 L20 34 L10 20 Z" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
                   <g v-else-if="c.type === 'terminator'"><rect x="6" y="10" width="48" height="20" rx="10" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
                   <g v-else-if="c.type === 'loop'"><path d="M14 8 h32 c5 0 9 4 9 10 v4 c0 6 -4 10 -9 10 H20 c-5 0 -9 -4 -9 -10 V10 c0 -2 1 -2 3 -2 Z" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'note'"><path d="M46 4 H14 a3 3 0 0 0 -3 3 v20 a3 3 0 0 0 3 3 h12 l8 6 v-6 h12 a3 3 0 0 0 3 -3 V7 a3 3 0 0 0 -3 -3 Z" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'entity'"><rect x="8" y="10" width="44" height="20" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'attribute'"><ellipse cx="30" cy="20" rx="20" ry="11" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'relation'"><path d="M30 6 L52 20 L30 34 L8 20 Z" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'class'"><rect x="4" y="4" width="52" height="12" rx="1" fill="#fff" stroke="#333" stroke-width="1.5"/><rect x="4" y="16" width="52" height="8" fill="#fff" stroke="#333" stroke-width="1.5"/><rect x="4" y="24" width="52" height="8" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'actor'"><circle cx="30" cy="12" r="6" fill="#fff" stroke="#333" stroke-width="1.5"/><line x1="30" y1="18" x2="30" y2="30" stroke="#333" stroke-width="1.5"/><line x1="22" y1="24" x2="38" y2="24" stroke="#333" stroke-width="1.5"/><line x1="30" y1="30" x2="24" y2="36" stroke="#333" stroke-width="1.5"/><line x1="30" y1="30" x2="36" y2="36" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'usecase'"><ellipse cx="30" cy="20" rx="24" ry="13" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'database'"><ellipse cx="30" cy="10" rx="22" ry="6" fill="#fff" stroke="#333" stroke-width="1.5"/><path d="M8 10v20c0 3.3 9.8 6 22 6s22-2.7 22-6V10" fill="#fff" stroke="#333" stroke-width="1.5"/><path d="M8 20c0 3.3 9.8 6 22 6s22-2.7 22-6" fill="none" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'folder'"><path d="M8 8 h18 l4 6 h22 a3 3 0 0 1 3 3 v13 a3 3 0 0 1 -3 3 H8 a3 3 0 0 1 -3 -3 V11 a3 3 0 0 1 3 -3 Z" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
                 </svg>
               </div>
             </div>
@@ -84,7 +82,7 @@
         <div class="canvas-area">
           <div ref="containerRef" class="x6-container"></div>
           <div v-if="!graph" class="canvas-loading">画布初始化中...</div>
-          <div class="canvas-zoom-tip">Ctrl + 滚轮缩放 · 空格拖动平移</div>
+          <div class="canvas-zoom-tip">Ctrl + 滚轮缩放 · 左键拖动平移</div>
         </div>
 
         <!-- 右侧格式面板 -->
@@ -169,7 +167,6 @@ const canUndo = ref(false)
 const canRedo = ref(false)
 
 let clipboard = null
-let edgeSource = null
 
 const shapeGroups = [
   {
@@ -190,20 +187,9 @@ const shapeGroups = [
     ]
   },
   {
-    name: '箭头',
-    items: [
-      { type: 'arrow', label: '箭头' },
-      { type: 'doubleArrow', label: '双向箭头' },
-      { type: 'line', label: '折线箭头' },
-      { type: 'dashedArrow', label: '虚线箭头' },
-      { type: 'curvedArrow', label: '曲线箭头' },
-      { type: 'blockArrow', label: '块箭头' }
-    ]
-  },
-  {
     name: '流程图',
     items: [
-      { type: 'start', label: '开始/结束' },
+      { type: 'start', label: '开始' },
       { type: 'process', label: '处理' },
       { type: 'decision', label: '判断' },
       { type: 'preparation', label: '准备' },
@@ -232,44 +218,180 @@ const shapeGroups = [
   {
     name: '高级',
     items: [
-      { type: 'folder', label: '文件夹' },
-      { type: 'hexagon', label: '六边形' },
-      { type: 'box', label: '方框' }
+      { type: 'folder', label: '文件夹' }
     ]
   }
 ]
 
+const base = '#333333'
+
 function registerShapes() {
-  const base = '#333333'
-  const shapes = {
-    freerect: { inherit: 'rect', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, rx: 2 }, label: { fontSize: 14, fill: base } } },
-    freeroundrect: { inherit: 'rect', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, rx: 8 }, label: { fontSize: 14, fill: base } } },
-    freeellipse: { inherit: 'ellipse', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5 }, label: { fontSize: 14, fill: base } } },
-    freecircle: { inherit: 'circle', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5 }, label: { fontSize: 14, fill: base } } },
-    freediamond: { inherit: 'polygon', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, points: '50,0 100,50 50,100 0,50' }, label: { fontSize: 13, fill: base } } },
-    freehexagon: { inherit: 'polygon', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, points: '25,0 75,0 100,50 75,100 25,100 0,50' }, label: { fontSize: 13, fill: base } } },
-    freetriangle: { inherit: 'polygon', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, points: '50,0 100,100 0,100' }, label: { fontSize: 13, fill: base } } },
-    freepreparation: { inherit: 'polygon', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, points: '30,0 100,50 30,100 0,50' }, label: { fontSize: 13, fill: base } } },
-    freeterminator: { inherit: 'rect', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, rx: 25 }, label: { fontSize: 14, fill: base } } },
-    freeloop: { inherit: 'rect', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, rx: 8 }, label: { fontSize: 13, fill: base } } },
-    freenote: { inherit: 'rect', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, rx: 3 }, label: { fontSize: 13, fill: base } } },
-    freeusecase: { inherit: 'ellipse', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5 }, label: { fontSize: 14, fill: base } } },
-    freedocument: { inherit: 'rect', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, rx: 4 }, label: { fontSize: 13, fill: base } } },
-    freecloud: { inherit: 'ellipse', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5 }, label: { fontSize: 13, fill: base } } },
-    freecylinder: { inherit: 'rect', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5 }, label: { fontSize: 13, fill: base } } },
-    freefolder: { inherit: 'rect', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, rx: 3 }, label: { fontSize: 13, fill: base } } },
-    freestart: { inherit: 'circle', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5 }, label: { fontSize: 12, fill: base } } }
+  // 基础几何形状
+  const simple = {
+    freerect: { inherit: 'rect', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, rx: 2, magnet: true }, label: { fontSize: 13, fill: base } } },
+    freeroundrect: { inherit: 'rect', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, rx: 8, magnet: true }, label: { fontSize: 13, fill: base } } },
+    freeellipse: { inherit: 'ellipse', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, magnet: true }, label: { fontSize: 13, fill: base } } },
+    freecircle: { inherit: 'circle', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, magnet: true }, label: { fontSize: 13, fill: base } } },
+    freediamond: { inherit: 'polygon', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, points: '50,0 100,50 50,100 0,50', magnet: true }, label: { fontSize: 12, fill: base } } },
+    freehexagon: { inherit: 'polygon', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, points: '25,0 75,0 100,50 75,100 25,100 0,50', magnet: true }, label: { fontSize: 12, fill: base } } },
+    freetriangle: { inherit: 'polygon', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, points: '50,0 100,100 0,100', magnet: true }, label: { fontSize: 12, fill: base } } },
+    freepreparation: { inherit: 'polygon', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, points: '30,0 100,50 30,100 0,50', magnet: true }, label: { fontSize: 12, fill: base } } },
+    freeterminator: { inherit: 'rect', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, rx: 25, magnet: true }, label: { fontSize: 13, fill: base } } },
+    freeloop: { inherit: 'rect', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, rx: 8, magnet: true }, label: { fontSize: 12, fill: base } } }
   }
-  Object.entries(shapes).forEach(([name, cfg]) => Graph.registerNode(name, { ...cfg, width: 120, height: 60 }, true))
+  Object.entries(simple).forEach(([name, cfg]) => Graph.registerNode(name, { ...cfg, width: 120, height: 60 }, true))
+
+  // 文档
+  Graph.registerNode('freedocument', {
+    inherit: 'rect',
+    width: 110,
+    height: 80,
+    markup: [
+      { tagName: 'path', selector: 'body', attrs: { d: 'M8 6 h44 v22 c0 3 -5 6 -11 6 s-11 -3 -11 -6 s5 -6 11 -6 c4 0 8 1 11 3 V6 Z' } },
+      { tagName: 'text', selector: 'label' }
+    ],
+    attrs: {
+      body: { fill: '#fff', stroke: base, strokeWidth: 1.5, refWidth: '100%', refHeight: '100%', magnet: true },
+      label: { text: '', fontSize: 12, fill: base, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle' }
+    }
+  }, true)
+
+  // 云
+  Graph.registerNode('freecloud', {
+    inherit: 'rect',
+    width: 130,
+    height: 80,
+    markup: [
+      { tagName: 'path', selector: 'body', attrs: { d: 'M20 70 a20 20 0 0 1 0 -40 h10 a18 18 0 0 1 34 6 a15 15 0 0 1 0 34 Z' } },
+      { tagName: 'text', selector: 'label' }
+    ],
+    attrs: {
+      body: { fill: '#fff', stroke: base, strokeWidth: 1.5, refWidth: '100%', refHeight: '100%', magnet: true },
+      label: { text: '', fontSize: 12, fill: base, refX: 0.5, refY: 0.55, textAnchor: 'middle', textVerticalAnchor: 'middle' }
+    }
+  }, true)
+
+  // 圆柱
+  Graph.registerNode('freecylinder', {
+    inherit: 'rect',
+    width: 110,
+    height: 80,
+    markup: [
+      { tagName: 'ellipse', selector: 'top' },
+      { tagName: 'path', selector: 'side' },
+      { tagName: 'path', selector: 'curve' },
+      { tagName: 'text', selector: 'label' }
+    ],
+    attrs: {
+      top: { cx: 0, cy: 0, rx: 18, ry: 6, fill: '#fff', stroke: base, strokeWidth: 1.5, refX: 0.5, refY: 0 },
+      side: { d: 'M 14 6 L 14 74 C 14 78 21 81 30 81 C 39 81 46 78 46 74 L 46 6', fill: '#fff', stroke: base, strokeWidth: 1.5 },
+      curve: { d: 'M 14 40 C 14 44 21 47 30 47 C 39 47 46 44 46 40', fill: 'none', stroke: base, strokeWidth: 1.5 },
+      label: { text: '', fontSize: 12, fill: base, refX: 0.5, refY: 0.55, textAnchor: 'middle', textVerticalAnchor: 'middle' }
+    }
+  }, true)
+
+  // 文件夹
+  Graph.registerNode('freefolder', {
+    inherit: 'rect',
+    width: 130,
+    height: 80,
+    markup: [
+      { tagName: 'path', selector: 'body', attrs: { d: 'M8 8 h18 l4 6 h22 a3 3 0 0 1 3 3 v13 a3 3 0 0 1 -3 3 H8 a3 3 0 0 1 -3 -3 V11 a3 3 0 0 1 3 -3 Z' } },
+      { tagName: 'text', selector: 'label' }
+    ],
+    attrs: {
+      body: { fill: '#fff', stroke: base, strokeWidth: 1.5, refWidth: '100%', refHeight: '100%', magnet: true },
+      label: { text: '', fontSize: 12, fill: base, refX: 0.5, refY: 0.55, textAnchor: 'middle', textVerticalAnchor: 'middle' }
+    }
+  }, true)
+
+  // 箭头类 (真实图形节点, 非边)
+  Graph.registerNode('freearrow', {
+    inherit: 'rect',
+    width: 150,
+    height: 40,
+    markup: [
+      { tagName: 'line', selector: 'line' },
+      { tagName: 'path', selector: 'head' },
+      { tagName: 'text', selector: 'label' }
+    ],
+    attrs: {
+      line: { x1: 5, y1: 20, x2: 130, y2: 20, stroke: base, strokeWidth: 1.5, refX: 0, refY: 0.5 },
+      head: { d: 'M 128 14 L 140 20 L 128 26 Z', fill: base, stroke: base, strokeWidth: 1 },
+      label: { text: '', fontSize: 12, fill: base, refX: 0.4, refY: 0.6, textAnchor: 'middle', textVerticalAnchor: 'middle' }
+    }
+  }, true)
+  Graph.registerNode('freedashedarrow', {
+    inherit: 'rect',
+    width: 150,
+    height: 40,
+    markup: [
+      { tagName: 'line', selector: 'line' },
+      { tagName: 'path', selector: 'head' },
+      { tagName: 'text', selector: 'label' }
+    ],
+    attrs: {
+      line: { x1: 5, y1: 20, x2: 130, y2: 20, stroke: base, strokeWidth: 1.5, strokeDasharray: '5,4', refX: 0, refY: 0.5 },
+      head: { d: 'M 128 14 L 140 20 L 128 26 Z', fill: base, stroke: base, strokeWidth: 1 },
+      label: { text: '', fontSize: 12, fill: base, refX: 0.4, refY: 0.6, textAnchor: 'middle', textVerticalAnchor: 'middle' }
+    }
+  }, true)
+  Graph.registerNode('freedoublearrow', {
+    inherit: 'rect',
+    width: 150,
+    height: 40,
+    markup: [
+      { tagName: 'line', selector: 'line' },
+      { tagName: 'path', selector: 'lhead' },
+      { tagName: 'path', selector: 'rhead' },
+      { tagName: 'text', selector: 'label' }
+    ],
+    attrs: {
+      line: { x1: 12, y1: 20, x2: 138, y2: 20, stroke: base, strokeWidth: 1.5, refX: 0, refY: 0.5 },
+      lhead: { d: 'M 12 14 L 0 20 L 12 26 Z', fill: base, stroke: base, strokeWidth: 1 },
+      rhead: { d: 'M 138 14 L 150 20 L 138 26 Z', fill: base, stroke: base, strokeWidth: 1 },
+      label: { text: '', fontSize: 12, fill: base, refX: 0.5, refY: 0.6, textAnchor: 'middle', textVerticalAnchor: 'middle' }
+    }
+  }, true)
+  Graph.registerNode('freecurvedarrow', {
+    inherit: 'rect',
+    width: 150,
+    height: 50,
+    markup: [
+      { tagName: 'path', selector: 'path' },
+      { tagName: 'text', selector: 'label' }
+    ],
+    attrs: {
+      path: { d: 'M 10 8 Q 75 42 140 8', fill: 'none', stroke: base, strokeWidth: 1.5 },
+      label: { text: '', fontSize: 12, fill: base, refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle' }
+    }
+  }, true)
+  Graph.registerNode('freeblockarrow', {
+    inherit: 'rect',
+    width: 120,
+    height: 60,
+    markup: [
+      { tagName: 'path', selector: 'body', attrs: { d: 'M 8 15 L 78 15 L 78 5 L 112 30 L 78 55 L 78 45 L 8 45 Z' } },
+      { tagName: 'text', selector: 'label' }
+    ],
+    attrs: {
+      body: { fill: '#fff', stroke: base, strokeWidth: 1.5, refWidth: '100%', refHeight: '100%', magnet: true },
+      label: { text: '', fontSize: 12, fill: base, refX: 0.5, refY: 0.55, textAnchor: 'middle', textVerticalAnchor: 'middle' }
+    }
+  }, true)
+
+  // 文本
   Graph.registerNode('freetext', {
     inherit: 'rect',
     width: 120,
     height: 36,
     attrs: {
       body: { fill: 'none', stroke: 'none' },
-      label: { text: '文本', fontSize: 14, fill: '#333', textVerticalAnchor: 'middle' }
+      label: { text: '', fontSize: 14, fill: base, textVerticalAnchor: 'middle' }
     }
   }, true)
+
+  // 数据库
   Graph.registerNode('freedatabase', {
     inherit: 'rect',
     width: 130,
@@ -277,14 +399,18 @@ function registerShapes() {
     markup: [
       { tagName: 'ellipse', selector: 'top' },
       { tagName: 'rect', selector: 'body' },
+      { tagName: 'path', selector: 'mid' },
       { tagName: 'text', selector: 'label' }
     ],
     attrs: {
-      top: { cx: 0, cy: 0, rx: 18, ry: 9, fill: '#fff', stroke: '#333', strokeWidth: 1.5, refX: 0.5, refY: 0 },
-      body: { refWidth: '100%', refHeight: '100%', fill: '#fff', stroke: '#333', strokeWidth: 1.5 },
-      label: { text: '', fontSize: 13, fill: '#333', refX: 0.5, refY: 0.55, textAnchor: 'middle', textVerticalAnchor: 'middle' }
+      top: { cx: 0, cy: 0, rx: 18, ry: 9, fill: '#fff', stroke: base, strokeWidth: 1.5, refX: 0.5, refY: 0 },
+      body: { refWidth: '100%', refHeight: '100%', fill: '#fff', stroke: base, strokeWidth: 1.5, magnet: true },
+      mid: { d: 'M 10 35 L 120 35', fill: 'none', stroke: base, strokeWidth: 1.5, opacity: 0 },
+      label: { text: '', fontSize: 12, fill: base, refX: 0.5, refY: 0.55, textAnchor: 'middle', textVerticalAnchor: 'middle' }
     }
   }, true)
+
+  // Actor
   Graph.registerNode('freeactor', {
     inherit: 'rect',
     width: 100,
@@ -295,9 +421,11 @@ function registerShapes() {
     ],
     attrs: {
       img: { 'xlink:href': '/xiaoren.svg', width: 40, height: 40, x: 0, y: 0, refX: 0.5, refY: 0.3, xAlign: 'middle', yAlign: 'middle' },
-      label: { text: '', fontSize: 13, fill: '#333', refX: 0.5, refY: 0.75, textAnchor: 'middle', textVerticalAnchor: 'middle' }
+      label: { text: '', fontSize: 13, fill: base, refX: 0.5, refY: 0.75, textAnchor: 'middle', textVerticalAnchor: 'middle' }
     }
   }, true)
+
+  // 类
   Graph.registerNode('freeclass', {
     inherit: 'html',
     width: 180,
@@ -313,19 +441,11 @@ function registerShapes() {
       </div>`
     }
   }, true)
+
+  // 边
   Graph.registerEdge('freeline', {
     inherit: 'edge',
-    attrs: { line: { stroke: '#333333', strokeWidth: 1.5, targetMarker: { name: 'block', size: 8 } } }
-  }, true)
-  Graph.registerEdge('freedoublearrow', {
-    inherit: 'edge',
-    attrs: {
-      line: {
-        stroke: '#333333', strokeWidth: 1.5,
-        sourceMarker: { name: 'block', size: 8 },
-        targetMarker: { name: 'block', size: 8 }
-      }
-    }
+    attrs: { line: { stroke: base, strokeWidth: 1.5, targetMarker: { name: 'block', size: 8 } } }
   }, true)
 }
 
@@ -343,7 +463,12 @@ function nodeSpec(type) {
     cloud: { shape: 'freecloud', w: 130, h: 80 },
     cylinder: { shape: 'freecylinder', w: 110, h: 80 },
     box: { shape: 'freerect', w: 120, h: 60 },
-    start: { shape: 'freestart', w: 60, h: 60 },
+    arrow: { shape: 'freearrow', w: 150, h: 40 },
+    doubleArrow: { shape: 'freedoublearrow', w: 150, h: 40 },
+    dashedArrow: { shape: 'freedashedarrow', w: 150, h: 40 },
+    curvedArrow: { shape: 'freecurvedarrow', w: 150, h: 50 },
+    blockArrow: { shape: 'freeblockarrow', w: 120, h: 60 },
+    start: { shape: 'freecircle', w: 60, h: 60 },
     process: { shape: 'freerect', w: 120, h: 60 },
     decision: { shape: 'freediamond', w: 100, h: 100 },
     preparation: { shape: 'freepreparation', w: 120, h: 80 },
@@ -353,17 +478,13 @@ function nodeSpec(type) {
     entity: { shape: 'freerect', w: 120, h: 60 },
     attribute: { shape: 'freeellipse', w: 130, h: 60 },
     relation: { shape: 'freediamond', w: 100, h: 100 },
-    usecase: { shape: 'freeusecase', w: 150, h: 70 },
+    usecase: { shape: 'freeellipse', w: 150, h: 70 },
     database: { shape: 'freedatabase', w: 130, h: 70 },
     actor: { shape: 'freeactor', w: 100, h: 100 },
     class: { shape: 'freeclass', w: 180, h: 100 },
     folder: { shape: 'freefolder', w: 130, h: 80 }
   }
   return map[type] || { shape: 'freerect', w: 120, h: 60 }
-}
-
-function defaultLabel(type) {
-  return { rect: '矩形', roundRect: '圆角', ellipse: '椭圆', circle: '圆', diamond: '菱形', hexagon: '六边形', triangle: '三角形', text: '文本', document: '文档', cloud: '云', cylinder: '圆柱', box: '方框', start: '开始', process: '处理', decision: '判断', preparation: '准备', terminator: '终止', loop: '循环', note: '注释', entity: '实体', attribute: '属性', relation: '关系', usecase: '用例', database: '数据库', actor: '角色', class: '类', folder: '文件夹' }[type] || '节点'
 }
 
 function buildNode(type, x, y) {
@@ -376,18 +497,19 @@ function buildNode(type, x, y) {
     y: y - spec.h / 2,
     width: spec.w,
     height: spec.h,
-    label: defaultLabel(type),
+    label: '',
     data: { type }
   }
   if (type === 'class') nodeData.data = { name: 'Class', attrs: '- 属性', methods: '+ 方法' }
+  if (type === 'text') nodeData.label = '文本'
   return nodeData
 }
 
 function addNodeAtCenter(c) {
   if (!graph.value) return
-  if (c.type === 'line' || c.type === 'doubleArrow') return
   const pos = graph.value.getGraphAreaCenter ? graph.value.getGraphAreaCenter() : { x: 300, y: 200 }
-  graph.value.addNode(buildNode(c.type, pos.x, pos.y))
+  const count = graph.value.getNodes().length
+  graph.value.addNode(buildNode(c.type, pos.x + (count % 5) * 30, pos.y + (count % 5) * 30))
 }
 
 function onDragStart(e, c) {
@@ -410,9 +532,17 @@ function initGraph() {
     connecting: {
       snap: true,
       allowBlank: false,
+      allowLoop: true,
+      allowNode: true,
+      allowEdge: false,
+      allowPort: true,
       allowMulti: true,
-      router: 'manhattan',
-      connector: 'rounded'
+      highlight: true,
+      router: 'orth',
+      connector: 'rounded',
+      createEdge() {
+        return this.createEdge({ shape: 'freeline' })
+      }
     },
     history: { enabled: true }
   })
@@ -423,45 +553,27 @@ function initGraph() {
     canRedo.value = g.canRedo()
   })
 
+  // 拖拽放置
   containerRef.value.addEventListener('dragover', e => e.preventDefault())
   containerRef.value.addEventListener('drop', e => {
     e.preventDefault()
     const raw = e.dataTransfer.getData('application/x6-node')
     if (!raw) return
     const { type } = JSON.parse(raw)
-    if (type === 'line' || type === 'doubleArrow') return
     const pos = g.clientToLocal(e.clientX, e.clientY)
     g.addNode(buildNode(type, pos.x, pos.y))
   })
 
   // 选择
-  g.on('blank:click', () => { current.value = null })
-  g.on('node:click', ({ node }) => {
-    if (tool.value === 'select') selectNode(node)
-  })
-  g.on('node:selected', ({ node }) => { selectNode(node) })
-
-  // 文本工具: 点击画布加文本
   g.on('blank:click', ({ e }) => {
+    if (tool.value === 'select') current.value = null
     if (tool.value === 'text') {
       const pos = g.clientToLocal(e.clientX, e.clientY)
       g.addNode(buildNode('text', pos.x, pos.y))
     }
   })
-
-  // 连线工具: 点击两个节点
   g.on('node:click', ({ node }) => {
-    if (tool.value === 'edge') {
-      if (!edgeSource) {
-        edgeSource = node
-        ElMessage.info('再点击目标节点连线')
-      } else {
-        if (edgeSource !== node) {
-          g.addEdge({ source: edgeSource.id, target: node.id, shape: 'freeline' })
-        }
-        edgeSource = null
-      }
-    }
+    if (tool.value === 'select') selectNode(node)
   })
 
   // 双击编辑文本
@@ -489,7 +601,6 @@ function initGraph() {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') { e.preventDefault(); paste() }
     if (e.key === 'Delete' || e.key === 'Backspace') { removeCurrent() }
     if (e.key === 'v' || e.key === 'V') { tool.value = 'select' }
-    if (e.key === 't' || e.key === 'T') { tool.value = 'text' }
   }
   document.addEventListener('keydown', keyHandler)
   g.on('dispose', () => document.removeEventListener('keydown', keyHandler))
@@ -644,7 +755,7 @@ async function loadDesign(d) {
       nodeData.id = n.id
       nodeData.width = n.width || nodeData.width
       nodeData.height = n.height || nodeData.height
-      nodeData.label = n.label
+      nodeData.label = n.label || ''
       nodeData.data = { type: n.shape, name: n.label, attrs: n.attrsText, methods: n.methodsText }
       graph.value.addNode(nodeData)
     })

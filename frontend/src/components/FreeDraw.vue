@@ -95,25 +95,26 @@
             </div>
             <div class="prop-field">
               <label>填充色</label>
-              <el-color-picker v-model="currentFill" size="small" @change="applyFill" />
+              <el-color-picker v-if="!isEdgeSel" v-model="currentFill" size="small" @change="applyFill" />
+              <el-tag v-else size="small" type="info">连线无填充</el-tag>
             </div>
             <div class="prop-field">
-              <label>边框色</label>
+              <label>{{ isEdgeSel ? '线条色' : '边框色' }}</label>
               <el-color-picker v-model="currentStroke" size="small" @change="applyStroke" />
             </div>
             <div class="prop-field">
-              <label>边框粗细</label>
+              <label>{{ isEdgeSel ? '线条粗细' : '边框粗细' }}</label>
               <el-input-number v-model="currentStrokeWidth" :min="1" :max="10" size="small" @change="applyStrokeWidth" />
             </div>
-            <div class="prop-field">
+            <div class="prop-field" v-if="!isEdgeSel">
               <label>文字颜色</label>
               <el-color-picker v-model="currentFontColor" size="small" @change="applyFontColor" />
             </div>
-            <div class="prop-field">
+            <div class="prop-field" v-if="!isEdgeSel">
               <label>字号</label>
               <el-input-number v-model="currentFontSize" :min="10" :max="48" size="small" @change="applyFont" />
             </div>
-            <div class="prop-field">
+            <div class="prop-field" v-if="!isEdgeSel">
               <label>层叠</label>
               <div class="stack-row">
                 <el-button size="small" @click="moveToFront">置顶</el-button>
@@ -141,7 +142,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Graph } from '@antv/x6'
@@ -163,6 +164,7 @@ const currentStrokeWidth = ref(1.5)
 const currentFontColor = ref('#333333')
 const currentFontSize = ref(14)
 const myDesigns = ref([])
+const isEdgeSel = computed(() => current.value && current.value.isEdge && current.value.isEdge())
 const canUndo = ref(false)
 const canRedo = ref(false)
 
@@ -487,6 +489,25 @@ function nodeSpec(type) {
   return map[type] || { shape: 'freerect', w: 120, h: 60 }
 }
 
+const portDef = {
+  groups: {
+    top: { position: 'top' },
+    bottom: { position: 'bottom' },
+    left: { position: 'left' },
+    right: { position: 'right' }
+  },
+  items: [
+    { id: 't', group: 'top' },
+    { id: 'b', group: 'bottom' },
+    { id: 'l', group: 'left' },
+    { id: 'r', group: 'right' }
+  ]
+}
+
+function portAttrs() {
+  return JSON.parse(JSON.stringify(portDef))
+}
+
 function buildNode(type, x, y) {
   const spec = nodeSpec(type)
   const id = 'n' + Date.now() + Math.random().toString(36).slice(2, 6)
@@ -498,6 +519,7 @@ function buildNode(type, x, y) {
     width: spec.w,
     height: spec.h,
     label: '',
+    ports: portAttrs(),
     data: { type }
   }
   if (type === 'class') nodeData.data = { name: 'Class', attrs: '- 属性', methods: '+ 方法' }
@@ -529,6 +551,14 @@ function initGraph() {
     autoResize: true,
     selecting: { enabled: true, rubberband: true, multiple: true },
     snapline: true,
+    portMarkup: [
+      { tagName: 'circle', selector: 'portBody' }
+    ],
+    defaultPort: {
+      attrs: {
+        portBody: { r: 5, magnet: true, stroke: '#1a73e8', strokeWidth: 1, fill: '#fff', style: { visibility: 'hidden' } }
+      }
+    },
     connecting: {
       snap: true,
       allowBlank: false,
@@ -575,6 +605,24 @@ function initGraph() {
   g.on('node:click', ({ node }) => {
     if (tool.value === 'select') selectNode(node)
   })
+  // draw.io 风格: 悬停节点显示连接锚点, 离开隐藏
+  g.on('node:mouseenter', ({ node }) => {
+    showPorts(node, true)
+  })
+  g.on('node:mouseleave', ({ node }) => {
+    showPorts(node, false)
+  })
+  // 连接完成: 选中边以展示属性面板
+  g.on('edge:selected', ({ edge }) => {
+    current.value = edge
+    currentStroke.value = edge.attr('line/stroke') || '#333333'
+    currentStrokeWidth.value = edge.attr('line/strokeWidth') || 1.5
+    currentLabel.value = edge.attr('label/text') || ''
+    currentFill.value = ''
+  })
+  g.on('edge:unselected', () => {
+    if (current.value && current.value.isEdge && current.value.isEdge()) current.value = null
+  })
 
   // 双击编辑文本
   g.on('node:dblclick', ({ node }) => {
@@ -606,6 +654,17 @@ function initGraph() {
   g.on('dispose', () => document.removeEventListener('keydown', keyHandler))
 }
 
+function showPorts(node, show) {
+  try {
+    const ports = node.getPorts && node.getPorts()
+    if (!ports || !ports.length) return
+    const v = show ? 'visible' : 'hidden'
+    ports.forEach(p => {
+      node.setPortProp(p.id, 'attrs/portBody/style', { visibility: v })
+    })
+  } catch (e) {}
+}
+
 function selectNode(node) {
   current.value = node
   currentLabel.value = node.attr('label/text') || node.getData()?.name || ''
@@ -628,22 +687,27 @@ function applyLabel() {
 }
 function applyFill() {
   if (!current.value) return
+  if (current.value.isEdge && current.value.isEdge()) return
   current.value.attr('body/fill', currentFill.value)
 }
 function applyStroke() {
   if (!current.value) return
-  current.value.attr('body/stroke', currentStroke.value)
+  const sel = current.value.isEdge && current.value.isEdge() ? 'line' : 'body'
+  current.value.attr(sel + '/stroke', currentStroke.value)
 }
 function applyStrokeWidth() {
   if (!current.value) return
-  current.value.attr('body/strokeWidth', currentStrokeWidth.value)
+  const sel = current.value.isEdge && current.value.isEdge() ? 'line' : 'body'
+  current.value.attr(sel + '/strokeWidth', currentStrokeWidth.value)
 }
 function applyFontColor() {
   if (!current.value) return
+  if (current.value.isEdge && current.value.isEdge()) return
   current.value.attr('label/fill', currentFontColor.value)
 }
 function applyFont() {
   if (!current.value) return
+  if (current.value.isEdge && current.value.isEdge()) return
   current.value.attr('label/fontSize', currentFontSize.value)
 }
 function moveToFront() {

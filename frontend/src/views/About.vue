@@ -334,10 +334,10 @@ const sections = [
   outline: none;
 }
 .nav-btn.prev {
-  left: -12%;
+  left: 6%;
 }
 .nav-btn.next {
-  right: -12%;
+  right: 6%;
 }
 .slideContent {
   width: 30vw;

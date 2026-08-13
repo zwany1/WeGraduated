@@ -128,7 +128,7 @@ function onTilt(e, i) {
 
 const sections = [
   {
-    title: '项目简介',
+    title: '设计初衷',
     image: '/gugugaga.png',
     paragraphs: [
       'Word 排版助手是一套基于规则配置驱动的学术文档排版工具，解决毕业论文排版繁琐、格式不统一的痛点。',
@@ -206,6 +206,7 @@ const sections = [
   transition: transform 250ms cubic-bezier(0.4, 0, 0.2, 1);
   width: 400px;
   position: relative;
+  cursor: pointer;
 }
 .container:after {
   background-color: #f2f2f2;
@@ -362,6 +363,7 @@ const sections = [
   align-content: center;
   transform-style: preserve-3d;
   transform: perspective(1000px) translateX(calc(100% * var(--offset))) rotateY(calc(-45deg * var(--dir)));
+  cursor: pointer;
 }
 .slideContentInner {
   transform-style: preserve-3d;
@@ -446,6 +448,7 @@ const sections = [
   transform: perspective(2000px);
   box-shadow: inset 300px 0 50px rgba(0,0,0,.5), 20px 0 60px rgba(0,0,0,.5);
   transition: 1s;
+  cursor: pointer;
 }
 .flip-card:hover {
   transform: perspective(2000px) rotate(15deg) scale(1.2);

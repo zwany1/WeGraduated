@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 // 无需登录即可访问的白名单页面
 const PUBLIC_PAGES = [
+  '/', '/home',
   '/login', '/register', '/forgot-password',
   '/features', '/template-market', '/guide', '/cases', '/pricing',
   '/privacy', '/about', '/terms'

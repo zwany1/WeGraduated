@@ -4,7 +4,6 @@
       <div class="brand">
         <el-button text @click="goBack">‹ 返回</el-button>
         <span>自由绘画</span>
-<!--        <span class="brand-sub">draw.io 风格自由画板</span>-->
       </div>
     </header>
 

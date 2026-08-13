@@ -4,81 +4,141 @@
       <div class="brand">
         <el-button text @click="goBack">‹ 返回</el-button>
         <span>自由绘画</span>
-        <span class="brand-sub">自由画板 · UML 设计工具</span>
+<!--        <span class="brand-sub">draw.io 风格自由画板</span>-->
       </div>
     </header>
 
     <div class="free-draw">
-      <!-- 工具栏 -->
+      <!-- 顶部工具栏 -->
       <div class="toolbar">
-        <el-button size="small" :type="tool === 'select' ? 'primary' : ''" @click="tool = 'select'">选择</el-button>
-        <el-button size="small" :type="tool === 'edge' ? 'primary' : ''" @click="tool = 'edge'">连线</el-button>
-        <el-divider direction="vertical" />
-        <el-button size="small" :disabled="!graph" @click="clearAll">清空</el-button>
-        <el-button size="small" :disabled="!graph" @click="save">保存</el-button>
-        <el-button size="small" type="primary" plain :disabled="!graph" @click="downloadPng">导出 PNG</el-button>
+        <button class="tb-btn" :class="{ active: tool === 'select' }" title="选择 (V)" @click="tool = 'select'">↖</button>
+        <button class="tb-btn" :class="{ active: tool === 'text' }" title="文本 (T)" @click="tool = 'text'">T</button>
+        <button class="tb-btn" :class="{ active: tool === 'edge' }" title="连线" @click="tool = 'edge'">╱</button>
+        <span class="tb-sep"></span>
+        <button class="tb-btn" :disabled="!canUndo" title="撤销 (Ctrl+Z)" @click="undo">↩</button>
+        <button class="tb-btn" :disabled="!canRedo" title="重做 (Ctrl+Y)" @click="redo">↪</button>
+        <button class="tb-btn" title="复制 (Ctrl+C)" @click="copySel">⧉</button>
+        <button class="tb-btn" title="粘贴 (Ctrl+V)" @click="paste">📋</button>
+        <button class="tb-btn" title="删除 (Delete)" @click="removeCurrent">✕</button>
+        <span class="tb-sep"></span>
+        <button class="tb-btn" title="放大 (Ctrl++)" @click="zoomIn">＋</button>
+        <button class="tb-btn" title="缩小 (Ctrl+-)" @click="zoomOut">－</button>
+        <button class="tb-btn" title="适应画布" @click="zoomToFit">⤢</button>
+        <span class="tb-sep"></span>
+        <button class="tb-btn" title="清空" @click="clearAll">🗑</button>
+        <span class="tb-sep"></span>
+        <button class="tb-btn tb-primary" @click="save">保存</button>
+        <button class="tb-btn tb-outline" @click="downloadPng">导出 PNG</button>
       </div>
 
-    <div class="editor-body">
-      <!-- 左侧组件库 -->
-      <aside class="palette">
-        <div class="palette-title">组件库</div>
-        <div class="palette-item" v-for="c in catalog" :key="c.type" draggable="true" @dragstart="onDragStart($event, c)" @click="addNodeAtCenter(c)">
-          <div class="palette-icon" :style="{ color: c.color }">
-            <svg v-if="c.type === 'rect'" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="12" rx="2"/></svg>
-            <svg v-else-if="c.type === 'ellipse'" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="9" ry="6"/></svg>
-            <svg v-else-if="c.type === 'class'" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="6"/><line x1="4" y1="12" x2="20" y2="12"/><rect x="4" y="12" width="16" height="4"/><line x1="4" y1="19" x2="20" y2="19"/></svg>
-            <svg v-else-if="c.type === 'database'" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>
-            <svg v-else-if="c.type === 'actor'" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="6" r="3"/><path d="M5 21c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg>
-            <svg v-else-if="c.type === 'start'" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><circle cx="12" cy="12" r="7"/></svg>
-            <svg v-else-if="c.type === 'end'" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="4" fill="currentColor"/></svg>
-            <svg v-else-if="c.type === 'decision'" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l9 9-9 9-9-9z"/></svg>
-            <svg v-else viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="12" rx="2"/></svg>
+      <div class="editor-body">
+        <!-- 左侧图形库 -->
+        <aside class="palette">
+          <div v-for="group in shapeGroups" :key="group.name" class="palette-group">
+            <div class="palette-title">{{ group.name }}</div>
+            <div class="palette-grid">
+              <div class="palette-item" v-for="c in group.items" :key="c.type" draggable="true" @dragstart="onDragStart($event, c)" @click="addNodeAtCenter(c)" :title="c.label">
+                <svg viewBox="0 0 60 40" width="56" height="36">
+                  <g v-if="c.type === 'rect'"><rect x="4" y="6" width="52" height="28" rx="2" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'roundRect'"><rect x="4" y="6" width="52" height="28" rx="8" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'ellipse'"><ellipse cx="30" cy="20" rx="26" ry="14" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'circle'"><circle cx="30" cy="20" r="14" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'diamond'"><path d="M30 6 L52 20 L30 34 L8 20 Z" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'hexagon'"><path d="M14 6 L46 6 L56 20 L46 34 L14 34 L4 20 Z" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'triangle'"><path d="M30 6 L54 34 L6 34 Z" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'text'"><text x="30" y="24" text-anchor="middle" font-size="12" fill="#333">Text</text></g>
+                  <g v-else-if="c.type === 'line'"><line x1="6" y1="30" x2="54" y2="10" stroke="#333" stroke-width="1.5"/><path d="M50 8 l6 1 l-3 5 Z" fill="#333"/></g>
+                  <g v-else-if="c.type === 'doubleArrow'"><line x1="10" y1="20" x2="50" y2="20" stroke="#333" stroke-width="1.5"/><path d="M8 17 l4 3 l-4 3 Z" fill="#333"/><path d="M52 17 l-4 3 l4 3 Z" fill="#333"/></g>
+                  <g v-else-if="c.type === 'process'"><rect x="4" y="6" width="52" height="28" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'start'"><circle cx="30" cy="20" r="14" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'end'"><circle cx="30" cy="20" r="14" fill="#fff" stroke="#333" stroke-width="1.5"/><circle cx="30" cy="20" r="8" fill="#333"/></g>
+                  <g v-else-if="c.type === 'decision'"><path d="M30 6 L52 20 L30 34 L8 20 Z" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'document'"><path d="M8 6 h44 v22 c0 3 -5 6 -11 6 s-11 -3 -11 -6 s5 -6 11 -6 c4 0 8 1 11 3 V6 Z" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'database'"><ellipse cx="30" cy="10" rx="22" ry="6" fill="#fff" stroke="#333" stroke-width="1.5"/><path d="M8 10v20c0 3.3 9.8 6 22 6s22-2.7 22-6V10" fill="#fff" stroke="#333" stroke-width="1.5"/><path d="M8 20c0 3.3 9.8 6 22 6s22-2.7 22-6" fill="none" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'cloud'"><path d="M18 30 a12 12 0 0 1 0-24 h6 a10 10 0 0 1 19 4 a9 9 0 0 1 0 20 Z" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'actor'"><circle cx="30" cy="12" r="6" fill="#fff" stroke="#333" stroke-width="1.5"/><line x1="30" y1="18" x2="30" y2="30" stroke="#333" stroke-width="1.5"/><line x1="22" y1="24" x2="38" y2="24" stroke="#333" stroke-width="1.5"/><line x1="30" y1="30" x2="24" y2="36" stroke="#333" stroke-width="1.5"/><line x1="30" y1="30" x2="36" y2="36" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'class'"><rect x="4" y="4" width="52" height="12" rx="1" fill="#fff" stroke="#333" stroke-width="1.5"/><rect x="4" y="16" width="52" height="8" fill="#fff" stroke="#333" stroke-width="1.5"/><rect x="4" y="24" width="52" height="8" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'note'"><path d="M46 4 H14 a3 3 0 0 0 -3 3 v20 a3 3 0 0 0 3 3 h12 l8 6 v-6 h12 a3 3 0 0 0 3 -3 V7 a3 3 0 0 0 -3 -3 Z" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'usecase'"><ellipse cx="30" cy="20" rx="24" ry="13" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'entity'"><rect x="8" y="10" width="44" height="20" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'attribute'"><ellipse cx="30" cy="20" rx="20" ry="11" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'relation'"><path d="M30 6 L52 20 L30 34 L8 20 Z" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'arrow'"><line x1="6" y1="20" x2="50" y2="20" stroke="#333" stroke-width="1.5"/><path d="M46 15 l6 5 l-6 5 Z" fill="#333"/></g>
+                  <g v-else-if="c.type === 'dashedArrow'"><line x1="6" y1="20" x2="50" y2="20" stroke="#333" stroke-width="1.5" stroke-dasharray="4,3"/><path d="M46 15 l6 5 l-6 5 Z" fill="#333"/></g>
+                  <g v-else-if="c.type === 'curvedArrow'"><path d="M10 10 Q30 34 50 10" fill="none" stroke="#333" stroke-width="1.5"/><path d="M46 7 l6 2 l-4 5 Z" fill="#333"/></g>
+                  <g v-else-if="c.type === 'blockArrow'"><path d="M6 14 h30 v-6 l18 12 l-18 12 v-6 h-30 Z" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'folder'"><path d="M8 8 h18 l4 6 h22 a3 3 0 0 1 3 3 v13 a3 3 0 0 1 -3 3 H8 a3 3 0 0 1 -3 -3 V11 a3 3 0 0 1 3 -3 Z" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'cylinder'"><ellipse cx="30" cy="10" rx="20" ry="6" fill="#fff" stroke="#333" stroke-width="1.5"/><path d="M10 10v18c0 3.3 9 6 20 6s20-2.7 20-6V10" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'box'"><rect x="6" y="6" width="48" height="28" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'preparation'"><path d="M20 6 L50 20 L20 34 L10 20 Z" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'terminator'"><rect x="6" y="10" width="48" height="20" rx="10" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="c.type === 'loop'"><path d="M14 8 h32 c5 0 9 4 9 10 v4 c0 6 -4 10 -9 10 H20 c-5 0 -9 -4 -9 -10 V10 c0 -2 1 -2 3 -2 Z" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                </svg>
+              </div>
+            </div>
           </div>
-          <span>{{ c.label }}</span>
-        </div>
-        <div class="palette-tip">拖拽到画布或点击添加</div>
-      </aside>
 
-      <!-- 中间画布 -->
-      <div class="canvas-area">
-        <div ref="containerRef" class="x6-container"></div>
-        <div v-if="!graph" class="canvas-loading">画布初始化中...</div>
+          <div class="palette-tip">拖拽到画布或点击添加</div>
+        </aside>
+
+        <!-- 中间画布 -->
+        <div class="canvas-area">
+          <div ref="containerRef" class="x6-container"></div>
+          <div v-if="!graph" class="canvas-loading">画布初始化中...</div>
+          <div class="canvas-zoom-tip">Ctrl + 滚轮缩放 · 空格拖动平移</div>
+        </div>
+
+        <!-- 右侧格式面板 -->
+        <aside class="props">
+          <div class="props-title">格式</div>
+          <template v-if="current">
+            <div class="prop-field">
+              <label>文本</label>
+              <el-input v-model="currentLabel" size="small" @change="applyLabel" />
+            </div>
+            <div class="prop-field">
+              <label>填充色</label>
+              <el-color-picker v-model="currentFill" size="small" @change="applyFill" />
+            </div>
+            <div class="prop-field">
+              <label>边框色</label>
+              <el-color-picker v-model="currentStroke" size="small" @change="applyStroke" />
+            </div>
+            <div class="prop-field">
+              <label>边框粗细</label>
+              <el-input-number v-model="currentStrokeWidth" :min="1" :max="10" size="small" @change="applyStrokeWidth" />
+            </div>
+            <div class="prop-field">
+              <label>文字颜色</label>
+              <el-color-picker v-model="currentFontColor" size="small" @change="applyFontColor" />
+            </div>
+            <div class="prop-field">
+              <label>字号</label>
+              <el-input-number v-model="currentFontSize" :min="10" :max="48" size="small" @change="applyFont" />
+            </div>
+            <div class="prop-field">
+              <label>层叠</label>
+              <div class="stack-row">
+                <el-button size="small" @click="moveToFront">置顶</el-button>
+                <el-button size="small" @click="moveToBack">置底</el-button>
+              </div>
+            </div>
+            <div class="prop-field">
+              <el-button size="small" type="danger" plain @click="removeCurrent">删除</el-button>
+            </div>
+          </template>
+          <div v-else class="props-empty">选中节点后<br />可编辑格式</div>
+
+          <div class="props-title" style="margin-top: 16px">我的设计</div>
+          <div class="save-list">
+            <div v-for="d in myDesigns" :key="d.id" class="save-item">
+              <span class="save-name" @click="loadDesign(d)">{{ d.name }}</span>
+              <el-button size="small" text type="danger" @click="delDesign(d)">×</el-button>
+            </div>
+            <div v-if="!myDesigns.length" class="props-empty">暂无保存</div>
+          </div>
+        </aside>
       </div>
-
-      <!-- 右侧属性面板 -->
-      <aside class="props">
-        <div class="props-title">属性</div>
-        <template v-if="current">
-          <div class="prop-field">
-            <label>名称</label>
-            <el-input v-model="currentLabel" size="small" @change="applyLabel" />
-          </div>
-          <div class="prop-field">
-            <label>颜色</label>
-            <el-color-picker v-model="currentColor" size="small" @change="applyColor" />
-          </div>
-          <div class="prop-field">
-            <label>字号</label>
-            <el-input-number v-model="currentFontSize" :min="10" :max="32" size="small" @change="applyFont" />
-          </div>
-          <div class="prop-field">
-            <el-button size="small" type="danger" plain @click="removeCurrent">删除节点</el-button>
-          </div>
-        </template>
-        <div v-else class="props-empty">
-          选中节点后<br />可编辑属性
-        </div>
-        <div class="props-title" style="margin-top: 16px">我的设计</div>
-        <div class="save-list">
-          <div v-for="d in myDesigns" :key="d.id" class="save-item">
-            <span class="save-name" @click="loadDesign(d)">{{ d.name }}</span>
-            <el-button size="small" text type="danger" @click="delDesign(d)">×</el-button>
-          </div>
-          <div v-if="!myDesigns.length" class="props-empty">暂无保存</div>
-        </div>
-      </aside>
-    </div>
     </div>
   </div>
 </template>
@@ -86,7 +146,7 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Graph } from '@antv/x6'
 import { saveDiagram, listDiagrams, loadDiagram, deleteDiagram } from '../api/diagram'
 
@@ -100,38 +160,115 @@ const graph = ref(null)
 const tool = ref('select')
 const current = ref(null)
 const currentLabel = ref('')
-const currentColor = ref('')
+const currentFill = ref('#ffffff')
+const currentStroke = ref('#333333')
+const currentStrokeWidth = ref(1.5)
+const currentFontColor = ref('#333333')
 const currentFontSize = ref(14)
 const myDesigns = ref([])
+const canUndo = ref(false)
+const canRedo = ref(false)
 
-const catalog = [
-  { type: 'rect', label: '矩形', color: '#3B6BFF' },
-  { type: 'ellipse', label: '椭圆', color: '#10b981' },
-  { type: 'class', label: '类', color: '#7c3aed' },
-  { type: 'database', label: '数据库', color: '#f59e0b' },
-  { type: 'actor', label: '角色', color: '#0ea5e9' },
-  { type: 'start', label: '开始', color: '#10b981' },
-  { type: 'end', label: '结束', color: '#ef4444' },
-  { type: 'decision', label: '判断', color: '#f59e0b' }
+let clipboard = null
+let edgeSource = null
+
+const shapeGroups = [
+  {
+    name: '基本形状',
+    items: [
+      { type: 'rect', label: '矩形' },
+      { type: 'roundRect', label: '圆角矩形' },
+      { type: 'ellipse', label: '椭圆' },
+      { type: 'circle', label: '圆' },
+      { type: 'diamond', label: '菱形' },
+      { type: 'hexagon', label: '六边形' },
+      { type: 'triangle', label: '三角形' },
+      { type: 'text', label: '文本' },
+      { type: 'document', label: '文档' },
+      { type: 'cloud', label: '云' },
+      { type: 'cylinder', label: '圆柱' },
+      { type: 'box', label: '方框' }
+    ]
+  },
+  {
+    name: '箭头',
+    items: [
+      { type: 'arrow', label: '箭头' },
+      { type: 'doubleArrow', label: '双向箭头' },
+      { type: 'line', label: '折线箭头' },
+      { type: 'dashedArrow', label: '虚线箭头' },
+      { type: 'curvedArrow', label: '曲线箭头' },
+      { type: 'blockArrow', label: '块箭头' }
+    ]
+  },
+  {
+    name: '流程图',
+    items: [
+      { type: 'start', label: '开始/结束' },
+      { type: 'process', label: '处理' },
+      { type: 'decision', label: '判断' },
+      { type: 'preparation', label: '准备' },
+      { type: 'terminator', label: '终止' },
+      { type: 'loop', label: '循环' },
+      { type: 'note', label: '注释' }
+    ]
+  },
+  {
+    name: '实体关系',
+    items: [
+      { type: 'entity', label: '实体' },
+      { type: 'attribute', label: '属性' },
+      { type: 'relation', label: '关系' }
+    ]
+  },
+  {
+    name: 'UML',
+    items: [
+      { type: 'class', label: '类' },
+      { type: 'actor', label: '角色' },
+      { type: 'usecase', label: '用例' },
+      { type: 'database', label: '数据库' }
+    ]
+  },
+  {
+    name: '高级',
+    items: [
+      { type: 'folder', label: '文件夹' },
+      { type: 'hexagon', label: '六边形' },
+      { type: 'box', label: '方框' }
+    ]
+  }
 ]
 
 function registerShapes() {
-  Graph.registerNode('freerect', {
+  const base = '#333333'
+  const shapes = {
+    freerect: { inherit: 'rect', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, rx: 2 }, label: { fontSize: 14, fill: base } } },
+    freeroundrect: { inherit: 'rect', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, rx: 8 }, label: { fontSize: 14, fill: base } } },
+    freeellipse: { inherit: 'ellipse', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5 }, label: { fontSize: 14, fill: base } } },
+    freecircle: { inherit: 'circle', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5 }, label: { fontSize: 14, fill: base } } },
+    freediamond: { inherit: 'polygon', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, points: '50,0 100,50 50,100 0,50' }, label: { fontSize: 13, fill: base } } },
+    freehexagon: { inherit: 'polygon', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, points: '25,0 75,0 100,50 75,100 25,100 0,50' }, label: { fontSize: 13, fill: base } } },
+    freetriangle: { inherit: 'polygon', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, points: '50,0 100,100 0,100' }, label: { fontSize: 13, fill: base } } },
+    freepreparation: { inherit: 'polygon', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, points: '30,0 100,50 30,100 0,50' }, label: { fontSize: 13, fill: base } } },
+    freeterminator: { inherit: 'rect', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, rx: 25 }, label: { fontSize: 14, fill: base } } },
+    freeloop: { inherit: 'rect', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, rx: 8 }, label: { fontSize: 13, fill: base } } },
+    freenote: { inherit: 'rect', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, rx: 3 }, label: { fontSize: 13, fill: base } } },
+    freeusecase: { inherit: 'ellipse', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5 }, label: { fontSize: 14, fill: base } } },
+    freedocument: { inherit: 'rect', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, rx: 4 }, label: { fontSize: 13, fill: base } } },
+    freecloud: { inherit: 'ellipse', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5 }, label: { fontSize: 13, fill: base } } },
+    freecylinder: { inherit: 'rect', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5 }, label: { fontSize: 13, fill: base } } },
+    freefolder: { inherit: 'rect', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5, rx: 3 }, label: { fontSize: 13, fill: base } } },
+    freestart: { inherit: 'circle', attrs: { body: { fill: '#fff', stroke: base, strokeWidth: 1.5 }, label: { fontSize: 12, fill: base } } }
+  }
+  Object.entries(shapes).forEach(([name, cfg]) => Graph.registerNode(name, { ...cfg, width: 120, height: 60 }, true))
+  Graph.registerNode('freetext', {
     inherit: 'rect',
     width: 120,
-    height: 60,
+    height: 36,
     attrs: {
-      body: { fill: '#fff', stroke: '#3B6BFF', strokeWidth: 1.5, rx: 6 },
-      label: { text: '', fontSize: 14, fill: '#333' }
-    }
-  }, true)
-  Graph.registerNode('freeellipse', {
-    inherit: 'ellipse',
-    width: 140,
-    height: 70,
-    attrs: {
-      body: { fill: '#fff', stroke: '#10b981', strokeWidth: 1.5 },
-      label: { text: '', fontSize: 14, fill: '#333' }
+      body: { fill: 'none', stroke: 'none' },
+      label: { text: '文本', fontSize: 14, fill: '#333', textVerticalAnchor: 'middle' }
     }
   }, true)
   Graph.registerNode('freedatabase', {
@@ -144,8 +281,8 @@ function registerShapes() {
       { tagName: 'text', selector: 'label' }
     ],
     attrs: {
-      top: { cx: 0, cy: 0, rx: 18, ry: 9, fill: '#fff', stroke: '#f59e0b', strokeWidth: 1.5, refX: 0.5, refY: 0 },
-      body: { refWidth: '100%', refHeight: '100%', fill: '#fff', stroke: '#f59e0b', strokeWidth: 1.5 },
+      top: { cx: 0, cy: 0, rx: 18, ry: 9, fill: '#fff', stroke: '#333', strokeWidth: 1.5, refX: 0.5, refY: 0 },
+      body: { refWidth: '100%', refHeight: '100%', fill: '#fff', stroke: '#333', strokeWidth: 1.5 },
       label: { text: '', fontSize: 13, fill: '#333', refX: 0.5, refY: 0.55, textAnchor: 'middle', textVerticalAnchor: 'middle' }
     }
   }, true)
@@ -158,17 +295,7 @@ function registerShapes() {
       { tagName: 'text', selector: 'label' }
     ],
     attrs: {
-      img: {
-        'xlink:href': '/xiaoren.svg',
-        width: 40,
-        height: 40,
-        x: 0,
-        y: 0,
-        refX: 0.5,
-        refY: 0.3,
-        xAlign: 'middle',
-        yAlign: 'middle'
-      },
+      img: { 'xlink:href': '/xiaoren.svg', width: 40, height: 40, x: 0, y: 0, refX: 0.5, refY: 0.3, xAlign: 'middle', yAlign: 'middle' },
       label: { text: '', fontSize: 13, fill: '#333', refX: 0.5, refY: 0.75, textAnchor: 'middle', textVerticalAnchor: 'middle' }
     }
   }, true)
@@ -179,129 +306,151 @@ function registerShapes() {
     html(cell) {
       const data = cell.getData() || {}
       const esc = s => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      const name = esc(data.name || 'Class')
-      const attrs = esc(data.attrs || '-')
-      const methods = esc(data.methods || '-')
-      return `<div style="width:100%;height:100%;display:flex;flex-direction:column;box-sizing:border-box;background:#fff;border:1.5px solid #7c3aed;overflow:hidden">
-        <div style="text-align:center;font-weight:bold;font-size:14px;padding:6px 8px;border-bottom:1.5px solid #7c3aed;background:#f5f3ff;color:#333">${name}</div>
-        <div style="padding:4px 10px;font-size:12px;color:#333;line-height:1.6;white-space:pre-wrap;flex:1">${attrs}</div>
+      return `<div style="width:100%;height:100%;display:flex;flex-direction:column;box-sizing:border-box;background:#fff;border:1.5px solid #333;overflow:hidden">
+        <div style="text-align:center;font-weight:bold;font-size:14px;padding:6px 8px;border-bottom:1.5px solid #333;background:#fafafa;color:#333">${esc(data.name || 'Class')}</div>
+        <div style="padding:4px 10px;font-size:12px;color:#333;line-height:1.6;white-space:pre-wrap;flex:1">${esc(data.attrs || '- 属性')}</div>
         <div style="border-top:1px solid #999"></div>
-        <div style="padding:4px 10px;font-size:12px;color:#333;line-height:1.6;white-space:pre-wrap">${methods}</div>
+        <div style="padding:4px 10px;font-size:12px;color:#333;line-height:1.6;white-space:pre-wrap">${esc(data.methods || '+ 方法')}</div>
       </div>`
+    }
+  }, true)
+  Graph.registerEdge('freeline', {
+    inherit: 'edge',
+    attrs: { line: { stroke: '#333333', strokeWidth: 1.5, targetMarker: { name: 'block', size: 8 } } }
+  }, true)
+  Graph.registerEdge('freedoublearrow', {
+    inherit: 'edge',
+    attrs: {
+      line: {
+        stroke: '#333333', strokeWidth: 1.5,
+        sourceMarker: { name: 'block', size: 8 },
+        targetMarker: { name: 'block', size: 8 }
+      }
     }
   }, true)
 }
 
 function nodeSpec(type) {
-  switch (type) {
-    case 'rect': return { shape: 'freerect', w: 120, h: 60 }
-    case 'ellipse': return { shape: 'freeellipse', w: 140, h: 70 }
-    case 'database': return { shape: 'freedatabase', w: 130, h: 70 }
-    case 'actor': return { shape: 'freeactor', w: 100, h: 100 }
-    case 'class': return { shape: 'freeclass', w: 180, h: 100 }
-    case 'start': return { shape: 'circle', w: 40, h: 40, label: '' }
-    case 'end': return { shape: 'circle', w: 40, h: 40, label: '' }
-    case 'decision': return { shape: 'polygon', w: 100, h: 70, points: '50,0 100,35 50,70 0,35' }
-    default: return { shape: 'rect', w: 120, h: 60 }
+  const map = {
+    rect: { shape: 'freerect', w: 120, h: 60 },
+    roundRect: { shape: 'freeroundrect', w: 120, h: 60 },
+    ellipse: { shape: 'freeellipse', w: 140, h: 70 },
+    circle: { shape: 'freecircle', w: 80, h: 80 },
+    diamond: { shape: 'freediamond', w: 100, h: 100 },
+    hexagon: { shape: 'freehexagon', w: 110, h: 90 },
+    triangle: { shape: 'freetriangle', w: 100, h: 80 },
+    text: { shape: 'freetext', w: 120, h: 36 },
+    document: { shape: 'freedocument', w: 110, h: 80 },
+    cloud: { shape: 'freecloud', w: 130, h: 80 },
+    cylinder: { shape: 'freecylinder', w: 110, h: 80 },
+    box: { shape: 'freerect', w: 120, h: 60 },
+    start: { shape: 'freestart', w: 60, h: 60 },
+    process: { shape: 'freerect', w: 120, h: 60 },
+    decision: { shape: 'freediamond', w: 100, h: 100 },
+    preparation: { shape: 'freepreparation', w: 120, h: 80 },
+    terminator: { shape: 'freeterminator', w: 130, h: 60 },
+    loop: { shape: 'freeloop', w: 130, h: 70 },
+    note: { shape: 'freenote', w: 160, h: 90 },
+    entity: { shape: 'freerect', w: 120, h: 60 },
+    attribute: { shape: 'freeellipse', w: 130, h: 60 },
+    relation: { shape: 'freediamond', w: 100, h: 100 },
+    usecase: { shape: 'freeusecase', w: 150, h: 70 },
+    database: { shape: 'freedatabase', w: 130, h: 70 },
+    actor: { shape: 'freeactor', w: 100, h: 100 },
+    class: { shape: 'freeclass', w: 180, h: 100 },
+    folder: { shape: 'freefolder', w: 130, h: 80 }
   }
+  return map[type] || { shape: 'freerect', w: 120, h: 60 }
 }
 
 function defaultLabel(type) {
-  return { rect: '节点', ellipse: '椭圆', database: '数据库', actor: '角色', class: '类', start: '开始', end: '结束', decision: '判断' }[type] || '节点'
+  return { rect: '矩形', roundRect: '圆角', ellipse: '椭圆', circle: '圆', diamond: '菱形', hexagon: '六边形', triangle: '三角形', text: '文本', document: '文档', cloud: '云', cylinder: '圆柱', box: '方框', start: '开始', process: '处理', decision: '判断', preparation: '准备', terminator: '终止', loop: '循环', note: '注释', entity: '实体', attribute: '属性', relation: '关系', usecase: '用例', database: '数据库', actor: '角色', class: '类', folder: '文件夹' }[type] || '节点'
+}
+
+function buildNode(type, x, y) {
+  const spec = nodeSpec(type)
+  const id = 'n' + Date.now() + Math.random().toString(36).slice(2, 6)
+  const nodeData = {
+    id,
+    shape: spec.shape,
+    x: x - spec.w / 2,
+    y: y - spec.h / 2,
+    width: spec.w,
+    height: spec.h,
+    label: defaultLabel(type),
+    data: { type }
+  }
+  if (type === 'class') nodeData.data = { name: 'Class', attrs: '- 属性', methods: '+ 方法' }
+  return nodeData
 }
 
 function addNodeAtCenter(c) {
   if (!graph.value) return
-  const spec = nodeSpec(c.type)
-  const id = 'n' + Date.now()
+  if (c.type === 'line' || c.type === 'doubleArrow') return
   const pos = graph.value.getGraphAreaCenter ? graph.value.getGraphAreaCenter() : { x: 300, y: 200 }
-  const nodeData = {
-    id,
-    shape: spec.shape,
-    x: pos.x - spec.w / 2,
-    y: pos.y - spec.h / 2,
-    width: spec.w,
-    height: spec.h,
-    label: c.label || defaultLabel(c.type),
-    data: { type: c.type }
-  }
-  if (c.type === 'start') nodeData.attrs = { body: { fill: '#10b981', stroke: '#10b981' } }
-  if (c.type === 'end') nodeData.attrs = { body: { fill: '#ef4444', stroke: '#ef4444' } }
-  if (c.type === 'class') nodeData.data = { name: 'Class', attrs: '- 属性', methods: '+ 方法' }
-  graph.value.addNode(nodeData)
+  graph.value.addNode(buildNode(c.type, pos.x, pos.y))
 }
 
 function onDragStart(e, c) {
-  e.dataTransfer.setData('application/x6-node', JSON.stringify({ catalogType: c.type }))
+  e.dataTransfer.setData('application/x6-node', JSON.stringify({ type: c.type }))
 }
 
 function initGraph() {
   registerShapes()
   const g = new Graph({
     container: containerRef.value,
-    width: containerRef.value.clientWidth || 800,
+    width: containerRef.value.clientWidth || 900,
     height: containerRef.value.clientHeight || 600,
-    background: { color: '#fafbfc' },
-    grid: { size: 10, visible: true },
-    panning: true,
+    background: { color: '#ffffff' },
+    grid: { size: 10, visible: true, type: 'dot', args: { color: '#dcdcdc' } },
+    panning: { enabled: true, eventTypes: ['leftMouseDown'] },
     mousewheel: { enabled: true, modifiers: ['ctrl'] },
     autoResize: true,
+    selecting: { enabled: true, rubberband: true, multiple: true },
+    snapline: true,
     connecting: {
-      router: 'manhattan',
-      connector: 'rounded',
       snap: true,
       allowBlank: false,
-      allowMulti: true
+      allowMulti: true,
+      router: 'manhattan',
+      connector: 'rounded'
     },
-    snapline: true,
-    highlighting: true
+    history: { enabled: true }
   })
   graph.value = g
 
-  // 画布点击放置(拖动组件到画布)
+  g.on('history:change', () => {
+    canUndo.value = g.canUndo()
+    canRedo.value = g.canRedo()
+  })
+
   containerRef.value.addEventListener('dragover', e => e.preventDefault())
   containerRef.value.addEventListener('drop', e => {
     e.preventDefault()
     const raw = e.dataTransfer.getData('application/x6-node')
     if (!raw) return
-    const { catalogType } = JSON.parse(raw)
-    const c = catalog.find(x => x.type === catalogType)
-    if (!c) return
-    const spec = nodeSpec(c.type)
+    const { type } = JSON.parse(raw)
+    if (type === 'line' || type === 'doubleArrow') return
     const pos = g.clientToLocal(e.clientX, e.clientY)
-    const id = 'n' + Date.now()
-    const nodeData = {
-      id,
-      shape: spec.shape,
-      x: pos.x - spec.w / 2,
-      y: pos.y - spec.h / 2,
-      width: spec.w,
-      height: spec.h,
-      label: c.label || defaultLabel(c.type),
-      data: { type: c.type }
-    }
-    if (c.type === 'start') nodeData.attrs = { body: { fill: '#10b981', stroke: '#10b981' } }
-    if (c.type === 'end') nodeData.attrs = { body: { fill: '#ef4444', stroke: '#ef4444' } }
-    if (c.type === 'class') nodeData.data = { name: 'Class', attrs: '- 属性', methods: '+ 方法' }
-    g.addNode(nodeData)
+    g.addNode(buildNode(type, pos.x, pos.y))
   })
 
-  // 连线工具
-  g.on('blank:click', () => {
-    if (tool.value === 'select') current.value = null
-  })
+  // 选择
+  g.on('blank:click', () => { current.value = null })
   g.on('node:click', ({ node }) => {
-    if (tool.value === 'select') {
-      current.value = node
-      currentLabel.value = node.attr('label/text') || node.getData()?.name || ''
-      currentFontSize.value = node.attr('label/fontSize') || 14
-      const bodyFill = node.attr('body/fill')
-      currentColor.value = bodyFill && bodyFill !== '#fff' ? bodyFill : '#3B6BFF'
+    if (tool.value === 'select') selectNode(node)
+  })
+  g.on('node:selected', ({ node }) => { selectNode(node) })
+
+  // 文本工具: 点击画布加文本
+  g.on('blank:click', ({ e }) => {
+    if (tool.value === 'text') {
+      const pos = g.clientToLocal(e.clientX, e.clientY)
+      g.addNode(buildNode('text', pos.x, pos.y))
     }
   })
-  g.on('node:change:position', () => {})
-  // 连线模式: 点击两个节点连线
-  let edgeSource = null
+
+  // 连线工具: 点击两个节点
   g.on('node:click', ({ node }) => {
     if (tool.value === 'edge') {
       if (!edgeSource) {
@@ -309,12 +458,52 @@ function initGraph() {
         ElMessage.info('再点击目标节点连线')
       } else {
         if (edgeSource !== node) {
-          g.addEdge({ source: edgeSource.id, target: node.id, attrs: { line: { stroke: '#333', strokeWidth: 1.5 } } })
+          g.addEdge({ source: edgeSource.id, target: node.id, shape: 'freeline' })
         }
         edgeSource = null
       }
     }
   })
+
+  // 双击编辑文本
+  g.on('node:dblclick', ({ node }) => {
+    selectNode(node)
+    const label = node.attr('label/text')
+    ElMessageBox.prompt('编辑文本', '文本', { inputValue: label || '', confirmButtonText: '确定', cancelButtonText: '取消' })
+      .then(({ value }) => {
+        if (node.shape === 'freeclass') {
+          const d = node.getData() || {}
+          d.name = value
+          node.setData(d)
+        } else {
+          node.attr('label/text', value || '')
+        }
+      })
+      .catch(() => {})
+  })
+
+  // 键盘快捷键
+  const keyHandler = e => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo() }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo() }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') { e.preventDefault(); copySel() }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') { e.preventDefault(); paste() }
+    if (e.key === 'Delete' || e.key === 'Backspace') { removeCurrent() }
+    if (e.key === 'v' || e.key === 'V') { tool.value = 'select' }
+    if (e.key === 't' || e.key === 'T') { tool.value = 'text' }
+  }
+  document.addEventListener('keydown', keyHandler)
+  g.on('dispose', () => document.removeEventListener('keydown', keyHandler))
+}
+
+function selectNode(node) {
+  current.value = node
+  currentLabel.value = node.attr('label/text') || node.getData()?.name || ''
+  currentFill.value = node.attr('body/fill') || '#ffffff'
+  currentStroke.value = node.attr('body/stroke') || '#333333'
+  currentStrokeWidth.value = node.attr('body/strokeWidth') || 1.5
+  currentFontColor.value = node.attr('label/fill') || '#333333'
+  currentFontSize.value = node.attr('label/fontSize') || 14
 }
 
 function applyLabel() {
@@ -327,27 +516,73 @@ function applyLabel() {
     current.value.attr('label/text', currentLabel.value)
   }
 }
-
-function applyColor() {
+function applyFill() {
   if (!current.value) return
-  current.value.attr('body/fill', currentColor.value)
+  current.value.attr('body/fill', currentFill.value)
 }
-
+function applyStroke() {
+  if (!current.value) return
+  current.value.attr('body/stroke', currentStroke.value)
+}
+function applyStrokeWidth() {
+  if (!current.value) return
+  current.value.attr('body/strokeWidth', currentStrokeWidth.value)
+}
+function applyFontColor() {
+  if (!current.value) return
+  current.value.attr('label/fill', currentFontColor.value)
+}
 function applyFont() {
   if (!current.value) return
   current.value.attr('label/fontSize', currentFontSize.value)
 }
-
+function moveToFront() {
+  if (current.value) current.value.toFront()
+}
+function moveToBack() {
+  if (current.value) current.value.toBack()
+}
 function removeCurrent() {
   if (current.value) {
-    graph.value.removeNode(current.value)
+    graph.value.removeCell(current.value)
     current.value = null
   }
 }
-
+function copySel() {
+  const cells = graph.value.getSelectedCells()
+  if (cells.length) {
+    clipboard = graph.value.toJSON(cells)
+    ElMessage.success('已复制')
+  }
+}
+function paste() {
+  if (!clipboard) return
+  const nodes = graph.value.fromJSON(clipboard)
+  nodes.forEach(c => {
+    const pos = c.position()
+    c.position(pos.x + 20, pos.y + 20)
+  })
+}
 function clearAll() {
   graph.value.clearCells()
   current.value = null
+}
+function undo() {
+  if (graph.value && graph.value.canUndo()) graph.value.undo()
+}
+function redo() {
+  if (graph.value && graph.value.canRedo()) graph.value.redo()
+}
+function zoomIn() {
+  const z = graph.value.zoom()
+  graph.value.zoom(z * 1.2, { center: true })
+}
+function zoomOut() {
+  const z = graph.value.zoom()
+  graph.value.zoom(z * 0.8, { center: true })
+}
+function zoomToFit() {
+  graph.value.zoomToFit({ padding: 40 })
 }
 
 function serialize() {
@@ -406,24 +641,16 @@ async function loadDesign(d) {
     const vo = await loadDiagram(d.id)
     graph.value.clearCells()
     ;(vo.nodes || []).forEach(n => {
-      const c = catalog.find(x => x.type === n.shape)
-      const spec = nodeSpec(n.shape)
-      const nodeData = {
-        id: n.id,
-        shape: spec.shape,
-        x: n.x,
-        y: n.y,
-        width: n.width || spec.w,
-        height: n.height || spec.h,
-        label: n.label,
-        data: { type: n.shape, name: n.label, attrs: n.attrsText, methods: n.methodsText }
-      }
-      if (n.shape === 'start') nodeData.attrs = { body: { fill: '#10b981', stroke: '#10b981' } }
-      if (n.shape === 'end') nodeData.attrs = { body: { fill: '#ef4444', stroke: '#ef4444' } }
+      const nodeData = buildNode(n.shape, n.x + (n.width || 120) / 2, n.y + (n.height || 60) / 2)
+      nodeData.id = n.id
+      nodeData.width = n.width || nodeData.width
+      nodeData.height = n.height || nodeData.height
+      nodeData.label = n.label
+      nodeData.data = { type: n.shape, name: n.label, attrs: n.attrsText, methods: n.methodsText }
       graph.value.addNode(nodeData)
     })
     ;(vo.edges || []).forEach(e => {
-      graph.value.addEdge({ source: e.source, target: e.target, attrs: { line: { stroke: '#333', strokeWidth: 1.5 } } })
+      graph.value.addEdge({ source: e.source, target: e.target, shape: 'freeline' })
     })
   } catch (e) {
     ElMessage.error('加载失败')
@@ -440,10 +667,7 @@ async function delDesign(d) {
 async function downloadPng() {
   if (!graph.value) return
   try {
-    const dataUrl = await graph.value.toPNG({
-      backgroundColor: '#fff',
-      padding: 20
-    })
+    const dataUrl = await graph.value.toPNG({ backgroundColor: '#fff', padding: 20 })
     const a = document.createElement('a')
     a.href = dataUrl
     a.download = '自由绘画.png'
@@ -454,15 +678,9 @@ async function downloadPng() {
 }
 
 onMounted(() => {
-  nextTickTick(() => {
-    initGraph()
-  })
+  requestAnimationFrame(() => requestAnimationFrame(initGraph))
   loadMyDesigns()
 })
-
-function nextTickTick(fn) {
-  requestAnimationFrame(() => requestAnimationFrame(fn))
-}
 
 onBeforeUnmount(() => {
   if (graph.value) graph.value.dispose()
@@ -501,15 +719,58 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: #f5f6fa;
+  background: #fff;
 }
 .toolbar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: #fff;
-  border-bottom: 1px solid #ebeef5;
+  gap: 4px;
+  padding: 6px 10px;
+  background: #f7f8fa;
+  border-bottom: 1px solid #e4e7ed;
+}
+.tb-btn {
+  min-width: 32px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #606266;
+  transition: all 0.15s;
+}
+.tb-btn:hover {
+  background: #e8f0fe;
+  color: #1a73e8;
+}
+.tb-btn.active {
+  background: #e8f0fe;
+  color: #1a73e8;
+  border-color: #1a73e8;
+}
+.tb-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.tb-btn.tb-primary {
+  background: #1a73e8;
+  color: #fff;
+  border-color: #1a73e8;
+}
+.tb-btn.tb-primary:hover {
+  background: #1765cc;
+}
+.tb-btn.tb-outline {
+  border-color: #1a73e8;
+  color: #1a73e8;
+}
+.tb-sep {
+  width: 1px;
+  height: 20px;
+  background: #e4e7ed;
+  margin: 0 6px;
 }
 .editor-body {
   flex: 1;
@@ -517,43 +778,43 @@ onBeforeUnmount(() => {
   min-height: 0;
 }
 .palette {
-  width: 180px;
-  background: #fff;
-  border-right: 1px solid #ebeef5;
+  width: 200px;
+  background: #f7f8fa;
+  border-right: 1px solid #e4e7ed;
   padding: 12px;
   overflow-y: auto;
 }
 .palette-title {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  color: #303133;
-  margin-bottom: 10px;
+  color: #606266;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.palette-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
 }
 .palette-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  margin-bottom: 6px;
-  border: 1px solid #ebeef5;
-  border-radius: 6px;
+  justify-content: center;
+  padding: 4px;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
   cursor: grab;
-  font-size: 13px;
-  color: #606266;
-  background: #fafbfc;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  background: #fff;
+  transition: all 0.15s;
 }
 .palette-item:hover {
-  border-color: #3B6BFF;
-  box-shadow: 0 2px 8px rgba(59, 107, 255, 0.15);
-}
-.palette-icon {
-  display: flex;
-  align-items: center;
+  border-color: #1a73e8;
+  box-shadow: 0 2px 6px rgba(26, 115, 232, 0.2);
 }
 .palette-tip {
   margin-top: 10px;
-  font-size: 12px;
+  font-size: 11px;
   color: #909399;
   text-align: center;
 }
@@ -574,18 +835,31 @@ onBeforeUnmount(() => {
   color: #909399;
   font-size: 14px;
 }
+.canvas-zoom-tip {
+  position: absolute;
+  bottom: 10px;
+  right: 12px;
+  font-size: 11px;
+  color: #c0c4cc;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 2px 8px;
+  border-radius: 4px;
+  pointer-events: none;
+}
 .props {
-  width: 220px;
-  background: #fff;
-  border-left: 1px solid #ebeef5;
+  width: 240px;
+  background: #f7f8fa;
+  border-left: 1px solid #e4e7ed;
   padding: 12px;
   overflow-y: auto;
 }
 .props-title {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  color: #303133;
+  color: #606266;
   margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 .prop-field {
   margin-bottom: 12px;
@@ -595,6 +869,10 @@ onBeforeUnmount(() => {
   font-size: 12px;
   color: #909399;
   margin-bottom: 4px;
+}
+.stack-row {
+  display: flex;
+  gap: 4px;
 }
 .props-empty {
   text-align: center;
@@ -613,11 +891,11 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   padding: 6px 8px;
-  border-radius: 6px;
+  border-radius: 4px;
   font-size: 13px;
 }
 .save-item:hover {
-  background: #f5f7fa;
+  background: #eef1f5;
 }
 .save-name {
   cursor: pointer;
@@ -627,6 +905,6 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 .save-name:hover {
-  color: #3B6BFF;
+  color: #1a73e8;
 }
 </style>

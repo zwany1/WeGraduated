@@ -16,9 +16,7 @@
           <div class="container">
             <div class="container-inner">
               <div class="circle" :style="{ background: m.bg }"></div>
-              <div class="img" :class="'img' + (i + 1)" :style="avatarStyle(m)">
-                <span class="avatar-letter">{{ m.name.slice(0, 1) }}</span>
-              </div>
+              <img class="img" :class="'img' + (i + 1)" :src="m.img" :alt="m.name" />
             </div>
           </div>
           <div class="divider"></div>
@@ -120,16 +118,11 @@ function goBack() {
 const currentSlide = ref(0)
 
 const members = [
-  { name: '阿明', role: 'Product Manager', bg: '#fee7d3', color: '#c0694a' },
-  { name: '小美', role: 'Senior Developer', bg: '#d7ecff', color: '#3a7ca5' },
-  { name: '阿远', role: 'Senior UX', bg: '#e0f7e9', color: '#4a9a6e' }
+  { name: 'keysqiu', role: 'Product Manager', bg: '#d7ecff', img: '/keysqiu.png' },
+  { name: 'zwany1', role: 'Senior Developer', bg: '#fee7d3', img: '/zwany1.jpg' }
 ]
 
 const gradient = ['#3B6BFF', '#7c3aed', '#10b981']
-
-function avatarStyle(m) {
-  return { background: `linear-gradient(135deg, ${m.color}, ${m.color}cc)`, color: '#fff' }
-}
 
 function slideImgStyle(i) {
   const g = gradient[i]
@@ -234,24 +227,28 @@ const sections = [
   transform: translateY(20px) scale(1.15);
   transform-origin: 50% bottom;
   transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
 }
 .container:hover .img {
   transform: translateY(0) scale(1.2);
 }
-.avatar-letter {
-  position: absolute;
-  bottom: 30px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 56px;
-  font-weight: 700;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+.img1 {
+  left: 22px;
+  top: 164px;
+  width: 340px;
+  height: 400px;
+  object-fit: cover;
+  border-radius: 50% 50% 8px 8px;
+  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.2));
+}
+.img2 {
+  left: 30px;
+  top: 164px;
+  width: 340px;
+  height: 400px;
+  object-fit: cover;
+  border-radius: 50% 50% 8px 8px;
+  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.2));
 }
 .divider {
   background-color: #ca6060;

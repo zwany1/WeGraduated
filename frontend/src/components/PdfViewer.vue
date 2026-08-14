@@ -11,12 +11,13 @@
       </div>
     </div>
     <div class="canvas-wrap" ref="wrapRef">
-      <div v-if="!loading" class="page-layer" :style="layerStyle">
+      <div v-if="!loading && !errMsg" class="page-layer" :style="layerStyle">
         <canvas ref="canvasRef"></canvas>
         <!-- 差异高亮层: 半透明红罩 + 红边框 -->
         <div v-for="(hl, i) in curHighlights" :key="i" class="diff-hl" :style="hlStyle(hl)"></div>
       </div>
       <div v-if="loading" class="loading">加载中...</div>
+      <div v-else-if="errMsg" class="pdf-err">{{ errMsg }}</div>
     </div>
   </div>
 </template>
@@ -41,6 +42,7 @@ const pageNum = ref(1)
 const pageCount = ref(0)
 const scale = ref(1.2)
 const loading = ref(true)
+const errMsg = ref('')
 const canvasW = ref(0)
 const canvasH = ref(0)
 
@@ -71,6 +73,7 @@ onMounted(async () => {
     await renderPage()
   } catch (e) {
     window.__pdfErr = String(e && e.message ? e.message : e)
+    errMsg.value = 'PDF 加载失败：' + (e && e.message ? e.message : '未知错误')
     loading.value = false
   }
 })
@@ -225,5 +228,19 @@ canvas {
   transform: translate(-50%, -50%);
   color: #fff;
   font-size: 14px;
+}
+.pdf-err {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 80%;
+  color: #fde2e2;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.6;
+  word-break: break-all;
 }
 </style>

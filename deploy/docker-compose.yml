@@ -54,11 +54,8 @@ services:
       - backend
     ports:
       - "80:80"
-      # HTTPS 部署时映射 443
+      # HTTPS 部署时取消下面注释
       # - "443:443"
-    volumes:
-      # 如使用 HTTPS 证书, 挂载证书目录
-      # - ./certs:/etc/nginx/certs:ro
     networks:
       - thesis-net
 

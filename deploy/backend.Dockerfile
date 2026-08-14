@@ -1,6 +1,9 @@
 # ---------- 构建阶段 ----------
 FROM maven:3.9-eclipse-temurin-8 AS builder
 WORKDIR /build
+# 使用阿里云 Maven 镜像加速依赖下载(服务器访问中央仓库慢)
+RUN mkdir -p /root/.m2 && \
+    printf '<settings><mirrors><mirror><id>aliyun</id><mirrorOf>central</mirrorOf><name>Aliyun Maven</name><url>https://maven.aliyun.com/repository/public</url></mirror></mirrors></settings>' > /root/.m2/settings.xml
 COPY backend/pom.xml .
 RUN mvn dependency:go-offline -B -q || true
 COPY backend/src ./src

@@ -95,7 +95,7 @@
             <div v-for="(d, i) in diffItems" :key="i" class="diff-item" :class="{ active: activeDiff === i }" @click="gotoDiff(d, i)">
               <div class="diff-item-top">
                 <span class="diff-type">{{ d.type }}</span>
-                <span class="diff-page">P{{ d.page }}</span>
+                <span class="diff-page" v-if="d.page">P{{ d.page }}</span>
               </div>
               <div class="diff-text">{{ d.text }}</div>
             </div>

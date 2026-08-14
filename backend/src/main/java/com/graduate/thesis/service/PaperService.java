@@ -217,7 +217,8 @@ public class PaperService {
     }
 
     /**
-     * 排版差异分析: 对比排版前后 docx 格式差异, 并定位到结果 PDF 的页码/坐标
+     * 排版差异分析: 对比排版前后 docx 格式差异(纯 POI, 不依赖 LibreOffice)
+     * 有缓存 PDF 时附页码坐标(增强), 无缓存/转换不可用时差异仍正常返回, 前端走文本定位
      */
     public List<DiffItem> listDiffs(Long userId, Long taskId) {
         FormatTask task = getTask(userId, taskId);
@@ -230,7 +231,15 @@ public class PaperService {
         }
         File original = storageService.load(paperFile.getStoredPath());
         File formatted = storageService.load(task.getResultPath());
-        File pdf = loadPreviewPdf(userId, taskId);
+        // 仅使用已缓存的 PDF(不触发即时转换), 无缓存则差异仅文本定位
+        File pdf = null;
+        if (task.getPdfPath() != null) {
+            try {
+                pdf = storageService.load(task.getPdfPath());
+            } catch (Exception ignore) {
+                pdf = null;
+            }
+        }
         return diffService.diff(original, formatted, pdf);
     }
 }

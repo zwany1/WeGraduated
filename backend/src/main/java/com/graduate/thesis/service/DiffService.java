@@ -33,6 +33,10 @@ public class DiffService {
     /** PDF 中搜索匹配用的片段长度(去空白) */
     private static final int MATCH_LEN = 15;
 
+    /**
+     * 差异分析: 核心用 POI 对比 docx 格式差异(纯 Java, 不依赖 LibreOffice);
+     * pdf 为可选增强(用于页码定位), 传 null 或解析失败时差异仍正常返回, 页码为 0。
+     */
     public List<DiffItem> diff(File original, File formatted, File pdf) {
         List<DiffItem> items = new ArrayList<>();
         // 1. 读取两文档, 按段落文本索引排版后段落
@@ -57,18 +61,26 @@ public class DiffService {
                 raw.add(new RawDiff(t, diffs));
             }
         }
-        // 3. 提取结果 PDF 行文本坐标, 定位差异段落
-        List<Line> lines = extractLines(pdf);
-        for (RawDiff rd : raw) {
-            Line hit = locate(rd.text, lines);
-            if (hit != null) {
-                items.add(new DiffItem(
-                        truncate(rd.text),
-                        rd.diffs,
-                        hit.page,
-                        round2(hit.y / pageHeight(pdf, hit.page)),
-                        0.05));
+        // 3. 可选: 提取结果 PDF 行文本坐标定位页码(失败/无缓存则页码为 0, 前端走文本定位)
+        List<Line> lines = null;
+        if (pdf != null && pdf.exists()) {
+            try {
+                lines = extractLines(pdf);
+            } catch (Exception ignore) {
+                lines = null;
             }
+        }
+        for (RawDiff rd : raw) {
+            int page = 0;
+            double y = 0;
+            if (lines != null) {
+                Line hit = locate(rd.text, lines);
+                if (hit != null) {
+                    page = hit.page;
+                    y = round2(hit.y / pageHeight(pdf, hit.page));
+                }
+            }
+            items.add(new DiffItem(truncate(rd.text), rd.diffs, page, y, 0.05));
         }
         return items;
     }

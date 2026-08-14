@@ -24,7 +24,7 @@ services:
 
   backend:
     build:
-      context: .
+      context: ..
       dockerfile: deploy/backend.Dockerfile
     container_name: thesis-backend
     restart: unless-stopped
@@ -46,7 +46,7 @@ services:
 
   frontend:
     build:
-      context: .
+      context: ..
       dockerfile: deploy/frontend.Dockerfile
     container_name: thesis-frontend
     restart: unless-stopped

@@ -77,14 +77,14 @@
       </section>
     </main>
 
-    <el-dialog v-model="previewVisible" title="排版结果预览" width="80%" top="4vh" destroy-on-close @closed="onPreviewClosed">
+    <el-dialog v-if="previewVisible" v-model="previewVisible" title="排版结果预览" width="80%" top="4vh" destroy-on-close @closed="onPreviewClosed">
       <div style="height: 72vh">
         <PdfViewer v-if="previewData.length" :key="'pv' + previewRenderKey" :data="previewData" />
         <el-empty v-else description="PDF 生成中，首次可能需要几十秒..." />
       </div>
     </el-dialog>
 
-    <el-dialog v-model="compareVisible" title="排版前后对比" width="94%" top="3vh" destroy-on-close @closed="onCompareClosed">
+    <el-dialog v-if="compareVisible" v-model="compareVisible" title="排版前后对比" width="94%" top="3vh" destroy-on-close @closed="onCompareClosed">
       <div class="compare-layout">
         <div class="compare-diff">
           <div class="compare-header">
@@ -127,7 +127,7 @@
       </div>
     </el-dialog>
 
-    <el-dialog v-model="errorVisible" title="排版失败原因" width="520px" top="10vh">
+    <el-dialog v-if="errorVisible" v-model="errorVisible" title="排版失败原因" width="520px" top="10vh">
       <div class="error-detail">
         <p class="error-label">任务 #{{ errorTaskId }} 排版失败，原因如下：</p>
         <div class="error-box">{{ errorMsg }}</div>

@@ -70,6 +70,9 @@
                   <g v-else-if="c.type === 'usecase'"><ellipse cx="30" cy="20" rx="24" ry="13" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
                   <g v-else-if="c.type === 'database'"><ellipse cx="30" cy="10" rx="22" ry="6" fill="#fff" stroke="#333" stroke-width="1.5"/><path d="M8 10v20c0 3.3 9.8 6 22 6s22-2.7 22-6V10" fill="#fff" stroke="#333" stroke-width="1.5"/><path d="M8 20c0 3.3 9.8 6 22 6s22-2.7 22-6" fill="none" stroke="#333" stroke-width="1.5"/></g>
                   <g v-else-if="c.type === 'folder'"><path d="M8 8 h18 l4 6 h22 a3 3 0 0 1 3 3 v13 a3 3 0 0 1 -3 3 H8 a3 3 0 0 1 -3 -3 V11 a3 3 0 0 1 3 -3 Z" fill="#fff" stroke="#333" stroke-width="1.5"/></g>
+                  <g v-else-if="iconPaths[c.type]">
+                    <path :d="iconPaths[c.type]" fill="none" stroke="#333" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" transform="translate(5,0)"/>
+                  </g>
                 </svg>
               </div>
             </div>
@@ -180,7 +183,15 @@ const shapeGroups = [
       { type: 'circle', label: '圆' },
       { type: 'diamond', label: '菱形' },
       { type: 'hexagon', label: '六边形' },
+      { type: 'pentagon', label: '五边形' },
+      { type: 'parallelogram', label: '平行四边形' },
+      { type: 'trapezoid', label: '梯形' },
       { type: 'triangle', label: '三角形' },
+      { type: 'star', label: '星形' },
+      { type: 'halfCircle', label: '半圆' },
+      { type: 'crescent', label: '月牙' },
+      { type: 'cross', label: '十字' },
+      { type: 'plus', label: '加号' },
       { type: 'text', label: '文本' },
       { type: 'document', label: '文档' },
       { type: 'cloud', label: '云' },
@@ -197,7 +208,31 @@ const shapeGroups = [
       { type: 'preparation', label: '准备' },
       { type: 'terminator', label: '终止' },
       { type: 'loop', label: '循环' },
-      { type: 'note', label: '注释' }
+      { type: 'note', label: '注释' },
+      { type: 'manualInput', label: '人工输入' },
+      { type: 'manualOperation', label: '人工操作' },
+      { type: 'delay', label: '延迟' },
+      { type: 'storedData', label: '存储数据' },
+      { type: 'data', label: '数据' }
+    ]
+  },
+  {
+    name: '网络图',
+    items: [
+      { type: 'server', label: '服务器' },
+      { type: 'router', label: '路由器' },
+      { type: 'switch', label: '交换机' },
+      { type: 'firewall', label: '防火墙' },
+      { type: 'pc', label: 'PC' },
+      { type: 'phone', label: '手机' },
+      { type: 'printer', label: '打印机' },
+      { type: 'message', label: '消息' },
+      { type: 'mail', label: '邮件' },
+      { type: 'person', label: '人' },
+      { type: 'lock', label: '锁' },
+      { type: 'gear', label: '齿轮' },
+      { type: 'chart', label: '图表' },
+      { type: 'storage', label: '存储' }
     ]
   },
   {
@@ -214,18 +249,57 @@ const shapeGroups = [
       { type: 'class', label: '类' },
       { type: 'actor', label: '角色' },
       { type: 'usecase', label: '用例' },
-      { type: 'database', label: '数据库' }
+      { type: 'database', label: '数据库' },
+      { type: 'interface', label: '接口' },
+      { type: 'enum', label: '枚举' },
+      { type: 'package', label: '包' }
     ]
   },
   {
     name: '高级',
     items: [
-      { type: 'folder', label: '文件夹' }
+      { type: 'folder', label: '文件夹' },
+      { type: 'pin', label: '图钉' }
     ]
   }
 ]
 
 const base = '#333333'
+
+// 网络图/图标形状的 SVG path (viewBox 0 0 100 100)
+const iconPaths = {
+  server: 'M10 30 h80 v40 h-80 Z M10 40 h80 M10 50 h80 M10 60 h80 M25 20 h6 M25 65 h6',
+  router: 'M50 10 h30 v20 h-30 Z M20 30 h60 v20 h-60 Z M20 50 h60 v20 h-60 Z M10 70 h80 v20 h-80 Z M50 30 v20 M35 30 v20 M65 30 v20',
+  switch: 'M50 10 h40 v25 h-40 Z M10 35 h80 v30 h-80 Z M50 65 h40 v25 h-40 Z M50 35 v30 M35 10 v-5 h-20',
+  firewall: 'M50 10 h30 v15 h-30 Z M20 25 h60 v20 h-60 Z M20 45 h60 v25 h-60 Z M20 70 h60 v20 h-60 Z M50 25 v20 M50 45 v25 M35 45 h30 M35 70 h30',
+  pc: 'M10 15 h80 v55 h-80 Z M25 70 h50 l5 15 h-60 Z M45 15 v-5 M50 85 h10',
+  phone: 'M30 5 h40 v90 h-40 Z M35 15 h30 M38 85 h24 M10 20 v60 h20 M70 20 v60 h20',
+  printer: 'M20 20 h60 v25 h-60 Z M20 45 h60 v25 h-60 Z M30 70 h40 v15 h-40 Z M35 30 h30 M35 55 h30',
+  message: 'M15 20 h70 v45 h-70 Z M15 20 l35 25 35-25',
+  mail: 'M10 25 h80 v50 h-80 Z M10 30 l40 25 40-25 M15 75 h70',
+  person: 'M50 15 a20 20 0 1 1 -0.01 0 Z M25 85 c0 -15 11 -25 25 -25 s25 10 25 25',
+  lock: 'M50 20 a18 18 0 0 1 18 18 v15 h-36 v-15 a18 18 0 0 1 18 -18 Z M30 53 h40 v27 h-40 Z M50 62 v10',
+  gear: 'M50 15 l8 8 12 -2 3 12 10 8 -6 10 6 10 -10 8 -3 12 -12 -2 -8 8 -8 -8 -12 2 -3 -12 -10 -8 6 -10 -6 -10 10 -8 3 -12 12 2 Z M50 35 a15 15 0 1 1 -0.01 0 Z',
+  chart: 'M15 85 v-60 M15 85 h70 M25 80 l5 -15 10 8 12 -20 10 5 13 -25 M70 30 v-10 h10 v25',
+  storage: 'M50 10 h30 v20 h-30 Z M20 30 h60 v40 h-60 Z M20 70 h60 v20 h-60 Z M35 20 h20 M35 60 h30 M35 75 h30 M50 30 v40',
+  pentagon: 'M50 5 L92 35 L78 92 L22 92 L8 35 Z',
+  parallelogram: 'M20 5 L95 5 L80 95 L5 95 Z',
+  trapezoid: 'M25 5 H75 L90 95 H10 Z',
+  star: 'M50 5 L61 38 L95 38 L67 59 L78 92 L50 72 L22 92 L33 59 L5 38 L39 38 Z',
+  halfCircle: 'M5 50 a45 45 0 0 1 90 0 Z',
+  crescent: 'M70 15 a40 40 0 1 0 0 70 a32 32 0 1 1 0 -70 Z',
+  cross: 'M35 5 h30 v30 h30 v30 h-30 v30 h-30 v-30 h-30 v-30 h30 Z',
+  plus: 'M35 15 h30 v20 h20 v30 h-20 v20 h-30 v-20 h-20 v-30 h20 Z',
+  manualInput: 'M15 30 h70 l-15 20 15 20 h-70 Z',
+  manualOperation: 'M20 5 h60 l20 45 -20 45 h-60 l-20 -45 Z',
+  delay: 'M15 15 h70 v70 h-70 Z M15 15 l35 35 35 -35 M50 50 v30',
+  storedData: 'M15 15 h70 v70 h-70 Z M15 45 l35 20 35 -20 M50 65 v20',
+  data: 'M15 15 h70 v30 h-70 Z M15 45 l35 25 35 -25',
+  interface: 'M5 10 h90 v30 h-90 Z M5 45 h90 v15 h-90 Z M5 65 h90 v25 h-90 Z M30 20 h40 M30 52 h40 M30 75 h40',
+  enum: 'M5 10 h90 v30 h-90 Z M5 45 h90 v15 h-90 Z M5 65 h90 v25 h-90 Z M30 20 h25 M30 52 h25 M30 75 h25',
+  package: 'M15 10 h70 v15 h-70 Z M15 25 h70 v65 h-70 Z M25 40 h50 M25 55 h50 M25 70 h35',
+  pin: 'M50 10 a28 28 0 1 1 -0.01 0 Z M50 35 v25 M50 70 v15'
+}
 
 function registerShapes() {
   // 基础几何形状
@@ -444,6 +518,52 @@ function registerShapes() {
     }
   }, true)
 
+  // 通用图标/多边形形状 (用 iconPaths 的 d 渲染)
+  Object.entries(iconPaths).forEach(([key, d]) => {
+    const shapeName = 'freeicon_' + key
+    if (key === 'pentagon' || key === 'parallelogram' || key === 'trapezoid' || key === 'star'
+        || key === 'cross' || key === 'plus' || key === 'crescent') {
+      Graph.registerNode(shapeName, {
+        inherit: 'polygon',
+        width: 100,
+        height: 100,
+        attrs: {
+          body: { fill: '#fff', stroke: base, strokeWidth: 1.5, points: '50,5 92,35 78,92 22,92 8,35', magnet: true },
+          label: { fontSize: 12, fill: base }
+        }
+      }, true)
+      return
+    }
+    // path 节点: rect 容器 + path 子元素, 用 refD/refWidth/refHeight 等比缩放
+    Graph.registerNode(shapeName, {
+      inherit: 'rect',
+      width: 100,
+      height: 100,
+      markup: [
+        { tagName: 'path', selector: 'iconPath' },
+        { tagName: 'text', selector: 'label' }
+      ],
+      attrs: {
+        iconPath: {
+          d,
+          fill: 'none',
+          stroke: base,
+          strokeWidth: 2,
+          strokeLinejoin: 'round',
+          strokeLinecap: 'round',
+          refX: 0,
+          refY: 0,
+          refX2: 0.1,
+          refY2: 0.1,
+          refWidth: '80%',
+          refHeight: '80%',
+          magnet: true
+        },
+        label: { text: '', fontSize: 12, fill: base, refX: 0.5, refY: 0.9, textAnchor: 'middle', textVerticalAnchor: 'middle' }
+      }
+    }, true)
+  })
+
   // 边
   Graph.registerEdge('freeline', {
     inherit: 'edge',
@@ -486,6 +606,10 @@ function nodeSpec(type) {
     class: { shape: 'freeclass', w: 180, h: 100 },
     folder: { shape: 'freefolder', w: 130, h: 80 }
   }
+  // 通用图标/形状映射到 freeicon_ 节点
+  Object.keys(iconPaths).forEach(key => {
+    if (!map[key]) map[key] = { shape: 'freeicon_' + key, w: 100, h: 100 }
+  })
   return map[type] || { shape: 'freerect', w: 120, h: 60 }
 }
 

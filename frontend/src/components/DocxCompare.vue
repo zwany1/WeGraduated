@@ -73,6 +73,29 @@ function zoomOut() {
 function updateBodyStyle() {
   bodyStyle.width = `${Math.round(100 * scale.value)}%`
 }
+
+/**
+ * 按文本定位到对应段落并高亮(供差异索引跳转)
+ * 排版前后仅改格式不改文字, 可用文本前缀匹配定位
+ */
+function scrollToText(text) {
+  const needle = (text || '').replace(/\s+/g, '')
+  if (!needle || !bodyRef.value) return
+  const head = needle.slice(0, 10)
+  if (!head) return
+  const paras = bodyRef.value.querySelectorAll('p')
+  for (const p of paras) {
+    const t = (p.textContent || '').replace(/\s+/g, '')
+    if (t && (t.includes(head) || head.includes(t.slice(0, 10)))) {
+      p.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      p.classList.add('diff-target')
+      setTimeout(() => p.classList.remove('diff-target'), 2200)
+      return
+    }
+  }
+}
+
+defineExpose({ scrollToText })
 </script>
 
 <style scoped>
@@ -128,5 +151,11 @@ function updateBodyStyle() {
 :deep(.docx-wrapper) {
   padding: 0;
   width: 100%;
+}
+:deep(p.diff-target) {
+  background: rgba(230, 57, 70, 0.18);
+  box-shadow: 0 0 0 2px rgba(230, 57, 70, 0.6) inset;
+  border-radius: 3px;
+  transition: background 0.3s;
 }
 </style>

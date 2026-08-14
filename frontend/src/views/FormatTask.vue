@@ -109,7 +109,7 @@
             <span class="compare-name">{{ compareName }}</span>
           </div>
           <div class="compare-body">
-            <DocxCompare v-if="compareBefore.length" :data="compareBefore" />
+            <DocxCompare v-if="compareBefore.length" ref="docxCompareRef" :data="compareBefore" />
             <el-empty v-else description="加载中..." />
           </div>
         </div>
@@ -161,6 +161,7 @@ const compareName = ref('')
 const diffItems = ref([])
 const activeDiff = ref(-1)
 const pdfViewerRef = ref(null)
+const docxCompareRef = ref(null)
 const errorVisible = ref(false)
 const errorMsg = ref('')
 const errorTaskId = ref(null)
@@ -303,6 +304,8 @@ async function compare(row) {
 function gotoDiff(d, i) {
   activeDiff.value = i
   if (pdfViewerRef.value && d.page) pdfViewerRef.value.gotoPage(d.page)
+  // 排版前内容同步定位到对应段落(格式未变文本相同)
+  if (docxCompareRef.value && d.text) docxCompareRef.value.scrollToText(d.text)
 }
 
 function onCompareClosed() {

@@ -25,10 +25,8 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import * as pdfjsLib from 'pdfjs-dist'
 
-// pdfjs worker: 通过 CDN 提供(避免 vite 打包 worker 的复杂配置)
-const PDFJS_VERSION = '6.2.108'
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-  `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/build/pdf.worker.min.mjs`
+// pdfjs worker: 本地化(public/pdf.worker.min.mjs), 不依赖 CDN, 避免首次加载慢/失败
+pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
 
 const props = defineProps({
   url: { type: String, required: false, default: '' },

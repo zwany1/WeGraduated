@@ -86,6 +86,23 @@
 
     <el-dialog v-model="compareVisible" title="排版前后对比" width="94%" top="3vh" destroy-on-close @closed="onCompareClosed">
       <div class="compare-layout">
+        <div class="compare-diff">
+          <div class="compare-header">
+            <span class="compare-badge diff">差异索引</span>
+            <span class="diff-count">{{ diffItems.length }} 处</span>
+          </div>
+          <div class="diff-list">
+            <div v-for="(d, i) in diffItems" :key="i" class="diff-item" :class="{ active: activeDiff === i }" @click="gotoDiff(d, i)">
+              <div class="diff-item-top">
+                <span class="diff-type">{{ d.type }}</span>
+                <span class="diff-page">P{{ d.page }}</span>
+              </div>
+              <div class="diff-text">{{ d.text }}</div>
+            </div>
+            <el-empty v-if="!diffItems.length" description="未发现差异" :image-size="60" />
+          </div>
+        </div>
+        <div class="compare-divider"></div>
         <div class="compare-col">
           <div class="compare-header">
             <span class="compare-badge before">排版前</span>
@@ -103,7 +120,7 @@
             <span class="compare-name">{{ compareName }}</span>
           </div>
           <div class="compare-body">
-            <PdfViewer v-if="compareAfter.length" :data="compareAfter" />
+            <PdfViewer v-if="compareAfter.length" ref="pdfViewerRef" :data="compareAfter" :highlights="diffItems" />
             <el-empty v-else description="加载中..." />
           </div>
         </div>
@@ -125,7 +142,7 @@ import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { ElMessage } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
 import { listTemplates } from '../api/template'
-import { uploadPaper, startFormat, listTasks, getTask, downloadPaper, previewPaper, downloadPaperOriginal } from '../api/paper'
+import { uploadPaper, startFormat, listTasks, getTask, downloadPaper, previewPaper, downloadPaperOriginal, getDiff } from '../api/paper'
 import PdfViewer from '../components/PdfViewer.vue'
 import DocxCompare from '../components/DocxCompare.vue'
 
@@ -141,6 +158,9 @@ const compareVisible = ref(false)
 const compareBefore = ref([])
 const compareAfter = ref([])
 const compareName = ref('')
+const diffItems = ref([])
+const activeDiff = ref(-1)
+const pdfViewerRef = ref(null)
 const errorVisible = ref(false)
 const errorMsg = ref('')
 const errorTaskId = ref(null)
@@ -251,6 +271,8 @@ async function compare(row) {
   const mySeq = ++compareSeq
   compareBefore.value = []
   compareAfter.value = []
+  diffItems.value = []
+  activeDiff.value = -1
   compareName.value = fileName(row)
   compareVisible.value = true
   try {
@@ -266,6 +288,11 @@ async function compare(row) {
     if (mySeq !== compareSeq) return
     compareBefore.value = Array.from(new Uint8Array(beforeBuf))
     compareAfter.value = Array.from(new Uint8Array(afterBuf))
+    // 差异分析: 失败不阻塞对比预览
+    getDiff(row.id).then(res => {
+      if (mySeq !== compareSeq) return
+      diffItems.value = res || []
+    }).catch(() => {})
   } catch (e) {
     if (mySeq !== compareSeq) return
     ElMessage.error('对比加载失败：' + (e.message || ''))
@@ -273,9 +300,16 @@ async function compare(row) {
   }
 }
 
+function gotoDiff(d, i) {
+  activeDiff.value = i
+  if (pdfViewerRef.value && d.page) pdfViewerRef.value.gotoPage(d.page)
+}
+
 function onCompareClosed() {
   compareBefore.value = []
   compareAfter.value = []
+  diffItems.value = []
+  activeDiff.value = -1
 }
 
 function showError(row) {
@@ -365,6 +399,70 @@ function formatTime(t) {
   display: flex;
   gap: 0;
   height: 72vh;
+}
+.compare-diff {
+  width: 280px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: #fff;
+}
+.compare-badge.diff {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+.diff-count {
+  font-size: 12px;
+  color: #909399;
+}
+.diff-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+.diff-item {
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.diff-item:hover {
+  border-color: #f56c6c;
+  background: #fff5f5;
+}
+.diff-item.active {
+  border-color: #f56c6c;
+  background: #fef0f0;
+  box-shadow: 0 0 0 1px #f56c6c inset;
+}
+.diff-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.diff-type {
+  font-size: 11px;
+  color: #b91c1c;
+  background: #fee2e2;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.diff-page {
+  font-size: 11px;
+  color: #909399;
+}
+.diff-text {
+  font-size: 12px;
+  color: #303133;
+  line-height: 1.5;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 .compare-col {
   flex: 1;

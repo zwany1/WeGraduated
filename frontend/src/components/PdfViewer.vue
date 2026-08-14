@@ -11,14 +11,18 @@
       </div>
     </div>
     <div class="canvas-wrap" ref="wrapRef">
-      <canvas ref="canvasRef"></canvas>
+      <div v-if="!loading" class="page-layer" :style="layerStyle">
+        <canvas ref="canvasRef"></canvas>
+        <!-- 差异高亮层: 半透明红罩 + 红边框 -->
+        <div v-for="(hl, i) in curHighlights" :key="i" class="diff-hl" :style="hlStyle(hl)"></div>
+      </div>
       <div v-if="loading" class="loading">加载中...</div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import * as pdfjsLib from 'pdfjs-dist'
 
 // pdfjs worker: 通过 CDN 提供(避免 vite 打包 worker 的复杂配置)
@@ -28,7 +32,9 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
 
 const props = defineProps({
   url: { type: String, required: false, default: '' },
-  data: { type: Array, required: false, default: () => [] }
+  data: { type: Array, required: false, default: () => [] },
+  // 差异高亮: [{ page, y, h }]  y/h 为页面内归一化(0-1)
+  highlights: { type: Array, required: false, default: () => [] }
 })
 
 const canvasRef = ref(null)
@@ -37,10 +43,21 @@ const pageNum = ref(1)
 const pageCount = ref(0)
 const scale = ref(1.2)
 const loading = ref(true)
+const canvasW = ref(0)
+const canvasH = ref(0)
 
 let pdfDoc = null
 let renderTask = null
 let renderSeq = 0
+
+const layerStyle = computed(() => ({ width: canvasW.value + 'px', height: canvasH.value + 'px' }))
+const curHighlights = computed(() => (props.highlights || []).filter(h => h.page === pageNum.value))
+function hlStyle(hl) {
+  return {
+    top: (hl.y * 100) + '%',
+    height: Math.max(0.04, (hl.h || 0.05) * 100) + '%'
+  }
+}
 
 onMounted(async () => {
   try {
@@ -94,6 +111,8 @@ async function renderPage() {
   canvas.height = Math.floor(viewport.height * dpr)
   canvas.style.width = Math.floor(viewport.width) + 'px'
   canvas.style.height = Math.floor(viewport.height) + 'px'
+  canvasW.value = Math.floor(viewport.width)
+  canvasH.value = Math.floor(viewport.height)
   const ctx = canvas.getContext('2d')
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
   renderTask = page.render({ canvasContext: ctx, viewport })
@@ -119,6 +138,16 @@ async function next() {
   scrollTop()
 }
 
+async function gotoPage(n) {
+  if (n < 1 || n > pageCount.value || n === pageNum.value) {
+    if (n === pageNum.value) scrollTop()
+    return
+  }
+  pageNum.value = n
+  await renderPage()
+  scrollTop()
+}
+
 function zoomIn() {
   scale.value = Math.min(3, Math.round((scale.value + 0.2) * 10) / 10)
 }
@@ -128,6 +157,8 @@ function zoomOut() {
 function scrollTop() {
   if (wrapRef.value) wrapRef.value.scrollTop = 0
 }
+
+defineExpose({ gotoPage, next, prev })
 </script>
 
 <style scoped>
@@ -170,11 +201,24 @@ function scrollTop() {
   padding: 20px;
   position: relative;
 }
+.page-layer {
+  position: relative;
+  margin: auto;
+  flex-shrink: 0;
+}
 canvas {
   background: #fff;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-  margin: auto;
-  flex-shrink: 0;
+  display: block;
+}
+.diff-hl {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border: 2px solid rgba(230, 57, 70, 0.85);
+  background: rgba(230, 57, 70, 0.16);
+  border-radius: 4px;
+  pointer-events: none;
 }
 .loading {
   position: absolute;

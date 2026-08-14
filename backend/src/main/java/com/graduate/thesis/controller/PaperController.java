@@ -55,6 +55,14 @@ public class PaperController {
         return Result.ok(paperService.getTask(UserContext.get(), id));
     }
 
+    /**
+     * 排版差异分析: 返回差异段落列表(含 PDF 页码与坐标)
+     */
+    @GetMapping("/diff/{taskId}")
+    public Result<List<com.graduate.thesis.dto.DiffItem>> diff(@PathVariable Long taskId) {
+        return Result.ok(paperService.listDiffs(UserContext.get(), taskId));
+    }
+
     @GetMapping("/tasks")
     public Result<List<FormatTask>> tasks() {
         return Result.ok(paperService.listTasks(UserContext.get()));

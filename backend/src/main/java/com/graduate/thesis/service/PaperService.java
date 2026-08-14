@@ -2,6 +2,7 @@ package com.graduate.thesis.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.graduate.thesis.common.BusinessException;
+import com.graduate.thesis.dto.DiffItem;
 import com.graduate.thesis.dto.PaperFormatDTO;
 import com.graduate.thesis.engine.FormatEngine;
 import com.graduate.thesis.engine.model.RuleSet;
@@ -32,19 +33,22 @@ public class PaperService {
     private final TemplateService templateService;
     private final FormatEngine formatEngine;
     private final DocxPdfService docxPdfService;
+    private final DiffService diffService;
 
     public PaperService(PaperFileMapper paperFileMapper,
                         FormatTaskMapper taskMapper,
                         StorageService storageService,
                         TemplateService templateService,
                         FormatEngine formatEngine,
-                        DocxPdfService docxPdfService) {
+                        DocxPdfService docxPdfService,
+                        DiffService diffService) {
         this.paperFileMapper = paperFileMapper;
         this.taskMapper = taskMapper;
         this.storageService = storageService;
         this.templateService = templateService;
         this.formatEngine = formatEngine;
         this.docxPdfService = docxPdfService;
+        this.diffService = diffService;
     }
 
     public PaperFile upload(Long userId, MultipartFile file) {
@@ -192,5 +196,23 @@ public class PaperService {
         }
         File result = storageService.load(task.getResultPath());
         return docxPdfService.convert(result);
+    }
+
+    /**
+     * 排版差异分析: 对比排版前后 docx 格式差异, 并定位到结果 PDF 的页码/坐标
+     */
+    public List<DiffItem> listDiffs(Long userId, Long taskId) {
+        FormatTask task = getTask(userId, taskId);
+        if (!FormatTask.STATUS_SUCCESS.equals(task.getStatus()) || task.getResultPath() == null) {
+            throw new BusinessException(400, "任务尚未完成");
+        }
+        PaperFile paperFile = paperFileMapper.selectById(task.getFileId());
+        if (paperFile == null || !paperFile.getUserId().equals(userId)) {
+            throw new BusinessException(404, "原始文件不存在");
+        }
+        File original = storageService.load(paperFile.getStoredPath());
+        File formatted = storageService.load(task.getResultPath());
+        File pdf = loadPreviewPdf(userId, taskId);
+        return diffService.diff(original, formatted, pdf);
     }
 }

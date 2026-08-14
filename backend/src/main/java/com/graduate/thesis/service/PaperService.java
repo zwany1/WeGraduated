@@ -11,6 +11,7 @@ import com.graduate.thesis.entity.PaperFile;
 import com.graduate.thesis.mapper.FormatTaskMapper;
 import com.graduate.thesis.mapper.PaperFileMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -34,6 +35,8 @@ public class PaperService {
     private final FormatEngine formatEngine;
     private final DocxPdfService docxPdfService;
     private final DiffService diffService;
+    // 自引用代理: 使 @Async runFormat 生效(避免自调用绕过代理)
+    private final PaperService self;
 
     public PaperService(PaperFileMapper paperFileMapper,
                         FormatTaskMapper taskMapper,
@@ -41,7 +44,8 @@ public class PaperService {
                         TemplateService templateService,
                         FormatEngine formatEngine,
                         DocxPdfService docxPdfService,
-                        DiffService diffService) {
+                        DiffService diffService,
+                        @Lazy PaperService self) {
         this.paperFileMapper = paperFileMapper;
         this.taskMapper = taskMapper;
         this.storageService = storageService;
@@ -49,6 +53,7 @@ public class PaperService {
         this.formatEngine = formatEngine;
         this.docxPdfService = docxPdfService;
         this.diffService = diffService;
+        this.self = self;
     }
 
     public PaperFile upload(Long userId, MultipartFile file) {
@@ -85,7 +90,7 @@ public class PaperService {
         task.setProgress(0);
         task.setCreateTime(LocalDateTime.now());
         taskMapper.insert(task);
-        runFormat(task.getId());
+        self.runFormat(task.getId());
         return task;
     }
 
@@ -132,7 +137,11 @@ public class PaperService {
             String em = e.getMessage();
             task.setErrorMsg(em == null ? null : (em.length() > 2000 ? em.substring(0, 2000) : em));
             task.setFinishTime(LocalDateTime.now());
-            taskMapper.updateById(task);
+            try {
+                taskMapper.updateById(task);
+            } catch (Exception ue) {
+                log.warn("写入任务失败状态失败 taskId={}", taskId, ue);
+            }
         }
     }
 

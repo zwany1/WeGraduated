@@ -18,8 +18,8 @@
       </div>
 
       <div class="relative z-20 flex items-center gap-8 text-sm text-white/60">
-        <span class="hover:text-white transition-colors cursor-pointer" @click="goPrivacy">Privacy Policy</span>
-        <span class="hover:text-white transition-colors cursor-pointer">Terms of Service</span>
+        <span class="hover:text-white transition-colors cursor-pointer" @click="goPrivacy">隐私政策</span>
+        <span class="hover:text-white transition-colors cursor-pointer">服务条款</span>
       </div>
 
       <!-- Decorative elements -->
@@ -40,19 +40,19 @@
 
         <!-- Header -->
         <div class="text-center mb-12">
-          <h1 class="text-[26px] font-semibold tracking-tight mb-1" style="color:#303133">Welcome!</h1>
+          <h1 class="text-[26px] font-semibold tracking-tight mb-1" style="color:#303133">欢迎回来！</h1>
           <p class="text-sm mb-4 text-center" style="color:#909399">登录论文格式助手，继续你的论文排版</p>
         </div>
 
         <!-- Login Form -->
         <form @submit.prevent="submit" class="space-y-12">
           <div class="input-block">
-            <label for="username" class="input-label">Email / 用户名</label>
+            <label for="username" class="input-label">邮箱 / 用户名</label>
             <input
               id="username"
               v-model="form.username"
               type="text"
-              placeholder="you@example.com 或用户名"
+              placeholder="请输入邮箱或用户名"
               autocomplete="off"
               @focus="isTyping = true"
               @blur="isTyping = false"
@@ -60,7 +60,7 @@
           </div>
 
           <div class="input-block">
-            <label for="password" class="input-label">Password</label>
+            <label for="password" class="input-label">密码</label>
             <div class="relative">
               <input
                 id="password"
@@ -113,21 +113,21 @@
               </span>
               记住我 30 天
             </label>
-            <span class="text-sm cursor-pointer hover:underline" style="color:#409eff" @click="goForgot">Forgot your password?</span>
+            <span class="text-sm cursor-pointer hover:underline" style="color:#409eff" @click="goForgot">忘记密码？</span>
           </div>
 
           <button
             type="submit"
             :disabled="loading"
             class="input-button w-full"
-          >{{ loading ? '...' : 'Login' }}</button>
+          >{{ loading ? '...' : '登录' }}</button>
 
           <p class="text-center text-sm min-h-5" style="color:#909399">{{ hint }}</p>
         </form>
 
         <p class="sign-up">
           还没有账号？
-          <a class="cursor-pointer" @click="goRegister">Sign up now</a>
+          <a class="cursor-pointer" @click="goRegister">立即注册</a>
         </p>
       </div>
     </div>

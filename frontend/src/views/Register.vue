@@ -18,8 +18,8 @@
       </div>
 
       <div class="relative z-20 flex items-center gap-8 text-sm text-white/60">
-        <span class="hover:text-white transition-colors cursor-pointer" @click="goPrivacy">Privacy Policy</span>
-        <span class="hover:text-white transition-colors cursor-pointer">Terms of Service</span>
+        <span class="hover:text-white transition-colors cursor-pointer" @click="goPrivacy">隐私政策</span>
+        <span class="hover:text-white transition-colors cursor-pointer">服务条款</span>
       </div>
 
       <!-- Decorative elements -->
@@ -40,7 +40,7 @@
 
         <!-- Header -->
         <div class="text-center mb-12">
-          <h1 class="text-[26px] font-semibold tracking-tight mb-1" style="color:#303133">Create Account</h1>
+          <h1 class="text-[26px] font-semibold tracking-tight mb-1" style="color:#303133">创建账号</h1>
           <p class="text-sm mb-4 text-center" style="color:#909399">注册后即可开始使用论文排版服务</p>
         </div>
 
@@ -52,7 +52,7 @@
               id="email"
               v-model="form.email"
               type="email"
-              placeholder="you@example.com"
+              placeholder="请输入邮箱"
               autocomplete="off"
               @focus="isTyping = true"
               @blur="isTyping = false"
@@ -78,7 +78,7 @@
                 class="shrink-0 h-10 px-4 rounded-md text-sm font-semibold border border-[#dcdfe6] bg-white transition-colors disabled:opacity-50"
                 :class="countdown > 0 ? 'cursor-not-allowed text-[#909399]' : 'cursor-pointer text-[#409eff] hover:border-[#409eff] hover:text-[#409eff]'"
               >
-                {{ countdown > 0 ? countdown + 's 后重发' : '发送验证码' }}
+                {{ countdown > 0 ? countdown + '秒后重发' : '发送验证码' }}
               </button>
             </div>
           </div>
@@ -95,7 +95,7 @@
           </div>
 
           <div class="input-block">
-            <label for="password" class="input-label">Password <span style="color:#e74c3c">*</span></label>
+            <label for="password" class="input-label">密码 <span style="color:#e74c3c">*</span></label>
             <div class="relative">
               <input
                 id="password"
@@ -156,7 +156,7 @@
           </div>
 
           <button type="submit" :disabled="loading" class="input-button w-full">
-            {{ loading ? '...' : 'Register' }}
+            {{ loading ? '...' : '注册' }}
           </button>
 
           <p class="text-center text-sm min-h-5" style="color:#909399">{{ hint }}</p>
@@ -164,7 +164,7 @@
 
         <p class="sign-up">
           已有账号？
-          <a class="cursor-pointer" @click="goLogin">Log in</a>
+          <a class="cursor-pointer" @click="goLogin">登录</a>
         </p>
       </div>
     </div>

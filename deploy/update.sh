@@ -14,12 +14,14 @@ set -e
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
 
-echo "[1/4] 恢复 compose 为仓库版本并拉取最新代码..."
-# 服务器上 docker-compose.yml 可能被历史手工修改过, 仓库版本即为所需版本
-if [ -n "$(git status --porcelain deploy/docker-compose.yml)" ]; then
-    echo "  检测到 deploy/docker-compose.yml 有本地修改, 已恢复为仓库版本"
-    git checkout -- deploy/docker-compose.yml
-fi
+echo "[1/4] 恢复部署文件为仓库版本并拉取最新代码..."
+# 服务器上这些文件可能被构建/手工操作污染, 仓库版本即为所需版本
+for f in deploy/docker-compose.yml frontend/index.html; do
+    if [ -n "$(git status --porcelain "$f")" ]; then
+        echo "  检测到 $f 有本地修改, 已恢复为仓库版本"
+        git checkout -- "$f"
+    fi
+done
 git pull --ff-only
 
 echo "[2/4] 更新前端(如有新上传的 dist 包)..."

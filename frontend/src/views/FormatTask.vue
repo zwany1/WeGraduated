@@ -91,15 +91,30 @@
             <span class="compare-badge diff">差异索引</span>
             <span class="diff-count">{{ diffItems.length }} 处</span>
           </div>
+          <div class="diff-toolbar">
+            <el-select v-model="selectedType" size="small" placeholder="全部类型" clearable style="width: 120px">
+              <el-option v-for="t in typeOptions" :key="t" :label="t" :value="t" />
+            </el-select>
+          </div>
           <div class="diff-list">
-            <div v-for="(d, i) in diffItems" :key="i" class="diff-item" :class="{ active: activeDiff === i }" @click="gotoDiff(d, i)">
-              <div class="diff-item-top">
-                <span class="diff-type">{{ d.type }}</span>
-                <span class="diff-page" v-if="d.page">P{{ d.page }}</span>
+            <el-empty v-if="!diffGroups.length" description="未发现差异" :image-size="60" />
+            <div v-for="g in diffGroups" :key="g.key" class="diff-group">
+              <div class="diff-group-title" @click="toggleGroup(g.key)">
+                <span class="diff-group-name">{{ g.key }}</span>
+                <span class="diff-group-count">{{ g.items.length }}</span>
+                <span class="diff-group-arrow">{{ collapsed[g.key] ? '▸' : '▾' }}</span>
               </div>
-              <div class="diff-text">{{ d.text }}</div>
+              <div v-show="!collapsed[g.key]" class="diff-group-items">
+                <div v-for="d in g.items" :key="d.index" class="diff-item" :class="{ active: activeDiff === d.index }" @click="gotoDiff(d)">
+                  <div class="diff-item-top">
+                    <span class="diff-index">#{{ d.index }}</span>
+                    <span class="diff-page" v-if="d.page">P{{ d.page }}</span>
+                  </div>
+                  <div class="diff-change" v-if="d.change">{{ d.change }}</div>
+                  <div class="diff-text">{{ d.text }}</div>
+                </div>
+              </div>
             </div>
-            <el-empty v-if="!diffItems.length" description="未发现差异" :image-size="60" />
           </div>
         </div>
         <div class="compare-divider"></div>
@@ -138,7 +153,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { ElMessage } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
 import { listTemplates } from '../api/template'
@@ -161,6 +176,19 @@ const diffItems = ref([])
 const activeDiff = ref(-1)
 const docxCompareRef = ref(null)
 const docxAfterRef = ref(null)
+// 差异索引: 筛选 + 分组折叠
+const selectedType = ref('')
+const collapsed = ref({})
+const typeOptions = computed(() => [...new Set(diffItems.value.map(d => d.type))])
+const diffGroups = computed(() => {
+  const list = selectedType.value ? diffItems.value.filter(d => d.type === selectedType.value) : diffItems.value
+  const map = {}
+  list.forEach(d => { (map[d.type] = map[d.type] || []).push(d) })
+  return Object.keys(map).map(k => ({ key: k, items: map[k] }))
+})
+function toggleGroup(key) {
+  collapsed.value[key] = !collapsed.value[key]
+}
 const errorVisible = ref(false)
 const errorMsg = ref('')
 const errorTaskId = ref(null)
@@ -314,6 +342,13 @@ async function compare(row) {
     getDiff(row.id).then(res => {
       if (mySeq !== compareSeq) return
       diffItems.value = res || []
+      if (diffItems.value.length) {
+        ElMessage({
+          type: 'success',
+          message: `已发现 ${diffItems.value.length} 处格式差异，见左侧「差异索引」，点击可定位到左右两侧对应位置`,
+          duration: 3000
+        })
+      }
     }).catch(() => {})
   } catch (e) {
     if (mySeq !== compareSeq) return
@@ -322,8 +357,8 @@ async function compare(row) {
   }
 }
 
-function gotoDiff(d, i) {
-  activeDiff.value = i
+function gotoDiff(d) {
+  activeDiff.value = d.index
   // 排版前 + 排版后两侧都定位到对应段落并高亮(文本相同, 用文本前缀匹配)
   if (docxCompareRef.value && d.text) docxCompareRef.value.scrollToText(d.text)
   if (docxAfterRef.value && d.text) docxAfterRef.value.scrollToText(d.text)
@@ -440,10 +475,46 @@ function formatTime(t) {
   font-size: 12px;
   color: #909399;
 }
+.diff-toolbar {
+  padding: 8px 10px 4px;
+}
 .diff-list {
   flex: 1;
   overflow-y: auto;
-  padding: 10px;
+  padding: 6px 10px 10px;
+}
+.diff-group {
+  margin-bottom: 6px;
+}
+.diff-group-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  cursor: pointer;
+  border-radius: 6px;
+  background: #f7f8fa;
+  font-size: 12px;
+  font-weight: 600;
+  color: #606266;
+  user-select: none;
+}
+.diff-group-title:hover {
+  background: #f0f2f5;
+}
+.diff-group-name {
+  color: #b91c1c;
+}
+.diff-group-count {
+  color: #909399;
+  font-weight: 400;
+}
+.diff-group-arrow {
+  margin-left: auto;
+  color: #909399;
+}
+.diff-group-items {
+  padding-top: 6px;
 }
 .diff-item {
   border: 1px solid #ebeef5;
@@ -468,16 +539,23 @@ function formatTime(t) {
   justify-content: space-between;
   margin-bottom: 4px;
 }
-.diff-type {
+.diff-index {
   font-size: 11px;
-  color: #b91c1c;
-  background: #fee2e2;
+  color: #606266;
+  background: #f0f2f5;
   padding: 1px 6px;
   border-radius: 4px;
 }
 .diff-page {
   font-size: 11px;
   color: #909399;
+}
+.diff-change {
+  font-size: 12px;
+  color: #b91c1c;
+  line-height: 1.5;
+  margin-bottom: 3px;
+  word-break: break-all;
 }
 .diff-text {
   font-size: 12px;

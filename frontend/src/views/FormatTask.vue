@@ -221,6 +221,16 @@ async function fetchOriginalBlob(taskId) {
   return b
 }
 
+// 差异分析结果缓存: 同一任务重复打开对比不重新计算
+const diffCache = new Map()
+async function fetchDiff(taskId) {
+  const key = 'diff:' + taskId
+  if (diffCache.has(key)) return diffCache.get(key)
+  const res = await getDiff(taskId)
+  diffCache.set(key, res)
+  return res
+}
+
 onMounted(async () => {
   templates.value = await listTemplates()
   await loadTasks()
@@ -346,8 +356,8 @@ async function compare(row) {
     if (mySeq !== compareSeq) return
     compareBefore.value = Array.from(new Uint8Array(beforeBuf))
     compareAfter.value = Array.from(new Uint8Array(afterBuf))
-    // 差异分析: 失败不阻塞对比预览
-    getDiff(row.id).then(res => {
+    // 差异分析: 失败不阻塞对比预览, 结果按任务缓存(重复打开不重算)
+    fetchDiff(row.id).then(res => {
       if (mySeq !== compareSeq) return
       diffItems.value = res || []
       if (diffItems.value.length) {

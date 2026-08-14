@@ -77,14 +77,14 @@
       </section>
     </main>
 
-    <el-dialog v-if="previewVisible" v-model="previewVisible" title="排版结果预览" width="80%" top="4vh" destroy-on-close @closed="onPreviewClosed">
+    <el-dialog v-model="previewVisible" title="排版结果预览" width="80%" top="4vh" destroy-on-close @closed="onPreviewClosed">
       <div style="height: 72vh">
-        <PdfViewer v-if="previewData.length" :key="'pv' + previewRenderKey" :data="previewData" />
-        <el-empty v-else description="PDF 生成中，首次可能需要几十秒..." />
+        <DocxCompare v-if="previewData.length" :key="'pv' + previewRenderKey" :data="previewData" />
+        <el-empty v-else description="加载中..." />
       </div>
     </el-dialog>
 
-    <el-dialog v-if="compareVisible" v-model="compareVisible" title="排版前后对比" width="94%" top="3vh" destroy-on-close @closed="onCompareClosed">
+    <el-dialog v-model="compareVisible" title="排版前后对比" width="94%" top="3vh" destroy-on-close @closed="onCompareClosed">
       <div class="compare-layout">
         <div class="compare-diff">
           <div class="compare-header">
@@ -120,14 +120,14 @@
             <span class="compare-name">{{ compareName }}</span>
           </div>
           <div class="compare-body">
-            <PdfViewer v-if="compareAfter.length" ref="pdfViewerRef" :key="'cp' + compareRenderKey" :data="compareAfter" :highlights="diffItems" />
-            <el-empty v-else description="PDF 生成中，首次可能需要几十秒..." />
+            <DocxCompare v-if="compareAfter.length" ref="docxAfterRef" :key="'cp' + compareRenderKey" :data="compareAfter" />
+            <el-empty v-else description="加载中..." />
           </div>
         </div>
       </div>
     </el-dialog>
 
-    <el-dialog v-if="errorVisible" v-model="errorVisible" title="排版失败原因" width="520px" top="10vh">
+    <el-dialog v-model="errorVisible" title="排版失败原因" width="520px" top="10vh">
       <div class="error-detail">
         <p class="error-label">任务 #{{ errorTaskId }} 排版失败，原因如下：</p>
         <div class="error-box">{{ errorMsg }}</div>
@@ -142,8 +142,7 @@ import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { ElMessage } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
 import { listTemplates } from '../api/template'
-import { uploadPaper, startFormat, listTasks, getTask, downloadPaper, previewPaper, downloadPaperOriginal, getDiff } from '../api/paper'
-import PdfViewer from '../components/PdfViewer.vue'
+import { uploadPaper, startFormat, listTasks, getTask, downloadPaper, downloadPaperOriginal, getDiff } from '../api/paper'
 import DocxCompare from '../components/DocxCompare.vue'
 
 const templates = ref([])
@@ -160,8 +159,8 @@ const compareAfter = ref([])
 const compareName = ref('')
 const diffItems = ref([])
 const activeDiff = ref(-1)
-const pdfViewerRef = ref(null)
 const docxCompareRef = ref(null)
+const docxAfterRef = ref(null)
 const errorVisible = ref(false)
 const errorMsg = ref('')
 const errorTaskId = ref(null)
@@ -170,12 +169,12 @@ const previewRenderKey = ref(0)
 const compareRenderKey = ref(0)
 let pollTimer = null
 
-// PDF/原始docx 内存缓存: 同一任务重复预览/对比不重复下载, 加速二次打开
+// 排版结果/原始 docx 内存缓存: 同一任务重复预览/对比不重复下载, 加速二次打开
 const blobCache = new Map()
-async function fetchPdfBlob(taskId) {
-  const key = 'pdf:' + taskId
+async function fetchDocxBlob(taskId) {
+  const key = 'doc:' + taskId
   if (blobCache.has(key)) return blobCache.get(key)
-  const b = await previewPaper(taskId)
+  const b = await downloadPaper(taskId)
   blobCache.set(key, b)
   return b
 }
@@ -271,7 +270,7 @@ async function preview(row) {
   previewData.value = []
   previewVisible.value = true
   try {
-    const blob = await fetchPdfBlob(row.id)
+    const blob = await fetchDocxBlob(row.id)
     if (mySeq !== previewSeq) return // 已被更新的预览请求取代
     const buf = await blob.arrayBuffer()
     previewData.value = Array.from(new Uint8Array(buf))
@@ -301,7 +300,7 @@ async function compare(row) {
   try {
     const [beforeBlob, afterBlob] = await Promise.all([
       fetchOriginalBlob(row.id),
-      fetchPdfBlob(row.id)
+      fetchDocxBlob(row.id)
     ])
     if (mySeq !== compareSeq) return
     const [beforeBuf, afterBuf] = await Promise.all([
@@ -325,9 +324,9 @@ async function compare(row) {
 
 function gotoDiff(d, i) {
   activeDiff.value = i
-  if (pdfViewerRef.value && d.page) pdfViewerRef.value.gotoPage(d.page)
-  // 排版前内容同步定位到对应段落(格式未变文本相同)
+  // 排版前 + 排版后两侧都定位到对应段落并高亮(文本相同, 用文本前缀匹配)
   if (docxCompareRef.value && d.text) docxCompareRef.value.scrollToText(d.text)
+  if (docxAfterRef.value && d.text) docxAfterRef.value.scrollToText(d.text)
 }
 
 function onCompareClosed() {

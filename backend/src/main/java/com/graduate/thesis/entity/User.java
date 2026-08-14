@@ -15,6 +15,11 @@ import java.time.LocalDateTime;
 @TableName("t_user")
 public class User {
 
+    /** 普通用户 */
+    public static final String ROLE_USER = "USER";
+    /** 管理员 */
+    public static final String ROLE_ADMIN = "ADMIN";
+
     @TableId(type = IdType.AUTO)
     private Long id;
 
@@ -30,6 +35,9 @@ public class User {
 
     /** 头像(data URL base64) */
     private String avatar;
+
+    /** 角色: USER / ADMIN */
+    private String role;
 
     private LocalDateTime createTime;
 }

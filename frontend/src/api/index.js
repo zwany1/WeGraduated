@@ -33,6 +33,7 @@ api.interceptors.response.use(
       localStorage.removeItem('userId')
       localStorage.removeItem('username')
       localStorage.removeItem('avatar')
+      localStorage.removeItem('role')
       router.push({ path: '/login', query: { redirect: router.currentRoute.value.fullPath } })
     } else {
       const msg = err.response?.data?.message || err.message || '网络错误'

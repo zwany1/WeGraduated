@@ -31,6 +31,12 @@
                 <el-dropdown-menu>
                   <el-dropdown-item command="templates">我的工作台</el-dropdown-item>
                   <el-dropdown-item command="profile">个人资料</el-dropdown-item>
+                  <el-dropdown-item v-if="isAdmin" command="admin" divided>
+                    <span class="admin-entry">
+                      管理后台
+                      <span class="admin-entry-badge">ADMIN</span>
+                    </span>
+                  </el-dropdown-item>
                   <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -312,6 +318,7 @@ import { getProfile, logout } from '../api/user'
 const router = useRouter()
 
 const isLoggedIn = ref(false)
+const isAdmin = ref(false)
 const userName = ref('')
 const userAvatar = ref('')
 
@@ -319,6 +326,7 @@ const avatarText = computed(() => (userName.value || 'U').slice(0, 1).toUpperCas
 
 onMounted(async () => {
   isLoggedIn.value = !!localStorage.getItem('token')
+  isAdmin.value = localStorage.getItem('role') === 'ADMIN'
   userName.value = localStorage.getItem('username') || '用户'
   userAvatar.value = localStorage.getItem('avatar') || ''
   // 已登录时以数据库为准同步昵称/头像; token 失效则清除本地状态
@@ -334,12 +342,14 @@ onMounted(async () => {
     } catch (e) {
       // token 失效: 清除本地登录状态, 显示未登录
       isLoggedIn.value = false
+      isAdmin.value = false
       userName.value = ''
       userAvatar.value = ''
       localStorage.removeItem('token')
       localStorage.removeItem('userId')
       localStorage.removeItem('username')
       localStorage.removeItem('avatar')
+      localStorage.removeItem('role')
     }
   }
 })
@@ -362,6 +372,8 @@ async function handleUserCommand(cmd) {
     router.push('/templates')
   } else if (cmd === 'profile') {
     router.push('/profile')
+  } else if (cmd === 'admin') {
+    router.push('/admin/dashboard')
   } else if (cmd === 'logout') {
     try {
       await ElMessageBox.confirm('确定退出登录？', '提示', { type: 'warning' })
@@ -369,7 +381,9 @@ async function handleUserCommand(cmd) {
       localStorage.removeItem('token')
       localStorage.removeItem('username')
       localStorage.removeItem('avatar')
+      localStorage.removeItem('role')
       isLoggedIn.value = false
+      isAdmin.value = false
       router.push('/home')
     } catch (e) {
       // 取消
@@ -645,6 +659,22 @@ const tools = [
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.admin-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.admin-entry-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #b08a3e;
+  background: rgba(201, 164, 92, 0.16);
+  border: 1px solid rgba(201, 164, 92, 0.4);
+  border-radius: 4px;
+  padding: 1px 6px;
 }
 
 /* ===== Buttons ===== */

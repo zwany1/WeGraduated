@@ -2,6 +2,7 @@ package com.graduate.thesis.controller;
 
 import com.graduate.thesis.common.Result;
 import com.graduate.thesis.common.UserContext;
+import com.graduate.thesis.dto.LoginDTO;
 import com.graduate.thesis.dto.LoginResponse;
 import com.graduate.thesis.dto.ResetPasswordDTO;
 import com.graduate.thesis.dto.SendEmailCodeDTO;
@@ -48,7 +49,7 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public Result<LoginResponse> login(@Valid @RequestBody UserAuthDTO dto) {
+    public Result<LoginResponse> login(@Valid @RequestBody LoginDTO dto) {
         captchaService.verify(dto.getCaptchaId(), dto.getCaptchaCode());
         return Result.ok(userService.login(dto));
     }

@@ -13,11 +13,14 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class WebConfig implements WebMvcConfigurer {
 
     private final LoginInterceptor loginInterceptor;
+    private final AdminInterceptor adminInterceptor;
     private final String[] allowedOrigins;
 
     public WebConfig(LoginInterceptor loginInterceptor,
+                     AdminInterceptor adminInterceptor,
                      @Value("${thesis.cors.allowed-origins}") String allowedOrigins) {
         this.loginInterceptor = loginInterceptor;
+        this.adminInterceptor = adminInterceptor;
         this.allowedOrigins = allowedOrigins.split(",");
     }
 
@@ -45,5 +48,7 @@ public class WebConfig implements WebMvcConfigurer {
                         "/file/download/**",
                         "/error"
                 );
+        registry.addInterceptor(adminInterceptor)
+                .addPathPatterns("/admin/**");
     }
 }

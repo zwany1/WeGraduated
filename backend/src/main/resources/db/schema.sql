@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS t_user (
     avatar            LONGTEXT     DEFAULT NULL,
     security_question VARCHAR(128) DEFAULT NULL,
     security_answer   VARCHAR(128) DEFAULT NULL,
+    role              VARCHAR(16)  NOT NULL DEFAULT 'USER',
     create_time       DATETIME     DEFAULT NULL,
     UNIQUE KEY uk_username (username),
     UNIQUE KEY uk_email (email)

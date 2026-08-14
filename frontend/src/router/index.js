@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { ElMessage } from 'element-plus'
 
 // 无需登录即可访问的白名单页面
 const PUBLIC_PAGES = [
@@ -29,7 +30,19 @@ const routes = [
   { path: '/pricing', component: () => import('../views/Pricing.vue') },
   { path: '/privacy', component: () => import('../views/Privacy.vue') },
   { path: '/about', component: () => import('../views/About.vue') },
-  { path: '/terms', component: () => import('../views/Terms.vue') }
+  { path: '/terms', component: () => import('../views/Terms.vue') },
+  {
+    path: '/admin',
+    component: () => import('../views/admin/AdminLayout.vue'),
+    meta: { requiresAdmin: true },
+    redirect: '/admin/dashboard',
+    children: [
+      { path: 'dashboard', component: () => import('../views/admin/Dashboard.vue'), meta: { title: '概览' } },
+      { path: 'users', component: () => import('../views/admin/UserManage.vue'), meta: { title: '用户管理' } },
+      { path: 'templates', component: () => import('../views/admin/TemplateManage.vue'), meta: { title: '模板管理' } },
+      { path: 'tasks', component: () => import('../views/admin/TaskManage.vue'), meta: { title: '排版任务' } }
+    ]
+  }
 ]
 
 const router = createRouter({
@@ -50,9 +63,14 @@ router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token')
   if (!PUBLIC_PAGES.includes(to.path) && !token) {
     next({ path: '/login', query: { redirect: to.fullPath } })
-  } else {
-    next()
+    return
   }
+  if (to.matched.some(r => r.meta.requiresAdmin) && localStorage.getItem('role') !== 'ADMIN') {
+    ElMessage.warning('需要管理员权限才能访问')
+    next(token ? '/home' : '/login')
+    return
+  }
+  next()
 })
 
 export default router

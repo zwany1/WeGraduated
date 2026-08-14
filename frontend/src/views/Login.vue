@@ -201,8 +201,7 @@ async function submit() {
   hint.value = '请稍候...'
   try {
     const data = await login({
-      email: form.username.trim(),
-      username: form.username.trim(),
+      account: form.username.trim(),
       password: form.password,
       captchaId: form.captchaId,
       captchaCode: form.captchaCode
@@ -210,6 +209,7 @@ async function submit() {
     localStorage.setItem('token', data.token)
     localStorage.setItem('userId', data.userId)
     localStorage.setItem('username', data.username)
+    localStorage.setItem('role', data.role || 'USER')
     try {
       const p = await getProfile()
       if (p) {

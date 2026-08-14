@@ -2,6 +2,7 @@ package com.graduate.thesis.common;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -19,8 +20,12 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
-    public Result<Void> handleBusiness(BusinessException e) {
-        return Result.fail(e.getCode(), e.getMessage());
+    public ResponseEntity<Result<Void>> handleBusiness(BusinessException e) {
+        // 仅 401/403 映射 HTTP 状态码(供前端拦截器跳登录/提示无权限), 其余保持 HTTP 200 + body.code
+        HttpStatus status = e.getCode() == 401 ? HttpStatus.UNAUTHORIZED
+                : e.getCode() == 403 ? HttpStatus.FORBIDDEN
+                : HttpStatus.OK;
+        return ResponseEntity.status(status).body(Result.fail(e.getCode(), e.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

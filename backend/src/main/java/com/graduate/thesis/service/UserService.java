@@ -2,6 +2,7 @@ package com.graduate.thesis.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.graduate.thesis.common.BusinessException;
+import com.graduate.thesis.dto.LoginDTO;
 import com.graduate.thesis.dto.LoginResponse;
 import com.graduate.thesis.dto.ResetPasswordDTO;
 import com.graduate.thesis.dto.UserAuthDTO;
@@ -95,6 +96,8 @@ public class UserService {
         String username = dto.getUsername() == null ? "" : dto.getUsername().trim();
         if (username.isEmpty()) {
             username = autoGenerateUsername(email);
+        } else if (isReservedUsername(username)) {
+            throw new BusinessException("该用户名不可用");
         } else if (isUsernameTaken(username)) {
             throw new BusinessException("用户名已存在");
         }
@@ -109,10 +112,9 @@ public class UserService {
         return buildLoginResponse(user);
     }
 
-    public LoginResponse login(UserAuthDTO dto) {
-        String account = dto.getEmail() != null && !dto.getEmail().trim().isEmpty()
-                ? dto.getEmail().trim().toLowerCase() : dto.getUsername();
-        if (account == null || account.isEmpty()) {
+    public LoginResponse login(LoginDTO dto) {
+        String account = dto.getAccount() == null ? "" : dto.getAccount().trim().toLowerCase();
+        if (account.isEmpty()) {
             throw new BusinessException("请输入用户名或邮箱");
         }
         // 限流检查
@@ -202,6 +204,11 @@ public class UserService {
         return count != null && count > 0;
     }
 
+    /** 保留用户名(与系统管理员账号冲突), 禁止普通注册占用 */
+    private boolean isReservedUsername(String username) {
+        return "admin".equalsIgnoreCase(username);
+    }
+
     /** 未填用户名时自动生成: 邮箱前缀，冲突则追加随机数字 */
     private String autoGenerateUsername(String email) {
         String base = email.substring(0, email.indexOf('@')).replaceAll("[^a-zA-Z0-9_]", "");
@@ -234,6 +241,7 @@ public class UserService {
         resp.setUsername(user.getUsername());
         resp.setNickname(user.getNickname());
         resp.setEmail(user.getEmail());
+        resp.setRole(user.getRole() == null ? User.ROLE_USER : user.getRole());
         resp.setToken(jwtUtil.generate(user.getId()));
         return resp;
     }

@@ -79,8 +79,8 @@
 
     <el-dialog v-model="previewVisible" title="排版结果预览" width="80%" top="4vh" destroy-on-close @closed="onPreviewClosed">
       <div style="height: 72vh">
-        <PdfViewer v-if="previewData.length" :data="previewData" />
-        <el-empty v-else description="预览加载中..." />
+        <PdfViewer v-if="previewData.length" :key="'pv' + previewRenderKey" :data="previewData" />
+        <el-empty v-else description="PDF 生成中，首次可能需要几十秒..." />
       </div>
     </el-dialog>
 
@@ -109,7 +109,7 @@
             <span class="compare-name">{{ compareName }}</span>
           </div>
           <div class="compare-body">
-            <DocxCompare v-if="compareBefore.length" ref="docxCompareRef" :data="compareBefore" />
+            <DocxCompare v-if="compareBefore.length" ref="docxCompareRef" :key="'dc' + compareRenderKey" :data="compareBefore" />
             <el-empty v-else description="加载中..." />
           </div>
         </div>
@@ -120,8 +120,8 @@
             <span class="compare-name">{{ compareName }}</span>
           </div>
           <div class="compare-body">
-            <PdfViewer v-if="compareAfter.length" ref="pdfViewerRef" :data="compareAfter" :highlights="diffItems" />
-            <el-empty v-else description="加载中..." />
+            <PdfViewer v-if="compareAfter.length" ref="pdfViewerRef" :key="'cp' + compareRenderKey" :data="compareAfter" :highlights="diffItems" />
+            <el-empty v-else description="PDF 生成中，首次可能需要几十秒..." />
           </div>
         </div>
       </div>
@@ -165,7 +165,27 @@ const docxCompareRef = ref(null)
 const errorVisible = ref(false)
 const errorMsg = ref('')
 const errorTaskId = ref(null)
+// 每次打开预览/对比递增, 强制子组件重建, 避免多次点击残留多个渲染
+const previewRenderKey = ref(0)
+const compareRenderKey = ref(0)
 let pollTimer = null
+
+// PDF/原始docx 内存缓存: 同一任务重复预览/对比不重复下载, 加速二次打开
+const blobCache = new Map()
+async function fetchPdfBlob(taskId) {
+  const key = 'pdf:' + taskId
+  if (blobCache.has(key)) return blobCache.get(key)
+  const b = await previewPaper(taskId)
+  blobCache.set(key, b)
+  return b
+}
+async function fetchOriginalBlob(taskId) {
+  const key = 'ori:' + taskId
+  if (blobCache.has(key)) return blobCache.get(key)
+  const b = await downloadPaperOriginal(taskId)
+  blobCache.set(key, b)
+  return b
+}
 
 onMounted(async () => {
   templates.value = await listTemplates()
@@ -247,10 +267,11 @@ let previewSeq = 0
 async function preview(row) {
   compareVisible.value = false // 与对比弹窗互斥
   const mySeq = ++previewSeq
+  previewRenderKey.value++
   previewData.value = []
   previewVisible.value = true
   try {
-    const blob = await previewPaper(row.id)
+    const blob = await fetchPdfBlob(row.id)
     if (mySeq !== previewSeq) return // 已被更新的预览请求取代
     const buf = await blob.arrayBuffer()
     previewData.value = Array.from(new Uint8Array(buf))
@@ -270,6 +291,7 @@ let compareSeq = 0
 async function compare(row) {
   previewVisible.value = false // 与预览弹窗互斥
   const mySeq = ++compareSeq
+  compareRenderKey.value++
   compareBefore.value = []
   compareAfter.value = []
   diffItems.value = []
@@ -278,8 +300,8 @@ async function compare(row) {
   compareVisible.value = true
   try {
     const [beforeBlob, afterBlob] = await Promise.all([
-      downloadPaperOriginal(row.id),
-      previewPaper(row.id)
+      fetchOriginalBlob(row.id),
+      fetchPdfBlob(row.id)
     ])
     if (mySeq !== compareSeq) return
     const [beforeBuf, afterBuf] = await Promise.all([

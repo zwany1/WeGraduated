@@ -204,7 +204,16 @@ public class PaperService {
             }
         }
         File result = storageService.load(task.getResultPath());
-        return docxPdfService.convert(result);
+        File pdf = docxPdfService.convert(result);
+        // 即时转换结果写入缓存, 下次预览直接读取(首次转换较慢, 之后秒开)
+        try {
+            String pdfPath = storageService.storePdf(task.getUserId(), pdf);
+            task.setPdfPath(pdfPath);
+            taskMapper.updateById(task);
+        } catch (Exception ignore) {
+            // 缓存写入失败不影响本次预览
+        }
+        return pdf;
     }
 
     /**

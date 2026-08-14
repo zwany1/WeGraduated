@@ -615,16 +615,17 @@ function nodeSpec(type) {
 
 const portDef = {
   groups: {
-    top: { position: 'top' },
-    bottom: { position: 'bottom' },
-    left: { position: 'left' },
-    right: { position: 'right' }
+    all: { position: { name: 'absolute' } }
   },
   items: [
-    { id: 't', group: 'top' },
-    { id: 'b', group: 'bottom' },
-    { id: 'l', group: 'left' },
-    { id: 'r', group: 'right' }
+    { id: 'tl', group: 'all', args: { x: '0%', y: '0%' } },
+    { id: 't', group: 'all', args: { x: '50%', y: '0%' } },
+    { id: 'tr', group: 'all', args: { x: '100%', y: '0%' } },
+    { id: 'r', group: 'all', args: { x: '100%', y: '50%' } },
+    { id: 'br', group: 'all', args: { x: '100%', y: '100%' } },
+    { id: 'b', group: 'all', args: { x: '50%', y: '100%' } },
+    { id: 'bl', group: 'all', args: { x: '0%', y: '100%' } },
+    { id: 'l', group: 'all', args: { x: '0%', y: '50%' } }
   ]
 }
 
@@ -680,7 +681,7 @@ function initGraph() {
     ],
     defaultPort: {
       attrs: {
-        portBody: { r: 5, magnet: true, stroke: '#1a73e8', strokeWidth: 1, fill: '#fff', style: { visibility: 'hidden' } }
+        portBody: { r: 4, magnet: true, stroke: '#1a73e8', strokeWidth: 1, fill: '#fff', style: { visibility: 'hidden' } }
       }
     },
     connecting: {

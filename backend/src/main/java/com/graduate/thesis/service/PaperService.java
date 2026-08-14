@@ -125,7 +125,8 @@ public class PaperService {
         } catch (Exception e) {
             log.error("排版失败 taskId={}", taskId, e);
             task.setStatus(FormatTask.STATUS_FAILED);
-            task.setErrorMsg(e.getMessage());
+            String em = e.getMessage();
+            task.setErrorMsg(em == null ? null : (em.length() > 2000 ? em.substring(0, 2000) : em));
             task.setFinishTime(LocalDateTime.now());
             taskMapper.updateById(task);
         }

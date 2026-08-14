@@ -1108,12 +1108,13 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 100%;
 }
-/* 连接锚点: 节点悬停显示, 离开隐藏 (draw.io 交互) */
+/* 连接锚点: 节点悬停显示, 离开隐藏 (draw.io 交互)
+   opacity 隐藏而非 visibility, 保证锚点始终可接收鼠标事件(拖线/吸附) */
 :deep(.x6-port-body) {
-  visibility: hidden;
+  opacity: 0;
 }
 :deep(.x6-node:hover .x6-port-body) {
-  visibility: visible;
+  opacity: 1;
 }
 .canvas-loading {
   position: absolute;

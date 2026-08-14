@@ -577,6 +577,7 @@ const tools = [
   color: var(--c-text2);
   padding: 6px 14px;
   border-radius: 6px;
+  cursor: pointer;
   transition: all 0.2s;
   position: relative;
 }
@@ -1341,6 +1342,7 @@ const tools = [
   color: #9ca3af;
   text-decoration: none;
   font-size: 13px;
+  cursor: pointer;
   transition: color 0.2s;
 }
 .footer-links a:hover {

@@ -97,24 +97,30 @@
             </el-select>
           </div>
           <div class="diff-list">
-            <el-empty v-if="!diffGroups.length" description="未发现差异" :image-size="60" />
-            <div v-for="g in diffGroups" :key="g.key" class="diff-group">
-              <div class="diff-group-title" @click="toggleGroup(g.key)">
-                <span class="diff-group-name">{{ g.key }}</span>
-                <span class="diff-group-count">{{ g.items.length }}</span>
-                <span class="diff-group-arrow">{{ collapsed[g.key] ? '▸' : '▾' }}</span>
-              </div>
-              <div v-show="!collapsed[g.key]" class="diff-group-items">
-                <div v-for="d in g.items" :key="d.index" class="diff-item" :class="{ active: activeDiff === d.index }" @click="gotoDiff(d)">
-                  <div class="diff-item-top">
-                    <span class="diff-index">#{{ d.index }}</span>
-                    <span class="diff-page" v-if="d.page">P{{ d.page }}</span>
+            <div v-if="diffLoading" class="diff-loading">
+              <el-icon class="is-loading" :size="24"><Loading /></el-icon>
+              <span>差异对比中...</span>
+            </div>
+            <template v-else>
+              <el-empty v-if="!diffGroups.length" description="未发现差异" :image-size="60" />
+              <div v-for="g in diffGroups" :key="g.key" class="diff-group">
+                <div class="diff-group-title" @click="toggleGroup(g.key)">
+                  <span class="diff-group-name">{{ g.key }}</span>
+                  <span class="diff-group-count">{{ g.items.length }}</span>
+                  <span class="diff-group-arrow">{{ collapsed[g.key] ? '▸' : '▾' }}</span>
+                </div>
+                <div v-show="!collapsed[g.key]" class="diff-group-items">
+                  <div v-for="d in g.items" :key="d.index" class="diff-item" :class="{ active: activeDiff === d.index }" @click="gotoDiff(d)">
+                    <div class="diff-item-top">
+                      <span class="diff-index">#{{ d.index }}</span>
+                      <span class="diff-page" v-if="d.page">P{{ d.page }}</span>
+                    </div>
+                    <div class="diff-change" v-if="d.change">{{ d.change }}</div>
+                    <div class="diff-text">{{ d.text }}</div>
                   </div>
-                  <div class="diff-change" v-if="d.change">{{ d.change }}</div>
-                  <div class="diff-text">{{ d.text }}</div>
                 </div>
               </div>
-            </div>
+            </template>
           </div>
         </div>
         <div class="compare-divider"></div>
@@ -155,7 +161,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { ElMessage } from 'element-plus'
-import { UploadFilled } from '@element-plus/icons-vue'
+import { UploadFilled, Loading } from '@element-plus/icons-vue'
 import { listTemplates } from '../api/template'
 import { uploadPaper, startFormat, listTasks, getTask, downloadPaper, downloadPaperOriginal, getDiff } from '../api/paper'
 import DocxCompare from '../components/DocxCompare.vue'
@@ -173,6 +179,7 @@ const compareBefore = ref([])
 const compareAfter = ref([])
 const compareName = ref('')
 const diffItems = ref([])
+const diffLoading = ref(false)
 const activeDiff = ref(-1)
 const docxCompareRef = ref(null)
 const docxAfterRef = ref(null)
@@ -322,6 +329,7 @@ async function compare(row) {
   compareBefore.value = []
   compareAfter.value = []
   diffItems.value = []
+  diffLoading.value = true
   activeDiff.value = -1
   compareName.value = fileName(row)
   compareVisible.value = true
@@ -350,8 +358,10 @@ async function compare(row) {
         })
       }
     }).catch(() => {})
+      .finally(() => { if (mySeq === compareSeq) diffLoading.value = false })
   } catch (e) {
     if (mySeq !== compareSeq) return
+    diffLoading.value = false
     ElMessage.error('对比加载失败：' + (e.message || ''))
     compareVisible.value = false
   }
@@ -482,6 +492,22 @@ function formatTime(t) {
   flex: 1;
   overflow-y: auto;
   padding: 6px 10px 10px;
+}
+.diff-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 48px 0;
+  color: #b91c1c;
+  font-size: 13px;
+}
+.diff-loading .el-icon {
+  animation: rotating 1s linear infinite;
+}
+@keyframes rotating {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 .diff-group {
   margin-bottom: 6px;

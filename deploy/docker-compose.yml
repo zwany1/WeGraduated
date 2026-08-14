@@ -45,9 +45,7 @@ services:
       - thesis-net
 
   frontend:
-    build:
-      context: ..
-      dockerfile: deploy/frontend.Dockerfile
+    image: deploy-frontend
     container_name: thesis-frontend
     restart: unless-stopped
     depends_on:

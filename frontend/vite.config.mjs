@@ -12,5 +12,10 @@ export default defineConfig({
         changeOrigin: true
       }
     }
+  },
+  build: {
+    rollupOptions: {
+      maxParallelFileOps: 4
+    }
   }
 })

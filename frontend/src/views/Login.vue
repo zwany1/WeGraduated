@@ -39,13 +39,13 @@
         </div>
 
         <!-- Header -->
-        <div class="text-left mb-8">
+        <div class="text-center mb-12">
           <h1 class="text-[26px] font-semibold tracking-tight mb-1" style="color:#303133">Welcome!</h1>
-          <p class="text-sm mb-4" style="color:#909399">登录论文格式助手，继续你的论文排版</p>
+          <p class="text-sm mb-4 text-center" style="color:#909399">登录论文格式助手，继续你的论文排版</p>
         </div>
 
         <!-- Login Form -->
-        <form @submit.prevent="submit" class="space-y-5">
+        <form @submit.prevent="submit" class="space-y-12">
           <div class="input-block">
             <label for="username" class="input-label">Email / 用户名</label>
             <input
@@ -106,7 +106,7 @@
             </div>
           </div>
 
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between" style="margin: 10px;">
             <label class="flex items-center gap-2 cursor-pointer select-none text-sm" style="color:#909399" @click="rememberMe = !rememberMe">
               <span :class="['size-4 rounded border flex items-center justify-center transition-colors', rememberMe ? 'bg-[#409eff] border-[#409eff]' : 'border-[#dcdfe6]']">
                 <svg v-if="rememberMe" viewBox="0 0 24 24" class="size-3 text-white" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
@@ -243,7 +243,7 @@ async function submit() {
   padding: 10px 10px 8px;
   border: 1px solid #dcdfe6;
   border-radius: 6px;
-  margin-bottom: 20px;
+  margin: 10px;
   background: #fff;
   transition: border-color 0.3s, box-shadow 0.3s;
 }
@@ -276,26 +276,77 @@ async function submit() {
   color: #409eff;
 }
 .input-button {
-  padding: 11px 12px;
+  padding: 0.9em 1.6em;
+  border: none;
   outline: none;
-  border: 0;
   color: #fff;
-  border-radius: 6px;
-  background: #409eff;
-  font-size: 15px;
-  font-weight: 600;
-  transition: background 0.3s;
+  font-family: inherit;
+  font-weight: 500;
+  font-size: 17px;
   cursor: pointer;
+  position: relative;
+  z-index: 0;
+  border-radius: 12px;
+  background: transparent;
 }
-.input-button:hover {
-  background: #66b1ff;
+/* 按钮深色底面 */
+.input-button::after {
+  content: "";
+  z-index: -1;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background-color: rgb(46, 46, 46);
+  left: 0;
+  top: 0;
+  border-radius: 10px;
+}
+/* glow 炫光 */
+.input-button::before {
+  content: "";
+  background: linear-gradient(
+    45deg,
+    #FF0000, #002BFF, #FF00C8, #002BFF,
+      #FF0000, #002BFF, #FF00C8, #002BFF
+  );
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  background-size: 600%;
+  z-index: -1;
+  width: calc(100% + 4px);
+  height: calc(100% + 4px);
+  filter: blur(8px);
+  animation: glowing 20s linear infinite;
+  transition: opacity 0.3s ease-in-out;
+  border-radius: 10px;
+  opacity: 0;
+}
+@keyframes glowing {
+  0% { background-position: 0 0; }
+  50% { background-position: 400% 0; }
+  100% { background-position: 0 0; }
+}
+/* hover 显示炫光 */
+.input-button:hover::before {
+  opacity: 1;
+}
+.input-button:active::after {
+  background: transparent;
+}
+.input-button:active {
+  color: #000;
+  font-weight: bold;
 }
 .input-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
+.input-button:disabled::before {
+  opacity: 0;
+}
 .sign-up {
-  margin: 36px 0 0;
+  margin: 56px 0 0;
   font-size: 14px;
   text-align: center;
   color: #909399;

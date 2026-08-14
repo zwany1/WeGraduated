@@ -1,6 +1,16 @@
 package com.graduate.thesis.service;
 
 import com.graduate.thesis.common.BusinessException;
+import com.sun.star.beans.PropertyValue;
+import com.sun.star.comp.helper.Bootstrap;
+import com.sun.star.frame.XComponentLoader;
+import com.sun.star.frame.XStorable;
+import com.sun.star.lang.XComponent;
+import com.sun.star.uno.UnoRuntime;
+import com.sun.star.uno.XComponentContext;
+import com.sun.star.util.XCloseable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -11,15 +21,22 @@ import java.nio.file.Paths;
 import java.util.concurrent.TimeUnit;
 
 /**
- * docx -> PDF 转换服务(调用 LibreOffice headless 模式)
+ * docx -> PDF 转换服务
  *
- * LibreOffice 需已安装, 通过配置指定 soffice 路径
+ * 优先使用 LibreOffice UNO 常驻进程(Bootstrap 自动启动并复用实例), 首次启动后每次转换秒级;
+ * UNO 不可用时回退命令行冷启动(--headless --convert-to)。
  */
 @Service
 public class DocxPdfService {
 
+    private static final Logger log = LoggerFactory.getLogger(DocxPdfService.class);
+
     private final String soffice;
     private final Path workDir;
+
+    private final Object initLock = new Object();
+    private final Object convertLock = new Object();
+    private XComponentLoader unoLoader;
 
     public DocxPdfService(@Value("${thesis.libreoffice.path:}") String soffice) {
         this.soffice = resolveSoffice(soffice);
@@ -48,12 +65,100 @@ public class DocxPdfService {
     }
 
     /**
-     * 转换 docx 为 PDF, 返回 PDF 文件
+     * 转换 docx 为 PDF, 返回 PDF 文件。UNO 失败自动回退命令行。
      */
     public File convert(File docx) {
         if (docx == null || !docx.exists()) {
             throw new BusinessException(404, "源文档不存在");
         }
+        try {
+            return convertUno(docx);
+        } catch (Exception e) {
+            log.warn("LibreOffice UNO 转换失败, 回退命令行: {}", e.getMessage());
+            return convertCli(docx);
+        }
+    }
+
+    // ==================== UNO 常驻转换 ====================
+
+    private File convertUno(File docx) throws Exception {
+        XComponentLoader loader = unoLoader();
+        synchronized (convertLock) {
+            String inUrl = docx.toURI().toURL().toString();
+            PropertyValue[] loadProps = {prop("Hidden", true)};
+            XComponent doc = null;
+            try {
+                doc = loader.loadComponentFromURL(inUrl, "_blank", 0, loadProps);
+                Path outDir = Files.createTempDirectory(workDir, "conv_");
+                String base = docx.getName();
+                int idx = base.lastIndexOf('.');
+                if (idx > 0) base = base.substring(0, idx);
+                File pdf = new File(outDir.toFile(), base + ".pdf");
+                PropertyValue[] storeProps = {prop("FilterName", "writer_pdf_Export")};
+                XStorable storable = UnoRuntime.queryInterface(XStorable.class, doc);
+                if (storable == null) {
+                    throw new BusinessException(500, "UNO 文档不支持导出");
+                }
+                storable.storeToURL(pdf.toURI().toURL().toString(), storeProps);
+                if (!pdf.exists()) {
+                    throw new BusinessException(500, "UNO 转换未生成 PDF");
+                }
+                return pdf;
+            } finally {
+                closeDoc(doc);
+            }
+        }
+    }
+
+    private XComponentLoader unoLoader() throws Exception {
+        if (unoLoader != null) return unoLoader;
+        synchronized (initLock) {
+            if (unoLoader != null) return unoLoader;
+            Exception last = null;
+            for (int i = 0; i < 60; i++) {
+                try {
+                    // 自动定位/启动并连接本地 LibreOffice, 后续调用复用同一实例
+                    XComponentContext ctx = Bootstrap.bootstrap();
+                    Object desktop = ctx.getServiceManager()
+                            .createInstanceWithContext("com.sun.star.frame.Desktop", ctx);
+                    unoLoader = UnoRuntime.queryInterface(XComponentLoader.class, desktop);
+                    log.info("LibreOffice UNO 常驻转换就绪");
+                    return unoLoader;
+                } catch (Exception e) {
+                    last = e;
+                    Thread.sleep(500);
+                }
+            }
+            throw new BusinessException(500, "LibreOffice UNO 连接失败: " + (last == null ? "超时" : last.getMessage()));
+        }
+    }
+
+    private void closeDoc(XComponent doc) {
+        if (doc == null) return;
+        try {
+            XCloseable closeable = UnoRuntime.queryInterface(XCloseable.class, doc);
+            if (closeable != null) {
+                closeable.close(false);
+                return;
+            }
+        } catch (Exception ignore) {
+        }
+        try {
+            doc.dispose();
+        } catch (Exception ignore) {
+        }
+    }
+
+    private PropertyValue prop(String name, Object value) {
+        PropertyValue pv = new PropertyValue();
+        pv.Name = name;
+        pv.Value = value;
+        return pv;
+    }
+
+    // ==================== 命令行回退 ====================
+
+    private File convertCli(File docx) {
         try {
             Path outDir = Files.createTempDirectory(workDir, "conv_");
             ProcessBuilder pb = new ProcessBuilder(
@@ -75,7 +180,7 @@ public class DocxPdfService {
                     // discard
                 }
             }
-            if (!proc.waitFor(60, TimeUnit.SECONDS)) {
+            if (!proc.waitFor(120, TimeUnit.SECONDS)) {
                 proc.destroyForcibly();
                 throw new BusinessException(500, "PDF 转换超时");
             }
@@ -83,7 +188,6 @@ public class DocxPdfService {
             String base = name.contains(".") ? name.substring(0, name.lastIndexOf('.')) : name;
             File pdf = new File(outDir.toFile(), base + ".pdf");
             if (!pdf.exists()) {
-                // 也可能输出为原文件名.pdf
                 File[] files = outDir.toFile().listFiles((d, n) -> n.endsWith(".pdf"));
                 if (files != null && files.length > 0) {
                     pdf = files[0];

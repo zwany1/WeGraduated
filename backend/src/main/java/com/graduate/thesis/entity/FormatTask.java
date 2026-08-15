@@ -45,9 +45,6 @@ public class FormatTask {
     /** 失败自动重试次数 */
     private Integer retryCount;
 
-    /** 排版校验摘要, 如 "一级标题5个/二级标题12个/正文段落120个/图表题注8个" */
-    private String summary;
-
     private LocalDateTime createTime;
 
     private LocalDateTime finishTime;

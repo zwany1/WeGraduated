@@ -53,13 +53,6 @@
               />
             </template>
           </el-table-column>
-          <el-table-column label="排版校验" min-width="240" show-overflow-tooltip>
-            <template #default="{ row }">
-              <span v-if="row.status === 'SUCCESS' && row.summary" class="summary-text">{{ row.summary }}</span>
-              <span v-else-if="row.status === 'SUCCESS'" style="color:#c0c4cc">已完成</span>
-              <span v-else style="color:#c0c4cc">—</span>
-            </template>
-          </el-table-column>
           <el-table-column label="失败原因" min-width="200">
             <template #default="{ row }">
               <el-button v-if="row.status === 'FAILED' && row.errorMsg" text type="danger" size="small" @click="showError(row)">
@@ -504,7 +497,7 @@ function formatTime(t) {
   color: #2c3e50;
 }
 .content {
-  max-width: 900px;
+  max-width: 1280px;
   margin: 24px auto;
   padding: 0 20px;
 }
@@ -713,11 +706,6 @@ function formatTime(t) {
   gap: 6px;
   white-space: nowrap;
   flex-wrap: nowrap;
-}
-.summary-text {
-  font-size: 12px;
-  color: #6b6f7d;
-  line-height: 1.6;
 }
 .error-label {
   color: #606266;

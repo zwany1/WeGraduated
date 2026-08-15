@@ -4,24 +4,19 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.graduate.thesis.common.BusinessException;
 import com.graduate.thesis.dto.DiffItem;
 import com.graduate.thesis.dto.PaperFormatDTO;
-import com.graduate.thesis.engine.DocItem;
 import com.graduate.thesis.engine.FormatEngine;
-import com.graduate.thesis.engine.ParagraphKind;
-import com.graduate.thesis.engine.StructureDetector;
 import com.graduate.thesis.engine.model.RuleSet;
 import com.graduate.thesis.entity.FormatTask;
 import com.graduate.thesis.entity.PaperFile;
 import com.graduate.thesis.mapper.FormatTaskMapper;
 import com.graduate.thesis.mapper.PaperFileMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -131,9 +126,8 @@ public class PaperService {
             task.setResultPath(resultPath);
             task.setFinishTime(LocalDateTime.now());
             task.setErrorMsg(null);
-            task.setSummary(buildSummary(source, ruleSet));
             taskMapper.updateById(task);
-            progressService.publish(taskId, Map.of("type", "progress", "progress", 100, "status", FormatTask.STATUS_SUCCESS, "summary", task.getSummary()));
+            progressService.publish(taskId, Map.of("type", "progress", "progress", 100, "status", FormatTask.STATUS_SUCCESS));
 
             // 转 PDF 预览缓存(失败不影响排版结果)
             try {
@@ -170,28 +164,6 @@ public class PaperService {
                 }
                 progressService.publish(taskId, Map.of("type", "progress", "status", FormatTask.STATUS_FAILED, "error", task.getErrorMsg()));
             }
-        }
-    }
-
-    /**
-     * 排版校验摘要: 统计源文档中被识别/待排版的结构(标题/正文/图表题注), 供前端展示排版覆盖情况.
-     */
-    private String buildSummary(File source, RuleSet ruleSet) {
-        try (XWPFDocument doc = new XWPFDocument(new FileInputStream(source))) {
-            List<DocItem> items = new StructureDetector().detect(doc, ruleSet);
-            long h1 = items.stream().filter(i -> i.getKind() == ParagraphKind.HEADING1 && !i.isFrontMatter()).count();
-            long h2 = items.stream().filter(i -> i.getKind() == ParagraphKind.HEADING2 && !i.isFrontMatter()).count();
-            long h3 = items.stream().filter(i -> i.getKind() == ParagraphKind.HEADING3 && !i.isFrontMatter()).count();
-            long body = items.stream().filter(i -> i.getKind() == ParagraphKind.BODY && !i.isFrontMatter()
-                    && !i.getText().trim().isEmpty()).count();
-            long caption = items.stream().filter(i -> (i.getKind() == ParagraphKind.FIGURE_CAPTION
-                    || i.getKind() == ParagraphKind.TABLE_CAPTION || i.getKind() == ParagraphKind.IMAGE)
-                    && !i.isFrontMatter()).count();
-            long front = items.stream().filter(DocItem::isFrontMatter).count();
-            return "一级标题" + h1 + "个、二级标题" + h2 + "个、三级标题" + h3 + "个、正文段落" + body + "个、图表题注" + caption
-                    + "个；第一章前内容保留 " + front + " 段";
-        } catch (Exception e) {
-            return null;
         }
     }
 

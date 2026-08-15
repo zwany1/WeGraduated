@@ -216,7 +216,6 @@ async function openDetail(row) {
       `进度：${t.progress ?? 0}%`,
       `创建时间：${fmtTime(t.createTime)}`,
       `完成时间：${fmtTime(t.finishTime)}`,
-      t.summary ? `排版校验：${t.summary}` : '',
       t.errorMsg ? `错误信息：${t.errorMsg}` : ''
     ]
     ElMessageBox.alert(lines.filter(Boolean).join('\n'), '任务详情', { confirmButtonText: '关闭' })

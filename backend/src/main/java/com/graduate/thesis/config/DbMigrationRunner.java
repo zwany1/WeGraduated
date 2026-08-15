@@ -80,7 +80,6 @@ public class DbMigrationRunner implements ApplicationRunner {
         addColumnIfMissing("t_format_template", "recommended", "ALTER TABLE t_format_template ADD COLUMN recommended TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否推荐'");
         addColumnIfMissing("t_format_template", "public_time", "ALTER TABLE t_format_template ADD COLUMN public_time DATETIME DEFAULT NULL COMMENT '上架时间'");
         addColumnIfMissing("t_format_task", "retry_count", "ALTER TABLE t_format_task ADD COLUMN retry_count INT NOT NULL DEFAULT 0 COMMENT '失败自动重试次数'");
-        addColumnIfMissing("t_format_task", "summary", "ALTER TABLE t_format_task ADD COLUMN summary VARCHAR(500) DEFAULT NULL COMMENT '排版校验摘要'");
     }
 
     private void addColumnIfMissing(String table, String column, String alterSql) {

@@ -81,7 +81,6 @@ CREATE TABLE IF NOT EXISTS t_format_task (
     pdf_path    VARCHAR(255) DEFAULT NULL,
     error_msg   TEXT         DEFAULT NULL,
     retry_count INT          NOT NULL DEFAULT 0 COMMENT '失败自动重试次数',
-    summary     VARCHAR(500) DEFAULT NULL COMMENT '排版校验摘要',
     create_time DATETIME    DEFAULT NULL,
     finish_time DATETIME    DEFAULT NULL,
     KEY idx_user (user_id)

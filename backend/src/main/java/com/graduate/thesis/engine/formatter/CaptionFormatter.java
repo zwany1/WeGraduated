@@ -66,7 +66,7 @@ public class CaptionFormatter {
                     continue;
                 }
                 if (inToc) {
-                    if (headingLevel(p) > 0) {
+                    if (headingLevel(p) > 0 || (isHeading1(p, text, ruleSet) && !isTocEntry(text))) {
                         inToc = false;
                     } else {
                         continue;
@@ -257,6 +257,16 @@ public class CaptionFormatter {
     private static boolean isTocTitle(String text) {
         String t = text == null ? "" : text.replace(" ", "").replace("\u00A0", "");
         return t.equals("目录") || t.equals("目録");
+    }
+
+    /** 目录条目特征: 以页码数字结尾(如 "第一章 绪论........5"), 与正文标题区分 */
+    private static boolean isTocEntry(String text) {
+        if (text == null || text.isEmpty()) {
+            return false;
+        }
+        String t = text.trim();
+        return t.matches(".*\\.{2,}\\s*\\d{1,4}\\s*$")
+                || t.matches(".*[\\s\\u00A0，,．.、]\\d{1,4}\\s*$");
     }
 
     /**

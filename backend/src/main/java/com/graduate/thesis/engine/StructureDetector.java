@@ -46,14 +46,16 @@ public class StructureDetector {
             ParagraphKind kind = classify(text, containsImage, paragraph, ruleSet);
             DocItem item = new DocItem(paragraph, kind, text, containsImage);
 
-            // 目录区检测: "目 录" 之后到第一个正文标题前为目录区(目录条目不参与章节追踪)
-            if (!chapterStarted && kind == ParagraphKind.HEADING1 && isTocTitle(text)) {
+            // 目录区检测: 只要文本是"目 录"(无论是否带样式), 即进入目录区.
+            // 修复: 目录标题无 heading 样式时, 目录里的"第一章 xxx"被误识别为正文标题, 导致章节前内容被排版
+            if (isTocTitle(text)) {
                 inToc = true;
                 kind = ParagraphKind.SECTION_TITLE;
                 item = new DocItem(paragraph, kind, text, containsImage);
             } else if (inToc && !chapterStarted) {
-                if (headingLevelByStyle(paragraph) > 0) {
-                    inToc = false; // 到达正文第一个样式标题, 目录区结束
+                // 目录区结束: 遇到正文标题(heading 样式, 或匹配一级标题规则但非"页码结尾"的目录条目)
+                if (headingLevelByStyle(paragraph) > 0 || isBodyChapterTitle(text, ruleSet)) {
+                    inToc = false;
                 } else {
                     kind = ParagraphKind.BODY; // 目录条目, 不识别为标题
                     item = new DocItem(paragraph, kind, text, containsImage);
@@ -77,6 +79,29 @@ public class StructureDetector {
             items.add(item);
         }
         return items;
+    }
+
+    /**
+     * 是否正文一级标题(用于结束目录区): 匹配模板一级正则或内置章节识别, 但排除以页码结尾的目录条目.
+     */
+    private boolean isBodyChapterTitle(String text, RuleSet ruleSet) {
+        if (isDateLike(text)) {
+            return false;
+        }
+        boolean matched = ruleSet.getHeading1Pattern().matcher(text).matches() || isLikelyChapterTitle(text);
+        return matched && !isTocEntry(text);
+    }
+
+    /**
+     * 目录条目特征: 以页码数字结尾(如 "第一章 绪论........5" / "第一章 绪论 5"), 与正文标题区分.
+     */
+    private static boolean isTocEntry(String text) {
+        if (text == null || text.isEmpty()) {
+            return false;
+        }
+        String t = text.trim();
+        return t.matches(".*\\.{2,}\\s*\\d{1,4}\\s*$")      // 点线引导 + 页码
+                || t.matches(".*[\\s\\u00A0，,．.、]\\d{1,4}\\s*$"); // 空格/标点 + 页码
     }
 
     private static boolean isTocTitle(String text) {

@@ -77,9 +77,10 @@ public class XssFilter extends OncePerRequestFilter {
         }
     }
 
-    /** 敏感字段: 不转义(密码/验证码等可能含特殊字符, 且不需要 HTML 消毒) */
-    private static final java.util.Set<String> SENSITIVE_KEYS = new java.util.HashSet<>(java.util.Arrays.asList(
-            "password", "newPassword", "confirmPassword", "emailCode", "captchaCode", "securityAnswer"
+    /** 不转义字段: 密码/验证码等敏感字段, 以及内部 JSON 配置字段(其引号是 JSON 语法, 转义会破坏结构) */
+    private static final java.util.Set<String> NO_ESCAPE_KEYS = new java.util.HashSet<>(java.util.Arrays.asList(
+            "password", "newPassword", "confirmPassword", "emailCode", "captchaCode", "securityAnswer",
+            "pageConfig", "headingPatterns", "coverConfig", "referenceConfig"
     ));
 
     @SuppressWarnings("unchecked")
@@ -90,7 +91,7 @@ public class XssFilter extends OncePerRequestFilter {
         if (value instanceof Map) {
             Map<String, Object> map = new LinkedHashMap<>();
             for (Map.Entry<String, Object> e : ((Map<String, Object>) value).entrySet()) {
-                if (SENSITIVE_KEYS.contains(e.getKey())) {
+                if (NO_ESCAPE_KEYS.contains(e.getKey())) {
                     map.put(e.getKey(), e.getValue());
                 } else {
                     map.put(e.getKey(), sanitize(e.getValue()));

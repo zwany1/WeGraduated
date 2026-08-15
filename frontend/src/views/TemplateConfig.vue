@@ -399,15 +399,12 @@ async function loadConfig() {
     const detail = await getTemplateDetail(currentId)
     const t = detail.template
     templateName.value = t.name
-    if (t.pageConfig) {
-      Object.assign(page, JSON.parse(t.pageConfig))
-    }
-    if (t.headingPatterns) {
-      Object.assign(headingPatterns, JSON.parse(t.headingPatterns))
-    }
-    if (t.referenceConfig) {
-      Object.assign(refConfig, JSON.parse(t.referenceConfig))
-    }
+    const pg = parseJson(t.pageConfig)
+    if (pg) Object.assign(page, pg)
+    const hp = parseJson(t.headingPatterns)
+    if (hp) Object.assign(headingPatterns, hp)
+    const rc = parseJson(t.referenceConfig)
+    if (rc) Object.assign(refConfig, rc)
     ;(t.rules || []).forEach(r => {
       if (rules[r.ruleType]) {
         const merged = { ...rules[r.ruleType], ...r }
@@ -420,6 +417,29 @@ async function loadConfig() {
     // 具体原因由 api 拦截器提示(如 模板不存在 / 无权访问该模板), 这里不重复覆盖
     console.error('配置加载失败', e)
   }
+}
+
+/** 解析可能带 HTML 实体(如 &quot;)的历史 JSON 数据, 失败返回 null */
+function parseJson(s) {
+  if (!s) return null
+  try {
+    return JSON.parse(s)
+  } catch (e) {
+    try {
+      return JSON.parse(decodeHtml(s))
+    } catch (e2) {
+      return null
+    }
+  }
+}
+
+function decodeHtml(s) {
+  return String(s)
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
 }
 
 onMounted(loadConfig)

@@ -69,12 +69,14 @@
               <span v-else style="color:#c0c4cc">—</span>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="240">
+          <el-table-column label="操作" width="300" fixed="right">
             <template #default="{ row }">
-              <el-button v-if="row.status === 'SUCCESS'" size="small" @click="preview(row)">预览</el-button>
-              <el-button v-if="row.status === 'SUCCESS'" size="small" type="success" @click="compare(row)">对比</el-button>
-              <el-button v-if="row.status === 'SUCCESS'" size="small" type="primary" @click="download(row)">下载</el-button>
-              <el-button v-if="row.status === 'FAILED'" size="small" @click="retry(row)">重试</el-button>
+              <div class="op-row">
+                <el-button v-if="row.status === 'SUCCESS'" size="small" @click="preview(row)">预览</el-button>
+                <el-button v-if="row.status === 'SUCCESS'" size="small" type="success" @click="compare(row)">对比</el-button>
+                <el-button v-if="row.status === 'SUCCESS'" size="small" type="primary" @click="download(row)">下载</el-button>
+                <el-button v-if="row.status === 'FAILED'" size="small" @click="retry(row)">重试</el-button>
+              </div>
             </template>
           </el-table-column>
           <el-table-column label="创建时间" width="170">
@@ -705,6 +707,12 @@ function formatTime(t) {
 }
 .fail-tag {
   cursor: pointer;
+}
+.op-row {
+  display: flex;
+  gap: 6px;
+  white-space: nowrap;
+  flex-wrap: nowrap;
 }
 .summary-text {
   font-size: 12px;

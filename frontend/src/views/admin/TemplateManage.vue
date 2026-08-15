@@ -6,6 +6,7 @@
         <input v-model="keyword" placeholder="搜索模板名称" @keyup.enter="load(1)" />
       </div>
       <el-button type="primary" plain @click="load(1)">查询</el-button>
+      <el-button v-perm="'system:template:export'" type="success" plain @click="doExport">导出</el-button>
       <span class="toolbar-note">共 {{ total }} 个格式模板 · 删除将连同其格式规则一并移除</span>
     </div>
 
@@ -63,7 +64,8 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { listTemplates, deleteTemplate } from '../../api/admin'
+import { listTemplates, deleteTemplate, exportTemplates } from '../../api/admin'
+import { downloadBlob } from '../../utils/download'
 
 const rows = ref([])
 const total = ref(0)
@@ -71,6 +73,14 @@ const page = ref(1)
 const size = ref(10)
 const keyword = ref('')
 const loading = ref(false)
+
+async function doExport() {
+  try {
+    const blob = await exportTemplates()
+    downloadBlob(blob, '模板报表.xlsx')
+    ElMessage.success('导出成功')
+  } catch (e) {}
+}
 
 const fmtTime = t => {
   if (!t) return '—'

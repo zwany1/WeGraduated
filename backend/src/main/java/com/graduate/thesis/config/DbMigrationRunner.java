@@ -64,11 +64,36 @@ public class DbMigrationRunner implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         ensureRoleColumn();
+        ensureExtColumns();
         ensureAdminAccount();
         ensureRoles();
         ensureMenus();
         ensureAdminMenus();
         syncUserRoles();
+        seedDictsAndConfigs();
+    }
+
+    /** 幂等补齐扩展列: t_user.status / 模板市场字段(兼容 MySQL 5.7 / 8.0) */
+    private void ensureExtColumns() {
+        addColumnIfMissing("t_user", "status", "ALTER TABLE t_user ADD COLUMN status TINYINT(1) NOT NULL DEFAULT 1 COMMENT '状态 1正常 0禁用'");
+        addColumnIfMissing("t_format_template", "is_public", "ALTER TABLE t_format_template ADD COLUMN is_public TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否上架模板市场'");
+        addColumnIfMissing("t_format_template", "recommended", "ALTER TABLE t_format_template ADD COLUMN recommended TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否推荐'");
+        addColumnIfMissing("t_format_template", "public_time", "ALTER TABLE t_format_template ADD COLUMN public_time DATETIME DEFAULT NULL COMMENT '上架时间'");
+    }
+
+    private void addColumnIfMissing(String table, String column, String alterSql) {
+        try {
+            Integer count = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM information_schema.COLUMNS " +
+                            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?",
+                    Integer.class, table, column);
+            if (count == null || count == 0) {
+                jdbcTemplate.execute(alterSql);
+                log.info("[DbMigration] 已为 {}.{} 补齐列", table, column);
+            }
+        } catch (Exception e) {
+            log.warn("[DbMigration] 补齐 {}.{} 列失败: {}", table, column, e.getMessage());
+        }
     }
 
     private void ensureRoleColumn() {
@@ -135,49 +160,20 @@ public class DbMigrationRunner implements ApplicationRunner {
         }
     }
 
-    /** 初始化管理后台菜单(仅当菜单表为空时) */
+    /** 初始化管理后台菜单(按 id 幂等增量补齐, 已有库也会补上新菜单) */
     private void ensureMenus() {
         try {
-            Long count = menuMapper.selectCount(null);
-            if (count != null && count > 0) {
-                log.info("[DbMigration] 菜单已存在, 跳过初始化");
-                return;
-            }
-            // 菜单树: id / parentId / 名称 / 类型 / path / component / perms / icon / 排序
-            Map<String, Object[]> rows = new LinkedHashMap<>();
-            rows.put("1000", new Object[]{0L, "运营概览", "C", "dashboard", "admin/Dashboard", "system:overview:view",
-                    "chart", 1, "运营数据总览"});
-            rows.put("1001", new Object[]{0L, "排版管理", "M", "format", null, null, "doc", 2, "排版相关管理"});
-            rows.put("1002", new Object[]{1001L, "模板管理", "C", "templates", "admin/TemplateManage", "system:template:list",
-                    "document", 1, "模板库管理"});
-            rows.put("1003", new Object[]{1002L, "模板删除", "F", null, null, "system:template:delete", null, 1, "删除模板"});
-            rows.put("1004", new Object[]{1001L, "排版任务", "C", "tasks", "admin/TaskManage", "system:task:list",
-                    "task", 2, "排版任务管理"});
-            rows.put("1005", new Object[]{0L, "系统管理", "M", "system", null, null, "setting", 3, "系统配置"});
-            rows.put("1006", new Object[]{1005L, "用户管理", "C", "users", "admin/UserManage", "system:user:list",
-                    "user", 1, "用户管理"});
-            rows.put("1007", new Object[]{1006L, "用户查询", "F", null, null, "system:user:query", null, 1, "查询用户"});
-            rows.put("1008", new Object[]{1006L, "用户新增", "F", null, null, "system:user:add", null, 2, "新增用户"});
-            rows.put("1009", new Object[]{1006L, "用户编辑", "F", null, null, "system:user:edit", null, 3, "编辑用户"});
-            rows.put("1010", new Object[]{1006L, "用户删除", "F", null, null, "system:user:delete", null, 4, "删除用户"});
-            rows.put("1011", new Object[]{1006L, "分配角色", "F", null, null, "system:user:assign", null, 5, "分配角色"});
-            rows.put("1012", new Object[]{1005L, "角色管理", "C", "role", "admin/RoleManage", "system:role:list",
-                    "role", 2, "角色管理"});
-            rows.put("1013", new Object[]{1012L, "角色新增", "F", null, null, "system:role:add", null, 1, "新增角色"});
-            rows.put("1014", new Object[]{1012L, "角色编辑", "F", null, null, "system:role:edit", null, 2, "编辑角色"});
-            rows.put("1015", new Object[]{1012L, "角色删除", "F", null, null, "system:role:delete", null, 3, "删除角色"});
-            rows.put("1016", new Object[]{1012L, "分配菜单", "F", null, null, "system:role:assign", null, 4, "分配菜单"});
-            rows.put("1017", new Object[]{1005L, "菜单管理", "C", "menu", "admin/MenuManage", "system:menu:list",
-                    "menu", 3, "菜单管理"});
-            rows.put("1018", new Object[]{1017L, "菜单新增", "F", null, null, "system:menu:add", null, 1, "新增菜单"});
-            rows.put("1019", new Object[]{1017L, "菜单编辑", "F", null, null, "system:menu:edit", null, 2, "编辑菜单"});
-            rows.put("1020", new Object[]{1017L, "菜单删除", "F", null, null, "system:menu:delete", null, 3, "删除菜单"});
-
+            Map<String, Object[]> rows = seedMenus();
+            int inserted = 0;
             LocalDateTime now = LocalDateTime.now();
             for (Map.Entry<String, Object[]> e : rows.entrySet()) {
+                Long id = Long.valueOf(e.getKey());
+                if (menuMapper.selectById(id) != null) {
+                    continue;
+                }
                 Object[] v = e.getValue();
                 Menu menu = new Menu();
-                menu.setId(Long.valueOf(e.getKey()));
+                menu.setId(id);
                 menu.setParentId((Long) v[0]);
                 menu.setMenuName((String) v[1]);
                 menu.setMenuType((String) v[2]);
@@ -191,14 +187,88 @@ public class DbMigrationRunner implements ApplicationRunner {
                 menu.setCreateTime(now);
                 menu.setUpdateTime(now);
                 menuMapper.insert(menu);
+                inserted++;
             }
-            log.info("[DbMigration] 已初始化管理后台菜单树");
+            if (inserted > 0) {
+                log.info("[DbMigration] 已补齐 {} 个后台菜单", inserted);
+            }
         } catch (Exception e) {
             log.warn("[DbMigration] 初始化菜单失败: {}", e.getMessage());
         }
     }
 
-    /** 给超管角色授予全部菜单(幂等) */
+    private Map<String, Object[]> seedMenus() {
+        // 菜单树: id / parentId / 名称 / 类型 / path / component / perms / icon / 排序
+        Map<String, Object[]> rows = new LinkedHashMap<>();
+        rows.put("1000", new Object[]{0L, "运营概览", "C", "dashboard", "admin/Dashboard", "system:overview:view",
+                "chart", 1, "运营数据总览"});
+        rows.put("1001", new Object[]{0L, "排版管理", "M", "format", null, null, "doc", 2, "排版相关管理"});
+        rows.put("1002", new Object[]{1001L, "模板管理", "C", "templates", "admin/TemplateManage", "system:template:list",
+                "document", 1, "模板库管理"});
+        rows.put("1003", new Object[]{1002L, "模板删除", "F", null, null, "system:template:delete", null, 1, "删除模板"});
+        rows.put("1004", new Object[]{1001L, "排版任务", "C", "tasks", "admin/TaskManage", "system:task:list",
+                "task", 2, "排版任务管理"});
+        rows.put("1005", new Object[]{0L, "系统管理", "M", "system", null, null, "setting", 3, "系统配置"});
+        rows.put("1006", new Object[]{1005L, "用户管理", "C", "users", "admin/UserManage", "system:user:list",
+                "user", 1, "用户管理"});
+        rows.put("1007", new Object[]{1006L, "用户查询", "F", null, null, "system:user:query", null, 1, "查询用户"});
+        rows.put("1008", new Object[]{1006L, "用户新增", "F", null, null, "system:user:add", null, 2, "新增用户"});
+        rows.put("1009", new Object[]{1006L, "用户编辑", "F", null, null, "system:user:edit", null, 3, "编辑用户"});
+        rows.put("1010", new Object[]{1006L, "用户删除", "F", null, null, "system:user:delete", null, 4, "删除用户"});
+        rows.put("1011", new Object[]{1006L, "分配角色", "F", null, null, "system:user:assign", null, 5, "分配角色"});
+        rows.put("1012", new Object[]{1005L, "角色管理", "C", "role", "admin/RoleManage", "system:role:list",
+                "role", 2, "角色管理"});
+        rows.put("1013", new Object[]{1012L, "角色新增", "F", null, null, "system:role:add", null, 1, "新增角色"});
+        rows.put("1014", new Object[]{1012L, "角色编辑", "F", null, null, "system:role:edit", null, 2, "编辑角色"});
+        rows.put("1015", new Object[]{1012L, "角色删除", "F", null, null, "system:role:delete", null, 3, "删除角色"});
+        rows.put("1016", new Object[]{1012L, "分配菜单", "F", null, null, "system:role:assign", null, 4, "分配菜单"});
+        rows.put("1017", new Object[]{1005L, "菜单管理", "C", "menu", "admin/MenuManage", "system:menu:list",
+                "menu", 3, "菜单管理"});
+        rows.put("1018", new Object[]{1017L, "菜单新增", "F", null, null, "system:menu:add", null, 1, "新增菜单"});
+        rows.put("1019", new Object[]{1017L, "菜单编辑", "F", null, null, "system:menu:edit", null, 2, "编辑菜单"});
+        rows.put("1020", new Object[]{1017L, "菜单删除", "F", null, null, "system:menu:delete", null, 3, "删除菜单"});
+
+        // ---- 内容管理 ----
+        rows.put("1021", new Object[]{0L, "内容管理", "M", "content", null, null, "content", 4, "内容运营"});
+        rows.put("1022", new Object[]{1021L, "模板市场审核", "C", "market", "admin/TemplateMarketManage", "system:market:list",
+                "market", 1, "模板市场上架/推荐"});
+        rows.put("1023", new Object[]{1022L, "上架/推荐", "F", null, null, "system:market:edit", null, 1, "上架推荐"});
+
+        // ---- 日志审计 ----
+        rows.put("1024", new Object[]{1005L, "操作日志", "C", "oper-log", "admin/OperLogManage", "system:log:oper",
+                "log", 4, "操作日志"});
+        rows.put("1025", new Object[]{1005L, "登录日志", "C", "login-log", "admin/LoginLogManage", "system:log:login",
+                "login", 5, "登录日志"});
+
+        // ---- 字典/参数/公告 ----
+        rows.put("1026", new Object[]{1005L, "字典管理", "C", "dict", "admin/DictManage", "system:dict:list",
+                "dict", 6, "字典管理"});
+        rows.put("1027", new Object[]{1026L, "字典新增", "F", null, null, "system:dict:add", null, 1, "新增字典"});
+        rows.put("1028", new Object[]{1026L, "字典编辑", "F", null, null, "system:dict:edit", null, 2, "编辑字典"});
+        rows.put("1029", new Object[]{1026L, "字典删除", "F", null, null, "system:dict:delete", null, 3, "删除字典"});
+        rows.put("1030", new Object[]{1005L, "参数设置", "C", "config", "admin/ConfigManage", "system:config:list",
+                "config", 7, "系统参数"});
+        rows.put("1031", new Object[]{1030L, "参数新增", "F", null, null, "system:config:add", null, 1, "新增参数"});
+        rows.put("1032", new Object[]{1030L, "参数编辑", "F", null, null, "system:config:edit", null, 2, "编辑参数"});
+        rows.put("1033", new Object[]{1030L, "参数删除", "F", null, null, "system:config:delete", null, 3, "删除参数"});
+        rows.put("1034", new Object[]{1005L, "公告管理", "C", "notice", "admin/NoticeManage", "system:notice:list",
+                "notice", 8, "通知公告"});
+        rows.put("1035", new Object[]{1034L, "公告新增", "F", null, null, "system:notice:add", null, 1, "新增公告"});
+        rows.put("1036", new Object[]{1034L, "公告编辑", "F", null, null, "system:notice:edit", null, 2, "编辑公告"});
+        rows.put("1037", new Object[]{1034L, "公告删除", "F", null, null, "system:notice:delete", null, 3, "删除公告"});
+
+        // ---- 业务按钮 ----
+        rows.put("1038", new Object[]{1006L, "用户导出", "F", null, null, "system:user:export", null, 6, "导出用户"});
+        rows.put("1039", new Object[]{1006L, "重置密码", "F", null, null, "system:user:resetPwd", null, 7, "重置密码"});
+        rows.put("1040", new Object[]{1006L, "用户封禁", "F", null, null, "system:user:status", null, 8, "封禁/启用"});
+        rows.put("1041", new Object[]{1002L, "模板导出", "F", null, null, "system:template:export", null, 2, "导出模板"});
+        rows.put("1042", new Object[]{1004L, "任务导出", "F", null, null, "system:task:export", null, 1, "导出任务"});
+        rows.put("1043", new Object[]{1004L, "任务重试", "F", null, null, "system:task:rerun", null, 2, "任务重试"});
+        rows.put("1044", new Object[]{1004L, "任务取消", "F", null, null, "system:task:cancel", null, 3, "任务取消"});
+        return rows;
+    }
+
+    /** 给超管角色补齐全部菜单(幂等, 已有菜单时仅补缺失) */
     private void ensureAdminMenus() {
         try {
             Role adminRole = roleMapper.selectOne(new LambdaQueryWrapper<Role>()
@@ -206,19 +276,70 @@ public class DbMigrationRunner implements ApplicationRunner {
             if (adminRole == null) {
                 return;
             }
-            Long granted = roleMenuMapper.selectCount(new LambdaQueryWrapper<RoleMenu>()
-                    .eq(RoleMenu::getRoleId, adminRole.getId()));
-            if (granted != null && granted > 0) {
-                return;
+            List<Menu> allMenus = menuMapper.selectList(null);
+            List<Long> granted = roleMenuMapper.selectList(new LambdaQueryWrapper<RoleMenu>()
+                            .eq(RoleMenu::getRoleId, adminRole.getId()))
+                    .stream().map(RoleMenu::getMenuId).collect(java.util.stream.Collectors.toSet())
+                    .stream().collect(java.util.stream.Collectors.toList());
+            int added = 0;
+            for (Menu m : allMenus) {
+                if (!granted.contains(m.getId())) {
+                    roleMenuMapper.insert(new RoleMenu(adminRole.getId(), m.getId()));
+                    added++;
+                }
             }
-            List<Menu> menus = menuMapper.selectList(new LambdaQueryWrapper<Menu>()
-                    .select(Menu::getId));
-            for (Menu m : menus) {
-                roleMenuMapper.insert(new RoleMenu(adminRole.getId(), m.getId()));
+            if (added > 0) {
+                log.info("[DbMigration] 已为超管角色补齐 {} 个菜单", added);
             }
-            log.info("[DbMigration] 已为超管角色授予全部菜单({} 项)", menus.size());
         } catch (Exception e) {
             log.warn("[DbMigration] 授予超管菜单失败: {}", e.getMessage());
+        }
+    }
+
+    /** 种子字典与系统参数 */
+    private void seedDictsAndConfigs() {
+        try {
+            insertDictTypeIfMissing("论文类型", "thesis_type", "论文/毕设类型");
+            insertDictDataIfMissing("thesis_type", "毕业论文", "毕业论文", 1);
+            insertDictDataIfMissing("thesis_type", "课程设计", "课程设计", 2);
+            insertDictDataIfMissing("thesis_type", "开题报告", "开题报告", 3);
+            insertDictTypeIfMissing("模板类型", "template_type", "模板市场分类");
+            insertDictDataIfMissing("template_type", "本科", "本科", 1);
+            insertDictDataIfMissing("template_type", "硕士", "硕士", 2);
+            insertDictDataIfMissing("template_type", "博士", "博士", 3);
+            insertDictDataIfMissing("template_type", "期刊", "期刊", 4);
+
+            insertConfigIfMissing("上传文件大小上限(MB)", "upload.max.size", "50", 1, "论文上传大小限制");
+            insertConfigIfMissing("任务并发数", "task.max.concurrent", "4", 1, "排版任务最大并发");
+            insertConfigIfMissing("文件保留天数", "storage.keep.days", "30", 1, "超过该天数的旧文件可被清理");
+            insertConfigIfMissing("预览开关", "preview.enabled", "true", 1, "是否启用PDF预览");
+        } catch (Exception e) {
+            log.warn("[DbMigration] 初始化字典/参数失败: {}", e.getMessage());
+        }
+    }
+
+    private void insertDictTypeIfMissing(String name, String type, String remark) {
+        Long cnt = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM t_dict_type WHERE dict_type = ?", Long.class, type);
+        if (cnt == null || cnt == 0) {
+            jdbcTemplate.update("INSERT INTO t_dict_type (dict_name, dict_type, status, remark, create_time, update_time) VALUES (?,?,1,?,NOW(),NOW())",
+                    name, type, remark);
+        }
+    }
+
+    private void insertDictDataIfMissing(String type, String label, String value, int sort) {
+        Long cnt = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM t_dict_data WHERE dict_type = ? AND dict_value = ?", Long.class, type, value);
+        if (cnt == null || cnt == 0) {
+            jdbcTemplate.update("INSERT INTO t_dict_data (dict_type, dict_label, dict_value, dict_sort, status, remark, create_time, update_time) VALUES (?,?,?,?,1,NULL,NOW(),NOW())",
+                    type, label, value, sort);
+        }
+    }
+
+    private void insertConfigIfMissing(String name, String key, String value, int type, String remark) {
+        Long cnt = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM t_config WHERE config_key = ?", Long.class, key);
+        if (cnt == null || cnt == 0) {
+            jdbcTemplate.update("INSERT INTO t_config (config_name, config_key, config_value, config_type, remark, create_time, update_time) VALUES (?,?,?,?,?,NOW(),NOW())",
+                    name, key, value, type, remark);
         }
     }
 

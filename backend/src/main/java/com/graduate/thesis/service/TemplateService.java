@@ -162,4 +162,70 @@ public class TemplateService {
         return listRules(templateId).stream()
                 .collect(Collectors.toMap(FormatRule::getRuleType, r -> r, (a, b) -> a));
     }
+
+    // ==================== 模板市场 ====================
+
+    /** 模板市场公开模板列表 */
+    public List<Map<String, Object>> listPublicTemplates() {
+        return templateMapper.selectList(new LambdaQueryWrapper<FormatTemplate>()
+                        .eq(FormatTemplate::getIsPublic, true)
+                        .orderByDesc(FormatTemplate::getRecommended)
+                        .orderByDesc(FormatTemplate::getPublicTime))
+                .stream().map(t -> {
+                    Map<String, Object> m = new java.util.HashMap<>();
+                    m.put("id", t.getId());
+                    m.put("name", t.getName());
+                    m.put("recommended", Boolean.TRUE.equals(t.getRecommended()));
+                    m.put("publicTime", t.getPublicTime());
+                    m.put("ruleCount", ruleMapper.selectCount(new LambdaQueryWrapper<FormatRule>()
+                            .eq(FormatRule::getTemplateId, t.getId())));
+                    return m;
+                }).collect(Collectors.toList());
+    }
+
+    /** 复制公开模板到自己的模板(含规则) */
+    @Transactional
+    public FormatTemplate copyPublic(Long userId, Long publicTemplateId) {
+        FormatTemplate source = templateMapper.selectById(publicTemplateId);
+        if (source == null || !Boolean.TRUE.equals(source.getIsPublic())) {
+            throw new BusinessException(404, "模板不存在或未上架");
+        }
+        FormatTemplate copy = new FormatTemplate();
+        copy.setUserId(userId);
+        copy.setName(source.getName() + "（副本）");
+        copy.setPageConfig(source.getPageConfig());
+        copy.setHeadingPatterns(source.getHeadingPatterns());
+        copy.setCoverConfig(source.getCoverConfig());
+        copy.setGenerateToc(source.getGenerateToc());
+        copy.setReferenceConfig(source.getReferenceConfig());
+        copy.setCreateTime(LocalDateTime.now());
+        copy.setUpdateTime(LocalDateTime.now());
+        templateMapper.insert(copy);
+
+        List<FormatRule> rules = ruleMapper.selectList(new LambdaQueryWrapper<FormatRule>()
+                .eq(FormatRule::getTemplateId, publicTemplateId));
+        for (FormatRule r : rules) {
+            FormatRule nr = new FormatRule();
+            nr.setTemplateId(copy.getId());
+            nr.setRuleType(r.getRuleType());
+            nr.setFont(r.getFont());
+            nr.setFontLatin(r.getFontLatin());
+            nr.setFontSize(r.getFontSize());
+            nr.setBold(r.getBold());
+            nr.setAlign(r.getAlign());
+            nr.setLineSpacing(r.getLineSpacing());
+            nr.setLineSpacingType(r.getLineSpacingType());
+            nr.setLineSpacingExact(r.getLineSpacingExact());
+            nr.setFirstLineIndent(r.getFirstLineIndent());
+            nr.setSpaceBefore(r.getSpaceBefore());
+            nr.setSpaceAfter(r.getSpaceAfter());
+            nr.setCaptionPosition(r.getCaptionPosition());
+            nr.setNumberingPattern(r.getNumberingPattern());
+            nr.setCaptionEnabled(r.getCaptionEnabled());
+            nr.setCreateTime(LocalDateTime.now());
+            nr.setUpdateTime(LocalDateTime.now());
+            ruleMapper.insert(nr);
+        }
+        return copy;
+    }
 }

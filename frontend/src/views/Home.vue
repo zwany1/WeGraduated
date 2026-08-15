@@ -50,6 +50,19 @@
       </div>
     </nav>
 
+    <!-- 公告栏 -->
+    <div v-if="notices.length" class="notice-bar">
+      <div class="notice-inner">
+        <span class="notice-icon">📢</span>
+        <div class="notice-track">
+          <div v-for="n in notices" :key="n.id" class="notice-item">
+            <span class="notice-type">{{ n.noticeType === '2' ? '公告' : '通知' }}</span>
+            <span class="notice-text" :title="n.content">{{ n.title }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ========== Hero ========== -->
     <section class="hero">
       <div class="hero-bg">
@@ -314,6 +327,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import { getProfile, logout } from '../api/user'
+import { listPublicNotices } from '../api/admin'
 
 const router = useRouter()
 
@@ -324,7 +338,12 @@ const userAvatar = ref('')
 
 const avatarText = computed(() => (userName.value || 'U').slice(0, 1).toUpperCase())
 
+const notices = ref([])
+
 onMounted(async () => {
+  try {
+    notices.value = await listPublicNotices(3)
+  } catch (e) {}
   isLoggedIn.value = !!localStorage.getItem('token')
   isAdmin.value = localStorage.getItem('role') === 'ADMIN'
   // 非超管但被授予后台菜单/权限时也可进入管理后台
@@ -1403,5 +1422,49 @@ const tools = [
   .tools-grid { grid-template-columns: repeat(2, 1fr); }
   .nav-links { display: none; }
   .step-arrows { display: none; }
+}
+
+/* ========== 公告栏 ========== */
+.notice-bar {
+  background: linear-gradient(90deg, #EEF1FF, #F5F0FF);
+  border-bottom: 1px solid #e5e7eb;
+}
+.notice-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 8px 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.notice-icon { font-size: 14px; }
+.notice-track {
+  display: flex;
+  gap: 24px;
+  overflow: hidden;
+  flex: 1;
+}
+.notice-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  min-width: 0;
+}
+.notice-type {
+  font-size: 10px;
+  font-weight: 600;
+  color: #3B6BFF;
+  background: rgba(59, 107, 255, 0.1);
+  border: 1px solid rgba(59, 107, 255, 0.3);
+  padding: 1px 7px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.notice-text {
+  font-size: 13px;
+  color: #374151;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>

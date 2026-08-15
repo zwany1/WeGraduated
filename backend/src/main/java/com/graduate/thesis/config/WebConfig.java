@@ -49,6 +49,8 @@ public class WebConfig implements WebMvcConfigurer {
                         "/captcha/**",
                         "/health",
                         "/file/download/**",
+                        "/public/**",
+                        "/template/market/list",
                         "/error"
                 );
         registry.addInterceptor(adminInterceptor)

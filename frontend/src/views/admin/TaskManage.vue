@@ -13,6 +13,7 @@
         <input v-model="keyword" placeholder="搜索用户 / 模板 / 文件名" @keyup.enter="load(1)" />
       </div>
       <el-button type="primary" plain @click="load(1)">查询</el-button>
+      <el-button v-perm="'system:task:export'" type="success" plain @click="doExport">导出</el-button>
     </div>
 
     <div class="table-card">
@@ -64,6 +65,14 @@
         <el-table-column label="完成时间" width="150">
           <template #default="{ row }"><span class="cell-muted">{{ fmtTime(row.finishTime) }}</span></template>
         </el-table-column>
+        <el-table-column label="操作" width="170" fixed="right">
+          <template #default="{ row }">
+            <el-button v-perm="'system:task:list'" link type="primary" size="small" @click="openDetail(row)">详情</el-button>
+            <el-button v-if="['PENDING', 'PROCESSING'].includes(row.status)" v-perm="'system:task:cancel'"
+              link type="danger" size="small" @click="cancel(row)">取消</el-button>
+            <el-button v-else v-perm="'system:task:rerun'" link type="warning" size="small" @click="rerun(row)">重跑</el-button>
+          </template>
+        </el-table-column>
       </el-table>
 
       <div class="pager">
@@ -77,7 +86,9 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getOverview, listTasks } from '../../api/admin'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { getOverview, listTasks, exportTasks, getTaskDetail, rerunTask, cancelTask } from '../../api/admin'
+import { downloadBlob } from '../../utils/download'
 
 const STATUS_META = {
   PENDING: { label: '排队中', color: '#9aa3b2', tint: 'rgba(154,163,178,0.12)' },
@@ -149,6 +160,57 @@ onMounted(async () => {
   } catch (e) {}
   load()
 })
+
+async function doExport() {
+  try {
+    const blob = await exportTasks()
+    downloadBlob(blob, '任务报表.xlsx')
+    ElMessage.success('导出成功')
+  } catch (e) {}
+}
+
+async function openDetail(row) {
+  try {
+    const t = await getTaskDetail(row.id)
+    const lines = [
+      `任务ID：${t.id}`,
+      `论文文件：${t.originalName || '-'}`,
+      `模板ID：${t.templateId}`,
+      `状态：${meta(t.status).label}`,
+      `进度：${t.progress ?? 0}%`,
+      `创建时间：${fmtTime(t.createTime)}`,
+      `完成时间：${fmtTime(t.finishTime)}`,
+      t.errorMsg ? `错误信息：${t.errorMsg}` : ''
+    ]
+    ElMessageBox.alert(lines.filter(Boolean).join('\n'), '任务详情', { confirmButtonText: '关闭' })
+  } catch (e) {}
+}
+
+async function cancel(row) {
+  try {
+    await ElMessageBox.confirm(`确定取消任务 #${row.id} 吗？`, '取消任务', { type: 'warning' })
+  } catch (e) {
+    return
+  }
+  try {
+    await cancelTask(row.id)
+    ElMessage.success('任务已取消')
+    load()
+  } catch (e) {}
+}
+
+async function rerun(row) {
+  try {
+    await ElMessageBox.confirm(`确定重新排版任务 #${row.id} 吗？将使用原文件与模板新建任务。`, '任务重跑', { type: 'warning' })
+  } catch (e) {
+    return
+  }
+  try {
+    const t = await rerunTask(row.id)
+    ElMessage.success(`已创建新任务 #${t.id}`)
+    load()
+  } catch (e) {}
+}
 </script>
 
 <style scoped>

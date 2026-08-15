@@ -36,6 +36,15 @@ public class FormatTemplate {
     /** 参考文献配置 JSON: {"enabled":true,"title":"参考文献","titleFont":"黑体","titleFontSize":14,"itemFont":"宋体","itemFontLatin":"Times New Roman","itemFontSize":10,"removeDoi":true,"maxAuthors":3,"renumber":true} */
     private String referenceConfig;
 
+    /** 是否上架模板市场 */
+    private Boolean isPublic;
+
+    /** 是否推荐 */
+    private Boolean recommended;
+
+    /** 上架时间 */
+    private LocalDateTime publicTime;
+
     private LocalDateTime createTime;
 
     private LocalDateTime updateTime;

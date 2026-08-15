@@ -57,6 +57,7 @@ public class UserService {
     private final RoleMapper roleMapper;
     private final UserRoleMapper userRoleMapper;
     private final PermissionService permissionService;
+    private final LogService logService;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
     /** 登录失败记录: 登录名(用户名或邮箱) -> 失败次数 */
@@ -68,7 +69,8 @@ public class UserService {
                        FormatTemplateMapper templateMapper, FormatRuleMapper ruleMapper,
                        FormatTaskMapper taskMapper, PaperFileMapper paperFileMapper,
                        StorageService storageService, RoleMapper roleMapper,
-                       UserRoleMapper userRoleMapper, PermissionService permissionService) {
+                       UserRoleMapper userRoleMapper, PermissionService permissionService,
+                       LogService logService) {
         this.userMapper = userMapper;
         this.jwtUtil = jwtUtil;
         this.emailCodeService = emailCodeService;
@@ -80,6 +82,7 @@ public class UserService {
         this.roleMapper = roleMapper;
         this.userRoleMapper = userRoleMapper;
         this.permissionService = permissionService;
+        this.logService = logService;
     }
 
     public LoginResponse resetPassword(ResetPasswordDTO dto) {
@@ -95,6 +98,7 @@ public class UserService {
         userMapper.updateById(user);
         // 重置后失效该用户所有旧 token
         jwtUtil.revokeAllForUser(user.getId());
+        logService.recordLogin(user.getId(), user.getUsername(), true, "重置密码成功");
         return buildLoginResponse(user);
     }
 
@@ -122,9 +126,11 @@ public class UserService {
         user.setPassword(encoder.encode(dto.getPassword()));
         user.setNickname(username);
         user.setRole(User.ROLE_USER);
+        user.setStatus(true);
         user.setCreateTime(LocalDateTime.now());
         userMapper.insert(user);
         assignDefaultUserRole(user.getId());
+        logService.recordLogin(user.getId(), username, true, "注册成功");
         return buildLoginResponse(user);
     }
 
@@ -161,13 +167,21 @@ public class UserService {
             if (times >= MAX_FAILURES) {
                 lockUntil.put(account, System.currentTimeMillis() + LOCK_MILLIS);
                 failCount.remove(account);
+                logService.recordLogin(null, account, false, "登录失败次数过多, 账号已锁定");
                 throw new BusinessException("登录失败次数过多，账号已锁定 10 分钟");
             }
+            logService.recordLogin(null, account, false, "用户名/邮箱或密码错误");
             throw new BusinessException("用户名/邮箱或密码错误，还可尝试 " + (MAX_FAILURES - times) + " 次");
+        }
+        // 封禁检查
+        if (user.getStatus() != null && !user.getStatus()) {
+            logService.recordLogin(user.getId(), user.getUsername(), false, "账号已被禁用");
+            throw new BusinessException(403, "账号已被禁用，请联系管理员");
         }
         // 成功则清零
         failCount.remove(account);
         lockUntil.remove(account);
+        logService.recordLogin(user.getId(), user.getUsername(), true, "登录成功");
         return buildLoginResponse(user);
     }
 

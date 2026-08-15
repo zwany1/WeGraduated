@@ -108,18 +108,109 @@
         </div>
       </section>
     </div>
+
+    <!-- 增强分析 -->
+    <div class="chart-grid">
+      <!-- 成功率 -->
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h3 class="panel-title">近 30 天任务成功率</h3>
+            <span class="panel-sub">成功 / 失败 / 总量</span>
+          </div>
+          <span class="panel-badge">RATE</span>
+        </div>
+        <div class="rate-wrap">
+          <div class="rate-ring" :style="{ '--p': successRate + '%' }">
+            <div class="rate-inner">
+              <b>{{ successRate }}%</b>
+              <span>成功率</span>
+            </div>
+          </div>
+          <div class="rate-legend">
+            <div class="legend-item"><span class="legend-dot" style="background:#3f7d5a"></span>
+              <span class="legend-name">成功</span><span class="legend-val">{{ rate.total }}</span></div>
+            <div class="legend-item"><span class="legend-dot" style="background:#b23a2e"></span>
+              <span class="legend-name">失败</span><span class="legend-val">{{ rate.failed }}</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 失败原因 TOP -->
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h3 class="panel-title">失败原因 TOP</h3>
+            <span class="panel-sub">近 500 条失败任务归因</span>
+          </div>
+          <span class="panel-badge">REASON</span>
+        </div>
+        <div class="rank-list" v-if="failures.length">
+          <div v-for="(f, i) in failures" :key="i" class="rank-row">
+            <span class="rank-no" :class="{ top: i < 3 }">{{ i + 1 }}</span>
+            <span class="rank-name" :title="f.reason">{{ f.reason }}</span>
+            <span class="rank-val">{{ f.count }}</span>
+          </div>
+        </div>
+        <div v-else class="empty" style="height:150px">暂无失败数据</div>
+      </section>
+
+      <!-- 热门模板 -->
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h3 class="panel-title">热门模板 TOP</h3>
+            <span class="panel-sub">近 30 天使用量排行</span>
+          </div>
+          <span class="panel-badge">TEMPLATE</span>
+        </div>
+        <div class="rank-list" v-if="topTemplates.length">
+          <div v-for="(t, i) in topTemplates" :key="i" class="rank-row">
+            <span class="rank-no" :class="{ top: i < 3 }">{{ i + 1 }}</span>
+            <span class="rank-name" :title="t.name">{{ t.name }}</span>
+            <span class="rank-val">{{ t.count }} 次</span>
+          </div>
+        </div>
+        <div v-else class="empty" style="height:150px">暂无数据</div>
+      </section>
+
+      <!-- 活跃用户 -->
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h3 class="panel-title">活跃用户 TOP</h3>
+            <span class="panel-sub">近 30 天提交任务排行</span>
+          </div>
+          <span class="panel-badge">USER</span>
+        </div>
+        <div class="rank-list" v-if="topUsers.length">
+          <div v-for="(u, i) in topUsers" :key="i" class="rank-row">
+            <span class="rank-no" :class="{ top: i < 3 }">{{ i + 1 }}</span>
+            <span class="rank-name" :title="u.username">{{ u.username }}</span>
+            <span class="rank-val">{{ u.count }} 次</span>
+          </div>
+        </div>
+        <div v-else class="empty" style="height:150px">暂无数据</div>
+      </section>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { getOverview } from '../../api/admin'
+import { getOverview, getSuccessRate, getFailures, getTopTemplates, getTopUsers } from '../../api/admin'
 
 const stats = ref({
   userCount: 0, adminCount: 0, templateCount: 0, taskCount: 0, paperCount: 0,
   taskStatus: { PENDING: 0, PROCESSING: 0, SUCCESS: 0, FAILED: 0 },
   registerTrend: [], taskTrend: []
 })
+const rate = ref({ total: 0, success: 0, failed: 0, rate: 0 })
+const failures = ref([])
+const topTemplates = ref([])
+const topUsers = ref([])
+
+const successRate = computed(() => rate.value.rate || 0)
 
 const fmt = n => (n || 0).toLocaleString()
 
@@ -206,6 +297,18 @@ const greeting = hour < 6 ? '夜深了' : hour < 12 ? '早上好' : hour < 18 ? 
 onMounted(async () => {
   try {
     stats.value = await getOverview()
+  } catch (e) {}
+  try {
+    rate.value = await getSuccessRate()
+  } catch (e) {}
+  try {
+    failures.value = await getFailures()
+  } catch (e) {}
+  try {
+    topTemplates.value = await getTopTemplates()
+  } catch (e) {}
+  try {
+    topUsers.value = await getTopUsers()
   } catch (e) {}
 })
 </script>
@@ -530,6 +633,106 @@ onMounted(async () => {
   color: #b3a583;
   font-size: 11px;
   font-variant-numeric: tabular-nums;
+}
+
+/* 成功率 */
+.rate-wrap {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 6px 2px;
+}
+.rate-ring {
+  width: 108px;
+  height: 108px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: conic-gradient(#3f7d5a var(--p), rgba(13, 27, 46, 0.08) var(--p));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: ring-fill 0.8s ease both;
+}
+@keyframes ring-fill {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+.rate-inner {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: #fffdf9;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.rate-inner b {
+  font-family: var(--serif);
+  font-size: 22px;
+  color: #0d1b2e;
+  line-height: 1;
+}
+.rate-inner span {
+  font-size: 10px;
+  color: #9a917d;
+  margin-top: 4px;
+}
+.rate-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 排行榜 */
+.rank-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 150px;
+}
+.rank-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid #efe8dc;
+  transition: background 0.2s;
+}
+.rank-row:hover {
+  background: #f8f4ea;
+}
+.rank-no {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: #f0eadd;
+  color: #7a7d8a;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.rank-no.top {
+  background: linear-gradient(135deg, #ddc07f, #c9a45c);
+  color: #fff;
+}
+.rank-name {
+  flex: 1;
+  font-size: 12.5px;
+  color: #2c3140;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rank-val {
+  font-size: 12px;
+  color: #8a8d99;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
 }
 
 @media (max-width: 1200px) {

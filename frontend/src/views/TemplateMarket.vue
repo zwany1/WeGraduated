@@ -11,25 +11,49 @@
 
     <section class="section">
       <div class="section-inner">
-        <!-- 预设模板 -->
-        <h2 class="sec-title">预设模板</h2>
-        <p class="sec-sub">按需选择，快速开始</p>
-        <div class="grid">
-          <div class="card" v-for="(t, i) in presets" :key="'p'+i" @click="usePreset(t)">
+        <!-- 官方模板市场 -->
+        <h2 class="sec-title">官方模板市场</h2>
+        <p class="sec-sub">管理员精选的排版模板，一键复制使用</p>
+        <div v-if="marketTemplates.length" class="grid">
+          <div class="card" v-for="t in marketTemplates" :key="'p'+t.id" @click="useMarket(t)">
             <div class="card-top">
-              <div class="card-type" :class="t.tag">{{ t.tag }}</div>
+              <div class="card-type" :class="t.recommended ? '推荐' : '官方'">{{ t.recommended ? '推荐' : '官方' }}</div>
               <div class="card-icon">
                 <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><path d="M10 9l-1 1 1 1"/></svg>
               </div>
             </div>
             <h3 class="card-title">{{ t.name }}</h3>
-            <p class="card-desc">{{ t.desc }}</p>
+            <p class="card-desc">共 {{ t.ruleCount || 0 }} 条排版规则 · {{ t.recommended ? '官方推荐模板' : '精选上架模板' }}</p>
             <div class="card-tags">
-              <span class="tag" v-for="(f, j) in t.features" :key="j">{{ f }}</span>
+              <span class="tag" v-if="t.recommended">推荐</span>
+              <span class="tag">一键复制</span>
             </div>
-            <button class="btn-use" @click.stop="usePreset(t)">使用此模板</button>
+            <button class="btn-use" @click.stop="useMarket(t)">使用此模板</button>
           </div>
         </div>
+        <p v-else class="empty">官方模板暂未上架，你可以先使用内置预设或创建自己的模板</p>
+
+        <!-- 预设模板 -->
+        <template v-if="!marketTemplates.length">
+          <h2 class="sec-title mt">内置预设</h2>
+          <p class="sec-sub">按需选择，快速开始</p>
+          <div class="grid">
+            <div class="card" v-for="(t, i) in presets" :key="'p'+i" @click="usePreset(t)">
+              <div class="card-top">
+                <div class="card-type" :class="t.tag">{{ t.tag }}</div>
+                <div class="card-icon">
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><path d="M10 9l-1 1 1 1"/></svg>
+                </div>
+              </div>
+              <h3 class="card-title">{{ t.name }}</h3>
+              <p class="card-desc">{{ t.desc }}</p>
+              <div class="card-tags">
+                <span class="tag" v-for="(f, j) in t.features" :key="j">{{ f }}</span>
+              </div>
+              <button class="btn-use" @click.stop="usePreset(t)">使用此模板</button>
+            </div>
+          </div>
+        </template>
 
         <!-- 我的模板 -->
         <template v-if="isLoggedIn">
@@ -57,11 +81,12 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import NavBar from '../components/site/NavBar.vue'
 import SiteFooter from '../components/site/SiteFooter.vue'
-import { listTemplates, createTemplate } from '../api/template'
+import { listTemplates, createTemplate, listMarketTemplates, copyMarketTemplate } from '../api/template'
 
 const router = useRouter()
 const isLoggedIn = ref(false)
 const myTemplates = ref([])
+const marketTemplates = ref([])
 
 const presets = [
   {
@@ -91,6 +116,9 @@ const presets = [
 ]
 
 onMounted(async () => {
+  try {
+    marketTemplates.value = (await listMarketTemplates()) || []
+  } catch (e) {}
   isLoggedIn.value = !!localStorage.getItem('token')
   if (isLoggedIn.value) {
     try {
@@ -98,6 +126,20 @@ onMounted(async () => {
     } catch (e) {}
   }
 })
+
+async function useMarket(t) {
+  if (!localStorage.getItem('token')) {
+    router.push({ path: '/login', query: { redirect: '/template-market' } })
+    return
+  }
+  try {
+    const data = await copyMarketTemplate(t.id)
+    ElMessage.success('模板已复制到我的模板')
+    router.push(`/template/${data.id}`)
+  } catch (e) {
+    ElMessage.error(e.message || '复制模板失败')
+  }
+}
 
 async function usePreset(preset) {
   if (!localStorage.getItem('token')) {
@@ -210,6 +252,8 @@ function formatTime(t) {
 .card-type.硕士 { background: #F5F3FF; color: #7c3aed; }
 .card-type.期刊 { background: #ECFDF5; color: #10b981; }
 .card-type.博士 { background: #FFF7ED; color: #f59e0b; }
+.card-type.官方 { background: #EEF1FF; color: #3B6BFF; }
+.card-type.推荐 { background: linear-gradient(135deg, #FFF7ED, #FEF3C7); color: #b45309; }
 .card-icon {
   width: 40px;
   height: 40px;

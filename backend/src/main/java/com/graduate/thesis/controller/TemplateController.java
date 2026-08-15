@@ -43,6 +43,18 @@ public class TemplateController {
         return Result.ok(templateService.create(UserContext.get(), dto.getName()));
     }
 
+    /** 模板市场公开模板(无需登录) */
+    @GetMapping("/market/list")
+    public Result<List<Map<String, Object>>> marketList() {
+        return Result.ok(templateService.listPublicTemplates());
+    }
+
+    /** 复制公开模板到我的模板 */
+    @PostMapping("/market/{id}/copy")
+    public Result<FormatTemplate> copyMarket(@PathVariable Long id) {
+        return Result.ok(templateService.copyPublic(UserContext.get(), id));
+    }
+
     @GetMapping("/list")
     public Result<List<FormatTemplate>> list() {
         return Result.ok(templateService.listByUser(UserContext.get()));

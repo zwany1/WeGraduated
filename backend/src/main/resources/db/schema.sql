@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS t_user (
     security_question VARCHAR(128) DEFAULT NULL,
     security_answer   VARCHAR(128) DEFAULT NULL,
     role              VARCHAR(16)  NOT NULL DEFAULT 'USER',
+    status            TINYINT(1)   NOT NULL DEFAULT 1 COMMENT '状态 1正常 0禁用',
     create_time       DATETIME     DEFAULT NULL,
     UNIQUE KEY uk_username (username),
     UNIQUE KEY uk_email (email)
@@ -27,9 +28,13 @@ CREATE TABLE IF NOT EXISTS t_format_template (
     cover_config      TEXT         DEFAULT NULL,
     generate_toc      TINYINT(1)   NOT NULL DEFAULT 0,
     reference_config  TEXT         DEFAULT NULL,
+    is_public         TINYINT(1)   NOT NULL DEFAULT 0 COMMENT '是否上架模板市场',
+    recommended       TINYINT(1)   NOT NULL DEFAULT 0 COMMENT '是否推荐',
+    public_time       DATETIME     DEFAULT NULL COMMENT '上架时间',
     create_time       DATETIME     DEFAULT NULL,
     update_time       DATETIME     DEFAULT NULL,
-    KEY idx_user (user_id)
+    KEY idx_user (user_id),
+    KEY idx_public (is_public)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='格式模板表';
 
 CREATE TABLE IF NOT EXISTS t_format_rule (
@@ -129,3 +134,84 @@ CREATE TABLE IF NOT EXISTS t_role_menu (
     PRIMARY KEY (role_id, menu_id),
     KEY idx_menu (menu_id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='角色菜单关联表';
+
+-- ============================================================
+-- 运维扩展: 操作日志 / 登录日志 / 字典 / 系统参数 / 公告
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS t_oper_log (
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id     BIGINT       DEFAULT NULL,
+    username    VARCHAR(64)  DEFAULT NULL,
+    module      VARCHAR(64)  DEFAULT NULL,
+    action      VARCHAR(128) DEFAULT NULL,
+    method      VARCHAR(255) DEFAULT NULL,
+    params      TEXT         DEFAULT NULL,
+    ip          VARCHAR(64)  DEFAULT NULL,
+    status      TINYINT(1)   NOT NULL DEFAULT 1 COMMENT '1成功 0失败',
+    error_msg   VARCHAR(1000) DEFAULT NULL,
+    cost_ms     BIGINT       DEFAULT NULL,
+    create_time DATETIME     DEFAULT NULL,
+    KEY idx_user (user_id),
+    KEY idx_time (create_time)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='操作日志表';
+
+CREATE TABLE IF NOT EXISTS t_login_log (
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id     BIGINT       DEFAULT NULL,
+    username    VARCHAR(64)  DEFAULT NULL,
+    ip          VARCHAR(64)  DEFAULT NULL,
+    user_agent  VARCHAR(255) DEFAULT NULL,
+    status      TINYINT(1)   NOT NULL DEFAULT 1 COMMENT '1成功 0失败',
+    message     VARCHAR(255) DEFAULT NULL,
+    create_time DATETIME     DEFAULT NULL,
+    KEY idx_user (user_id),
+    KEY idx_time (create_time)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='登录日志表';
+
+CREATE TABLE IF NOT EXISTS t_dict_type (
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    dict_name   VARCHAR(100) NOT NULL,
+    dict_type   VARCHAR(100) NOT NULL,
+    status      TINYINT(1)   NOT NULL DEFAULT 1,
+    remark      VARCHAR(500) DEFAULT NULL,
+    create_time DATETIME     DEFAULT NULL,
+    update_time DATETIME     DEFAULT NULL,
+    UNIQUE KEY uk_dict_type (dict_type)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='字典类型表';
+
+CREATE TABLE IF NOT EXISTS t_dict_data (
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    dict_type   VARCHAR(100) NOT NULL,
+    dict_label  VARCHAR(100) NOT NULL,
+    dict_value  VARCHAR(100) NOT NULL,
+    dict_sort   INT          NOT NULL DEFAULT 0,
+    status      TINYINT(1)   NOT NULL DEFAULT 1,
+    remark      VARCHAR(500) DEFAULT NULL,
+    create_time DATETIME     DEFAULT NULL,
+    update_time DATETIME     DEFAULT NULL,
+    KEY idx_type (dict_type)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='字典数据表';
+
+CREATE TABLE IF NOT EXISTS t_config (
+    id           BIGINT AUTO_INCREMENT PRIMARY KEY,
+    config_name  VARCHAR(100) NOT NULL,
+    config_key   VARCHAR(100) NOT NULL,
+    config_value VARCHAR(500) DEFAULT NULL,
+    config_type  TINYINT(1)   NOT NULL DEFAULT 1 COMMENT '1内置 0自定义',
+    remark       VARCHAR(500) DEFAULT NULL,
+    create_time  DATETIME     DEFAULT NULL,
+    update_time  DATETIME     DEFAULT NULL,
+    UNIQUE KEY uk_config_key (config_key)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='系统参数表';
+
+CREATE TABLE IF NOT EXISTS t_notice (
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    title       VARCHAR(200) NOT NULL,
+    content     TEXT         DEFAULT NULL,
+    notice_type CHAR(1)      NOT NULL DEFAULT '1' COMMENT '1通知 2公告',
+    status      TINYINT(1)   NOT NULL DEFAULT 1 COMMENT '1正常 0停用',
+    create_user BIGINT       DEFAULT NULL,
+    create_time DATETIME     DEFAULT NULL,
+    update_time DATETIME     DEFAULT NULL
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='通知公告表';

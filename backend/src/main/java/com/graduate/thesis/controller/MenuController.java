@@ -1,5 +1,6 @@
 package com.graduate.thesis.controller;
 
+import com.graduate.thesis.annotation.OperLog;
 import com.graduate.thesis.annotation.RequiresPerms;
 import com.graduate.thesis.common.Result;
 import com.graduate.thesis.common.UserContext;
@@ -44,6 +45,7 @@ public class MenuController {
     }
 
     @PostMapping
+    @OperLog(module = "菜单管理", action = "新增菜单")
     @RequiresPerms("system:menu:add")
     public Result<Void> create(@RequestBody MenuSaveDTO dto) {
         menuService.createMenu(dto);
@@ -51,6 +53,7 @@ public class MenuController {
     }
 
     @PutMapping
+    @OperLog(module = "菜单管理", action = "编辑菜单")
     @RequiresPerms("system:menu:edit")
     public Result<Void> update(@RequestBody MenuSaveDTO dto) {
         menuService.updateMenu(dto);
@@ -58,6 +61,7 @@ public class MenuController {
     }
 
     @DeleteMapping("/{id}")
+    @OperLog(module = "菜单管理", action = "删除菜单")
     @RequiresPerms("system:menu:delete")
     public Result<Void> delete(@PathVariable Long id) {
         menuService.deleteMenu(id);

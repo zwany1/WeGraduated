@@ -18,6 +18,12 @@ const viewMap = {
   'admin/TaskManage': () => import('../views/admin/TaskManage.vue'),
   'admin/RoleManage': () => import('../views/admin/RoleManage.vue'),
   'admin/MenuManage': () => import('../views/admin/MenuManage.vue'),
+  'admin/TemplateMarketManage': () => import('../views/admin/TemplateMarketManage.vue'),
+  'admin/OperLogManage': () => import('../views/admin/OperLogManage.vue'),
+  'admin/LoginLogManage': () => import('../views/admin/LoginLogManage.vue'),
+  'admin/DictManage': () => import('../views/admin/DictManage.vue'),
+  'admin/ConfigManage': () => import('../views/admin/ConfigManage.vue'),
+  'admin/NoticeManage': () => import('../views/admin/NoticeManage.vue'),
   'admin/ComingSoon': () => import('../views/admin/ComingSoon.vue')
 }
 

@@ -39,5 +39,8 @@ public class User {
     /** 角色: USER / ADMIN */
     private String role;
 
+    /** 状态: 1正常 0禁用 */
+    private Boolean status;
+
     private LocalDateTime createTime;
 }

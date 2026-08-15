@@ -1,5 +1,6 @@
 package com.graduate.thesis.controller;
 
+import com.graduate.thesis.annotation.OperLog;
 import com.graduate.thesis.annotation.RequiresPerms;
 import com.graduate.thesis.common.PageResult;
 import com.graduate.thesis.common.Result;
@@ -47,6 +48,7 @@ public class RoleController {
     }
 
     @PostMapping
+    @OperLog(module = "角色管理", action = "新增角色")
     @RequiresPerms("system:role:add")
     public Result<Void> create(@RequestBody RoleSaveDTO dto) {
         roleService.createRole(dto);
@@ -54,6 +56,7 @@ public class RoleController {
     }
 
     @PutMapping
+    @OperLog(module = "角色管理", action = "编辑角色")
     @RequiresPerms("system:role:edit")
     public Result<Void> update(@RequestBody RoleSaveDTO dto) {
         roleService.updateRole(dto);
@@ -61,6 +64,7 @@ public class RoleController {
     }
 
     @DeleteMapping("/{id}")
+    @OperLog(module = "角色管理", action = "删除角色")
     @RequiresPerms("system:role:delete")
     public Result<Void> delete(@PathVariable Long id) {
         roleService.deleteRole(id);
@@ -76,6 +80,7 @@ public class RoleController {
 
     /** 给角色分配菜单 */
     @PutMapping("/assign-menus")
+    @OperLog(module = "角色管理", action = "分配角色菜单")
     @RequiresPerms("system:role:assign")
     public Result<Void> assignMenus(@RequestBody AssignMenusDTO dto) {
         roleService.assignMenus(dto);

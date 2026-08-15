@@ -116,4 +116,37 @@ public class StorageService {
         }
         return filename.substring(filename.lastIndexOf('.'));
     }
+
+    /**
+     * 清理孤立派生文件(未被任何任务/文件引用, 且超过 keepDays 天).
+     * 仅清理 upload / result 两类目录下的文件, 不触碰引用中的文件.
+     * @return 删除的文件数
+     */
+    public int cleanupOrphans(java.util.Set<String> referenced, int keepDays) {
+        int deleted = 0;
+        long cutoff = System.currentTimeMillis() - keepDays * 24L * 3600 * 1000L;
+        for (String category : new String[]{"upload", "result"}) {
+            Path dir = root.resolve(category);
+            if (!Files.isDirectory(dir)) {
+                continue;
+            }
+            try (java.util.stream.Stream<Path> stream = Files.walk(dir)) {
+                for (Path p : (Iterable<Path>) stream.filter(Files::isRegularFile)::iterator) {
+                    try {
+                        String relative = category + "/" + root.relativize(p).toString().replace('\\', '/');
+                        if (referenced.contains(relative)) {
+                            continue;
+                        }
+                        if (Files.getLastModifiedTime(p).toMillis() < cutoff) {
+                            Files.deleteIfExists(p);
+                            deleted++;
+                        }
+                    } catch (Exception ignore) {
+                    }
+                }
+            } catch (IOException ignore) {
+            }
+        }
+        return deleted;
+    }
 }

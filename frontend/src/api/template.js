@@ -43,3 +43,13 @@ export function saveRule(rule) {
 export function listRules(id) {
   return api.get(`/template/${id}/rules`)
 }
+
+// ============ 模板市场 ============
+
+export function listMarketTemplates() {
+  return api.get('/template/market/list')
+}
+
+export function copyMarketTemplate(id) {
+  return api.post(`/template/market/${id}/copy`)
+}

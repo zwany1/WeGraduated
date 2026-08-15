@@ -9,6 +9,7 @@ import com.graduate.thesis.dto.admin.AdminStatsVO;
 import com.graduate.thesis.dto.admin.AdminTaskVO;
 import com.graduate.thesis.dto.admin.AdminTemplateVO;
 import com.graduate.thesis.dto.admin.AdminUserVO;
+import com.graduate.thesis.dto.admin.UserDetailVO;
 import com.graduate.thesis.entity.FormatRule;
 import com.graduate.thesis.entity.FormatTask;
 import com.graduate.thesis.entity.FormatTemplate;
@@ -169,6 +170,7 @@ public class AdminService {
             vo.setEmail(u.getEmail());
             vo.setNickname(u.getNickname());
             vo.setRole(u.getRole() == null ? User.ROLE_USER : u.getRole());
+            vo.setStatus(u.getStatus() == null ? Boolean.TRUE : u.getStatus());
             List<Long> roleIds = userRoleMap.getOrDefault(u.getId(), Collections.emptyList());
             vo.setRoleIds(roleIds);
             vo.setRoleNames(roleNamesOf(roleIds));
@@ -306,6 +308,101 @@ public class AdminService {
                 .eq(UserRole::getRoleId, adminRole.getId())));
     }
 
+    /** 封禁/启用用户 */
+    @Transactional
+    public void updateUserStatus(Long userId, Object status, Long operatorId) {
+        if (userId.equals(operatorId)) {
+            throw new BusinessException(400, "不能封禁当前登录账号");
+        }
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(404, "用户不存在");
+        }
+        boolean enabled = status != null && (Boolean.TRUE.equals(status)
+                || "true".equalsIgnoreCase(String.valueOf(status)) || "1".equals(String.valueOf(status)));
+        user.setStatus(enabled);
+        userMapper.updateById(user);
+        if (!enabled) {
+            // 封禁后使其所有 token 失效
+            jwtUtil.revokeAllForUser(userId);
+        }
+    }
+
+    /** 管理员重置用户密码 */
+    @Transactional
+    public void resetUserPassword(Long userId, String newPassword) {
+        if (newPassword == null || newPassword.trim().length() < 6) {
+            throw new BusinessException(400, "密码长度至少 6 位");
+        }
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(404, "用户不存在");
+        }
+        org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder encoder =
+                new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder();
+        user.setPassword(encoder.encode(newPassword));
+        userMapper.updateById(user);
+        jwtUtil.revokeAllForUser(userId);
+    }
+
+    /** 用户详情: 用户 + 模板/任务/文件 */
+    public UserDetailVO getUserDetail(Long userId) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(404, "用户不存在");
+        }
+        UserDetailVO vo = new UserDetailVO();
+        vo.setId(user.getId());
+        vo.setUsername(user.getUsername());
+        vo.setEmail(user.getEmail());
+        vo.setNickname(user.getNickname());
+        vo.setRole(user.getRole() == null ? User.ROLE_USER : user.getRole());
+        vo.setStatus(user.getStatus() == null ? Boolean.TRUE : user.getStatus());
+        vo.setCreateTime(user.getCreateTime());
+        vo.setRoleNames(roleNamesOf(userRoleMapper.selectList(new LambdaQueryWrapper<UserRole>()
+                .eq(UserRole::getUserId, userId)).stream().map(UserRole::getRoleId).collect(Collectors.toList())));
+
+        List<FormatTemplate> templates = templateMapper.selectList(new LambdaQueryWrapper<FormatTemplate>()
+                .eq(FormatTemplate::getUserId, userId).orderByDesc(FormatTemplate::getUpdateTime));
+        List<FormatTask> tasks = taskMapper.selectList(new LambdaQueryWrapper<FormatTask>()
+                .eq(FormatTask::getUserId, userId).orderByDesc(FormatTask::getId));
+        List<PaperFile> papers = paperFileMapper.selectList(new LambdaQueryWrapper<PaperFile>()
+                .eq(PaperFile::getUserId, userId).orderByDesc(PaperFile::getId));
+
+        vo.setTemplateCount(templates.size());
+        vo.setTaskCount(tasks.size());
+        vo.setPaperCount(papers.size());
+
+        vo.setTemplates(templates.stream().map(t -> {
+            UserDetailVO.Item it = new UserDetailVO.Item();
+            it.setId(t.getId());
+            it.setName(t.getName());
+            it.setTime(t.getUpdateTime());
+            return it;
+        }).collect(Collectors.toList()));
+
+        Map<Long, String> fileNameMap = papers.stream().collect(Collectors.toMap(
+                PaperFile::getId, PaperFile::getOriginalName, (a, b) -> a));
+        vo.setTasks(tasks.stream().map(t -> {
+            UserDetailVO.Item it = new UserDetailVO.Item();
+            it.setId(t.getId());
+            it.setName(fileNameMap.getOrDefault(t.getFileId(), String.valueOf(t.getFileId())));
+            it.setStatus(t.getStatus());
+            it.setExtra(t.getErrorMsg());
+            it.setTime(t.getCreateTime());
+            return it;
+        }).collect(Collectors.toList()));
+
+        vo.setPapers(papers.stream().map(p -> {
+            UserDetailVO.Item it = new UserDetailVO.Item();
+            it.setId(p.getId());
+            it.setName(p.getOriginalName());
+            it.setTime(p.getCreateTime());
+            return it;
+        }).collect(Collectors.toList()));
+        return vo;
+    }
+
     @Transactional
     public void deleteUser(Long userId, Long operatorId) {
         if (userId.equals(operatorId)) {
@@ -380,7 +477,181 @@ public class AdminService {
         templateMapper.deleteById(id);
     }
 
-    // ==================== 任务管理 ====================
+    // ==================== 模板市场 ====================
+
+    public PageResult<Map<String, Object>> listMarketTemplates(int pageNum, int pageSize, String keyword) {
+        LambdaQueryWrapper<FormatTemplate> wrapper = new LambdaQueryWrapper<>();
+        if (StringUtils.hasText(keyword)) {
+            wrapper.like(FormatTemplate::getName, keyword.trim());
+        }
+        wrapper.orderByDesc(FormatTemplate::getUpdateTime);
+        IPage<FormatTemplate> page = templateMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
+        List<Long> userIds = page.getRecords().stream().map(FormatTemplate::getUserId).distinct().collect(Collectors.toList());
+        Map<Long, String> usernameMap = userIds.isEmpty() ? Collections.emptyMap()
+                : userMapper.selectList(new LambdaQueryWrapper<User>().in(User::getId, userIds))
+                .stream().collect(Collectors.toMap(User::getId, User::getUsername, (a, b) -> a));
+        List<Map<String, Object>> records = new ArrayList<>();
+        for (FormatTemplate t : page.getRecords()) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", t.getId());
+            m.put("name", t.getName());
+            m.put("userId", t.getUserId());
+            m.put("username", usernameMap.getOrDefault(t.getUserId(), "-"));
+            m.put("isPublic", Boolean.TRUE.equals(t.getIsPublic()));
+            m.put("recommended", Boolean.TRUE.equals(t.getRecommended()));
+            m.put("publicTime", t.getPublicTime());
+            m.put("ruleCount", ruleMapper.selectCount(new LambdaQueryWrapper<FormatRule>()
+                    .eq(FormatRule::getTemplateId, t.getId())));
+            m.put("taskCount", countByKey(taskMapper.selectList(new LambdaQueryWrapper<FormatTask>()
+                            .eq(FormatTask::getTemplateId, t.getId()).select(FormatTask::getTemplateId)),
+                    FormatTask::getTemplateId).getOrDefault(t.getId(), 0L));
+            m.put("updateTime", t.getUpdateTime());
+            records.add(m);
+        }
+        return PageResult.of(page.getTotal(), records);
+    }
+
+    /** 上架/下架/推荐模板 */
+    @Transactional
+    public void setMarketTemplate(Long id, Boolean isPublic, Boolean recommended) {
+        FormatTemplate template = templateMapper.selectById(id);
+        if (template == null) {
+            throw new BusinessException(404, "模板不存在");
+        }
+        if (isPublic != null) {
+            template.setIsPublic(isPublic);
+            if (Boolean.TRUE.equals(isPublic)) {
+                template.setPublicTime(template.getPublicTime() == null ? LocalDateTime.now() : template.getPublicTime());
+            } else {
+                template.setPublicTime(null);
+                template.setRecommended(false);
+            }
+        }
+        if (recommended != null) {
+            template.setRecommended(recommended);
+        }
+        template.setUpdateTime(LocalDateTime.now());
+        templateMapper.updateById(template);
+    }
+
+    // ==================== 报表导出 ====================
+
+    /** 导出用户数据(Excel 行数据) */
+    public List<AdminUserVO> listAllUsersForExport() {
+        return toUserVOs(userMapper.selectList(new LambdaQueryWrapper<User>()
+                .orderByDesc(User::getCreateTime)));
+    }
+
+    /** 导出模板数据 */
+    public List<AdminTemplateVO> listAllTemplatesForExport() {
+        return toTemplateVOs(templateMapper.selectList(new LambdaQueryWrapper<FormatTemplate>()
+                .orderByDesc(FormatTemplate::getUpdateTime)));
+    }
+
+    /** 导出任务数据 */
+    public List<AdminTaskVO> listAllTasksForExport() {
+        return toTaskVOs(taskMapper.selectList(new LambdaQueryWrapper<FormatTask>()
+                .orderByDesc(FormatTask::getId)));
+    }
+
+    // ==================== 统计增强 ====================
+
+    /** 任务成功率(近30天) */
+    public Map<String, Object> taskSuccessRate() {
+        LocalDateTime since = LocalDateTime.now().minusDays(30);
+        long total = safeCount(taskMapper.selectCount(new LambdaQueryWrapper<FormatTask>()
+                .ge(FormatTask::getCreateTime, since)));
+        long success = safeCount(taskMapper.selectCount(new LambdaQueryWrapper<FormatTask>()
+                .eq(FormatTask::getStatus, FormatTask.STATUS_SUCCESS)
+                .ge(FormatTask::getCreateTime, since)));
+        long failed = safeCount(taskMapper.selectCount(new LambdaQueryWrapper<FormatTask>()
+                .eq(FormatTask::getStatus, FormatTask.STATUS_FAILED)
+                .ge(FormatTask::getCreateTime, since)));
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("total", total);
+        m.put("success", success);
+        m.put("failed", failed);
+        m.put("rate", total == 0 ? 0 : Math.round(success * 100.0 / total));
+        return m;
+    }
+
+    /** 失败原因 TOP */
+    public List<Map<String, Object>> failureReasons() {
+        List<FormatTask> failed = taskMapper.selectList(new LambdaQueryWrapper<FormatTask>()
+                .eq(FormatTask::getStatus, FormatTask.STATUS_FAILED)
+                .isNotNull(FormatTask::getErrorMsg)
+                .orderByDesc(FormatTask::getId)
+                .last("LIMIT 500"));
+        Map<String, Long> reasonCount = new HashMap<>();
+        for (FormatTask t : failed) {
+            String msg = t.getErrorMsg();
+            String reason = "未知错误";
+            if (msg != null) {
+                if (msg.contains("Zip bomb") || msg.contains("zip")) reason = "压缩炸弹/超大文件";
+                else if (msg.contains("NullPointer") || msg.contains("null")) reason = "空指针/文件解析异常";
+                else if (msg.contains("content type") || msg.contains("InvalidFormat")) reason = "文件格式损坏";
+                else if (msg.contains("already exists") || msg.contains("part name")) reason = "文档结构异常";
+                else if (msg.contains("时间") || msg.contains("cancel")) reason = "取消/超时";
+                else reason = msg.length() > 40 ? msg.substring(0, 40) : msg;
+            }
+            reasonCount.merge(reason, 1L, Long::sum);
+        }
+        return reasonCount.entrySet().stream()
+                .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
+                .limit(10)
+                .map(e -> {
+                    Map<String, Object> m = new HashMap<>();
+                    m.put("reason", e.getKey());
+                    m.put("count", e.getValue());
+                    return m;
+                }).collect(Collectors.toList());
+    }
+
+    /** 模板使用量 TOP */
+    public List<Map<String, Object>> topTemplates() {
+        List<FormatTask> tasks = taskMapper.selectList(new LambdaQueryWrapper<FormatTask>()
+                .ge(FormatTask::getCreateTime, LocalDateTime.now().minusDays(30)));
+        Map<Long, Long> count = new HashMap<>();
+        for (FormatTask t : tasks) {
+            if (t.getTemplateId() != null) {
+                count.merge(t.getTemplateId(), 1L, Long::sum);
+            }
+        }
+        List<Long> templateIds = count.keySet().stream().sorted((a, b) -> Long.compare(count.get(b), count.get(a)))
+                .limit(10).collect(Collectors.toList());
+        Map<Long, String> nameMap = templateIds.isEmpty() ? Collections.emptyMap()
+                : templateMapper.selectBatchIds(templateIds).stream()
+                .collect(Collectors.toMap(FormatTemplate::getId, FormatTemplate::getName, (a, b) -> a));
+        return templateIds.stream().map(id -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("templateId", id);
+            m.put("name", nameMap.getOrDefault(id, "-"));
+            m.put("count", count.get(id));
+            return m;
+        }).collect(Collectors.toList());
+    }
+
+    /** 用户活跃 TOP */
+    public List<Map<String, Object>> topUsers() {
+        List<FormatTask> tasks = taskMapper.selectList(new LambdaQueryWrapper<FormatTask>()
+                .ge(FormatTask::getCreateTime, LocalDateTime.now().minusDays(30)));
+        Map<Long, Long> count = new HashMap<>();
+        for (FormatTask t : tasks) {
+            count.merge(t.getUserId(), 1L, Long::sum);
+        }
+        List<Long> userIds = count.keySet().stream().sorted((a, b) -> Long.compare(count.get(b), count.get(a)))
+                .limit(10).collect(Collectors.toList());
+        Map<Long, String> nameMap = userIds.isEmpty() ? Collections.emptyMap()
+                : userMapper.selectBatchIds(userIds).stream()
+                .collect(Collectors.toMap(User::getId, User::getUsername, (a, b) -> a));
+        return userIds.stream().map(id -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("userId", id);
+            m.put("username", nameMap.getOrDefault(id, "-"));
+            m.put("count", count.get(id));
+            return m;
+        }).collect(Collectors.toList());
+    }
 
     public PageResult<AdminTaskVO> listTasks(int pageNum, int pageSize, String status, String keyword) {
         LambdaQueryWrapper<FormatTask> wrapper = new LambdaQueryWrapper<>();

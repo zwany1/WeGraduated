@@ -153,6 +153,58 @@ public class PaperService {
         return task;
     }
 
+    // ==================== 管理员: 任务管理 ====================
+
+    /** 任务详情(含源文件名) */
+    public FormatTask getTaskDetail(Long taskId) {
+        FormatTask task = taskMapper.selectById(taskId);
+        if (task == null) {
+            throw new BusinessException(404, "任务不存在");
+        }
+        PaperFile pf = paperFileMapper.selectById(task.getFileId());
+        if (pf != null) {
+            task.setOriginalName(pf.getOriginalName());
+        }
+        return task;
+    }
+
+    /** 重跑任务: 以原文件/模板新建任务 */
+    public FormatTask rerun(Long taskId) {
+        FormatTask old = taskMapper.selectById(taskId);
+        if (old == null) {
+            throw new BusinessException(404, "任务不存在");
+        }
+        if (FormatTask.STATUS_PROCESSING.equals(old.getStatus())) {
+            throw new BusinessException(400, "任务正在执行中, 请稍后再试");
+        }
+        FormatTask task = new FormatTask();
+        task.setUserId(old.getUserId());
+        task.setFileId(old.getFileId());
+        task.setTemplateId(old.getTemplateId());
+        task.setStatus(FormatTask.STATUS_PENDING);
+        task.setProgress(0);
+        task.setCreateTime(LocalDateTime.now());
+        taskMapper.insert(task);
+        self.runFormat(task.getId());
+        return task;
+    }
+
+    /** 取消任务(仅待处理/处理中) */
+    public void cancel(Long taskId) {
+        FormatTask task = taskMapper.selectById(taskId);
+        if (task == null) {
+            throw new BusinessException(404, "任务不存在");
+        }
+        if (!FormatTask.STATUS_PENDING.equals(task.getStatus())
+                && !FormatTask.STATUS_PROCESSING.equals(task.getStatus())) {
+            throw new BusinessException(400, "仅待处理/处理中的任务可取消");
+        }
+        task.setStatus(FormatTask.STATUS_FAILED);
+        task.setErrorMsg("任务已被管理员取消");
+        task.setFinishTime(LocalDateTime.now());
+        taskMapper.updateById(task);
+    }
+
     public List<FormatTask> listTasks(Long userId) {
         List<FormatTask> tasks = taskMapper.selectList(new LambdaQueryWrapper<FormatTask>()
                 .eq(FormatTask::getUserId, userId)

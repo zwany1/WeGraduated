@@ -6,7 +6,11 @@
         <input v-model="keyword" placeholder="搜索用户名 / 邮箱 / 昵称" @keyup.enter="load(1)" />
       </div>
       <el-button type="primary" plain @click="load(1)">查询</el-button>
-      <span class="toolbar-note">共 {{ total }} 名用户 · 可提升或移除管理员权限</span>
+      <el-button v-perm="'system:user:export'" type="success" plain @click="doExport">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        导出
+      </el-button>
+      <span class="toolbar-note">共 {{ total }} 名用户 · 可管理角色、封禁与重置密码</span>
     </div>
 
     <div class="table-card">
@@ -52,13 +56,18 @@
         <el-table-column label="注册时间" width="150">
           <template #default="{ row }"><span class="cell-muted">{{ fmtTime(row.createTime) }}</span></template>
         </el-table-column>
-        <el-table-column label="操作" width="280" fixed="right">
+        <el-table-column label="操作" width="330" fixed="right">
           <template #default="{ row }">
             <template v-if="!isSelf(row)">
-              <el-button v-perm="'system:user:assign'" size="small" plain type="primary" @click="openAssign(row)">分配角色</el-button>
-              <el-button v-if="row.role === 'ADMIN'" v-perm="'system:user:edit'" size="small" plain type="danger" @click="changeRole(row, 'USER')">取消管理员</el-button>
-              <el-button v-else v-perm="'system:user:edit'" size="small" plain type="primary" @click="changeRole(row, 'ADMIN')">设为管理员</el-button>
-              <el-button v-perm="'system:user:delete'" size="small" plain type="danger" @click="removeUser(row)">删除</el-button>
+              <el-button v-perm="'system:user:list'" link type="primary" size="small" @click="openDetail(row)">详情</el-button>
+              <el-button v-perm="'system:user:assign'" link type="primary" size="small" @click="openAssign(row)">角色</el-button>
+              <el-button v-if="row.role === 'ADMIN'" v-perm="'system:user:edit'" link type="danger" size="small" @click="changeRole(row, 'USER')">取消管理员</el-button>
+              <el-button v-else v-perm="'system:user:edit'" link type="primary" size="small" @click="changeRole(row, 'ADMIN')">设管理员</el-button>
+              <el-button v-perm="'system:user:resetPwd'" link type="warning" size="small" @click="openResetPwd(row)">重置密码</el-button>
+              <el-button v-perm="'system:user:status'" link :type="row.status === false ? 'success' : 'danger'" size="small" @click="toggleStatus(row)">
+                {{ row.status === false ? '启用' : '封禁' }}
+              </el-button>
+              <el-button v-perm="'system:user:delete'" link type="danger" size="small" @click="removeUser(row)">删除</el-button>
             </template>
             <span v-else class="cell-muted">—</span>
           </template>
@@ -90,13 +99,93 @@
         <el-button type="primary" :loading="saving" @click="saveAssign">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- 重置密码 -->
+    <el-dialog v-model="pwdVisible" :title="`重置密码 - ${pwdUser ? (pwdUser.nickname || pwdUser.username) : ''}`" width="420px"
+      class="admin-dialog" modal-class="admin-overlay" destroy-on-close>
+      <el-form label-width="80px">
+        <el-form-item label="新密码">
+          <el-input v-model="newPassword" type="password" show-password placeholder="至少 6 位" />
+        </el-form-item>
+        <div class="assign-hint">重置后该用户将自动退出登录（所有 token 失效）。</div>
+      </el-form>
+      <template #footer>
+        <el-button @click="pwdVisible = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="saveResetPwd">确定重置</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 用户详情 -->
+    <el-dialog v-model="detailVisible" :title="`用户详情 - ${detailUser ? (detailUser.nickname || detailUser.username) : ''}`" width="720px"
+      class="admin-dialog" modal-class="admin-overlay" destroy-on-close>
+      <div v-loading="detailLoading" class="detail-body">
+        <template v-if="detail">
+          <div class="detail-head">
+            <div>
+              <div class="dh-name">{{ detail.nickname || detail.username }}
+                <span class="role-tag" :class="detail.role === 'ADMIN' ? 'admin' : 'user'">{{ detail.role === 'ADMIN' ? '管理员' : '用户' }}</span>
+                <span class="role-tag" :class="detail.status === false ? 'off' : 'on'">{{ detail.status === false ? '已封禁' : '正常' }}</span>
+              </div>
+              <div class="dh-meta">@{{ detail.username }} · {{ detail.email || '无邮箱' }} · 注册于 {{ fmtTime(detail.createTime) }}</div>
+              <div v-if="detail.roleNames && detail.roleNames.length" class="dh-roles">
+                <span v-for="(rn, i) in detail.roleNames" :key="i" class="role-tag user">{{ rn }}</span>
+              </div>
+            </div>
+            <div class="dh-stats">
+              <div class="stat"><b>{{ detail.templateCount }}</b><span>模板</span></div>
+              <div class="stat"><b>{{ detail.taskCount }}</b><span>任务</span></div>
+              <div class="stat"><b>{{ detail.paperCount }}</b><span>文件</span></div>
+            </div>
+          </div>
+          <el-tabs v-model="detailTab">
+            <el-tab-pane :label="`模板 (${detail.templateCount})`" name="tpl">
+              <el-table :data="detail.templates" size="small" max-height="260">
+                <el-table-column prop="id" label="ID" width="70" />
+                <el-table-column prop="name" label="模板名称" />
+                <el-table-column label="更新时间" width="160">
+                  <template #default="{ row }"><span class="cell-muted">{{ fmtTime(row.time) }}</span></template>
+                </el-table-column>
+              </el-table>
+              <el-empty v-if="!detail.templates.length" description="无模板" :image-size="50" />
+            </el-tab-pane>
+            <el-tab-pane :label="`任务 (${detail.taskCount})`" name="task">
+              <el-table :data="detail.tasks" size="small" max-height="260">
+                <el-table-column prop="id" label="ID" width="70" />
+                <el-table-column prop="name" label="论文文件" show-overflow-tooltip />
+                <el-table-column label="状态" width="110">
+                  <template #default="{ row }">
+                    <span class="task-tag" :class="row.status">{{ statusLabel(row.status) }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="创建时间" width="160">
+                  <template #default="{ row }"><span class="cell-muted">{{ fmtTime(row.time) }}</span></template>
+                </el-table-column>
+              </el-table>
+              <el-empty v-if="!detail.tasks.length" description="无任务" :image-size="50" />
+            </el-tab-pane>
+            <el-tab-pane :label="`论文文件 (${detail.paperCount})`" name="file">
+              <el-table :data="detail.papers" size="small" max-height="260">
+                <el-table-column prop="id" label="ID" width="70" />
+                <el-table-column prop="name" label="文件名" show-overflow-tooltip />
+                <el-table-column label="上传时间" width="160">
+                  <template #default="{ row }"><span class="cell-muted">{{ fmtTime(row.time) }}</span></template>
+                </el-table-column>
+              </el-table>
+              <el-empty v-if="!detail.papers.length" description="无文件" :image-size="50" />
+            </el-tab-pane>
+          </el-tabs>
+        </template>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { listUsers, setUserRole, assignUserRoles, deleteUser, listAllRoles } from '../../api/admin'
+import { listUsers, setUserRole, assignUserRoles, updateUserStatus, resetUserPassword,
+  getUserDetail, deleteUser, listAllRoles, exportUsers } from '../../api/admin'
+import { downloadBlob } from '../../utils/download'
 
 const rows = ref([])
 const total = ref(0)
@@ -112,6 +201,16 @@ const assignUser = ref(null)
 const assignRoleIds = ref([])
 const allRoles = ref([])
 
+const pwdVisible = ref(false)
+const pwdUser = ref(null)
+const newPassword = ref('')
+
+const detailVisible = ref(false)
+const detailLoading = ref(false)
+const detailUser = ref(null)
+const detail = ref(null)
+const detailTab = ref('tpl')
+
 const isSelf = row => String(row.id) === String(localStorage.getItem('userId'))
 
 const fmtTime = t => {
@@ -120,6 +219,8 @@ const fmtTime = t => {
   const p = n => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
+
+const statusLabel = s => ({ SUCCESS: '成功', FAILED: '失败', PENDING: '待处理', PROCESSING: '处理中' }[s] || s)
 
 async function load(p) {
   if (p) page.value = p
@@ -132,6 +233,14 @@ async function load(p) {
   } finally {
     loading.value = false
   }
+}
+
+async function doExport() {
+  try {
+    const blob = await exportUsers()
+    downloadBlob(blob, '用户报表.xlsx')
+    ElMessage.success('导出成功')
+  } catch (e) {}
 }
 
 async function openAssign(row) {
@@ -160,6 +269,58 @@ async function saveAssign() {
   } finally {
     saving.value = false
   }
+}
+
+function openResetPwd(row) {
+  pwdUser.value = row
+  newPassword.value = ''
+  pwdVisible.value = true
+}
+
+async function saveResetPwd() {
+  if (!newPassword.value || newPassword.value.length < 6) {
+    ElMessage.warning('密码至少 6 位')
+    return
+  }
+  saving.value = true
+  try {
+    await resetUserPassword(pwdUser.value.id, newPassword.value)
+    ElMessage.success('密码已重置')
+    pwdVisible.value = false
+  } catch (e) {
+  } finally {
+    saving.value = false
+  }
+}
+
+async function openDetail(row) {
+  detailUser.value = row
+  detail.value = null
+  detailVisible.value = true
+  detailLoading.value = true
+  try {
+    detail.value = await getUserDetail(row.id)
+  } catch (e) {
+  } finally {
+    detailLoading.value = false
+  }
+}
+
+async function toggleStatus(row) {
+  const action = row.status === false ? '启用' : '封禁'
+  const msg = row.status === false
+    ? `确定启用用户「${row.nickname || row.username}」吗？`
+    : `确定封禁用户「${row.nickname || row.username}」吗？封禁后其将无法登录。`
+  try {
+    await ElMessageBox.confirm(msg, action, { type: 'warning' })
+  } catch (e) {
+    return
+  }
+  try {
+    await updateUserStatus(row.id, row.status === false)
+    ElMessage.success(action + '成功')
+    await load()
+  } catch (e) {}
 }
 
 async function changeRole(row, role) {
@@ -376,5 +537,85 @@ onMounted(() => load())
   font-size: 11.5px;
   color: #b3a583;
   margin-left: 6px;
+}
+.detail-body {
+  min-height: 200px;
+}
+.detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 2px 16px;
+  border-bottom: 1px solid #efe8dc;
+  margin-bottom: 8px;
+}
+.dh-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #0d1b2e;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dh-meta {
+  font-size: 12.5px;
+  color: #8a8d99;
+  margin-top: 4px;
+}
+.dh-roles {
+  margin-top: 8px;
+  display: flex;
+  gap: 6px;
+}
+.dh-stats {
+  display: flex;
+  gap: 18px;
+}
+.stat {
+  text-align: center;
+}
+.stat b {
+  display: block;
+  font-size: 20px;
+  color: #0d1b2e;
+  font-variant-numeric: tabular-nums;
+}
+.stat span {
+  font-size: 11px;
+  color: #8a8d99;
+}
+.role-tag.off {
+  color: #b23a2e;
+  background: rgba(178, 58, 46, 0.08);
+  border: 1px solid rgba(178, 58, 46, 0.3);
+}
+.role-tag.on {
+  color: #2e7d4f;
+  background: rgba(46, 125, 79, 0.1);
+  border: 1px solid rgba(46, 125, 79, 0.3);
+}
+.task-tag {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  color: #6b6f7d;
+  background: #f4f0e6;
+  border: 1px solid #e6ded0;
+}
+.task-tag.SUCCESS {
+  color: #2e7d4f;
+  background: rgba(46, 125, 79, 0.1);
+  border: 1px solid rgba(46, 125, 79, 0.3);
+}
+.task-tag.FAILED {
+  color: #b23a2e;
+  background: rgba(178, 58, 46, 0.08);
+  border: 1px solid rgba(178, 58, 46, 0.3);
+}
+.task-tag.PROCESSING {
+  color: #3a6ea5;
+  background: rgba(58, 110, 165, 0.1);
+  border: 1px solid rgba(58, 110, 165, 0.35);
 }
 </style>

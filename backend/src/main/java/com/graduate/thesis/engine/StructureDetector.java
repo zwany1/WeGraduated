@@ -36,9 +36,13 @@ public class StructureDetector {
      * 识别文档结构
      */
     public List<DocItem> detect(XWPFDocument doc, RuleSet ruleSet) {
+        // 是否存在前置区段(摘要/Abstract/关键词/目录): 若存在, 排版起点(正文第一章)必须出现在它们之后,
+        // 避免封面标题/签名/日期等被误判为第一章, 导致章节前内容被排版
+        boolean hasFrontStructure = hasFrontStructure(doc, ruleSet);
         List<DocItem> items = new ArrayList<>();
         int currentChapter = 0;
         boolean chapterStarted = false;
+        boolean sawFront = false;
         boolean inToc = false;
         for (XWPFParagraph paragraph : doc.getParagraphs()) {
             String text = paragraph.getText() == null ? "" : paragraph.getText().trim();
@@ -49,6 +53,7 @@ public class StructureDetector {
             // 目录区检测: 只要文本是"目 录"(无论是否带样式), 即进入目录区.
             // 修复: 目录标题无 heading 样式时, 目录里的"第一章 xxx"被误识别为正文标题, 导致章节前内容被排版
             if (isTocTitle(text)) {
+                sawFront = true;
                 inToc = true;
                 kind = ParagraphKind.SECTION_TITLE;
                 item = new DocItem(paragraph, kind, text, containsImage);
@@ -61,12 +66,26 @@ public class StructureDetector {
                     item = new DocItem(paragraph, kind, text, containsImage);
                 }
             }
+            // 摘要/Abstract/关键词 视为前置区段标记(之后才允许出现正文第一章)
+            if (kind == ParagraphKind.ABSTRACT_TITLE || kind == ParagraphKind.EN_TITLE
+                    || kind == ParagraphKind.KEYWORDS || kind == ParagraphKind.EN_KEYWORDS) {
+                sawFront = true;
+            }
 
             if (kind == ParagraphKind.HEADING1) {
-                // 从正文第一章才开始计数
-                currentChapter = chapterStarted ? chapterOf(text, currentChapter) : 1;
-                chapterStarted = true;
-                item.setChapterNo(currentChapter);
+                if (!chapterStarted) {
+                    // 排版起点: 带编号的正文章节标题, 且(有前置区段时)必须出现在摘要/目录之后.
+                    // 避免封面/标题页的样式标题或签名日期被误判为第一章
+                    boolean afterFront = !hasFrontStructure || sawFront;
+                    if (afterFront && isNumberedChapter(text, ruleSet)) {
+                        currentChapter = 1;
+                        chapterStarted = true;
+                        item.setChapterNo(currentChapter);
+                    }
+                } else {
+                    currentChapter = chapterOf(text, currentChapter);
+                    item.setChapterNo(currentChapter);
+                }
             } else if (kind == ParagraphKind.HEADING2) {
                 java.util.regex.Matcher m = H2_CHAPTER.matcher(text);
                 item.setChapterNo(m.find() ? Integer.parseInt(m.group(1)) : currentChapter);
@@ -79,6 +98,16 @@ public class StructureDetector {
             items.add(item);
         }
         return items;
+    }
+
+    /**
+     * 是否带编号的一级章节标题(用于触发排版起点): 匹配模板一级正则或内置章节识别, 排除日期/年份.
+     */
+    private boolean isNumberedChapter(String text, RuleSet ruleSet) {
+        if (isDateLike(text)) {
+            return false;
+        }
+        return ruleSet.getHeading1Pattern().matcher(text).matches() || isLikelyChapterTitle(text);
     }
 
     /**
@@ -108,6 +137,24 @@ public class StructureDetector {
         return text.replace(" ", "").replace("\u00A0", "").equals("目录")
                 || text.replace(" ", "").replace("\u00A0", "").equals("目  录")
                 || text.replace(" ", "").replace("\u00A0", "").equals("目録");
+    }
+
+    /**
+     * 是否包含前置区段(摘要/Abstract/关键词/目录).
+     * 若有, 正文第一章起点必须出现在其后, 防止封面标题/签名/日期被误判为第一章.
+     */
+    private boolean hasFrontStructure(XWPFDocument doc, RuleSet ruleSet) {
+        for (XWPFParagraph paragraph : doc.getParagraphs()) {
+            String text = paragraph.getText() == null ? "" : paragraph.getText().trim();
+            if (isTocTitle(text)
+                    || ABSTRACT_TITLE.matcher(text).matches()
+                    || EN_TITLE.matcher(text).matches()
+                    || KEYWORDS.matcher(text).matches()
+                    || EN_KEYWORDS.matcher(text).matches()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

@@ -36,10 +36,12 @@
               <span class="status-tag" :class="row.status === false ? 'off' : 'on'">{{ row.status === false ? '停用' : '正常' }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="130">
+          <el-table-column label="操作" width="150">
             <template #default="{ row }">
-              <el-button v-perm="'system:dict:edit'" link type="primary" size="small" @click="openData(row)">编辑</el-button>
-              <el-button v-perm="'system:dict:delete'" link type="danger" size="small" @click="removeData(row)">删除</el-button>
+              <span class="op-cell">
+                <el-button v-perm="'system:dict:edit'" link type="primary" size="small" @click="openData(row)">编辑</el-button>
+                <el-button v-perm="'system:dict:delete'" link type="danger" size="small" @click="removeData(row)">删除</el-button>
+              </span>
             </template>
           </el-table-column>
         </el-table>
@@ -48,7 +50,7 @@
 
     <!-- 字典类型弹窗 -->
     <el-dialog v-model="typeVisible" :title="typeForm.id ? '编辑字典类型' : '新增字典类型'" width="440px"
-      class="admin-dialog" modal-class="admin-overlay" destroy-on-close>
+      class="admin-dialog" modal-class="admin-overlay" destroy-on-close append-to-body>
       <el-form ref="typeFormRef" :model="typeForm" :rules="typeRules" label-width="80px">
         <el-form-item label="类型名称" prop="dictName">
           <el-input v-model="typeForm.dictName" placeholder="如：论文类型" />
@@ -74,7 +76,7 @@
 
     <!-- 字典数据弹窗 -->
     <el-dialog v-model="dataVisible" :title="dataForm.id ? '编辑字典数据' : '新增字典数据'" width="440px"
-      class="admin-dialog" modal-class="admin-overlay" destroy-on-close>
+      class="admin-dialog" modal-class="admin-overlay" destroy-on-close append-to-body>
       <el-form ref="dataFormRef" :model="dataForm" :rules="dataRules" label-width="80px">
         <el-form-item label="标签" prop="dictLabel">
           <el-input v-model="dataForm.dictLabel" placeholder="如：毕业论文" />
@@ -234,9 +236,37 @@ onMounted(loadTypes)
 .type-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; border: 1px solid #efe8dc; cursor: pointer; transition: all 0.2s; }
 .type-item:hover { border-color: #d6cdbb; }
 .type-item.active { border-color: rgba(58, 110, 165, 0.5); background: rgba(58, 110, 165, 0.06); }
-.ti-name { font-size: 13px; color: #2c3140; font-weight: 500; }
-.ti-key { font-size: 11.5px; color: #b3a583; }
-.ti-ops { margin-left: auto; display: flex; gap: 2px; opacity: 0; transition: opacity 0.2s; }
+.ti-name {
+  font-size: 13px;
+  color: #2c3140;
+  font-weight: 500;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ti-key {
+  font-size: 11.5px;
+  color: #b3a583;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.ti-ops {
+  margin-left: auto;
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+/* 表格操作列: 编辑/删除强制同一行, 不因列宽不足而换行 */
+.op-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
 .type-item:hover .ti-ops { opacity: 1; }
 .table-card { border: none; padding: 0; box-shadow: none; }
 .status-tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 4px; }

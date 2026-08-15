@@ -21,7 +21,7 @@
         <template v-for="m in menus" :key="m.id">
           <!-- 目录: 可展开 -->
           <div v-if="m.menuType === 'M' && m.children && m.children.length" class="menu-group">
-            <div class="menu-group-title" :class="{ open: opened[m.id] }" @click="toggle(m.id)">
+            <div class="menu-group-title" :class="{ open: opened[m.id], active: groupActive(m) }" @click="toggle(m.id)">
               <span class="menu-icon" v-html="iconOf(m)"></span>
               <span class="menu-label">{{ m.menuName }}</span>
               <svg class="group-arrow" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
@@ -101,10 +101,15 @@ const avatarText = ref('A')
 
 const pageTitle = computed(() => route.meta.title || '运营概览')
 
+// p 可能是完整路径(/admin/system/user)或裸路径(dashboard), 统一归一化后再匹配
 const isActive = p => {
   if (!p) return false
-  return route.path === '/admin/' + p || route.path.startsWith('/admin/' + p + '/')
+  const target = p.startsWith('/') ? p : '/admin/' + p
+  return route.path === target || route.path.startsWith(target + '/')
 }
+
+// 目录分组是否处于激活态: 其下任一子菜单命中当前路由
+const groupActive = m => (m.children || []).some(c => c.menuType === 'C' && isActive(childPath(m, c)))
 
 const iconOf = m => {
   if (m.icon) {
@@ -360,6 +365,13 @@ async function handleLogout() {
 .menu-group-title.open {
   color: #e8eef8;
 }
+.menu-group-title.active {
+  color: #fff;
+  background: linear-gradient(90deg, rgba(201, 164, 92, 0.16), rgba(201, 164, 92, 0.04));
+}
+.menu-group-title.active .menu-icon {
+  color: var(--gold);
+}
 .group-arrow {
   margin-left: auto;
   transition: transform 0.22s ease;
@@ -388,9 +400,14 @@ async function handleLogout() {
   opacity: 0.45;
   flex-shrink: 0;
 }
+.menu-item.sub.active {
+  color: #fff;
+  background: linear-gradient(90deg, rgba(201, 164, 92, 0.16), rgba(201, 164, 92, 0.04));
+}
 .menu-item.sub.active .menu-dot {
   opacity: 1;
   background: var(--gold);
+  box-shadow: 0 0 6px rgba(201, 164, 92, 0.8);
 }
 
 .sidebar-foot {
@@ -506,8 +523,18 @@ async function handleLogout() {
 
 .content {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 28px 32px 40px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 详情页根容器铺满整个内容区, 而不是局限于内容宽高 */
+.content > * {
+  width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 /* ===== Transition ===== */

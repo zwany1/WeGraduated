@@ -59,7 +59,7 @@
 
     <!-- 新增/编辑 -->
     <el-dialog v-model="dialogVisible" :title="form.id ? '编辑角色' : '新增角色'" width="480px"
-      class="admin-dialog" modal-class="admin-overlay" destroy-on-close>
+      class="admin-dialog" modal-class="admin-overlay" destroy-on-close append-to-body>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
         <el-form-item label="角色名称" prop="roleName">
           <el-input v-model="form.roleName" placeholder="如：运营管理员" />
@@ -85,7 +85,7 @@
 
     <!-- 分配菜单 -->
     <el-dialog v-model="assignVisible" title="分配菜单权限" width="480px"
-      class="admin-dialog" modal-class="admin-overlay" destroy-on-close>
+      class="admin-dialog" modal-class="admin-overlay" destroy-on-close append-to-body>
       <div class="assign-hint">勾选角色可访问的菜单与可操作的按钮权限。超管角色默认拥有全部权限。</div>
       <el-tree ref="menuTreeRef" v-loading="assignLoading" :data="menuTree" :props="{ label: 'menuName', children: 'children' }"
         show-checkbox node-key="id" default-expand-all :check-strictly="false" class="assign-tree" />

@@ -86,6 +86,10 @@ export function setMarketTemplate(id, data) {
   return api.put(`/admin/market/templates/${id}`, data)
 }
 
+export function getMarketTemplateDetail(id) {
+  return api.get(`/admin/market/templates/${id}/detail`)
+}
+
 // ============ 排版任务 ============
 
 export function listTasks(params) {

@@ -62,10 +62,11 @@
     </div>
 
     <el-dialog v-model="dialogVisible" :title="form.id ? '编辑菜单' : '新增菜单'" width="560px"
-      class="admin-dialog" modal-class="admin-overlay" destroy-on-close>
+      class="admin-dialog" modal-class="admin-overlay" destroy-on-close append-to-body>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
         <el-form-item label="上级菜单">
-          <el-tree-select v-model="form.parentId" :data="parentTree" :props="{ label: 'menuName', children: 'children' }"
+          <el-tree-select v-model="form.parentId" :data="parentTreeWithRoot"
+            :props="{ value: 'id', label: 'menuName', children: 'children' }"
             check-strictly :render-after-expand="false" default-expand-all placeholder="选择上级菜单(根为系统)" style="width: 100%" />
         </el-form-item>
         <el-form-item label="菜单类型">
@@ -135,6 +136,11 @@ const parentTree = computed(() => {
     .map(n => ({ ...n, children: filter(n.children) }))
   return filter(tree.value)
 })
+
+// 上级菜单数据源: 顶部追加"根目录"虚拟节点(id=0), 使根级菜单显示名称而非数字
+const parentTreeWithRoot = computed(() => [
+  { id: 0, menuName: '根目录（系统）', menuType: 'M', children: parentTree.value }
+])
 
 async function load() {
   loading.value = true

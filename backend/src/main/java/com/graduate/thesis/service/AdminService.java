@@ -511,6 +511,34 @@ public class AdminService {
         return PageResult.of(page.getTotal(), records);
     }
 
+    /** 模板市场审核: 管理员查看任意模板完整详情(含全部配置与格式规则) */
+    public Map<String, Object> marketTemplateDetail(Long id) {
+        FormatTemplate t = templateMapper.selectById(id);
+        if (t == null) {
+            throw new BusinessException(404, "模板不存在");
+        }
+        User owner = userMapper.selectById(t.getUserId());
+        List<FormatRule> rules = ruleMapper.selectList(new LambdaQueryWrapper<FormatRule>()
+                .eq(FormatRule::getTemplateId, id));
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", t.getId());
+        m.put("name", t.getName());
+        m.put("userId", t.getUserId());
+        m.put("username", owner == null ? "-" : owner.getUsername());
+        m.put("isPublic", Boolean.TRUE.equals(t.getIsPublic()));
+        m.put("recommended", Boolean.TRUE.equals(t.getRecommended()));
+        m.put("publicTime", t.getPublicTime());
+        m.put("createTime", t.getCreateTime());
+        m.put("updateTime", t.getUpdateTime());
+        m.put("generateToc", Boolean.TRUE.equals(t.getGenerateToc()));
+        m.put("pageConfig", t.getPageConfig());
+        m.put("headingPatterns", t.getHeadingPatterns());
+        m.put("coverConfig", t.getCoverConfig());
+        m.put("referenceConfig", t.getReferenceConfig());
+        m.put("rules", rules);
+        return m;
+    }
+
     /** 上架/下架/推荐模板 */
     @Transactional
     public void setMarketTemplate(Long id, Boolean isPublic, Boolean recommended) {

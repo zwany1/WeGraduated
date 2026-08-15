@@ -43,7 +43,7 @@
     </div>
 
     <el-dialog v-model="dialogVisible" :title="form.id ? '编辑参数' : '新增参数'" width="460px"
-      class="admin-dialog" modal-class="admin-overlay" destroy-on-close>
+      class="admin-dialog" modal-class="admin-overlay" destroy-on-close append-to-body>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
         <el-form-item label="参数名称" prop="configName">
           <el-input v-model="form.configName" placeholder="如：上传文件大小上限" />

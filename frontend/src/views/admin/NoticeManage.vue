@@ -47,7 +47,7 @@
     </div>
 
     <el-dialog v-model="dialogVisible" :title="form.id ? '编辑公告' : '新增公告'" width="560px"
-      class="admin-dialog" modal-class="admin-overlay" destroy-on-close>
+      class="admin-dialog" modal-class="admin-overlay" destroy-on-close append-to-body>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">
         <el-form-item label="标题" prop="title">
           <el-input v-model="form.title" placeholder="公告标题" />

@@ -172,6 +172,12 @@ public class AdminController {
         return Result.ok(adminService.listMarketTemplates(Math.max(page, 1), Math.min(Math.max(size, 1), 100), keyword));
     }
 
+    @GetMapping("/market/templates/{id}/detail")
+    @RequiresPerms("system:market:list")
+    public Result<Map<String, Object>> marketTemplateDetail(@PathVariable Long id) {
+        return Result.ok(adminService.marketTemplateDetail(id));
+    }
+
     @PutMapping("/market/templates/{id}")
     @OperLog(module = "模板市场", action = "上架/推荐模板")
     @RequiresPerms("system:market:edit")

@@ -56,18 +56,20 @@
         <el-table-column label="注册时间" width="150">
           <template #default="{ row }"><span class="cell-muted">{{ fmtTime(row.createTime) }}</span></template>
         </el-table-column>
-        <el-table-column label="操作" width="330" fixed="right">
+        <el-table-column label="操作" width="390" fixed="right">
           <template #default="{ row }">
             <template v-if="!isSelf(row)">
-              <el-button v-perm="'system:user:list'" link type="primary" size="small" @click="openDetail(row)">详情</el-button>
-              <el-button v-perm="'system:user:assign'" link type="primary" size="small" @click="openAssign(row)">角色</el-button>
-              <el-button v-if="row.role === 'ADMIN'" v-perm="'system:user:edit'" link type="danger" size="small" @click="changeRole(row, 'USER')">取消管理员</el-button>
-              <el-button v-else v-perm="'system:user:edit'" link type="primary" size="small" @click="changeRole(row, 'ADMIN')">设管理员</el-button>
-              <el-button v-perm="'system:user:resetPwd'" link type="warning" size="small" @click="openResetPwd(row)">重置密码</el-button>
-              <el-button v-perm="'system:user:status'" link :type="row.status === false ? 'success' : 'danger'" size="small" @click="toggleStatus(row)">
-                {{ row.status === false ? '启用' : '封禁' }}
-              </el-button>
-              <el-button v-perm="'system:user:delete'" link type="danger" size="small" @click="removeUser(row)">删除</el-button>
+              <span class="op-cell">
+                <el-button v-perm="'system:user:list'" link type="primary" size="small" @click="openDetail(row)">详情</el-button>
+                <el-button v-perm="'system:user:assign'" link type="primary" size="small" @click="openAssign(row)">角色</el-button>
+                <el-button v-if="row.role === 'ADMIN'" v-perm="'system:user:edit'" link type="danger" size="small" @click="changeRole(row, 'USER')">取消管理员</el-button>
+                <el-button v-else v-perm="'system:user:edit'" link type="primary" size="small" @click="changeRole(row, 'ADMIN')">设管理员</el-button>
+                <el-button v-perm="'system:user:resetPwd'" link type="warning" size="small" @click="openResetPwd(row)">重置密码</el-button>
+                <el-button v-perm="'system:user:status'" link :type="row.status === false ? 'success' : 'danger'" size="small" @click="toggleStatus(row)">
+                  {{ row.status === false ? '启用' : '封禁' }}
+                </el-button>
+                <el-button v-perm="'system:user:delete'" link type="danger" size="small" @click="removeUser(row)">删除</el-button>
+              </span>
             </template>
             <span v-else class="cell-muted">—</span>
           </template>
@@ -83,7 +85,7 @@
 
     <!-- 分配角色 -->
     <el-dialog v-model="assignVisible" :title="`分配角色 - ${assignUser ? (assignUser.nickname || assignUser.username) : ''}`" width="480px"
-      class="admin-dialog" modal-class="admin-overlay" destroy-on-close>
+      class="admin-dialog" modal-class="admin-overlay" destroy-on-close append-to-body>
       <div class="assign-hint">一个用户可同时拥有多个角色，权限取并集。</div>
       <div v-loading="assignLoading" class="role-box">
         <el-checkbox-group v-model="assignRoleIds" class="role-checkbox">
@@ -102,7 +104,7 @@
 
     <!-- 重置密码 -->
     <el-dialog v-model="pwdVisible" :title="`重置密码 - ${pwdUser ? (pwdUser.nickname || pwdUser.username) : ''}`" width="420px"
-      class="admin-dialog" modal-class="admin-overlay" destroy-on-close>
+      class="admin-dialog" modal-class="admin-overlay" destroy-on-close append-to-body>
       <el-form label-width="80px">
         <el-form-item label="新密码">
           <el-input v-model="newPassword" type="password" show-password placeholder="至少 6 位" />
@@ -117,7 +119,7 @@
 
     <!-- 用户详情 -->
     <el-dialog v-model="detailVisible" :title="`用户详情 - ${detailUser ? (detailUser.nickname || detailUser.username) : ''}`" width="720px"
-      class="admin-dialog" modal-class="admin-overlay" destroy-on-close>
+      class="admin-dialog" modal-class="admin-overlay" destroy-on-close append-to-body>
       <div v-loading="detailLoading" class="detail-body">
         <template v-if="detail">
           <div class="detail-head">
@@ -420,6 +422,16 @@ onMounted(() => load())
   display: flex;
   justify-content: flex-end;
   padding-top: 14px;
+}
+/* 操作列按钮组: 强制同一行, 不因列宽不足而换行 */
+.op-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+}
+.op-cell .el-button + .el-button {
+  margin-left: 0;
 }
 .cell-user {
   display: flex;

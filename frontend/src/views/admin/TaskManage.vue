@@ -85,7 +85,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getOverview, listTasks, exportTasks, getTaskDetail, rerunTask, cancelTask } from '../../api/admin'
 import { downloadBlob } from '../../utils/download'
@@ -136,9 +136,42 @@ function switchStatus(v) {
   load(1)
 }
 
-async function load(p) {
+// ===== 自动刷新: 仅当列表存在进行中任务时轮询, 全部结束后自动停止 =====
+const POLL_INTERVAL = 5000 // 5 秒: 进度变化及时可见, 又不过度请求
+let pollTimer = null
+let pollBusy = false
+
+const hasRunning = () => rows.value.some(r => r.status === 'PENDING' || r.status === 'PROCESSING')
+
+function startPolling() {
+  if (pollTimer) return
+  pollTimer = setInterval(async () => {
+    if (pollBusy) return // 上一次请求未返回时跳过本次, 避免请求堆积
+    pollBusy = true
+    try {
+      await load(undefined, true)
+    } finally {
+      pollBusy = false
+    }
+  }, POLL_INTERVAL)
+}
+
+function stopPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+}
+
+// 列表含进行中任务 -> 启动轮询; 全部终态 -> 停止
+function syncPolling() {
+  if (hasRunning()) startPolling()
+  else stopPolling()
+}
+
+async function load(p, silent) {
   if (p) page.value = p
-  loading.value = true
+  if (!silent) loading.value = true
   try {
     const data = await listTasks({
       page: page.value, size: size.value,
@@ -149,9 +182,12 @@ async function load(p) {
     total.value = data.total || 0
   } catch (e) {
   } finally {
-    loading.value = false
+    if (!silent) loading.value = false
+    syncPolling()
   }
 }
+
+onUnmounted(stopPolling)
 
 onMounted(async () => {
   try {

@@ -298,7 +298,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getTemplateDetail, savePageConfig, saveHeadingPatterns, saveReferenceConfig, saveRule } from '../api/template'
@@ -381,9 +381,22 @@ function applyPreset(name) {
   Object.assign(headingPatterns, presets[name])
 }
 
-onMounted(async () => {
+async function loadConfig() {
+  const currentId = Number(route.params.id)
+  // 重置为默认值, 避免组件复用/切换模板时残留上次配置
+  Object.assign(page, { paper: 'A4', margin: { top: 2.5, bottom: 2.5, left: 3, right: 2.5 }, header: { height: 1.5, text: '' }, footer: { pageNumber: 'center' } })
+  Object.assign(rules, {
+    heading1: { ruleType: 'heading1', font: '黑体', fontLatin: 'Times New Roman', fontSize: 16, bold: true, align: 'center', spaceBefore: 12, spaceAfter: 12 },
+    heading2: { ruleType: 'heading2', font: '黑体', fontLatin: 'Times New Roman', fontSize: 14, align: 'left' },
+    heading3: { ruleType: 'heading3', font: '楷体', fontLatin: 'Times New Roman', fontSize: 12, align: 'left' },
+    body: { ruleType: 'body', font: '宋体', fontLatin: 'Times New Roman', fontSize: 12, lineSpacingType: 'multiple', lineSpacing: 1.5, lineSpacingExact: 20, firstLineIndent: 2, align: 'justify' },
+    figure: { ruleType: 'figure', font: '宋体', fontLatin: 'Times New Roman', fontSize: 10, captionPosition: 'below', numberingPattern: '图{chapter}-{no}', captionEnabled: true },
+    table: { ruleType: 'table', font: '宋体', fontLatin: 'Times New Roman', fontSize: 10, captionPosition: 'above', numberingPattern: '表{chapter}-{no}', captionEnabled: true }
+  })
+  Object.assign(headingPatterns, { heading1: '^第[一二三四五六七八九十百]+章', heading2: '^\\d+\\.\\d+', heading3: '^\\d+\\.\\d+\\.\\d+' })
+  Object.assign(refConfig, { enabled: false, title: '参考文献', titleFont: '黑体', titleFontSize: 14, itemFont: '宋体', itemFontLatin: 'Times New Roman', itemFontSize: 10, removeDoi: true, maxAuthors: 3, renumber: true })
   try {
-    const detail = await getTemplateDetail(id)
+    const detail = await getTemplateDetail(currentId)
     const t = detail.template
     templateName.value = t.name
     if (t.pageConfig) {
@@ -404,21 +417,30 @@ onMounted(async () => {
       }
     })
   } catch (e) {
-    // 已在拦截器提示
+    ElMessage.warning('配置加载失败，请确认模板存在且有权限访问')
   }
+}
+
+onMounted(loadConfig)
+// 组件复用时按模板 id 重新加载(解决退出后再次进入显示旧配置/默认配置)
+watch(() => route.params.id, () => {
+  loadConfig()
 })
 
 async function saveAll() {
+  const currentId = Number(route.params.id)
   saving.value = true
   try {
-    await savePageConfig(id, JSON.stringify(page))
-    await saveHeadingPatterns(id, { ...headingPatterns })
-    await saveReferenceConfig(id, { ...refConfig })
+    await savePageConfig(currentId, JSON.stringify(page))
+    await saveHeadingPatterns(currentId, { ...headingPatterns })
+    await saveReferenceConfig(currentId, { ...refConfig })
     for (const key of Object.keys(rules)) {
-      const r = { ...rules[key], templateId: id }
+      const r = { ...rules[key], templateId: currentId }
       await saveRule(r)
     }
     ElMessage.success('配置保存成功')
+  } catch (e) {
+    ElMessage.error('保存失败：' + (e.message || '网络错误'))
   } finally {
     saving.value = false
   }

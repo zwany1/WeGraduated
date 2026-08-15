@@ -4,19 +4,24 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.graduate.thesis.common.BusinessException;
 import com.graduate.thesis.dto.DiffItem;
 import com.graduate.thesis.dto.PaperFormatDTO;
+import com.graduate.thesis.engine.DocItem;
 import com.graduate.thesis.engine.FormatEngine;
+import com.graduate.thesis.engine.ParagraphKind;
+import com.graduate.thesis.engine.StructureDetector;
 import com.graduate.thesis.engine.model.RuleSet;
 import com.graduate.thesis.entity.FormatTask;
 import com.graduate.thesis.entity.PaperFile;
 import com.graduate.thesis.mapper.FormatTaskMapper;
 import com.graduate.thesis.mapper.PaperFileMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +40,7 @@ public class PaperService {
     private final FormatEngine formatEngine;
     private final DocxPdfService docxPdfService;
     private final DiffService diffService;
+    private final TaskProgressService progressService;
     // 自引用代理: 使 @Async runFormat 生效(避免自调用绕过代理)
     private final PaperService self;
 
@@ -45,6 +51,7 @@ public class PaperService {
                         FormatEngine formatEngine,
                         DocxPdfService docxPdfService,
                         DiffService diffService,
+                        TaskProgressService progressService,
                         @Lazy PaperService self) {
         this.paperFileMapper = paperFileMapper;
         this.taskMapper = taskMapper;
@@ -53,6 +60,7 @@ public class PaperService {
         this.formatEngine = formatEngine;
         this.docxPdfService = docxPdfService;
         this.diffService = diffService;
+        this.progressService = progressService;
         this.self = self;
     }
 
@@ -103,6 +111,7 @@ public class PaperService {
         task.setStatus(FormatTask.STATUS_PROCESSING);
         task.setProgress(5);
         taskMapper.updateById(task);
+        progressService.publish(taskId, Map.of("type", "progress", "progress", 5, "status", FormatTask.STATUS_PROCESSING));
         try {
             PaperFile paperFile = paperFileMapper.selectById(task.getFileId());
             RuleSet ruleSet = RuleSet.from(
@@ -113,6 +122,7 @@ public class PaperService {
             File result = formatEngine.format(source, ruleSet, progress -> {
                 task.setProgress(progress);
                 taskMapper.updateById(task);
+                progressService.publish(taskId, Map.of("type", "progress", "progress", progress, "status", FormatTask.STATUS_PROCESSING));
             });
             String resultPath = storageService.storeResult(task.getUserId(), result);
 
@@ -120,7 +130,10 @@ public class PaperService {
             task.setProgress(100);
             task.setResultPath(resultPath);
             task.setFinishTime(LocalDateTime.now());
+            task.setErrorMsg(null);
+            task.setSummary(buildSummary(source, ruleSet));
             taskMapper.updateById(task);
+            progressService.publish(taskId, Map.of("type", "progress", "progress", 100, "status", FormatTask.STATUS_SUCCESS, "summary", task.getSummary()));
 
             // 转 PDF 预览缓存(失败不影响排版结果)
             try {
@@ -133,15 +146,52 @@ public class PaperService {
             }
         } catch (Exception e) {
             log.error("排版失败 taskId={}", taskId, e);
-            task.setStatus(FormatTask.STATUS_FAILED);
-            String em = e.getMessage();
-            task.setErrorMsg(em == null ? null : (em.length() > 2000 ? em.substring(0, 2000) : em));
-            task.setFinishTime(LocalDateTime.now());
-            try {
+            // 失败自动重试 1 次(非致命错误, 如临时资源/超时等), 避免用户手动重复提交
+            int retry = task.getRetryCount() == null ? 0 : task.getRetryCount();
+            if (retry < 1) {
+                retry++;
+                task.setRetryCount(retry);
+                task.setStatus(FormatTask.STATUS_PENDING);
+                task.setProgress(0);
+                task.setErrorMsg(null);
                 taskMapper.updateById(task);
-            } catch (Exception ue) {
-                log.warn("写入任务失败状态失败 taskId={}", taskId, ue);
+                progressService.publish(taskId, Map.of("type", "progress", "progress", 0, "status", FormatTask.STATUS_PENDING, "retry", true));
+                log.warn("排版失败, 第 {} 次自动重试 taskId={}", retry, taskId);
+                self.runFormat(taskId);
+            } else {
+                task.setStatus(FormatTask.STATUS_FAILED);
+                String em = e.getMessage();
+                task.setErrorMsg(em == null ? null : (em.length() > 2000 ? em.substring(0, 2000) : em));
+                task.setFinishTime(LocalDateTime.now());
+                try {
+                    taskMapper.updateById(task);
+                } catch (Exception ue) {
+                    log.warn("写入任务失败状态失败 taskId={}", taskId, ue);
+                }
+                progressService.publish(taskId, Map.of("type", "progress", "status", FormatTask.STATUS_FAILED, "error", task.getErrorMsg()));
             }
+        }
+    }
+
+    /**
+     * 排版校验摘要: 统计源文档中被识别/待排版的结构(标题/正文/图表题注), 供前端展示排版覆盖情况.
+     */
+    private String buildSummary(File source, RuleSet ruleSet) {
+        try (XWPFDocument doc = new XWPFDocument(new FileInputStream(source))) {
+            List<DocItem> items = new StructureDetector().detect(doc, ruleSet);
+            long h1 = items.stream().filter(i -> i.getKind() == ParagraphKind.HEADING1 && !i.isFrontMatter()).count();
+            long h2 = items.stream().filter(i -> i.getKind() == ParagraphKind.HEADING2 && !i.isFrontMatter()).count();
+            long h3 = items.stream().filter(i -> i.getKind() == ParagraphKind.HEADING3 && !i.isFrontMatter()).count();
+            long body = items.stream().filter(i -> i.getKind() == ParagraphKind.BODY && !i.isFrontMatter()
+                    && !i.getText().trim().isEmpty()).count();
+            long caption = items.stream().filter(i -> (i.getKind() == ParagraphKind.FIGURE_CAPTION
+                    || i.getKind() == ParagraphKind.TABLE_CAPTION || i.getKind() == ParagraphKind.IMAGE)
+                    && !i.isFrontMatter()).count();
+            long front = items.stream().filter(DocItem::isFrontMatter).count();
+            return "一级标题" + h1 + "个、二级标题" + h2 + "个、三级标题" + h3 + "个、正文段落" + body + "个、图表题注" + caption
+                    + "个；第一章前内容保留 " + front + " 段";
+        } catch (Exception e) {
+            return null;
         }
     }
 

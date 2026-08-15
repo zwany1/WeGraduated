@@ -243,3 +243,21 @@ export function deleteNotice(id) {
 export function listPublicNotices(limit = 5) {
   return api.get('/public/notice/list', { params: { limit } })
 }
+
+// ============ 数据备份 ============
+
+export function backupNow() {
+  return api.post('/admin/system/backup')
+}
+
+export function listBackups() {
+  return api.get('/admin/system/backup/list')
+}
+
+export function downloadBackup(name) {
+  return api.get(`/admin/system/backup/download/${name}`, { responseType: 'blob' })
+}
+
+export function deleteBackup(name) {
+  return api.delete(`/admin/system/backup/${name}`)
+}

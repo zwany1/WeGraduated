@@ -24,6 +24,7 @@ const viewMap = {
   'admin/DictManage': () => import('../views/admin/DictManage.vue'),
   'admin/ConfigManage': () => import('../views/admin/ConfigManage.vue'),
   'admin/NoticeManage': () => import('../views/admin/NoticeManage.vue'),
+  'admin/BackupManage': () => import('../views/admin/BackupManage.vue'),
   'admin/ComingSoon': () => import('../views/admin/ComingSoon.vue')
 }
 

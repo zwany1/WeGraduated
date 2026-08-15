@@ -79,6 +79,8 @@ public class DbMigrationRunner implements ApplicationRunner {
         addColumnIfMissing("t_format_template", "is_public", "ALTER TABLE t_format_template ADD COLUMN is_public TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否上架模板市场'");
         addColumnIfMissing("t_format_template", "recommended", "ALTER TABLE t_format_template ADD COLUMN recommended TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否推荐'");
         addColumnIfMissing("t_format_template", "public_time", "ALTER TABLE t_format_template ADD COLUMN public_time DATETIME DEFAULT NULL COMMENT '上架时间'");
+        addColumnIfMissing("t_format_task", "retry_count", "ALTER TABLE t_format_task ADD COLUMN retry_count INT NOT NULL DEFAULT 0 COMMENT '失败自动重试次数'");
+        addColumnIfMissing("t_format_task", "summary", "ALTER TABLE t_format_task ADD COLUMN summary VARCHAR(500) DEFAULT NULL COMMENT '排版校验摘要'");
     }
 
     private void addColumnIfMissing(String table, String column, String alterSql) {
@@ -265,6 +267,12 @@ public class DbMigrationRunner implements ApplicationRunner {
         rows.put("1042", new Object[]{1004L, "任务导出", "F", null, null, "system:task:export", null, 1, "导出任务"});
         rows.put("1043", new Object[]{1004L, "任务重试", "F", null, null, "system:task:rerun", null, 2, "任务重试"});
         rows.put("1044", new Object[]{1004L, "任务取消", "F", null, null, "system:task:cancel", null, 3, "任务取消"});
+
+        // ---- 数据备份 ----
+        rows.put("1045", new Object[]{1005L, "数据备份", "C", "backup", "admin/BackupManage", "system:backup:list",
+                "backup", 9, "数据库备份与恢复"});
+        rows.put("1046", new Object[]{1045L, "立即备份", "F", null, null, "system:backup:create", null, 1, "立即备份"});
+        rows.put("1047", new Object[]{1045L, "删除备份", "F", null, null, "system:backup:delete", null, 2, "删除备份"});
         return rows;
     }
 

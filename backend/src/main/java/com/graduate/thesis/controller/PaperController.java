@@ -5,8 +5,11 @@ import com.graduate.thesis.common.UserContext;
 import com.graduate.thesis.dto.PaperFormatDTO;
 import com.graduate.thesis.entity.FormatTask;
 import com.graduate.thesis.entity.PaperFile;
+import com.graduate.thesis.mapper.FormatTaskMapper;
 import com.graduate.thesis.service.DocxPdfService;
 import com.graduate.thesis.service.PaperService;
+import com.graduate.thesis.service.TaskProgressService;
+import com.graduate.thesis.util.JwtUtil;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -19,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import javax.validation.Valid;
 import java.io.File;
@@ -34,10 +38,18 @@ public class PaperController {
 
     private final PaperService paperService;
     private final DocxPdfService docxPdfService;
+    private final TaskProgressService progressService;
+    private final FormatTaskMapper taskMapper;
+    private final JwtUtil jwtUtil;
 
-    public PaperController(PaperService paperService, DocxPdfService docxPdfService) {
+    public PaperController(PaperService paperService, DocxPdfService docxPdfService,
+                           TaskProgressService progressService,
+                           FormatTaskMapper taskMapper, JwtUtil jwtUtil) {
         this.paperService = paperService;
         this.docxPdfService = docxPdfService;
+        this.progressService = progressService;
+        this.taskMapper = taskMapper;
+        this.jwtUtil = jwtUtil;
     }
 
     @PostMapping("/upload")
@@ -53,6 +65,34 @@ public class PaperController {
     @GetMapping("/task/{id}")
     public Result<FormatTask> task(@PathVariable Long id) {
         return Result.ok(paperService.getTask(UserContext.get(), id));
+    }
+
+    /**
+     * 排版进度 SSE 推送(替代轮询). 浏览器 EventSource 无法带 header, 故用 query token 手动鉴权,
+     * 该路径已在 WebConfig 白名单排除登录拦截器.
+     */
+    @GetMapping("/task/{id}/progress")
+    public SseEmitter progress(@PathVariable Long id,
+                               @RequestParam(value = "token", required = false) String token) {
+        if (token == null || token.trim().isEmpty()) {
+            throw new com.graduate.thesis.common.BusinessException(401, "未登录或登录已过期");
+        }
+        Long userId;
+        try {
+            if (jwtUtil.isRevoked(token)) {
+                throw new com.graduate.thesis.common.BusinessException(401, "登录已失效，请重新登录");
+            }
+            userId = jwtUtil.parseUserId(token);
+        } catch (com.graduate.thesis.common.BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new com.graduate.thesis.common.BusinessException(401, "未登录或登录已过期");
+        }
+        FormatTask task = taskMapper.selectById(id);
+        if (task == null || !task.getUserId().equals(userId)) {
+            throw new com.graduate.thesis.common.BusinessException(404, "任务不存在");
+        }
+        return progressService.subscribe(id);
     }
 
     /**

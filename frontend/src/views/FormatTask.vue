@@ -40,7 +40,7 @@
           <el-table-column label="格式方案" min-width="140">
             <template #default="{ row }">{{ templateName(row) }}</template>
           </el-table-column>
-          <el-table-column label="状态" width="120">
+          <el-table-column label="状态" width="140">
             <template #default="{ row }">
               <el-tag v-if="row.status === 'SUCCESS'" type="success">已完成</el-tag>
               <el-tag v-else-if="row.status === 'FAILED'" type="danger" class="fail-tag" @click="showError(row)">失败</el-tag>
@@ -51,6 +51,13 @@
                 :stroke-width="6"
                 style="width: 120px; margin-top: 4px"
               />
+            </template>
+          </el-table-column>
+          <el-table-column label="排版校验" min-width="240" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span v-if="row.status === 'SUCCESS' && row.summary" class="summary-text">{{ row.summary }}</span>
+              <span v-else-if="row.status === 'SUCCESS'" style="color:#c0c4cc">已完成</span>
+              <span v-else style="color:#c0c4cc">—</span>
             </template>
           </el-table-column>
           <el-table-column label="失败原因" min-width="200">
@@ -203,6 +210,49 @@ const errorTaskId = ref(null)
 const previewRenderKey = ref(0)
 const compareRenderKey = ref(0)
 let pollTimer = null
+// SSE 进度推送连接: taskId -> EventSource
+const sseMap = new Map()
+
+function subscribeSse(taskId) {
+  if (sseMap.has(taskId)) return
+  const token = localStorage.getItem('token')
+  if (!token) return
+  const es = new EventSource(`/api/paper/task/${taskId}/progress?token=${encodeURIComponent(token)}`)
+  sseMap.set(taskId, es)
+  es.addEventListener('progress', ev => {
+    try {
+      const d = JSON.parse(ev.data)
+      const row = tasks.value.find(t => t.id === taskId)
+      if (row) {
+        if (d.progress !== undefined) row.progress = d.progress
+        if (d.status) row.status = d.status
+      }
+      // 排版结束: 关闭连接并刷新列表(拿到校验摘要/错误信息)
+      if (d.status === 'SUCCESS' || d.status === 'FAILED') {
+        closeSse(taskId)
+        loadTasks(true)
+      }
+    } catch (e) {}
+  })
+  es.onerror = () => closeSse(taskId)
+}
+
+function closeSse(taskId) {
+  const es = sseMap.get(taskId)
+  if (es) {
+    es.close()
+    sseMap.delete(taskId)
+  }
+}
+
+/** 为所有运行中的任务订阅 SSE 进度 */
+function startSse() {
+  ;(tasks.value || []).forEach(t => {
+    if (t.status === 'PROCESSING' || t.status === 'PENDING') {
+      subscribeSse(t.id)
+    }
+  })
+}
 
 // 排版结果/原始 docx 内存缓存: 同一任务重复预览/对比不重复下载, 加速二次打开
 const blobCache = new Map()
@@ -234,9 +284,14 @@ async function fetchDiff(taskId) {
 onMounted(async () => {
   templates.value = await listTemplates()
   await loadTasks()
+  startSse()
 })
 
-onBeforeUnmount(() => clearInterval(pollTimer))
+onBeforeUnmount(() => {
+  clearInterval(pollTimer)
+  sseMap.forEach(es => es.close())
+  sseMap.clear()
+})
 
 function onFileChange(file) {
   if (file.name && !file.name.toLowerCase().endsWith('.docx')) {
@@ -265,14 +320,13 @@ async function submit() {
     selectedFile.value = null
     fileList.value = []
     await loadTasks(true)
-    if (tasks.value.some(t => t.status === 'PROCESSING' || t.status === 'PENDING')) {
-      startPolling()
-    }
+    startSse()
   } finally {
     submitting.value = false
   }
 }
 
+// 保留原轮询为 SSE 不可用时的兜底
 function startPolling() {
   clearInterval(pollTimer)
   pollTimer = setInterval(async () => {
@@ -288,6 +342,8 @@ async function loadTasks(silent) {
     return
   }
   const running = tasks.value.some(t => t.status === 'PROCESSING' || t.status === 'PENDING')
+  // SSE 实时推送为主, 轮询作为兜底(SSE 断开时仍能刷新)
+  startSse()
   if (running && !pollTimer) {
     startPolling()
   } else if (!running && pollTimer) {
@@ -649,6 +705,11 @@ function formatTime(t) {
 }
 .fail-tag {
   cursor: pointer;
+}
+.summary-text {
+  font-size: 12px;
+  color: #6b6f7d;
+  line-height: 1.6;
 }
 .error-label {
   color: #606266;

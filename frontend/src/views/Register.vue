@@ -302,6 +302,9 @@ async function submit() {
     localStorage.setItem('token', data.token)
     localStorage.setItem('userId', data.userId)
     localStorage.setItem('username', data.username)
+    localStorage.setItem('role', data.role || 'USER')
+    localStorage.setItem('roles', JSON.stringify(data.roles || []))
+    localStorage.setItem('perms', JSON.stringify(data.perms || []))
     try {
       const p = await getProfile()
       if (p) {
@@ -309,6 +312,7 @@ async function submit() {
         localStorage.setItem('avatar', p.avatar || '')
       }
     } catch (e) {}
+    localStorage.removeItem('menus')
     ElMessage.success('注册成功')
     router.push(router.currentRoute.value.query.redirect || '/home')
   } catch (e) {

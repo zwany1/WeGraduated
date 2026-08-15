@@ -15,12 +15,33 @@
       </div>
 
       <nav class="menu">
-        <router-link v-for="m in menus" :key="m.path" :to="'/admin/' + m.path" class="menu-item"
-          :class="{ active: isActive(m.path) }">
-          <span class="menu-icon" v-html="m.icon"></span>
-          <span class="menu-label">{{ m.label }}</span>
-          <span class="menu-indicator"></span>
-        </router-link>
+        <div v-if="menus.length === 0" class="menu-empty">
+          暂无后台菜单权限<br /><span class="menu-empty-sub">请联系系统管理员分配角色</span>
+        </div>
+        <template v-for="m in menus" :key="m.id">
+          <!-- 目录: 可展开 -->
+          <div v-if="m.menuType === 'M' && m.children && m.children.length" class="menu-group">
+            <div class="menu-group-title" :class="{ open: opened[m.id] }" @click="toggle(m.id)">
+              <span class="menu-icon" v-html="iconOf(m)"></span>
+              <span class="menu-label">{{ m.menuName }}</span>
+              <svg class="group-arrow" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div v-show="opened[m.id]" class="menu-children">
+              <router-link v-for="c in visibleChildren(m)" :key="c.id"
+                :to="childPath(m, c)" class="menu-item sub" :class="{ active: isActive(childPath(m, c)) }">
+                <span class="menu-dot"></span>
+                <span class="menu-label">{{ c.menuName }}</span>
+              </router-link>
+            </div>
+          </div>
+          <!-- 菜单: 直接链接 -->
+          <router-link v-else-if="m.menuType === 'C' && m.path" :key="m.id" :to="'/admin/' + m.path"
+            class="menu-item" :class="{ active: isActive(m.path) }">
+            <span class="menu-icon" v-html="iconOf(m)"></span>
+            <span class="menu-label">{{ m.menuName }}</span>
+            <span class="menu-indicator"></span>
+          </router-link>
+        </template>
       </nav>
 
       <div class="sidebar-foot">
@@ -63,31 +84,92 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import { logout } from '../../api/user'
+import { getMenus, isAdmin, getToken } from '../../utils/perm'
 
 const route = useRoute()
 const router = useRouter()
 
-const menus = [
-  { path: 'dashboard', label: '运营概览', icon: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>' },
-  { path: 'users', label: '用户管理', icon: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>' },
-  { path: 'templates', label: '模板管理', icon: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>' },
-  { path: 'tasks', label: '排版任务', icon: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>' }
-]
+const menus = ref([])
+const opened = ref({})
 
 const adminName = ref('管理员')
 const avatarText = ref('A')
 
 const pageTitle = computed(() => route.meta.title || '运营概览')
-const isActive = p => route.path.startsWith('/admin/' + p)
+
+const isActive = p => {
+  if (!p) return false
+  return route.path === '/admin/' + p || route.path.startsWith('/admin/' + p + '/')
+}
+
+const iconOf = m => {
+  if (m.icon) {
+    return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${iconPaths[m.icon] || iconPaths.default}</svg>`
+  }
+  return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${iconPaths.default}</svg>`
+}
+
+const iconPaths = {
+  chart: '<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
+  doc: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',
+  document: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
+  task: '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
+  setting: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+  user: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  role: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+  default: '<path d="M4 4h16v16H4z"/>'
+}
+
+const visibleChildren = m => (m.children || []).filter(c => c.menuType === 'C')
+
+const childPath = (parent, child) => '/admin/' + (parent.path ? parent.path + '/' : '') + child.path
+
+const toggle = id => {
+  opened.value[id] = !opened.value[id]
+}
+
+async function loadMenus() {
+  // 缓存优先, 后台拉取失败时回退缓存
+  try {
+    menus.value = await getMenus()
+  } catch (e) {
+    try {
+      menus.value = JSON.parse(localStorage.getItem('menus') || '[]')
+    } catch (e2) {
+      menus.value = []
+    }
+  }
+  // 默认展开第一个目录
+  menus.value.forEach(m => {
+    if (m.menuType === 'M') {
+      opened.value[m.id] = true
+    }
+  })
+}
+
+watch(
+  () => route.path,
+  () => {
+    // 自动展开包含当前路由的目录
+    menus.value.forEach(m => {
+      if (m.menuType === 'M' && m.children) {
+        const inGroup = m.children.some(c => isActive(childPath(m, c)))
+        if (inGroup) opened.value[m.id] = true
+      }
+    })
+  }
+)
 
 onMounted(() => {
   const nick = localStorage.getItem('username') || '管理员'
   adminName.value = nick
   avatarText.value = nick.slice(0, 1).toUpperCase()
+  loadMenus()
 })
 
 async function handleLogout() {
@@ -98,9 +180,13 @@ async function handleLogout() {
   }
   try { await logout() } catch (e) {}
   localStorage.removeItem('token')
+  localStorage.removeItem('userId')
   localStorage.removeItem('username')
   localStorage.removeItem('avatar')
   localStorage.removeItem('role')
+  localStorage.removeItem('roles')
+  localStorage.removeItem('perms')
+  localStorage.removeItem('menus')
   router.push('/home')
 }
 </script>
@@ -242,6 +328,69 @@ async function handleLogout() {
 .menu-item.active .menu-indicator {
   opacity: 1;
   transform: scaleY(1);
+}
+
+/* ===== 目录(可展开) ===== */
+.menu-empty {
+  padding: 28px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: #7d8bab;
+  line-height: 1.7;
+}
+.menu-empty-sub {
+  font-size: 11.5px;
+  color: #56688a;
+}
+.menu-group-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  color: #93a3bd;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.22s ease;
+}
+.menu-group-title:hover {
+  color: #e8eef8;
+  background: rgba(255, 255, 255, 0.05);
+}
+.menu-group-title.open {
+  color: #e8eef8;
+}
+.group-arrow {
+  margin-left: auto;
+  transition: transform 0.22s ease;
+  opacity: 0.6;
+}
+.menu-group-title.open .group-arrow {
+  transform: rotate(180deg);
+}
+.menu-children {
+  margin: 2px 0 4px 18px;
+  padding-left: 14px;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.menu-item.sub {
+  padding: 9px 12px;
+  font-size: 13px;
+}
+.menu-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.45;
+  flex-shrink: 0;
+}
+.menu-item.sub.active .menu-dot {
+  opacity: 1;
+  background: var(--gold);
 }
 
 .sidebar-foot {

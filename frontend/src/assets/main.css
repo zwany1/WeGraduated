@@ -86,3 +86,84 @@ body {
   color: hsl(var(--foreground));
   font-family: "Inter", sans-serif;
 }
+
+/* ============ 后台弹窗统一风格 ============ */
+.admin-overlay {
+  background: rgba(13, 27, 46, 0.42) !important;
+  backdrop-filter: blur(3px);
+}
+.admin-dialog.el-dialog {
+  border-radius: 16px;
+  border: 1px solid #e6ded0;
+  box-shadow: 0 24px 64px rgba(13, 27, 46, 0.28);
+  overflow: hidden;
+  --el-dialog-padding-primary: 0;
+}
+.admin-dialog .el-dialog__header {
+  margin: 0;
+  padding: 16px 22px 14px;
+  background: linear-gradient(180deg, #fdfaf4, #f6f0e2);
+  border-bottom: 1px solid #efe8dc;
+}
+.admin-dialog .el-dialog__title {
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #0d1b2e;
+  letter-spacing: 0.04em;
+}
+.admin-dialog .el-dialog__headerbtn {
+  top: 14px;
+  right: 16px;
+}
+.admin-dialog .el-dialog__headerbtn .el-dialog__close {
+  color: #8a8d99;
+}
+.admin-dialog .el-dialog__headerbtn:hover .el-dialog__close {
+  color: #b23a2e;
+}
+.admin-dialog .el-dialog__body {
+  padding: 18px 22px 6px;
+  background: #fffdf9;
+  max-height: 62vh;
+  overflow-y: auto;
+}
+.admin-dialog .el-dialog__body::-webkit-scrollbar {
+  width: 8px;
+}
+.admin-dialog .el-dialog__body::-webkit-scrollbar-thumb {
+  background: #d6cdbb;
+  border-radius: 4px;
+}
+.admin-dialog .el-dialog__footer {
+  padding: 12px 22px 16px;
+  background: #fbf8f1;
+  border-top: 1px solid #efe8dc;
+}
+.admin-dialog .el-dialog__footer .el-button {
+  min-width: 84px;
+  border-radius: 8px;
+}
+
+/* 弹窗内树/勾选容器统一 */
+.admin-dialog .assign-tree {
+  border: 1px solid #efe8dc;
+  border-radius: 10px;
+  background: #fffdf9;
+  padding: 8px;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+.admin-dialog .assign-tree::-webkit-scrollbar {
+  width: 8px;
+}
+.admin-dialog .assign-tree::-webkit-scrollbar-thumb {
+  background: #d6cdbb;
+  border-radius: 4px;
+}
+.admin-dialog .assign-hint {
+  font-size: 12.5px;
+  color: #8a8d99;
+  margin-bottom: 12px;
+  line-height: 1.6;
+}

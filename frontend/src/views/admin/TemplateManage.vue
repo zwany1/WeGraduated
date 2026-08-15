@@ -46,7 +46,7 @@
         </el-table-column>
         <el-table-column label="操作" width="110" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" plain type="danger" @click="removeTpl(row)">删除</el-button>
+            <el-button v-perm="'system:template:delete'" size="small" plain type="danger" @click="removeTpl(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>

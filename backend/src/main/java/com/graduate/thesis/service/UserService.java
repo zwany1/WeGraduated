@@ -6,23 +6,30 @@ import com.graduate.thesis.dto.LoginDTO;
 import com.graduate.thesis.dto.LoginResponse;
 import com.graduate.thesis.dto.ResetPasswordDTO;
 import com.graduate.thesis.dto.UserAuthDTO;
+import com.graduate.thesis.dto.UserInfoResponse;
 import com.graduate.thesis.dto.UserProfileDTO;
 import com.graduate.thesis.entity.FormatRule;
 import com.graduate.thesis.entity.FormatTask;
 import com.graduate.thesis.entity.FormatTemplate;
 import com.graduate.thesis.entity.PaperFile;
+import com.graduate.thesis.entity.Role;
 import com.graduate.thesis.entity.User;
+import com.graduate.thesis.entity.UserRole;
 import com.graduate.thesis.mapper.FormatRuleMapper;
 import com.graduate.thesis.mapper.FormatTaskMapper;
 import com.graduate.thesis.mapper.FormatTemplateMapper;
 import com.graduate.thesis.mapper.PaperFileMapper;
+import com.graduate.thesis.mapper.RoleMapper;
 import com.graduate.thesis.mapper.UserMapper;
+import com.graduate.thesis.mapper.UserRoleMapper;
 import com.graduate.thesis.util.JwtUtil;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
@@ -47,6 +54,9 @@ public class UserService {
     private final FormatTaskMapper taskMapper;
     private final PaperFileMapper paperFileMapper;
     private final StorageService storageService;
+    private final RoleMapper roleMapper;
+    private final UserRoleMapper userRoleMapper;
+    private final PermissionService permissionService;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
     /** 登录失败记录: 登录名(用户名或邮箱) -> 失败次数 */
@@ -57,7 +67,8 @@ public class UserService {
     public UserService(UserMapper userMapper, JwtUtil jwtUtil, EmailCodeService emailCodeService,
                        FormatTemplateMapper templateMapper, FormatRuleMapper ruleMapper,
                        FormatTaskMapper taskMapper, PaperFileMapper paperFileMapper,
-                       StorageService storageService) {
+                       StorageService storageService, RoleMapper roleMapper,
+                       UserRoleMapper userRoleMapper, PermissionService permissionService) {
         this.userMapper = userMapper;
         this.jwtUtil = jwtUtil;
         this.emailCodeService = emailCodeService;
@@ -66,6 +77,9 @@ public class UserService {
         this.taskMapper = taskMapper;
         this.paperFileMapper = paperFileMapper;
         this.storageService = storageService;
+        this.roleMapper = roleMapper;
+        this.userRoleMapper = userRoleMapper;
+        this.permissionService = permissionService;
     }
 
     public LoginResponse resetPassword(ResetPasswordDTO dto) {
@@ -107,9 +121,24 @@ public class UserService {
         user.setEmail(email);
         user.setPassword(encoder.encode(dto.getPassword()));
         user.setNickname(username);
+        user.setRole(User.ROLE_USER);
         user.setCreateTime(LocalDateTime.now());
         userMapper.insert(user);
+        assignDefaultUserRole(user.getId());
         return buildLoginResponse(user);
+    }
+
+    /** 新注册用户绑定内置普通用户角色 */
+    private void assignDefaultUserRole(Long userId) {
+        Role userRole = roleMapper.selectOne(new LambdaQueryWrapper<Role>()
+                .eq(Role::getRoleKey, Role.KEY_USER).last("LIMIT 1"));
+        if (userRole != null) {
+            Long exists = userRoleMapper.selectCount(new LambdaQueryWrapper<UserRole>()
+                    .eq(UserRole::getUserId, userId).eq(UserRole::getRoleId, userRole.getId()));
+            if (exists == null || exists == 0) {
+                userRoleMapper.insert(new UserRole(userId, userRole.getId()));
+            }
+        }
     }
 
     public LoginResponse login(LoginDTO dto) {
@@ -183,7 +212,10 @@ public class UserService {
         }
         paperFileMapper.delete(new LambdaQueryWrapper<PaperFile>()
                 .eq(PaperFile::getUserId, userId));
-        // 4. 用户本身
+        // 4. 用户角色关联
+        userRoleMapper.delete(new LambdaQueryWrapper<UserRole>()
+                .eq(UserRole::getUserId, userId));
+        // 5. 用户本身
         userMapper.deleteById(userId);
         jwtUtil.revokeAllForUser(userId);
     }
@@ -242,6 +274,9 @@ public class UserService {
         resp.setNickname(user.getNickname());
         resp.setEmail(user.getEmail());
         resp.setRole(user.getRole() == null ? User.ROLE_USER : user.getRole());
+        List<String> roleKeys = new ArrayList<>(permissionService.getUserRoleKeys(user.getId()));
+        resp.setRoles(roleKeys);
+        resp.setPerms(permissionService.getUserPerms(user.getId()));
         resp.setToken(jwtUtil.generate(user.getId()));
         return resp;
     }
@@ -257,6 +292,23 @@ public class UserService {
         dto.setNickname(user.getNickname());
         dto.setAvatar(user.getAvatar());
         return dto;
+    }
+
+    /** 当前用户权限信息 */
+    public UserInfoResponse getUserInfo(Long userId) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(404, "用户不存在");
+        }
+        UserInfoResponse resp = new UserInfoResponse();
+        resp.setUserId(user.getId());
+        resp.setUsername(user.getUsername());
+        resp.setNickname(user.getNickname());
+        resp.setEmail(user.getEmail());
+        resp.setRole(user.getRole() == null ? User.ROLE_USER : user.getRole());
+        resp.setRoles(new ArrayList<>(permissionService.getUserRoleKeys(userId)));
+        resp.setPerms(permissionService.getUserPerms(userId));
+        return resp;
     }
 
     public UserProfileDTO updateProfile(Long userId, UserProfileDTO dto) {

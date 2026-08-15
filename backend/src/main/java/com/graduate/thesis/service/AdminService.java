@@ -13,12 +13,16 @@ import com.graduate.thesis.entity.FormatRule;
 import com.graduate.thesis.entity.FormatTask;
 import com.graduate.thesis.entity.FormatTemplate;
 import com.graduate.thesis.entity.PaperFile;
+import com.graduate.thesis.entity.Role;
 import com.graduate.thesis.entity.User;
+import com.graduate.thesis.entity.UserRole;
 import com.graduate.thesis.mapper.FormatRuleMapper;
 import com.graduate.thesis.mapper.FormatTaskMapper;
 import com.graduate.thesis.mapper.FormatTemplateMapper;
 import com.graduate.thesis.mapper.PaperFileMapper;
+import com.graduate.thesis.mapper.RoleMapper;
 import com.graduate.thesis.mapper.UserMapper;
+import com.graduate.thesis.mapper.UserRoleMapper;
 import com.graduate.thesis.util.JwtUtil;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,6 +53,9 @@ public class AdminService {
     private final PaperFileMapper paperFileMapper;
     private final UserService userService;
     private final JwtUtil jwtUtil;
+    private final RoleMapper roleMapper;
+    private final UserRoleMapper userRoleMapper;
+    private final PermissionService permissionService;
 
     public AdminService(UserMapper userMapper,
                         FormatTemplateMapper templateMapper,
@@ -56,7 +63,10 @@ public class AdminService {
                         FormatTaskMapper taskMapper,
                         PaperFileMapper paperFileMapper,
                         UserService userService,
-                        JwtUtil jwtUtil) {
+                        JwtUtil jwtUtil,
+                        RoleMapper roleMapper,
+                        UserRoleMapper userRoleMapper,
+                        PermissionService permissionService) {
         this.userMapper = userMapper;
         this.templateMapper = templateMapper;
         this.ruleMapper = ruleMapper;
@@ -64,6 +74,9 @@ public class AdminService {
         this.paperFileMapper = paperFileMapper;
         this.userService = userService;
         this.jwtUtil = jwtUtil;
+        this.roleMapper = roleMapper;
+        this.userRoleMapper = userRoleMapper;
+        this.permissionService = permissionService;
     }
 
     // ==================== 概览统计 ====================
@@ -146,6 +159,7 @@ public class AdminService {
         Map<Long, Long> paperCnt = countByKey(paperFileMapper.selectList(new LambdaQueryWrapper<PaperFile>()
                         .in(PaperFile::getUserId, ids).select(PaperFile::getUserId)),
                 PaperFile::getUserId);
+        Map<Long, List<Long>> userRoleMap = buildUserRoleMap(ids);
 
         List<AdminUserVO> result = new ArrayList<>();
         for (User u : users) {
@@ -155,6 +169,9 @@ public class AdminService {
             vo.setEmail(u.getEmail());
             vo.setNickname(u.getNickname());
             vo.setRole(u.getRole() == null ? User.ROLE_USER : u.getRole());
+            List<Long> roleIds = userRoleMap.getOrDefault(u.getId(), Collections.emptyList());
+            vo.setRoleIds(roleIds);
+            vo.setRoleNames(roleNamesOf(roleIds));
             vo.setCreateTime(u.getCreateTime());
             vo.setTemplateCount(templateCnt.getOrDefault(u.getId(), 0L));
             vo.setTaskCount(taskCnt.getOrDefault(u.getId(), 0L));
@@ -164,7 +181,29 @@ public class AdminService {
         return result;
     }
 
-    /** 修改用户角色; operatorId 为操作者(禁止操作自己) */
+    private Map<Long, List<Long>> buildUserRoleMap(List<Long> userIds) {
+        Map<Long, List<Long>> map = new HashMap<>();
+        List<UserRole> rows = userRoleMapper.selectList(new LambdaQueryWrapper<UserRole>()
+                .in(UserRole::getUserId, userIds));
+        for (UserRole ur : rows) {
+            map.computeIfAbsent(ur.getUserId(), k -> new ArrayList<>()).add(ur.getRoleId());
+        }
+        return map;
+    }
+
+    private List<String> roleNamesOf(List<Long> roleIds) {
+        if (roleIds == null || roleIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<Role> roles = roleMapper.selectBatchIds(roleIds);
+        if (roles == null || roles.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return roles.stream().map(r -> r.getRoleName() == null ? r.getRoleKey() : r.getRoleName())
+                .collect(Collectors.toList());
+    }
+
+    /** 修改用户主角色(兼容旧接口, 同步 RBAC 角色分配) */
     @Transactional
     public void updateUserRole(Long userId, String role, Long operatorId) {
         if (!User.ROLE_ADMIN.equals(role) && !User.ROLE_USER.equals(role)) {
@@ -177,19 +216,94 @@ public class AdminService {
         if (userId.equals(operatorId)) {
             throw new BusinessException(400, "不能修改自己的角色");
         }
-        if (User.ROLE_USER.equals(role) && User.ROLE_ADMIN.equals(user.getRole())) {
-            long adminCount = safeCount(userMapper.selectCount(new LambdaQueryWrapper<User>()
-                    .eq(User::getRole, User.ROLE_ADMIN)));
+        if (User.ROLE_USER.equals(role) && permissionService.isAdmin(userId)) {
+            long adminCount = adminUserCount();
             if (adminCount <= 1) {
                 throw new BusinessException(400, "至少保留一名管理员");
             }
         }
         user.setRole(role);
         userMapper.updateById(user);
-        // 降级后使其旧 token 全部失效, 需重新登录
-        if (User.ROLE_USER.equals(role)) {
-            jwtUtil.revokeAllForUser(userId);
+        // 同步 RBAC 角色: 设为管理员 -> 授予 admin 角色; 取消管理员 -> 移除 admin 角色
+        Role adminRole = roleMapper.selectOne(new LambdaQueryWrapper<Role>()
+                .eq(Role::getRoleKey, Role.KEY_ADMIN).last("LIMIT 1"));
+        Role userRole = roleMapper.selectOne(new LambdaQueryWrapper<Role>()
+                .eq(Role::getRoleKey, Role.KEY_USER).last("LIMIT 1"));
+        if (adminRole != null) {
+            boolean hasAdmin = userRoleMapper.selectCount(new LambdaQueryWrapper<UserRole>()
+                    .eq(UserRole::getUserId, userId).eq(UserRole::getRoleId, adminRole.getId())) > 0;
+            if (User.ROLE_ADMIN.equals(role) && !hasAdmin) {
+                userRoleMapper.insert(new UserRole(userId, adminRole.getId()));
+            } else if (User.ROLE_USER.equals(role) && hasAdmin) {
+                userRoleMapper.delete(new LambdaQueryWrapper<UserRole>()
+                        .eq(UserRole::getUserId, userId).eq(UserRole::getRoleId, adminRole.getId()));
+            }
         }
+        if (userRole != null && User.ROLE_USER.equals(role)) {
+            boolean hasUser = userRoleMapper.selectCount(new LambdaQueryWrapper<UserRole>()
+                    .eq(UserRole::getUserId, userId).eq(UserRole::getRoleId, userRole.getId())) > 0;
+            if (!hasUser) {
+                userRoleMapper.insert(new UserRole(userId, userRole.getId()));
+            }
+        }
+        // 权限变化后使其旧 token 全部失效, 需重新登录
+        jwtUtil.revokeAllForUser(userId);
+    }
+
+    /** 给用户分配角色(全量覆盖) */
+    @Transactional
+    public void assignUserRoles(Long userId, List<Long> roleIds, Long operatorId) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(404, "用户不存在");
+        }
+        if (userId.equals(operatorId)) {
+            throw new BusinessException(400, "不能修改当前登录账号的角色");
+        }
+        List<Long> target = roleIds == null ? Collections.emptyList() : roleIds.stream().distinct().collect(Collectors.toList());
+        // 防止将最后一个管理员降级
+        boolean targetHasAdmin = targetHasAdmin(target);
+        if (!targetHasAdmin && permissionService.isAdmin(userId)) {
+            long adminCount = adminUserCount();
+            if (adminCount <= 1) {
+                throw new BusinessException(400, "至少保留一名管理员");
+            }
+        }
+        userRoleMapper.delete(new LambdaQueryWrapper<UserRole>().eq(UserRole::getUserId, userId));
+        for (Long roleId : target) {
+            if (roleMapper.selectById(roleId) != null) {
+                userRoleMapper.insert(new UserRole(userId, roleId));
+            }
+        }
+        // 同步旧主角色列, 保证旧逻辑兼容
+        Role adminRole = roleMapper.selectOne(new LambdaQueryWrapper<Role>()
+                .eq(Role::getRoleKey, Role.KEY_ADMIN).last("LIMIT 1"));
+        if (adminRole != null && target.contains(adminRole.getId())) {
+            user.setRole(User.ROLE_ADMIN);
+        } else {
+            user.setRole(User.ROLE_USER);
+        }
+        userMapper.updateById(user);
+        jwtUtil.revokeAllForUser(userId);
+    }
+
+    private boolean targetHasAdmin(List<Long> roleIds) {
+        if (roleIds == null || roleIds.isEmpty()) {
+            return false;
+        }
+        Role adminRole = roleMapper.selectOne(new LambdaQueryWrapper<Role>()
+                .eq(Role::getRoleKey, Role.KEY_ADMIN).last("LIMIT 1"));
+        return adminRole != null && roleIds.contains(adminRole.getId());
+    }
+
+    private long adminUserCount() {
+        Role adminRole = roleMapper.selectOne(new LambdaQueryWrapper<Role>()
+                .eq(Role::getRoleKey, Role.KEY_ADMIN).last("LIMIT 1"));
+        if (adminRole == null) {
+            return 0;
+        }
+        return safeCount(userRoleMapper.selectCount(new LambdaQueryWrapper<UserRole>()
+                .eq(UserRole::getRoleId, adminRole.getId())));
     }
 
     @Transactional

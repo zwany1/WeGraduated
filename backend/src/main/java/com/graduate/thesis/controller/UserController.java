@@ -7,6 +7,7 @@ import com.graduate.thesis.dto.LoginResponse;
 import com.graduate.thesis.dto.ResetPasswordDTO;
 import com.graduate.thesis.dto.SendEmailCodeDTO;
 import com.graduate.thesis.dto.UserAuthDTO;
+import com.graduate.thesis.dto.UserInfoResponse;
 import com.graduate.thesis.dto.UserProfileDTO;
 import com.graduate.thesis.service.CaptchaService;
 import com.graduate.thesis.service.EmailCodeService;
@@ -96,6 +97,12 @@ public class UserController {
     @GetMapping("/profile")
     public Result<UserProfileDTO> profile() {
         return Result.ok(userService.getProfile(UserContext.get()));
+    }
+
+    /** 获取当前用户角色与权限标识 */
+    @GetMapping("/info")
+    public Result<UserInfoResponse> info() {
+        return Result.ok(userService.getUserInfo(UserContext.get()));
     }
 
     /** 更新当前用户资料(昵称/头像/密保) */

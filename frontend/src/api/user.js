@@ -12,6 +12,10 @@ export function getProfile() {
   return api.get('/user/profile')
 }
 
+export function getUserInfo() {
+  return api.get('/user/info')
+}
+
 export function updateProfile(data) {
   return api.put('/user/profile', data)
 }

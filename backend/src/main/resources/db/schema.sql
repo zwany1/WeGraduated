@@ -79,3 +79,53 @@ CREATE TABLE IF NOT EXISTS t_format_task (
     finish_time DATETIME    DEFAULT NULL,
     KEY idx_user (user_id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='排版任务表';
+
+-- ============================================================
+-- RBAC 权限体系: 菜单 / 角色 / 用户角色 / 角色菜单
+-- ============================================================
+
+-- 菜单表(M目录 / C菜单 / F按钮)
+CREATE TABLE IF NOT EXISTS t_menu (
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    parent_id   BIGINT       NOT NULL DEFAULT 0,
+    menu_name   VARCHAR(64)  NOT NULL,
+    menu_type   CHAR(1)      NOT NULL DEFAULT 'M' COMMENT 'M目录 C菜单 F按钮',
+    path        VARCHAR(200) DEFAULT NULL,
+    component   VARCHAR(255) DEFAULT NULL,
+    perms       VARCHAR(100) DEFAULT NULL COMMENT '权限标识, 如 system:user:add',
+    icon        VARCHAR(100) DEFAULT NULL,
+    order_num   INT          NOT NULL DEFAULT 0,
+    visible     TINYINT(1)   NOT NULL DEFAULT 1 COMMENT '显示状态 1显示 0隐藏',
+    status      TINYINT(1)   NOT NULL DEFAULT 1 COMMENT '状态 1正常 0停用',
+    create_time DATETIME     DEFAULT NULL,
+    update_time DATETIME     DEFAULT NULL,
+    KEY idx_parent (parent_id)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='菜单权限表';
+
+-- 角色表
+CREATE TABLE IF NOT EXISTS t_role (
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    role_name   VARCHAR(32)  NOT NULL,
+    role_key    VARCHAR(32)  NOT NULL COMMENT '角色权限字符串',
+    remark      VARCHAR(255) DEFAULT NULL,
+    status      TINYINT(1)   NOT NULL DEFAULT 1 COMMENT '状态 1正常 0停用',
+    create_time DATETIME     DEFAULT NULL,
+    update_time DATETIME     DEFAULT NULL,
+    UNIQUE KEY uk_role_key (role_key)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='角色表';
+
+-- 用户-角色关联表
+CREATE TABLE IF NOT EXISTS t_user_role (
+    user_id BIGINT NOT NULL,
+    role_id BIGINT NOT NULL,
+    PRIMARY KEY (user_id, role_id),
+    KEY idx_role (role_id)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='用户角色关联表';
+
+-- 角色-菜单关联表
+CREATE TABLE IF NOT EXISTS t_role_menu (
+    role_id BIGINT NOT NULL,
+    menu_id BIGINT NOT NULL,
+    PRIMARY KEY (role_id, menu_id),
+    KEY idx_menu (menu_id)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='角色菜单关联表';

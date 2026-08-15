@@ -28,11 +28,16 @@
             <span class="cell-muted">{{ row.email || '—' }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="角色" width="110">
+        <el-table-column label="角色" width="170">
           <template #default="{ row }">
             <span v-if="isSelf(row)" class="role-tag self">当前账号</span>
-            <span v-else-if="row.role === 'ADMIN'" class="role-tag admin">管理员</span>
-            <span v-else class="role-tag user">用户</span>
+            <span v-else>
+              <span v-if="row.roleNames && row.roleNames.length" class="role-tags">
+                <span v-for="(rn, i) in row.roleNames" :key="i" class="role-tag"
+                  :class="row.role === 'ADMIN' ? 'admin' : 'user'">{{ rn }}</span>
+              </span>
+              <span v-else class="role-tag user">用户</span>
+            </span>
           </template>
         </el-table-column>
         <el-table-column label="模板" width="80" align="center">
@@ -47,12 +52,13 @@
         <el-table-column label="注册时间" width="150">
           <template #default="{ row }"><span class="cell-muted">{{ fmtTime(row.createTime) }}</span></template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
             <template v-if="!isSelf(row)">
-              <el-button v-if="row.role === 'ADMIN'" size="small" plain type="danger" @click="changeRole(row, 'USER')">取消管理员</el-button>
-              <el-button v-else size="small" plain type="primary" @click="changeRole(row, 'ADMIN')">设为管理员</el-button>
-              <el-button size="small" plain type="danger" @click="removeUser(row)">删除</el-button>
+              <el-button v-perm="'system:user:assign'" size="small" plain type="primary" @click="openAssign(row)">分配角色</el-button>
+              <el-button v-if="row.role === 'ADMIN'" v-perm="'system:user:edit'" size="small" plain type="danger" @click="changeRole(row, 'USER')">取消管理员</el-button>
+              <el-button v-else v-perm="'system:user:edit'" size="small" plain type="primary" @click="changeRole(row, 'ADMIN')">设为管理员</el-button>
+              <el-button v-perm="'system:user:delete'" size="small" plain type="danger" @click="removeUser(row)">删除</el-button>
             </template>
             <span v-else class="cell-muted">—</span>
           </template>
@@ -65,13 +71,32 @@
           @current-change="load()" @size-change="load(1)" />
       </div>
     </div>
+
+    <!-- 分配角色 -->
+    <el-dialog v-model="assignVisible" :title="`分配角色 - ${assignUser ? (assignUser.nickname || assignUser.username) : ''}`" width="480px"
+      class="admin-dialog" modal-class="admin-overlay" destroy-on-close>
+      <div class="assign-hint">一个用户可同时拥有多个角色，权限取并集。</div>
+      <div v-loading="assignLoading" class="role-box">
+        <el-checkbox-group v-model="assignRoleIds" class="role-checkbox">
+          <el-checkbox v-for="r in allRoles" :key="r.id" :value="r.id" :disabled="r.roleKey === 'admin'">
+            <span class="rc-name">{{ r.roleName }}</span>
+            <span class="rc-key">{{ r.roleKey }}</span>
+          </el-checkbox>
+          <el-empty v-if="allRoles.length === 0 && !assignLoading" description="暂无可分配角色" :image-size="60" />
+        </el-checkbox-group>
+      </div>
+      <template #footer>
+        <el-button @click="assignVisible = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="saveAssign">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { listUsers, setUserRole, deleteUser } from '../../api/admin'
+import { listUsers, setUserRole, assignUserRoles, deleteUser, listAllRoles } from '../../api/admin'
 
 const rows = ref([])
 const total = ref(0)
@@ -79,6 +104,13 @@ const page = ref(1)
 const size = ref(10)
 const keyword = ref('')
 const loading = ref(false)
+
+const assignVisible = ref(false)
+const saving = ref(false)
+const assignLoading = ref(false)
+const assignUser = ref(null)
+const assignRoleIds = ref([])
+const allRoles = ref([])
 
 const isSelf = row => String(row.id) === String(localStorage.getItem('userId'))
 
@@ -99,6 +131,34 @@ async function load(p) {
   } catch (e) {
   } finally {
     loading.value = false
+  }
+}
+
+async function openAssign(row) {
+  assignUser.value = row
+  assignRoleIds.value = [...(row.roleIds || [])]
+  assignVisible.value = true
+  assignLoading.value = true
+  try {
+    if (allRoles.value.length === 0) {
+      allRoles.value = await listAllRoles()
+    }
+  } catch (e) {
+  } finally {
+    assignLoading.value = false
+  }
+}
+
+async function saveAssign() {
+  saving.value = true
+  try {
+    await assignUserRoles(assignUser.value.id, assignRoleIds.value)
+    ElMessage.success('角色已更新')
+    assignVisible.value = false
+    await load()
+  } catch (e) {
+  } finally {
+    saving.value = false
   }
 }
 
@@ -263,5 +323,58 @@ onMounted(() => load())
   color: #3a6ea5;
   background: rgba(58, 110, 165, 0.1);
   border: 1px solid rgba(58, 110, 165, 0.35);
+}
+.role-tags {
+  display: inline-flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.assign-hint {
+  font-size: 12.5px;
+  color: #8a8d99;
+  margin-bottom: 12px;
+}
+.role-box {
+  border: 1px solid #efe8dc;
+  border-radius: 10px;
+  background: #fffdf9;
+  padding: 8px;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+.role-box::-webkit-scrollbar {
+  width: 8px;
+}
+.role-box::-webkit-scrollbar-thumb {
+  background: #d6cdbb;
+  border-radius: 4px;
+}
+.role-checkbox {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px;
+}
+.role-checkbox .el-checkbox {
+  margin-right: 0;
+  height: auto;
+  padding: 8px 10px;
+  border: 1px solid #efe8dc;
+  border-radius: 8px;
+  background: #fffdf9;
+}
+.role-checkbox .el-checkbox.is-checked {
+  border-color: rgba(58, 110, 165, 0.5);
+  background: rgba(58, 110, 165, 0.06);
+}
+.rc-name {
+  font-size: 13px;
+  color: #2c3140;
+  font-weight: 500;
+}
+.rc-key {
+  font-size: 11.5px;
+  color: #b3a583;
+  margin-left: 6px;
 }
 </style>

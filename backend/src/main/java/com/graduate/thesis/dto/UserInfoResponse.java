@@ -6,17 +6,16 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 登录响应
+ * 当前用户权限信息(登录后/刷新页面时获取)
  */
 @Data
-public class LoginResponse {
+public class UserInfoResponse {
 
-    private String token;
     private Long userId;
     private String username;
     private String nickname;
     private String email;
-    /** 主角色: USER / ADMIN (兼容旧前端判断) */
+    /** 主角色: USER / ADMIN */
     private String role;
     /** 角色权限字符串列表(RBAC) */
     private List<String> roles;

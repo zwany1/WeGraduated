@@ -327,6 +327,13 @@ const avatarText = computed(() => (userName.value || 'U').slice(0, 1).toUpperCas
 onMounted(async () => {
   isLoggedIn.value = !!localStorage.getItem('token')
   isAdmin.value = localStorage.getItem('role') === 'ADMIN'
+  // 非超管但被授予后台菜单/权限时也可进入管理后台
+  if (!isAdmin.value) {
+    try {
+      const menus = JSON.parse(localStorage.getItem('menus') || '[]')
+      if (menus.length > 0) isAdmin.value = true
+    } catch (e) {}
+  }
   userName.value = localStorage.getItem('username') || '用户'
   userAvatar.value = localStorage.getItem('avatar') || ''
   // 已登录时以数据库为准同步昵称/头像; token 失效则清除本地状态
@@ -350,6 +357,9 @@ onMounted(async () => {
       localStorage.removeItem('username')
       localStorage.removeItem('avatar')
       localStorage.removeItem('role')
+      localStorage.removeItem('roles')
+      localStorage.removeItem('perms')
+      localStorage.removeItem('menus')
     }
   }
 })

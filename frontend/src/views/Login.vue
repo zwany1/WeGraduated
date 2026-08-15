@@ -140,6 +140,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { login, getProfile } from '../api/user'
 import { generateCaptcha } from '../api/captcha'
+import { getMenus } from '../api/admin'
 import AnimatedCharacters from '../components/auth/AnimatedCharacters.vue'
 
 // ===== 登录页状态 =====
@@ -210,6 +211,8 @@ async function submit() {
     localStorage.setItem('userId', data.userId)
     localStorage.setItem('username', data.username)
     localStorage.setItem('role', data.role || 'USER')
+    localStorage.setItem('roles', JSON.stringify(data.roles || []))
+    localStorage.setItem('perms', JSON.stringify(data.perms || []))
     try {
       const p = await getProfile()
       if (p) {
@@ -217,6 +220,12 @@ async function submit() {
         localStorage.setItem('avatar', p.avatar || '')
       }
     } catch (e) {}
+    try {
+      const menus = await getMenus()
+      localStorage.setItem('menus', JSON.stringify(menus || []))
+    } catch (e) {
+      localStorage.removeItem('menus')
+    }
     if (rememberMe.value) {
       localStorage.setItem('remembered_user', form.username.trim())
       localStorage.setItem('remembered_pwd', btoa(encodeURIComponent(form.password)))

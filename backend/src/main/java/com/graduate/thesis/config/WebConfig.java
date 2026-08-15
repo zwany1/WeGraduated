@@ -14,13 +14,16 @@ public class WebConfig implements WebMvcConfigurer {
 
     private final LoginInterceptor loginInterceptor;
     private final AdminInterceptor adminInterceptor;
+    private final PermInterceptor permInterceptor;
     private final String[] allowedOrigins;
 
     public WebConfig(LoginInterceptor loginInterceptor,
                      AdminInterceptor adminInterceptor,
+                     PermInterceptor permInterceptor,
                      @Value("${thesis.cors.allowed-origins}") String allowedOrigins) {
         this.loginInterceptor = loginInterceptor;
         this.adminInterceptor = adminInterceptor;
+        this.permInterceptor = permInterceptor;
         this.allowedOrigins = allowedOrigins.split(",");
     }
 
@@ -50,5 +53,7 @@ public class WebConfig implements WebMvcConfigurer {
                 );
         registry.addInterceptor(adminInterceptor)
                 .addPathPatterns("/admin/**");
+        registry.addInterceptor(permInterceptor)
+                .addPathPatterns("/**");
     }
 }

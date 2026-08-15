@@ -24,6 +24,8 @@
       </div>
     </header>
 
+    <MermaidExportDialog ref="mmdDlg" />
+
     <main class="body">
       <section class="input-panel">
         <!-- 架构图: 结构化配置表单 -->
@@ -387,7 +389,7 @@ import { DagreLayout } from '@antv/layout'
 import html2canvas from 'html2canvas'
 import { generateDiagram, saveDiagram } from '../api/diagram'
 import { toMermaid } from '../utils/mermaid'
-import { downloadText, copyText } from '../utils/download'
+import MermaidExportDialog from '../components/MermaidExportDialog.vue'
 
 // 注册数据库圆柱形状
 Graph.registerNode('db', {
@@ -495,6 +497,7 @@ Graph.registerNode('activityEnd', {
 let graph = null
 const container = ref(null)
 const archRef = ref(null)
+const mmdDlg = ref(null)
 const type = ref('SWIMLANE')
 const description = ref('')
 const generating = ref(false)
@@ -1426,7 +1429,7 @@ async function downloadSvg() {
   URL.revokeObjectURL(url)
 }
 
-/** 导出当前图为 Mermaid 文本(下载 .mmd) */
+/** 导出当前图为 Mermaid(打开预览弹窗, 支持复制/下载) */
 function exportMermaid() {
   let mmd = ''
   switch (type.value) {
@@ -1439,8 +1442,7 @@ function exportMermaid() {
     case 'CLASS': mmd = toMermaid('CLASS', clsConfig.value); break
     default: ElMessage.warning('暂不支持导出该类型'); return
   }
-  downloadText(mmd, type.value.toLowerCase() + '.mmd')
-  ElMessage.success('Mermaid 已导出')
+  mmdDlg.value.open(mmd, type.value.toLowerCase() + '.mmd')
 }
 
 async function downloadPng() {

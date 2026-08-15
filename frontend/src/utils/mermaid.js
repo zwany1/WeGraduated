@@ -8,25 +8,24 @@ const esc = s => String(s == null ? '' : s)
 const label = s => '["' + esc(s) + '"]'
 const decision = s => '{"' + esc(s) + '"}'
 
-// ===== 架构图 → flowchart(层=subgraph) =====
+// ===== 架构图 → flowchart(层=subgraph, 层间依赖连接) =====
 export function archToMermaid(config) {
   const c = config || {}
   const lines = ['flowchart TB']
-  ;(c.layers || []).forEach((layer, li) => {
+  const layers = (c.layers || []).filter(l => l.name)
+  layers.forEach((layer, li) => {
     const comps = (layer.components || []).map(cp => cp.name).filter(Boolean)
-    if (!layer.name) return
     lines.push(`  subgraph L${li}["${esc(layer.name)}"]`)
     comps.forEach((name, ci) => lines.push(`    C${li}_${ci}${label(name)}`))
-    if (comps.length > 1) {
-      lines.push(`    C${li}_0 --> C${li}_${comps.length - 1}`)
-    }
     lines.push('  end')
   })
-  // 层间连接(自下而上示意)
-  for (let i = 0; i < (c.layers || []).length - 1; i++) {
-    const a = (c.layers[i].components || [])[0]
-    const b = (c.layers[i + 1].components || [])[0]
-    if (a && b) lines.push(`  C${i}_0 --> C${i + 1}_0`)
+  // 层间依赖: 每层组件指向下一层(分层架构的调用/依赖关系)
+  for (let i = 0; i < layers.length - 1; i++) {
+    const upper = (layers[i].components || []).map(cp => cp.name).filter(Boolean)
+    const lower = (layers[i + 1].components || []).map(cp => cp.name).filter(Boolean)
+    upper.forEach((_, u) => {
+      lower.forEach((__, d) => lines.push(`  C${i}_${u} --> C${i + 1}_${d}`))
+    })
   }
   return lines.join('\n')
 }
@@ -35,7 +34,7 @@ export function archToMermaid(config) {
 export function swimToMermaid(swim) {
   const c = swim || {}
   const lines = ['flowchart LR']
-  const idOf = nodeId => 'N_' + esc(nodeId)
+  const idOf = nodeId => 'N_' + String(nodeId).replace(/[^A-Za-z0-9]/g, '_')
   ;(c.lanes || []).forEach((lane, li) => {
     const nodes = (lane.nodes || []).filter(n => n.name)
     if (!lane.name) return
@@ -45,7 +44,8 @@ export function swimToMermaid(swim) {
   })
   ;(c.edges || []).forEach(e => {
     if (!e.source || !e.target) return
-    lines.push(`  ${idOf(e.source)} --> ${e.target === e.source ? idOf(e.target) : idOf(e.target)}${e.label ? '|' + esc(e.label) + '|' : ''}`)
+    const src = idOf(e.source), tgt = idOf(e.target)
+    lines.push(`  ${src} -->${e.label ? '|' + esc(e.label) + '|' : ''} ${tgt}`)
   })
   return lines.join('\n')
 }
@@ -153,7 +153,8 @@ export function erToMermaid(entities, relations) {
     enId[e.name] = id
     lines.push(`  ${id} {`)
     ;(e.attrs || []).filter(a => a.name).forEach(a => {
-      lines.push(`    ${esc(a.name)} ${a.key ? 'PK' : ''}`)
+      // Mermaid erDiagram 属性行语法: <类型> <名称> [PK]
+      lines.push(`    string ${esc(a.name)}${a.key ? ' PK' : ''}`)
     })
     lines.push('  }')
   })
@@ -194,31 +195,38 @@ export function flowToMermaid(dsl) {
   }
 
   // 顺序渲染一段节点: prev 为入口, firstLabel 用于第一个子节点从入口连出的分支标签
+  // 结构: if 的缩进子块为"是"分支; if 之后的兄弟 else 及其缩进子块为"否"分支
   const renderSeq = (nodes, prev, firstLabel) => {
     let p = prev
     let isFirst = true
-    nodes.forEach(n => {
+    let i = 0
+    while (i < nodes.length) {
+      const n = nodes[i]
       const arrow = (isFirst && firstLabel) ? ` -- ${firstLabel} --> ` : ' --> '
       if (isIf(n.text)) {
         const id = nid()
         const cond = n.text.replace(/^if\s*\(/, '').replace(/\)\s*$/, '').trim() || n.text
         out.push(`  ${id}${decision(cond)}`)
         if (p) out.push(`  ${p}${arrow}${id}`)
-        const children = n.children || []
-        const ei = children.findIndex(c => isElse(c.text))
-        const then = ei >= 0 ? children.slice(0, ei) : children
-        const els = ei >= 0 ? children.slice(ei + 1) : []
+        const then = n.children || []
+        const next = nodes[i + 1]
+        const hasElse = next && isElse(next.text)
+        const els = hasElse ? (next.children || []) : []
         renderSeq(then, id, '是')
         if (els.length) renderSeq(els, id, '否')
         p = null
+        i += hasElse ? 2 : 1
       } else if (!isElse(n.text)) {
         const id = nid()
         out.push(`  ${id}${label(n.text)}`)
         if (p) out.push(`  ${p}${arrow}${id}`)
         p = id
+        i++
+      } else {
+        i++ // 孤立 else(前面无 if): 其子块由外层已处理
       }
       isFirst = false
-    })
+    }
     return p
   }
 

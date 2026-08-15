@@ -31,6 +31,8 @@
         <button class="tb-btn tb-outline" @click="exportMermaid">Mermaid</button>
       </div>
 
+      <MermaidExportDialog ref="mmdDlg" />
+
       <div class="editor-body">
         <!-- 左侧图形库 -->
         <aside class="palette">
@@ -152,7 +154,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Graph } from '@antv/x6'
 import { saveDiagram, listDiagrams, loadDiagram, deleteDiagram } from '../api/diagram'
 import { toMermaid } from '../utils/mermaid'
-import { downloadText } from '../utils/download'
+import MermaidExportDialog from './MermaidExportDialog.vue'
 
 const router = useRouter()
 function goBack() {
@@ -161,6 +163,7 @@ function goBack() {
 
 const containerRef = ref(null)
 const graph = ref(null)
+const mmdDlg = ref(null)
 const tool = ref('select')
 const current = ref(null)
 const currentLabel = ref('')
@@ -961,14 +964,13 @@ async function downloadPng() {
   }
 }
 
-/** 导出自由绘画为 Mermaid 流程图(节点+连线) */
+/** 导出自由绘画为 Mermaid(打开预览弹窗) */
 function exportMermaid() {
   if (!graph.value) return
   const cells = graph.value.toJSON().cells || []
   const nodeCount = cells.filter(c => !c.shape || (!c.isEdge && !String(c.shape).startsWith('edge'))).length
   const mmd = toMermaid('FREEDRAW', cells)
-  downloadText(mmd, 'free-draw.mmd')
-  ElMessage.success(`Mermaid 已导出（${nodeCount} 个节点）`)
+  mmdDlg.value.open(mmd, 'free-draw.mmd')
 }
 
 onMounted(() => {

@@ -13,6 +13,8 @@
       </div>
     </header>
 
+    <MermaidExportDialog ref="mmdDlg" />
+
     <main class="content">
       <section class="panel left">
         <h3>实体定义</h3>
@@ -108,9 +110,10 @@ import { Graph } from '@antv/x6'
 import { getErGraph, saveErLayout, loadErLayout } from '../api/er'
 import { validateEr } from '../utils/erValidate'
 import { toMermaid } from '../utils/mermaid'
-import { downloadText } from '../utils/download'
+import MermaidExportDialog from '../components/MermaidExportDialog.vue'
 
 let graph = null
+const mmdDlg = ref(null)
 
 const entities = ref([
   {
@@ -217,11 +220,10 @@ function resetExample() {
   graphReady.value = false
 }
 
-/** 导出 ER 图为 Mermaid(下载 .mmd) */
+/** 导出 ER 图为 Mermaid(打开预览弹窗) */
 function exportMermaid() {
   const mmd = toMermaid('ER', entities.value, relations.value)
-  downloadText(mmd, 'er-diagram.mmd')
-  ElMessage.success('Mermaid 已导出')
+  mmdDlg.value.open(mmd, 'er-diagram.mmd')
 }
 
 async function render() {

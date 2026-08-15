@@ -152,8 +152,11 @@ public class TemplateService {
 
     public FormatTemplate getOwned(Long templateId, Long userId) {
         FormatTemplate template = templateMapper.selectById(templateId);
-        if (template == null || !template.getUserId().equals(userId)) {
-            throw new BusinessException(404, "模板不存在");
+        if (template == null) {
+            throw new BusinessException(404, "模板不存在或已被删除");
+        }
+        if (!template.getUserId().equals(userId)) {
+            throw new BusinessException(403, "无权访问该模板（模板不属于当前账号）");
         }
         return template;
     }

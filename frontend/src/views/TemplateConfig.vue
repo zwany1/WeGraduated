@@ -417,7 +417,8 @@ async function loadConfig() {
       }
     })
   } catch (e) {
-    ElMessage.warning('配置加载失败，请确认模板存在且有权限访问')
+    // 具体原因由 api 拦截器提示(如 模板不存在 / 无权访问该模板), 这里不重复覆盖
+    console.error('配置加载失败', e)
   }
 }
 
@@ -430,19 +431,31 @@ watch(() => route.params.id, () => {
 async function saveAll() {
   const currentId = Number(route.params.id)
   saving.value = true
+  let failed = 0
+  // 页面/标题/参考文献: 逐项保存, 单项失败不中断
   try {
     await savePageConfig(currentId, JSON.stringify(page))
+  } catch (e) { failed++; console.error('保存页面设置失败', e) }
+  try {
     await saveHeadingPatterns(currentId, { ...headingPatterns })
+  } catch (e) { failed++; console.error('保存标题规则失败', e) }
+  try {
     await saveReferenceConfig(currentId, { ...refConfig })
-    for (const key of Object.keys(rules)) {
-      const r = { ...rules[key], templateId: currentId }
-      await saveRule(r)
+  } catch (e) { failed++; console.error('保存参考文献配置失败', e) }
+  // 格式规则(标题/正文/图表): 逐条保存, 某条失败不影响其余
+  for (const key of Object.keys(rules)) {
+    try {
+      await saveRule({ ...rules[key], templateId: currentId })
+    } catch (e) {
+      failed++
+      console.error('保存规则失败', key, e)
     }
+  }
+  saving.value = false
+  if (failed > 0) {
+    ElMessage.error(`有 ${failed} 项配置保存失败，请重试；已成功的配置已保存`)
+  } else {
     ElMessage.success('配置保存成功')
-  } catch (e) {
-    ElMessage.error('保存失败：' + (e.message || '网络错误'))
-  } finally {
-    saving.value = false
   }
 }
 </script>

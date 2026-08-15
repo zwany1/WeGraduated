@@ -8,6 +8,7 @@
       <div class="actions">
         <el-button @click="resetExample">重置示例</el-button>
         <el-button :disabled="!graphReady" @click="saveLayout">保存布局</el-button>
+        <el-button type="success" plain @click="exportMermaid">Mermaid</el-button>
         <el-button type="primary" :loading="rendering" @click="render">生成 ER 图</el-button>
       </div>
     </header>
@@ -106,6 +107,8 @@ import { ElMessage } from 'element-plus'
 import { Graph } from '@antv/x6'
 import { getErGraph, saveErLayout, loadErLayout } from '../api/er'
 import { validateEr } from '../utils/erValidate'
+import { toMermaid } from '../utils/mermaid'
+import { downloadText } from '../utils/download'
 
 let graph = null
 
@@ -212,6 +215,13 @@ function resetExample() {
   ]
   fontSize.value = 12
   graphReady.value = false
+}
+
+/** 导出 ER 图为 Mermaid(下载 .mmd) */
+function exportMermaid() {
+  const mmd = toMermaid('ER', entities.value, relations.value)
+  downloadText(mmd, 'er-diagram.mmd')
+  ElMessage.success('Mermaid 已导出')
 }
 
 async function render() {

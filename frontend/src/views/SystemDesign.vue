@@ -20,6 +20,7 @@
         <el-button size="small" :disabled="!graphReady" @click="save">保存</el-button>
         <el-button size="small" plain :disabled="!graphReady" @click="downloadSvg">SVG</el-button>
         <el-button size="small" type="primary" plain :disabled="!graphReady" @click="downloadPng">导出 PNG</el-button>
+        <el-button size="small" type="success" plain @click="exportMermaid">Mermaid</el-button>
       </div>
     </header>
 
@@ -385,6 +386,8 @@ import { Graph } from '@antv/x6'
 import { DagreLayout } from '@antv/layout'
 import html2canvas from 'html2canvas'
 import { generateDiagram, saveDiagram } from '../api/diagram'
+import { toMermaid } from '../utils/mermaid'
+import { downloadText, copyText } from '../utils/download'
 
 // 注册数据库圆柱形状
 Graph.registerNode('db', {
@@ -1421,6 +1424,23 @@ async function downloadSvg() {
   a.download = '系统图.svg'
   a.click()
   URL.revokeObjectURL(url)
+}
+
+/** 导出当前图为 Mermaid 文本(下载 .mmd) */
+function exportMermaid() {
+  let mmd = ''
+  switch (type.value) {
+    case 'ARCH': mmd = toMermaid('ARCH', config.value); break
+    case 'FLOW': mmd = toMermaid('FLOW', description.value); break
+    case 'SWIMLANE': mmd = toMermaid('SWIMLANE', swimConfig.value); break
+    case 'ACTIVITY': mmd = toMermaid('ACTIVITY', actConfig.value); break
+    case 'USECASE': mmd = toMermaid('USECASE', ucConfig.value); break
+    case 'SEQUENCE': mmd = toMermaid('SEQUENCE', seqConfig.value); break
+    case 'CLASS': mmd = toMermaid('CLASS', clsConfig.value); break
+    default: ElMessage.warning('暂不支持导出该类型'); return
+  }
+  downloadText(mmd, type.value.toLowerCase() + '.mmd')
+  ElMessage.success('Mermaid 已导出')
 }
 
 async function downloadPng() {

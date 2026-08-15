@@ -28,6 +28,7 @@
         <span class="tb-sep"></span>
         <button class="tb-btn tb-primary" @click="save">保存</button>
         <button class="tb-btn tb-outline" @click="downloadPng">导出 PNG</button>
+        <button class="tb-btn tb-outline" @click="exportMermaid">Mermaid</button>
       </div>
 
       <div class="editor-body">
@@ -150,6 +151,8 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Graph } from '@antv/x6'
 import { saveDiagram, listDiagrams, loadDiagram, deleteDiagram } from '../api/diagram'
+import { toMermaid } from '../utils/mermaid'
+import { downloadText } from '../utils/download'
 
 const router = useRouter()
 function goBack() {
@@ -956,6 +959,16 @@ async function downloadPng() {
   } catch (e) {
     ElMessage.error('导出失败')
   }
+}
+
+/** 导出自由绘画为 Mermaid 流程图(节点+连线) */
+function exportMermaid() {
+  if (!graph.value) return
+  const cells = graph.value.toJSON().cells || []
+  const nodeCount = cells.filter(c => !c.shape || (!c.isEdge && !String(c.shape).startsWith('edge'))).length
+  const mmd = toMermaid('FREEDRAW', cells)
+  downloadText(mmd, 'free-draw.mmd')
+  ElMessage.success(`Mermaid 已导出（${nodeCount} 个节点）`)
 }
 
 onMounted(() => {

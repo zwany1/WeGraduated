@@ -91,9 +91,10 @@ public class PaperService {
         task.setTemplateId(dto.getTemplateId());
         task.setStatus(FormatTask.STATUS_PENDING);
         task.setProgress(0);
+        task.setRetryCount(0);
         task.setCreateTime(LocalDateTime.now());
         taskMapper.insert(task);
-        self.runFormat(task.getId());
+        // 任务入队: 由 TaskScheduler 按并发上限从队列派发执行, 不再直接异步执行
         return task;
     }
 
@@ -113,6 +114,10 @@ public class PaperService {
                     templateService.getOwned(task.getTemplateId(), task.getUserId()),
                     templateService.listRules(task.getTemplateId()));
             File source = storageService.load(paperFile.getStoredPath());
+            // 超大文档保护: 超过阈值直接失败, 避免长时间占用内存/CPU
+            if (source.length() > 40L * 1024 * 1024) {
+                throw new BusinessException(400, "文档过大(超过 40MB)，请拆分后重新上传");
+            }
 
             File result = formatEngine.format(source, ruleSet, progress -> {
                 task.setProgress(progress);

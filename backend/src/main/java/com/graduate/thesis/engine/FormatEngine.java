@@ -49,6 +49,10 @@ public class FormatEngine {
         // 放宽 ZIP 压缩比限制: 论文可能内嵌字体(odttf), 压缩率极高被误判为炸弹
         ZipSecureFile.setMinInflateRatio(0.001);
         try (XWPFDocument doc = new XWPFDocument(new FileInputStream(source))) {
+            // 超大文档保护: 段落数过多说明文档极其复杂, 避免排版时间过长/内存溢出
+            if (doc.getParagraphs().size() > 8000) {
+                throw new BusinessException(400, "文档内容过多(超过 8000 段)，请拆分后重试");
+            }
             progress.accept(10);
 
             List<DocItem> items = structureDetector.detect(doc, ruleSet);

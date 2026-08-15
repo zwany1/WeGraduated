@@ -24,6 +24,14 @@ public class StructureDetector {
     private static final Pattern SECTION_TITLE = Pattern.compile(
             "^谢\\s*辞\\s*$|^参考文献\\s*$|^附\\s*录\\s*$");
 
+    // ===== 内置一级章节标题识别(不依赖文档样式与模板正则, 自动匹配"第一章"作为排版起点) =====
+    /** 第一章 绪论 / 第二章 … */
+    private static final Pattern CN_CHAPTER = Pattern.compile("^第[一二三四五六七八九十百千]+章\\s*.*");
+    /** 1 绪论 / 1、绪论 / 1. 绪论 (数字+分隔符+中文/字母, 且整行简短) */
+    private static final Pattern NUM_CHAPTER = Pattern.compile("^\\d{1,2}[\\s、．.]\\s*[\\u4e00-\\u9fa5A-Za-z].*");
+    /** 一、绪论 / 一 绪论 (中文数字序号+分隔符+中文) */
+    private static final Pattern CN_NUM_CHAPTER = Pattern.compile("^[一二三四五六七八九十]{1,3}[、．.]\\s*[\\u4e00-\\u9fa5].*");
+
     /**
      * 识别文档结构
      */
@@ -121,6 +129,23 @@ public class StructureDetector {
         if (containsImage && !isCaption(text)) {
             return ParagraphKind.IMAGE;
         }
+        // 前置/固定章节标题优先于样式判断: 避免"摘 要/Abstract/谢辞/参考文献"等带 Heading 样式的标题
+        // 被误判成正文一级标题, 导致第一章之前的封面/摘要/目录被当作正文排版
+        if (ABSTRACT_TITLE.matcher(text).matches()) {
+            return ParagraphKind.ABSTRACT_TITLE;
+        }
+        if (KEYWORDS.matcher(text).matches()) {
+            return ParagraphKind.KEYWORDS;
+        }
+        if (EN_TITLE.matcher(text).matches()) {
+            return ParagraphKind.EN_TITLE;
+        }
+        if (EN_KEYWORDS.matcher(text).matches()) {
+            return ParagraphKind.EN_KEYWORDS;
+        }
+        if (SECTION_TITLE.matcher(text).matches()) {
+            return ParagraphKind.SECTION_TITLE;
+        }
         // 样式标题优先: 标准 heading 样式是最可靠的章节信号
         int styleLevel = headingLevelByStyle(paragraph);
         if (styleLevel == 1) {
@@ -141,21 +166,9 @@ public class StructureDetector {
             return ParagraphKind.HEADING2;
         } else if (ruleSet.getHeading1Pattern().matcher(text).matches()) {
             return ParagraphKind.HEADING1;
-        }
-        if (ABSTRACT_TITLE.matcher(text).matches()) {
-            return ParagraphKind.ABSTRACT_TITLE;
-        }
-        if (KEYWORDS.matcher(text).matches()) {
-            return ParagraphKind.KEYWORDS;
-        }
-        if (EN_TITLE.matcher(text).matches()) {
-            return ParagraphKind.EN_TITLE;
-        }
-        if (EN_KEYWORDS.matcher(text).matches()) {
-            return ParagraphKind.EN_KEYWORDS;
-        }
-        if (SECTION_TITLE.matcher(text).matches()) {
-            return ParagraphKind.SECTION_TITLE;
+        } else if (isLikelyChapterTitle(text)) {
+            // 内置自动匹配一级章节标题(第一章/1 绪论/一、绪论), 确保无论模板正则或样式如何都能找到排版起点
+            return ParagraphKind.HEADING1;
         }
         if (FIGURE_CAPTION.matcher(text).matches()) {
             return ParagraphKind.FIGURE_CAPTION;
@@ -193,5 +206,23 @@ public class StructureDetector {
             return true;
         }
         return false;
+    }
+
+    /**
+     * 内置自动识别一级章节标题: 不依赖文档样式与模板正则.
+     * 支持 "第一章 绪论" / "1 绪论" / "1、绪论" / "一、绪论" 等常见形式,
+     * 确保能找到排版起点(第一章), 其之前内容一律作为前置内容不排版.
+     */
+    private static boolean isLikelyChapterTitle(String text) {
+        if (text == null || text.isEmpty()) {
+            return false;
+        }
+        String t = text.trim();
+        if (t.length() > 40) {
+            return false;
+        }
+        return CN_CHAPTER.matcher(t).matches()
+                || NUM_CHAPTER.matcher(t).matches()
+                || CN_NUM_CHAPTER.matcher(t).matches();
     }
 }

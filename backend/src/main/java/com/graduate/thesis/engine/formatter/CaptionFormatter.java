@@ -30,6 +30,10 @@ public class CaptionFormatter {
 
     private static final Pattern FIGURE_CAPTION = Pattern.compile("^图\\s*\\d+([-．.]\\d+)?\\s*(.*)");
     private static final Pattern TABLE_CAPTION = Pattern.compile("^表\\s*\\d+([-．.]\\d+)?\\s*(.*)");
+    // 内置一级章节标题识别(与 StructureDetector 一致, 用于表格题注章节号追踪)
+    private static final Pattern CN_CHAPTER = Pattern.compile("^第[一二三四五六七八九十百千]+章\\s*.*");
+    private static final Pattern NUM_CHAPTER = Pattern.compile("^\\d{1,2}[\\s、．.]\\s*[\\u4e00-\\u9fa5A-Za-z].*");
+    private static final Pattern CN_NUM_CHAPTER = Pattern.compile("^[一二三四五六七八九十]{1,3}[、．.]\\s*[\\u4e00-\\u9fa5].*");
 
     public void apply(XWPFDocument doc, List<DocItem> items, RuleSet ruleSet) {
         Map<XWPFParagraph, DocItem> byParagraph = new HashMap<>();
@@ -281,7 +285,7 @@ public class CaptionFormatter {
     }
 
     /**
-     * 是否一级标题: 样式一级, 或文本匹配一级标题正则(排除日期/年份等非标题)
+     * 是否一级标题: 样式一级, 或文本匹配一级标题正则/内置章节识别(排除日期/年份等非标题)
      */
     private static boolean isHeading1(XWPFParagraph p, String text, RuleSet ruleSet) {
         if (headingLevel(p) == 1) {
@@ -294,7 +298,24 @@ public class CaptionFormatter {
         if (isDateLike(text)) {
             return false;
         }
-        return ruleSet.getHeading1Pattern().matcher(text).matches();
+        if (ruleSet.getHeading1Pattern().matcher(text).matches()) {
+            return true;
+        }
+        return isLikelyChapterTitle(text);
+    }
+
+    /** 内置自动识别一级章节标题(第一章/1 绪论/一、绪论) */
+    private static boolean isLikelyChapterTitle(String text) {
+        if (text == null || text.isEmpty()) {
+            return false;
+        }
+        String t = text.trim();
+        if (t.length() > 40) {
+            return false;
+        }
+        return CN_CHAPTER.matcher(t).matches()
+                || NUM_CHAPTER.matcher(t).matches()
+                || CN_NUM_CHAPTER.matcher(t).matches();
     }
 
     /**

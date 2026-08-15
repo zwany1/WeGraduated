@@ -126,11 +126,11 @@ public class FormatEngine {
             }
         }
 
-        // 第二遍: 移除空段落(含分页符/图片的除外)
+        // 第二遍: 移除空段落(含分页符/图片/前置内容的除外, 第一章前保持原样)
         List<org.apache.poi.xwpf.usermodel.IBodyElement> bodyElements = doc.getBodyElements();
         for (int i = items.size() - 1; i >= 0; i--) {
             DocItem item = items.get(i);
-            if (item.getKind() == ParagraphKind.EMPTY) {
+            if (item.getKind() == ParagraphKind.EMPTY && !item.isFrontMatter()) {
                 String pXml = item.getParagraph().getCTP().xmlText();
                 if (pXml.contains("<w:br") || pXml.contains("<w:drawing")) continue;
                 int pos = bodyElements.indexOf(item.getParagraph());

@@ -1463,6 +1463,7 @@ const tools = [
   gap: 8px;
   white-space: nowrap;
   min-width: 0;
+  cursor: pointer;
 }
 .notice-detail-meta {
   display: flex;

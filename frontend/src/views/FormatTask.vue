@@ -328,7 +328,7 @@ onBeforeUnmount(() => {
   sseMap.clear()
 })
 
-function onFileChange(file) {
+function onFileChange(file, uploadFiles) {
   if (file.name && !/\.(docx|doc)$/i.test(file.name)) {
     ElMessage.error('仅支持 .docx / .doc 文件')
     fileList.value = fileList.value.filter(f => f.uid !== file.uid)
@@ -336,12 +336,16 @@ function onFileChange(file) {
   }
   const raw = file.raw || file
   selectedFile.value = raw
-  selectedFiles.value = fileList.value.map(f => f.raw || f)
+  // el-upload 的 :file-list 为单向绑定, 需用回调传入的最新文件列表
+  const files = uploadFiles || fileList.value
+  fileList.value = files
+  selectedFiles.value = files.map(f => f.raw || f)
 }
 
-function onFileRemove(file) {
-  fileList.value = fileList.value.filter(f => f.uid !== file.uid)
-  selectedFiles.value = fileList.value.map(f => f.raw || f)
+function onFileRemove(file, uploadFiles) {
+  const files = uploadFiles || fileList.value
+  fileList.value = files
+  selectedFiles.value = files.map(f => f.raw || f)
 }
 
 async function submit() {

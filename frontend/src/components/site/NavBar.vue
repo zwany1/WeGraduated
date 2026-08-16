@@ -9,7 +9,7 @@
         <span class="ai-badge">AI</span>
       </div>
       <div class="nav-links">
-        <a v-for="l in links" :key="l.path" class="nav-link" :class="{ active: isActive(l.path) }" @click="go(l.path)">{{ l.label }}</a>
+        <a v-for="l in visibleLinks" :key="l.path" class="nav-link" :class="{ active: isActive(l.path) }" @click="go(l.path)">{{ l.label }}</a>
       </div>
       <div class="nav-actions">
         <template v-if="isLoggedIn">
@@ -48,10 +48,13 @@ const links = [
   { label: '首页', path: '/home' },
   { label: '功能', path: '/features' },
   { label: '模板', path: '/template-market' },
+  { label: '团队协作', path: '/team', needLogin: true },
   { label: '使用教程', path: '/guide' },
   { label: '案例', path: '/cases' },
   { label: '价格', path: '/pricing' }
 ]
+
+const visibleLinks = computed(() => links.filter(l => !l.needLogin || isLoggedIn.value))
 
 const isLoggedIn = ref(false)
 const userName = ref('')

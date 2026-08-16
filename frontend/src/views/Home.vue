@@ -15,6 +15,7 @@
           <a class="nav-link active" @click="goPage('/home')">首页</a>
           <a class="nav-link" @click="goPage('/features')">功能</a>
           <a class="nav-link" @click="goPage('/template-market')">模板</a>
+          <a v-if="isLoggedIn" class="nav-link team-link" @click="goPage('/team')">团队协作</a>
           <a class="nav-link" @click="goPage('/guide')">使用教程</a>
           <a class="nav-link" @click="goPage('/cases')">案例</a>
           <a class="nav-link" @click="goPage('/pricing')">价格</a>

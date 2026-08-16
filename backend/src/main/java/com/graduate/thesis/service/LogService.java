@@ -12,6 +12,8 @@ import com.graduate.thesis.mapper.LoginLogMapper;
 import com.graduate.thesis.mapper.OperLogMapper;
 import com.graduate.thesis.mapper.UserMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -44,6 +46,8 @@ public class LogService {
 
     // ==================== 操作日志 ====================
 
+    /** 操作日志独立事务: 任何日志写入问题都不影响主业务(事务回滚也不会拖累主操作) */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordOper(Long userId, String module, String action, String method,
                            String params, boolean success, String errorMsg, long costMs) {
         try {
@@ -93,6 +97,8 @@ public class LogService {
 
     // ==================== 登录日志 ====================
 
+    /** 登录日志独立事务 */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordLogin(Long userId, String username, boolean success, String message) {
         try {
             LoginLog log = new LoginLog();

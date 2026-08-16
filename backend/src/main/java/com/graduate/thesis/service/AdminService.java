@@ -544,7 +544,7 @@ public class AdminService {
     public void setMarketTemplate(Long id, Boolean isPublic, Boolean recommended) {
         FormatTemplate template = templateMapper.selectById(id);
         if (template == null) {
-            throw new BusinessException(404, "模板不存在");
+            throw new BusinessException(404, "模板不存在或已被删除");
         }
         if (isPublic != null) {
             template.setIsPublic(isPublic);
@@ -559,7 +559,17 @@ public class AdminService {
             template.setRecommended(recommended);
         }
         template.setUpdateTime(LocalDateTime.now());
-        templateMapper.updateById(template);
+        try {
+            int rows = templateMapper.updateById(template);
+            if (rows == 0) {
+                // 并发下模板可能已被删除/变更, 返回可重试的明确错误而非 500
+                throw new BusinessException(409, "模板状态已变更，请刷新后重试");
+            }
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new BusinessException(500, "模板状态更新失败，请重试");
+        }
     }
 
     // ==================== 报表导出 ====================

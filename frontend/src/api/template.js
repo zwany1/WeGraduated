@@ -83,3 +83,11 @@ export function exportTemplate(id) {
 export function importTemplate(data) {
   return api.post('/template/import', data)
 }
+
+export function cloneTemplate(id) {
+  return api.post(`/template/${id}/clone`)
+}
+
+export function getMissingRules(id) {
+  return api.get(`/template/${id}/missing-rules`)
+}

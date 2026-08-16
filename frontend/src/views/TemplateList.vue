@@ -35,11 +35,13 @@
           <h3>
             {{ t.name }}
             <span v-if="t.teamId && teamMap[t.teamId]" class="team-badge">{{ teamMap[t.teamId].name }}</span>
+            <span v-if="missing[t.id] && missing[t.id].length" class="warn-badge" title="缺少关键规则：{{ missing[t.id].join('、') }}">缺规则</span>
           </h3>
           <p class="time">创建于 {{ formatTime(t.createTime) }}</p>
           <div class="ops">
             <el-button size="small" type="primary" @click="$router.push(`/template/${t.id}`)">配置格式</el-button>
             <el-button size="small" @click="$router.push('/tasks')">使用排版</el-button>
+            <el-button size="small" @click="clone(t)">克隆</el-button>
             <el-button size="small" type="danger" plain @click="remove(t.id)">删除</el-button>
           </div>
         </div>
@@ -63,7 +65,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { listTemplates, createTemplate, deleteTemplate, importTemplate } from '../api/template'
+import { listTemplates, createTemplate, deleteTemplate, importTemplate, cloneTemplate, getMissingRules } from '../api/template'
 import { getProfile, logout } from '../api/user'
 import { listTeams } from '../api/team'
 
@@ -76,6 +78,7 @@ const creating = ref(false)
 const importInput = ref(null)
 const teams = ref([])
 const teamMap = ref({})
+const missing = ref({})
 const nickname = ref(localStorage.getItem('username') || '用户')
 const userAvatar = ref(localStorage.getItem('avatar') || '')
 
@@ -121,6 +124,24 @@ async function onUserCommand(cmd) {
 
 async function load() {
   templates.value = await listTemplates()
+  // 并行检查每个模板的规则完整性
+  missing.value = {}
+  for (const t of templates.value) {
+    try {
+      const m = await getMissingRules(t.id)
+      if (m && m.length) missing.value[t.id] = m
+    } catch (e) {}
+  }
+}
+
+async function clone(t) {
+  try {
+    await cloneTemplate(t.id)
+    ElMessage.success('克隆成功')
+    load()
+  } catch (e) {
+    ElMessage.error(e.message || '克隆失败')
+  }
 }
 
 async function create() {
@@ -272,6 +293,15 @@ function formatTime(t) {
   font-weight: 600;
   color: #3B6BFF;
   background: #EEF1FF;
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+.warn-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #b45309;
+  background: #FEF3C7;
   border-radius: 999px;
   padding: 2px 9px;
 }

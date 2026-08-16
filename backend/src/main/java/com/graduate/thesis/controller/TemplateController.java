@@ -114,6 +114,18 @@ public class TemplateController {
         return Result.ok(templateService.exportTemplate(UserContext.get(), id));
     }
 
+    /** 克隆模板(复制配置与规则) */
+    @PostMapping("/{id}/clone")
+    public Result<FormatTemplate> cloneTemplate(@PathVariable Long id) {
+        return Result.ok(templateService.clone(UserContext.get(), id));
+    }
+
+    /** 模板规则完整性检查: 返回缺失的关键规则类型 */
+    @GetMapping("/{id}/missing-rules")
+    public Result<List<String>> missingRules(@PathVariable Long id) {
+        return Result.ok(templateService.missingRules(id, UserContext.get()));
+    }
+
     /** 导入模板(JSON, 含规则) */
     @PostMapping("/import")
     public Result<FormatTemplate> importTemplate(@RequestBody Map<String, Object> data) {

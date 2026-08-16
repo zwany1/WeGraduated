@@ -60,6 +60,7 @@
                 :stroke-width="6"
                 style="width: 120px; margin-top: 4px"
               />
+              <div v-if="row.stageText && (row.status === 'PROCESSING' || row.status === 'PENDING')" class="stage-text">{{ row.stageText }}</div>
             </template>
           </el-table-column>
           <el-table-column label="失败原因" min-width="200">
@@ -78,6 +79,7 @@
                 <el-button v-if="row.status === 'SUCCESS'" size="small" type="success" @click="compare(row)">对比</el-button>
                 <el-button v-if="row.status === 'SUCCESS'" size="small" type="primary" @click="download(row)">下载</el-button>
                 <el-button v-if="row.status === 'FAILED'" size="small" @click="retry(row)">重试</el-button>
+                <el-button v-if="row.status === 'SUCCESS' || row.status === 'FAILED'" size="small" plain @click="openRerun(row)">换模板</el-button>
               </div>
             </template>
           </el-table-column>
@@ -93,6 +95,18 @@
         <DocxCompare v-if="previewData.length" :key="'pv' + previewRenderKey" :data="previewData" />
         <el-empty v-else description="加载中..." />
       </div>
+    </el-dialog>
+
+    <!-- 换模板重排 -->
+    <el-dialog v-model="rerunVisible" title="换模板重排" width="440px">
+      <p class="rerun-tip">将用同一篇论文，按新选择的模板重新排版，生成一个新任务（原任务保留）。</p>
+      <el-select v-model="rerunTemplateId" placeholder="选择模板" style="width: 100%">
+        <el-option v-for="t in templates" :key="t.id" :label="t.name" :value="t.id" />
+      </el-select>
+      <template #footer>
+        <el-button @click="rerunVisible = false">取消</el-button>
+        <el-button type="primary" @click="doRerun">提交排版</el-button>
+      </template>
     </el-dialog>
 
     <el-dialog v-model="compareVisible" title="排版前后对比" width="94%" top="3vh" destroy-on-close @closed="onCompareClosed">
@@ -171,7 +185,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElNotification } from 'element-plus'
 import { UploadFilled, Loading } from '@element-plus/icons-vue'
 import { listTemplates } from '../api/template'
 import { listTeams } from '../api/team'
@@ -233,11 +247,19 @@ function subscribeSse(taskId) {
       if (row) {
         if (d.progress !== undefined) row.progress = d.progress
         if (d.status) row.status = d.status
+        if (d.stageText) row.stageText = d.stageText
+        if (d.error) row.errorMsg = d.error
       }
-      // 排版结束: 关闭连接并刷新列表(拿到校验摘要/错误信息)
+      // 排版结束: 关闭连接、刷新列表并弹出结果提示
       if (d.status === 'SUCCESS' || d.status === 'FAILED') {
         closeSse(taskId)
         loadTasks(true)
+        const name = row ? fileName(row) : ('任务 #' + taskId)
+        if (d.status === 'SUCCESS') {
+          ElNotification({ title: '排版完成', message: `「${name}」已排版完成，可预览或下载`, type: 'success', duration: 6000 })
+        } else {
+          ElNotification({ title: '排版失败', message: (d.error || '请重试').slice(0, 120), type: 'error', duration: 8000 })
+        }
       }
     } catch (e) {}
   })
@@ -492,6 +514,31 @@ async function retry(row) {
   }
 }
 
+// 换模板重排: 用同一篇论文按新模板生成新任务
+const rerunVisible = ref(false)
+const rerunRow = ref(null)
+const rerunTemplateId = ref(null)
+function openRerun(row) {
+  rerunRow.value = row
+  rerunTemplateId.value = row.templateId
+  rerunVisible.value = true
+}
+async function doRerun() {
+  if (!rerunTemplateId.value) {
+    ElMessage.warning('请选择模板')
+    return
+  }
+  try {
+    await startFormat(rerunRow.value.fileId, rerunTemplateId.value)
+    ElMessage.success('已提交新排版任务')
+    rerunVisible.value = false
+    await loadTasks(true)
+    startSse()
+  } catch (e) {
+    ElMessage.error('提交失败：' + (e.message || ''))
+  }
+}
+
 function fileName(row) {
   return row.originalName || (row.fileId + '.docx')
 }
@@ -546,6 +593,16 @@ function formatTime(t) {
 .file-count {
   font-size: 13px;
   color: #409eff;
+}
+.stage-text {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 2px;
+}
+.rerun-tip {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #606266;
 }
 .src-team {
   display: inline-block;

@@ -438,6 +438,66 @@ public class TemplateService {
         return m;
     }
 
+    /** 克隆模板: 复制本人/团队可见的模板(含全部配置与规则)为个人模板 */
+    @Transactional
+    public FormatTemplate clone(Long userId, Long templateId) {
+        FormatTemplate src = getOwned(templateId, userId);
+        FormatTemplate c = new FormatTemplate();
+        c.setUserId(userId);
+        c.setName(src.getName() + "（副本）");
+        c.setTeamId(src.getTeamId());
+        c.setPageConfig(src.getPageConfig());
+        c.setHeadingPatterns(src.getHeadingPatterns());
+        c.setCoverConfig(src.getCoverConfig());
+        c.setGenerateToc(src.getGenerateToc());
+        c.setReferenceConfig(src.getReferenceConfig());
+        c.setCategory(src.getCategory());
+        c.setCreateTime(LocalDateTime.now());
+        c.setUpdateTime(LocalDateTime.now());
+        templateMapper.insert(c);
+        List<FormatRule> rules = ruleMapper.selectList(new LambdaQueryWrapper<FormatRule>()
+                .eq(FormatRule::getTemplateId, templateId));
+        for (FormatRule r : rules) {
+            FormatRule nr = new FormatRule();
+            nr.setTemplateId(c.getId());
+            nr.setRuleType(r.getRuleType());
+            nr.setFont(r.getFont());
+            nr.setFontLatin(r.getFontLatin());
+            nr.setFontSize(r.getFontSize());
+            nr.setBold(r.getBold());
+            nr.setAlign(r.getAlign());
+            nr.setLineSpacing(r.getLineSpacing());
+            nr.setLineSpacingType(r.getLineSpacingType());
+            nr.setLineSpacingExact(r.getLineSpacingExact());
+            nr.setFirstLineIndent(r.getFirstLineIndent());
+            nr.setSpaceBefore(r.getSpaceBefore());
+            nr.setSpaceAfter(r.getSpaceAfter());
+            nr.setCaptionPosition(r.getCaptionPosition());
+            nr.setNumberingPattern(r.getNumberingPattern());
+            nr.setCaptionEnabled(r.getCaptionEnabled());
+            nr.setCreateTime(LocalDateTime.now());
+            nr.setUpdateTime(LocalDateTime.now());
+            ruleMapper.insert(nr);
+        }
+        return c;
+    }
+
+    /** 模板规则完整性: 返回缺失的关键规则类型(用于前端提醒) */
+    public List<String> missingRules(Long templateId, Long userId) {
+        getOwned(templateId, userId);
+        List<FormatRule> rules = ruleMapper.selectList(new LambdaQueryWrapper<FormatRule>()
+                .eq(FormatRule::getTemplateId, templateId));
+        java.util.Set<String> has = rules.stream().map(FormatRule::getRuleType).collect(Collectors.toSet());
+        List<String> missing = new ArrayList<>();
+        String[] required = {"heading1", "heading2", "body"};
+        for (String k : required) {
+            if (!has.contains(k)) {
+                missing.add(k);
+            }
+        }
+        return missing;
+    }
+
     /** 从 JSON 导入模板(含规则), 返回新模板 */
     @Transactional
     public FormatTemplate importTemplate(Long userId, Map<String, Object> data) {

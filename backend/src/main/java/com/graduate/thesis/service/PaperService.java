@@ -123,6 +123,32 @@ public class PaperService {
         return tasks;
     }
 
+    /** 失败原因人性化: 把底层异常翻译成用户能理解的话 */
+    private String friendlyFormatError(String msg) {
+        if (msg == null || msg.trim().isEmpty()) {
+            return "排版失败，请重试";
+        }
+        String m = msg;
+        if (m.contains("文档过大") || m.contains("40MB")) {
+            return m;
+        }
+        if (m.contains("图片") && (m.contains("无法") || m.contains("不支持") || m.contains("读取"))) {
+            return "文档中存在无法读取的图片，请将图片转为 JPG/PNG 后重试";
+        }
+        if (m.contains(".doc 转换") || m.contains("LibreOffice")) {
+            return "当前服务器未安装 LibreOffice，无法处理 .doc 旧格式，请上传 .docx 文件";
+        }
+        if (m.contains("document.xml") || m.contains("XWPF") || m.contains("docx4j") || m.contains("无法解析") || m.contains("不是有效的")) {
+            return "文档无法解析，请确认上传的是有效的 Word 文档(.docx)";
+        }
+        // 去掉包名/类名噪音, 截断过长
+        m = m.replaceAll("com\\.graduate\\.thesis\\.[\\w.]+", "").replaceAll("\\s+", " ").trim();
+        if (m.length() > 90) {
+            m = m.substring(0, 90) + "...";
+        }
+        return m.isEmpty() ? "排版失败，请重试" : ("排版失败：" + m);
+    }
+
     @Async
     public void runFormat(Long taskId) {
         FormatTask task = taskMapper.selectById(taskId);
@@ -132,7 +158,8 @@ public class PaperService {
         task.setStatus(FormatTask.STATUS_PROCESSING);
         task.setProgress(5);
         taskMapper.updateById(task);
-        progressService.publish(taskId, Map.of("type", "progress", "progress", 5, "status", FormatTask.STATUS_PROCESSING));
+        progressService.publish(taskId, Map.of("type", "progress", "progress", 5, "status", FormatTask.STATUS_PROCESSING,
+                "stage", "prepare", "stageText", "正在准备文档"));
         try {
             PaperFile paperFile = paperFileMapper.selectById(task.getFileId());
             RuleSet ruleSet = RuleSet.from(
@@ -147,13 +174,18 @@ public class PaperService {
             File docToFormat = source;
             String origName = paperFile.getOriginalName() == null ? "" : paperFile.getOriginalName().toLowerCase();
             if (origName.endsWith(".doc") && !origName.endsWith(".docx")) {
+                progressService.publish(taskId, Map.of("type", "progress", "progress", 8, "status", FormatTask.STATUS_PROCESSING,
+                        "stage", "convert", "stageText", "正在转换 .doc 旧格式"));
                 docToFormat = docxPdfService.convertDocToDocx(source);
             }
 
+            progressService.publish(taskId, Map.of("type", "progress", "progress", 10, "status", FormatTask.STATUS_PROCESSING,
+                    "stage", "formatting", "stageText", "正在识别标题并应用格式规则"));
             File result = formatEngine.format(docToFormat, ruleSet, progress -> {
                 task.setProgress(progress);
                 taskMapper.updateById(task);
-                progressService.publish(taskId, Map.of("type", "progress", "progress", progress, "status", FormatTask.STATUS_PROCESSING));
+                progressService.publish(taskId, Map.of("type", "progress", "progress", progress, "status", FormatTask.STATUS_PROCESSING,
+                        "stage", "formatting", "stageText", "正在应用格式规则"));
             });
             String resultPath = storageService.storeResult(task.getUserId(), result);
 
@@ -163,7 +195,8 @@ public class PaperService {
             task.setFinishTime(LocalDateTime.now());
             task.setErrorMsg(null);
             taskMapper.updateById(task);
-            progressService.publish(taskId, Map.of("type", "progress", "progress", 100, "status", FormatTask.STATUS_SUCCESS));
+            progressService.publish(taskId, Map.of("type", "progress", "progress", 100, "status", FormatTask.STATUS_SUCCESS,
+                    "stage", "done", "stageText", "排版完成"));
 
             // 转 PDF 预览缓存(失败不影响排版结果)
             try {
@@ -190,8 +223,7 @@ public class PaperService {
                 self.runFormat(taskId);
             } else {
                 task.setStatus(FormatTask.STATUS_FAILED);
-                String em = e.getMessage();
-                task.setErrorMsg(em == null ? null : (em.length() > 2000 ? em.substring(0, 2000) : em));
+                task.setErrorMsg(friendlyFormatError(e.getMessage()));
                 task.setFinishTime(LocalDateTime.now());
                 try {
                     taskMapper.updateById(task);

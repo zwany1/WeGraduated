@@ -346,6 +346,7 @@ public class UserService {
             throw new BusinessException(404, "用户不存在");
         }
         UserProfileDTO dto = new UserProfileDTO();
+        dto.setUserId(user.getId());
         dto.setUsername(user.getUsername());
         dto.setEmail(user.getEmail());
         dto.setNickname(user.getNickname());

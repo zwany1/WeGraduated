@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.validation.Valid;
@@ -43,16 +44,33 @@ public class TemplateController {
         return Result.ok(templateService.create(UserContext.get(), dto.getName()));
     }
 
-    /** 模板市场公开模板(无需登录) */
+    /** 模板市场公开模板(无需登录), 支持分类筛选与排序 */
     @GetMapping("/market/list")
-    public Result<List<Map<String, Object>>> marketList() {
-        return Result.ok(templateService.listPublicTemplates());
+    public Result<List<Map<String, Object>>> marketList(
+            @RequestParam(value = "category", required = false) String category,
+            @RequestParam(value = "sort", required = false) String sort) {
+        return Result.ok(templateService.listPublicTemplates(category, sort));
+    }
+
+    /** 模板市场分类列表(无需登录) */
+    @GetMapping("/market/categories")
+    public Result<List<String>> marketCategories() {
+        return Result.ok(templateService.listMarketCategories());
     }
 
     /** 复制公开模板到我的模板 */
     @PostMapping("/market/{id}/copy")
     public Result<FormatTemplate> copyMarket(@PathVariable Long id) {
         return Result.ok(templateService.copyPublic(UserContext.get(), id));
+    }
+
+    /** 市场模板评分(1~5) */
+    @PostMapping("/market/{id}/rate")
+    public Result<Void> rateMarket(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        Object s = body.get("score");
+        int score = s == null ? 0 : Integer.parseInt(String.valueOf(s));
+        templateService.ratePublic(UserContext.get(), id, score);
+        return Result.ok();
     }
 
     @GetMapping("/list")

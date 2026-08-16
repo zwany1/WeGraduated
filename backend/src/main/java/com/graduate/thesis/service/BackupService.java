@@ -31,15 +31,17 @@ public class BackupService {
     private final String dbPassword;
     private final Path backupDir;
     /** 最多保留备份份数 */
-    private static final int MAX_KEEP = 10;
+    private final int maxKeep;
 
     public BackupService(@Value("${spring.datasource.url}") String jdbcUrl,
                          @Value("${spring.datasource.username}") String dbUsername,
                          @Value("${spring.datasource.password}") String dbPassword,
-                         @Value("${thesis.storage.dir}") String storageDir) {
+                         @Value("${thesis.storage.dir}") String storageDir,
+                         @Value("${thesis.backup.max-keep:7}") int maxKeep) {
         this.jdbcUrl = jdbcUrl;
         this.dbUsername = dbUsername;
         this.dbPassword = dbPassword;
+        this.maxKeep = Math.max(1, maxKeep);
         this.backupDir = Paths.get(storageDir).toAbsolutePath().normalize().resolve("backup");
     }
 
@@ -136,14 +138,14 @@ public class BackupService {
         }
     }
 
-    /** 保留最近 MAX_KEEP 份, 删除更旧的 */
+    /** 保留最近 maxKeep 份, 删除更旧的(每次备份后清理, 实现定期清理) */
     private void cleanupOld() {
         File[] files = backupDir.toFile().listFiles((d, n) -> n.endsWith(".sql"));
-        if (files == null || files.length <= MAX_KEEP) {
+        if (files == null || files.length <= maxKeep) {
             return;
         }
         java.util.Arrays.sort(files, Comparator.comparingLong(File::lastModified));
-        for (int i = 0; i < files.length - MAX_KEEP; i++) {
+        for (int i = 0; i < files.length - maxKeep; i++) {
             try {
                 Files.deleteIfExists(files[i].toPath());
             } catch (Exception ignore) {

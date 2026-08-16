@@ -54,6 +54,12 @@
             <artifactId>spring-boot-starter-aop</artifactId>
         </dependency>
 
+        <!-- Spring Retry: 瞬时 DB 异常自动重试 -->
+        <dependency>
+            <groupId>org.springframework.retry</groupId>
+            <artifactId>spring-retry</artifactId>
+        </dependency>
+
         <!-- 密码加密 (仅 crypto，不引入完整 security) -->
         <dependency>
             <groupId>org.springframework.security</groupId>

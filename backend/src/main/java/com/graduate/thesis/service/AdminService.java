@@ -57,6 +57,7 @@ public class AdminService {
     private final RoleMapper roleMapper;
     private final UserRoleMapper userRoleMapper;
     private final PermissionService permissionService;
+    private final DbRetryService dbRetryService;
 
     public AdminService(UserMapper userMapper,
                         FormatTemplateMapper templateMapper,
@@ -67,7 +68,8 @@ public class AdminService {
                         JwtUtil jwtUtil,
                         RoleMapper roleMapper,
                         UserRoleMapper userRoleMapper,
-                        PermissionService permissionService) {
+                        PermissionService permissionService,
+                        DbRetryService dbRetryService) {
         this.userMapper = userMapper;
         this.templateMapper = templateMapper;
         this.ruleMapper = ruleMapper;
@@ -78,6 +80,7 @@ public class AdminService {
         this.roleMapper = roleMapper;
         this.userRoleMapper = userRoleMapper;
         this.permissionService = permissionService;
+        this.dbRetryService = dbRetryService;
     }
 
     // ==================== 概览统计 ====================
@@ -499,6 +502,10 @@ public class AdminService {
             m.put("username", usernameMap.getOrDefault(t.getUserId(), "-"));
             m.put("isPublic", Boolean.TRUE.equals(t.getIsPublic()));
             m.put("recommended", Boolean.TRUE.equals(t.getRecommended()));
+            m.put("category", t.getCategory());
+            m.put("downloadCount", t.getDownloadCount() == null ? 0 : t.getDownloadCount());
+            m.put("ratingAvg", t.getRatingAvg() == null ? 0.0 : t.getRatingAvg().doubleValue());
+            m.put("ratingCount", t.getRatingCount() == null ? 0 : t.getRatingCount());
             m.put("publicTime", t.getPublicTime());
             m.put("ruleCount", ruleMapper.selectCount(new LambdaQueryWrapper<FormatRule>()
                     .eq(FormatRule::getTemplateId, t.getId())));
@@ -527,6 +534,10 @@ public class AdminService {
         m.put("username", owner == null ? "-" : owner.getUsername());
         m.put("isPublic", Boolean.TRUE.equals(t.getIsPublic()));
         m.put("recommended", Boolean.TRUE.equals(t.getRecommended()));
+        m.put("category", t.getCategory());
+        m.put("downloadCount", t.getDownloadCount() == null ? 0 : t.getDownloadCount());
+        m.put("ratingAvg", t.getRatingAvg() == null ? 0.0 : t.getRatingAvg().doubleValue());
+        m.put("ratingCount", t.getRatingCount() == null ? 0 : t.getRatingCount());
         m.put("publicTime", t.getPublicTime());
         m.put("createTime", t.getCreateTime());
         m.put("updateTime", t.getUpdateTime());
@@ -541,8 +552,8 @@ public class AdminService {
 
     /** 上架/下架/推荐模板 */
     @Transactional
-    public void setMarketTemplate(Long id, Boolean isPublic, Boolean recommended) {
-        FormatTemplate template = templateMapper.selectById(id);
+    public void setMarketTemplate(Long id, Boolean isPublic, Boolean recommended, String category) {
+        FormatTemplate template = dbRetryService.execute(() -> templateMapper.selectById(id));
         if (template == null) {
             throw new BusinessException(404, "模板不存在或已被删除");
         }
@@ -558,10 +569,13 @@ public class AdminService {
         if (recommended != null) {
             template.setRecommended(recommended);
         }
+        if (category != null && !category.trim().isEmpty()) {
+            template.setCategory(category.trim());
+        }
         template.setUpdateTime(LocalDateTime.now());
         try {
-            int rows = templateMapper.updateById(template);
-            if (rows == 0) {
+            Integer rows = dbRetryService.execute(() -> templateMapper.updateById(template));
+            if (rows == null || rows == 0) {
                 // 并发下模板可能已被删除/变更, 返回可重试的明确错误而非 500
                 throw new BusinessException(409, "模板状态已变更，请刷新后重试");
             }

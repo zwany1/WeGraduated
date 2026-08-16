@@ -186,7 +186,8 @@ public class AdminController {
                 : Boolean.valueOf(String.valueOf(body.get("isPublic")));
         Boolean recommended = body.get("recommended") == null ? null
                 : Boolean.valueOf(String.valueOf(body.get("recommended")));
-        adminService.setMarketTemplate(id, isPublic, recommended);
+        String category = body.get("category") == null ? null : String.valueOf(body.get("category"));
+        adminService.setMarketTemplate(id, isPublic, recommended, category);
         return Result.ok();
     }
 

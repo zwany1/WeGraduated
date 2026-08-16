@@ -46,8 +46,16 @@ export function listRules(id) {
 
 // ============ 模板市场 ============
 
-export function listMarketTemplates() {
-  return api.get('/template/market/list')
+export function listMarketTemplates(params) {
+  return api.get('/template/market/list', { params })
+}
+
+export function listMarketCategories() {
+  return api.get('/template/market/categories')
+}
+
+export function rateMarketTemplate(id, score) {
+  return api.post(`/template/market/${id}/rate`, { score })
 }
 
 export function copyMarketTemplate(id) {

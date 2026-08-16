@@ -53,7 +53,11 @@ thesis:
     dir: ${STORAGE_DIR:./data/storage}
   cors:
     allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:5174}
+  scheduler:
+    interval: ${SCHEDULER_INTERVAL:1500}
+  backup:
+    max-keep: ${BACKUP_MAX_KEEP:7}
 
 logging:
   level:
-    com.graduate.thesis: debug
+    com.graduate.thesis: ${THESIS_LOG_LEVEL:info}

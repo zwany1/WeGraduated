@@ -45,6 +45,18 @@ public class FormatTemplate {
     /** 上架时间 */
     private LocalDateTime publicTime;
 
+    /** 市场分类(毕业论文/期刊论文/报告文档等) */
+    private String category;
+
+    /** 下载量(市场复制次数) */
+    private Integer downloadCount;
+
+    /** 平均评分 */
+    private java.math.BigDecimal ratingAvg;
+
+    /** 评分人数 */
+    private Integer ratingCount;
+
     private LocalDateTime createTime;
 
     private LocalDateTime updateTime;

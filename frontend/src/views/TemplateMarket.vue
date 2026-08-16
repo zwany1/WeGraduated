@@ -14,6 +14,20 @@
         <!-- 官方模板市场 -->
         <h2 class="sec-title">官方模板市场</h2>
         <p class="sec-sub">管理员精选的排版模板，一键复制使用</p>
+        <div class="filter-bar">
+          <div class="filter-left">
+            <span class="filter-label">分类</span>
+            <button class="chip" :class="{ on: category === '' }" @click="changeCategory('')">全部</button>
+            <button class="chip" v-for="c in categories" :key="c" :class="{ on: category === c }" @click="changeCategory(c)">{{ c }}</button>
+          </div>
+          <div class="filter-right">
+            <span class="filter-label">排序</span>
+            <button class="chip" :class="{ on: sort === 'recommended' }" @click="changeSort('recommended')">推荐</button>
+            <button class="chip" :class="{ on: sort === 'downloads' }" @click="changeSort('downloads')">下载量</button>
+            <button class="chip" :class="{ on: sort === 'rating' }" @click="changeSort('rating')">评分</button>
+            <button class="chip" :class="{ on: sort === 'newest' }" @click="changeSort('newest')">最新</button>
+          </div>
+        </div>
         <div v-if="marketTemplates.length" class="grid">
           <div class="card" v-for="t in marketTemplates" :key="'p'+t.id" @click="useMarket(t)">
             <div class="card-top">
@@ -23,7 +37,15 @@
               </div>
             </div>
             <h3 class="card-title">{{ t.name }}</h3>
-            <p class="card-desc">共 {{ t.ruleCount || 0 }} 条排版规则 · {{ t.recommended ? '官方推荐模板' : '精选上架模板' }}</p>
+            <p class="card-desc">共 {{ t.ruleCount || 0 }} 条排版规则 · {{ t.category || '未分类' }}</p>
+            <div class="card-stats">
+              <span class="stars" @click.stop="chooseRate(t)">
+                <span v-for="i in 5" :key="i" class="star" :class="{ filled: i <= Math.round(t.ratingAvg || 0) }">★</span>
+                <span class="score">{{ (t.ratingAvg || 0).toFixed(1) }}</span>
+                <span class="count">({{ t.ratingCount || 0 }})</span>
+              </span>
+              <span class="downloads">下载 {{ t.downloadCount || 0 }}</span>
+            </div>
             <div class="card-tags">
               <span class="tag" v-if="t.recommended">推荐</span>
               <span class="tag">一键复制</span>
@@ -31,7 +53,7 @@
             <button class="btn-use" @click.stop="useMarket(t)">使用此模板</button>
           </div>
         </div>
-        <p v-else class="empty">官方模板暂未上架，你可以先使用内置预设或创建自己的模板</p>
+        <p v-else class="empty">暂无符合条件的模板，你可以先使用内置预设或创建自己的模板</p>
 
         <!-- 预设模板 -->
         <template v-if="!marketTemplates.length">
@@ -81,12 +103,15 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import NavBar from '../components/site/NavBar.vue'
 import SiteFooter from '../components/site/SiteFooter.vue'
-import { listTemplates, createTemplate, listMarketTemplates, copyMarketTemplate } from '../api/template'
+import { listTemplates, createTemplate, listMarketTemplates, listMarketCategories, rateMarketTemplate, copyMarketTemplate } from '../api/template'
 
 const router = useRouter()
 const isLoggedIn = ref(false)
 const myTemplates = ref([])
 const marketTemplates = ref([])
+const categories = ref([])
+const category = ref('')
+const sort = ref('recommended')
 
 const presets = [
   {
@@ -117,8 +142,9 @@ const presets = [
 
 onMounted(async () => {
   try {
-    marketTemplates.value = (await listMarketTemplates()) || []
+    categories.value = (await listMarketCategories()) || []
   } catch (e) {}
+  await loadMarket()
   isLoggedIn.value = !!localStorage.getItem('token')
   if (isLoggedIn.value) {
     try {
@@ -126,6 +152,44 @@ onMounted(async () => {
     } catch (e) {}
   }
 })
+
+async function loadMarket() {
+  try {
+    marketTemplates.value = (await listMarketTemplates({ category: category.value || undefined, sort: sort.value })) || []
+  } catch (e) {
+    marketTemplates.value = []
+  }
+}
+
+function changeCategory(c) {
+  category.value = c
+  loadMarket()
+}
+
+function changeSort(s) {
+  sort.value = s
+  loadMarket()
+}
+
+/** 登录用户点击评分(点星星选择 1~5) */
+async function chooseRate(t) {
+  if (!localStorage.getItem('token')) {
+    router.push({ path: '/login', query: { redirect: '/template-market' } })
+    return
+  }
+  try {
+    const score = Number(window.prompt(`为「${t.name}」评分 (1~5)：`, '5'))
+    if (!score || isNaN(score) || score < 1 || score > 5) {
+      ElMessage.warning('评分范围需为 1~5')
+      return
+    }
+    await rateMarketTemplate(t.id, score)
+    ElMessage.success('评分成功')
+    loadMarket()
+  } catch (e) {
+    ElMessage.error(e.message || '评分失败')
+  }
+}
 
 async function useMarket(t) {
   if (!localStorage.getItem('token')) {
@@ -282,6 +346,76 @@ function formatTime(t) {
   flex-wrap: wrap;
   gap: 6px;
   margin-bottom: 16px;
+}
+.filter-bar {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0 0 24px;
+}
+.filter-left, .filter-right {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.filter-label {
+  font-size: 13px;
+  color: var(--c-text2);
+  margin-right: 2px;
+}
+.chip {
+  border: 1px solid var(--c-border);
+  background: #fff;
+  border-radius: 999px;
+  padding: 4px 14px;
+  font-size: 13px;
+  color: var(--c-text2);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.chip:hover {
+  border-color: var(--c-primary);
+  color: var(--c-primary);
+}
+.chip.on {
+  background: var(--c-primary);
+  border-color: var(--c-primary);
+  color: #fff;
+}
+.card-stats {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+}
+.star {
+  color: #d1d5db;
+  font-size: 15px;
+}
+.star.filled {
+  color: #f59e0b;
+}
+.score {
+  font-size: 13px;
+  font-weight: 700;
+  color: #b45309;
+  margin-left: 4px;
+}
+.count {
+  font-size: 12px;
+  color: var(--c-text3);
+}
+.downloads {
+  font-size: 12px;
+  color: var(--c-text3);
 }
 .tag {
   font-size: 11px;

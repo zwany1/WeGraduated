@@ -5,11 +5,15 @@ import com.graduate.thesis.common.BusinessException;
 import com.graduate.thesis.dto.RuleSaveDTO;
 import com.graduate.thesis.entity.FormatRule;
 import com.graduate.thesis.entity.FormatTemplate;
+import com.graduate.thesis.entity.MarketRating;
 import com.graduate.thesis.mapper.FormatRuleMapper;
 import com.graduate.thesis.mapper.FormatTemplateMapper;
+import com.graduate.thesis.mapper.MarketRatingMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -23,10 +27,15 @@ public class TemplateService {
 
     private final FormatTemplateMapper templateMapper;
     private final FormatRuleMapper ruleMapper;
+    private final MarketRatingMapper ratingMapper;
+    private final DbRetryService dbRetryService;
 
-    public TemplateService(FormatTemplateMapper templateMapper, FormatRuleMapper ruleMapper) {
+    public TemplateService(FormatTemplateMapper templateMapper, FormatRuleMapper ruleMapper,
+                           MarketRatingMapper ratingMapper, DbRetryService dbRetryService) {
         this.templateMapper = templateMapper;
         this.ruleMapper = ruleMapper;
+        this.ratingMapper = ratingMapper;
+        this.dbRetryService = dbRetryService;
     }
 
     public FormatTemplate create(Long userId, String name) {
@@ -169,21 +178,59 @@ public class TemplateService {
     // ==================== 模板市场 ====================
 
     /** 模板市场公开模板列表 */
-    public List<Map<String, Object>> listPublicTemplates() {
-        return templateMapper.selectList(new LambdaQueryWrapper<FormatTemplate>()
-                        .eq(FormatTemplate::getIsPublic, true)
-                        .orderByDesc(FormatTemplate::getRecommended)
-                        .orderByDesc(FormatTemplate::getPublicTime))
-                .stream().map(t -> {
-                    Map<String, Object> m = new java.util.HashMap<>();
-                    m.put("id", t.getId());
-                    m.put("name", t.getName());
-                    m.put("recommended", Boolean.TRUE.equals(t.getRecommended()));
-                    m.put("publicTime", t.getPublicTime());
-                    m.put("ruleCount", ruleMapper.selectCount(new LambdaQueryWrapper<FormatRule>()
-                            .eq(FormatRule::getTemplateId, t.getId())));
-                    return m;
-                }).collect(Collectors.toList());
+    public List<Map<String, Object>> listPublicTemplates(String category, String sort) {
+        List<FormatTemplate> list = templateMapper.selectList(new LambdaQueryWrapper<FormatTemplate>()
+                .eq(FormatTemplate::getIsPublic, true)
+                .eq(category != null && !category.isEmpty(), FormatTemplate::getCategory, category)
+                .orderByAsc(FormatTemplate::getId));
+        // 排序: recommended(推荐优先,默认) / downloads(下载量) / rating(评分) / newest(最新上架)
+        String s = sort == null ? "recommended" : sort;
+        if ("downloads".equals(s)) {
+            list.sort((a, b) -> Integer.compare(nvl(b.getDownloadCount()), nvl(a.getDownloadCount())));
+        } else if ("rating".equals(s)) {
+            list.sort((a, b) -> {
+                int c = nvl2(b.getRatingAvg()).compareTo(nvl2(a.getRatingAvg()));
+                return c != 0 ? c : Integer.compare(nvl(b.getRatingCount()), nvl(a.getRatingCount()));
+            });
+        } else if ("newest".equals(s)) {
+            list.sort((a, b) -> nvl3(b.getPublicTime()).compareTo(nvl3(a.getPublicTime())));
+        } else {
+            list.sort((a, b) -> {
+                int r = Boolean.compare(Boolean.TRUE.equals(b.getRecommended()), Boolean.TRUE.equals(a.getRecommended()));
+                return r != 0 ? r : nvl3(b.getPublicTime()).compareTo(nvl3(a.getPublicTime()));
+            });
+        }
+        return list.stream().map(t -> {
+            Map<String, Object> m = new java.util.HashMap<>();
+            m.put("id", t.getId());
+            m.put("name", t.getName());
+            m.put("category", t.getCategory());
+            m.put("recommended", Boolean.TRUE.equals(t.getRecommended()));
+            m.put("publicTime", t.getPublicTime());
+            m.put("downloadCount", nvl(t.getDownloadCount()));
+            m.put("ratingAvg", nvl2(t.getRatingAvg()).doubleValue());
+            m.put("ratingCount", nvl(t.getRatingCount()));
+            m.put("ruleCount", ruleMapper.selectCount(new LambdaQueryWrapper<FormatRule>()
+                    .eq(FormatRule::getTemplateId, t.getId())));
+            return m;
+        }).collect(Collectors.toList());
+    }
+
+    /** 模板市场分类列表 */
+    public List<String> listMarketCategories() {
+        return java.util.Arrays.asList("毕业论文", "期刊论文", "报告文档", "其他");
+    }
+
+    private static int nvl(Integer v) {
+        return v == null ? 0 : v;
+    }
+
+    private static BigDecimal nvl2(BigDecimal v) {
+        return v == null ? BigDecimal.ZERO : v;
+    }
+
+    private static LocalDateTime nvl3(LocalDateTime v) {
+        return v == null ? LocalDateTime.of(1970, 1, 1, 0, 0) : v;
     }
 
     /** 复制公开模板到自己的模板(含规则) */
@@ -201,9 +248,18 @@ public class TemplateService {
         copy.setCoverConfig(source.getCoverConfig());
         copy.setGenerateToc(source.getGenerateToc());
         copy.setReferenceConfig(source.getReferenceConfig());
+        copy.setCategory(source.getCategory());
         copy.setCreateTime(LocalDateTime.now());
         copy.setUpdateTime(LocalDateTime.now());
         templateMapper.insert(copy);
+
+        // 复制成功计为一次市场下载
+        if (source.getDownloadCount() == null) {
+            source.setDownloadCount(0);
+        }
+        source.setDownloadCount(source.getDownloadCount() + 1);
+        source.setUpdateTime(LocalDateTime.now());
+        dbRetryService.run(() -> templateMapper.updateById(source));
 
         List<FormatRule> rules = ruleMapper.selectList(new LambdaQueryWrapper<FormatRule>()
                 .eq(FormatRule::getTemplateId, publicTemplateId));
@@ -230,5 +286,47 @@ public class TemplateService {
             ruleMapper.insert(nr);
         }
         return copy;
+    }
+
+    /**
+     * 市场模板评分(1~5): 同一用户重复评分则覆盖, 并重算模板平均分.
+     */
+    @Transactional
+    public void ratePublic(Long userId, Long templateId, int score) {
+        if (score < 1 || score > 5) {
+            throw new BusinessException("评分范围为 1~5");
+        }
+        FormatTemplate template = templateMapper.selectById(templateId);
+        if (template == null || !Boolean.TRUE.equals(template.getIsPublic())) {
+            throw new BusinessException(404, "模板不存在或未上架");
+        }
+        MarketRating exist = ratingMapper.selectOne(new LambdaQueryWrapper<MarketRating>()
+                .eq(MarketRating::getUserId, userId)
+                .eq(MarketRating::getTemplateId, templateId));
+        MarketRating rate = new MarketRating();
+        rate.setUserId(userId);
+        rate.setTemplateId(templateId);
+        rate.setScore(score);
+        if (exist == null) {
+            rate.setCreateTime(LocalDateTime.now());
+            ratingMapper.insert(rate);
+        } else {
+            rate.setCreateTime(exist.getCreateTime());
+            ratingMapper.update(rate, new LambdaQueryWrapper<MarketRating>()
+                    .eq(MarketRating::getUserId, userId)
+                    .eq(MarketRating::getTemplateId, templateId));
+        }
+        // 重算平均分
+        List<MarketRating> all = ratingMapper.selectList(new LambdaQueryWrapper<MarketRating>()
+                .eq(MarketRating::getTemplateId, templateId));
+        double sum = 0;
+        for (MarketRating r : all) {
+            sum += r.getScore();
+        }
+        BigDecimal avg = BigDecimal.valueOf(sum / all.size()).setScale(1, RoundingMode.HALF_UP);
+        template.setRatingAvg(avg);
+        template.setRatingCount(all.size());
+        template.setUpdateTime(LocalDateTime.now());
+        templateMapper.updateById(template);
     }
 }

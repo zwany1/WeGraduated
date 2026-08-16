@@ -64,6 +64,13 @@ public class CaptchaService {
         store.remove(captchaId);
     }
 
+    /** 每 10 分钟清理过期验证码, 防止内存累积 */
+    @org.springframework.scheduling.annotation.Scheduled(fixedDelay = 600000)
+    public void cleanup() {
+        long now = System.currentTimeMillis();
+        store.entrySet().removeIf(e -> e.getValue().expireAt < now);
+    }
+
     private String randomCode(int len) {
         StringBuilder sb = new StringBuilder();
         Random r = ThreadLocalRandom.current();

@@ -21,6 +21,14 @@
         <el-table-column label="规则数" width="80" align="center">
           <template #default="{ row }"><span class="cell-num">{{ row.ruleCount }}</span></template>
         </el-table-column>
+        <el-table-column label="分类" width="100" align="center">
+          <template #default="{ row }"><span class="cell-user-tag">{{ row.category || '—' }}</span></template>
+        </el-table-column>
+        <el-table-column label="下载/评分" width="120" align="center">
+          <template #default="{ row }">
+            <span class="cell-num">{{ row.downloadCount || 0 }} 次 · {{ (row.ratingAvg || 0).toFixed(1) }} ({{ row.ratingCount || 0 }})</span>
+          </template>
+        </el-table-column>
         <el-table-column label="被引用" width="90" align="center">
           <template #default="{ row }"><span class="cell-num">{{ row.taskCount }}</span></template>
         </el-table-column>
@@ -71,6 +79,9 @@
             <div class="d-grid">
               <div class="d-item"><span class="d-label">所属用户</span><span class="d-value">{{ d.username }}</span></div>
               <div class="d-item"><span class="d-label">规则数</span><span class="d-value">{{ d.rules.length }}</span></div>
+              <div class="d-item"><span class="d-label">分类</span><span class="d-value">{{ d.category || '—' }}</span></div>
+              <div class="d-item"><span class="d-label">下载量</span><span class="d-value">{{ d.downloadCount || 0 }} 次</span></div>
+              <div class="d-item"><span class="d-label">评分</span><span class="d-value">{{ (d.ratingAvg || 0).toFixed(1) }} / 5（{{ d.ratingCount || 0 }} 人）</span></div>
               <div class="d-item"><span class="d-label">上架状态</span><span class="d-value">{{ d.isPublic ? '已上架' : '未上架' }}</span></div>
               <div class="d-item"><span class="d-label">推荐</span><span class="d-value">{{ d.recommended ? '是' : '否' }}</span></div>
               <div class="d-item"><span class="d-label">上架时间</span><span class="d-value">{{ fmtTime(d.publicTime) }}</span></div>
@@ -259,8 +270,15 @@ async function load(p) {
 }
 
 async function togglePublic(row) {
+  let body = { isPublic: !row.isPublic }
+  if (!row.isPublic) {
+    // 上架时选择分类
+    const c = window.prompt('请选择上架分类（毕业论文 / 期刊论文 / 报告文档 / 其他）：', row.category || '毕业论文')
+    if (c === null) return
+    body = { isPublic: true, category: (c.trim() || '毕业论文') }
+  }
   try {
-    await setMarketTemplate(row.id, { isPublic: !row.isPublic })
+    await setMarketTemplate(row.id, body)
     ElMessage.success(row.isPublic ? '已下架' : '已上架到模板市场')
     await load()
   } catch (e) {}

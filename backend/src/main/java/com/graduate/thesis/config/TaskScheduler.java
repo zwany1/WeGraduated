@@ -31,7 +31,7 @@ public class TaskScheduler {
         this.systemService = systemService;
     }
 
-    @Scheduled(fixedDelay = 500)
+    @Scheduled(fixedDelayString = "${thesis.scheduler.interval:1500}")
     public void dispatch() {
         try {
             int maxConcurrent = maxConcurrent();

@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 
 /**
@@ -50,9 +51,10 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public Result<LoginResponse> login(@Valid @RequestBody LoginDTO dto) {
+    public Result<LoginResponse> login(@Valid @RequestBody LoginDTO dto,
+                                       HttpServletRequest request) {
         captchaService.verify(dto.getCaptchaId(), dto.getCaptchaCode());
-        return Result.ok(userService.login(dto));
+        return Result.ok(userService.login(dto, clientIp(request)));
     }
 
     /** 发送邮箱验证码 */
@@ -109,5 +111,18 @@ public class UserController {
     @PutMapping("/profile")
     public Result<UserProfileDTO> updateProfile(@RequestBody UserProfileDTO dto) {
         return Result.ok(userService.updateProfile(UserContext.get(), dto));
+    }
+
+    /** 获取客户端 IP(兼容反向代理) */
+    private String clientIp(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip != null && !ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) {
+            return ip.split(",")[0].trim();
+        }
+        ip = request.getHeader("X-Real-IP");
+        if (ip != null && !ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) {
+            return ip.trim();
+        }
+        return request.getRemoteAddr();
     }
 }

@@ -79,7 +79,12 @@ public class DbMigrationRunner implements ApplicationRunner {
         addColumnIfMissing("t_format_template", "is_public", "ALTER TABLE t_format_template ADD COLUMN is_public TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否上架模板市场'");
         addColumnIfMissing("t_format_template", "recommended", "ALTER TABLE t_format_template ADD COLUMN recommended TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否推荐'");
         addColumnIfMissing("t_format_template", "public_time", "ALTER TABLE t_format_template ADD COLUMN public_time DATETIME DEFAULT NULL COMMENT '上架时间'");
+        addColumnIfMissing("t_format_template", "category", "ALTER TABLE t_format_template ADD COLUMN category VARCHAR(50) DEFAULT NULL COMMENT '市场分类'");
+        addColumnIfMissing("t_format_template", "download_count", "ALTER TABLE t_format_template ADD COLUMN download_count INT NOT NULL DEFAULT 0 COMMENT '市场下载量'");
+        addColumnIfMissing("t_format_template", "rating_avg", "ALTER TABLE t_format_template ADD COLUMN rating_avg DECIMAL(3,1) NOT NULL DEFAULT 0 COMMENT '平均评分'");
+        addColumnIfMissing("t_format_template", "rating_count", "ALTER TABLE t_format_template ADD COLUMN rating_count INT NOT NULL DEFAULT 0 COMMENT '评分人数'");
         addColumnIfMissing("t_format_task", "retry_count", "ALTER TABLE t_format_task ADD COLUMN retry_count INT NOT NULL DEFAULT 0 COMMENT '失败自动重试次数'");
+        ensureMarketRatingTable();
     }
 
     private void addColumnIfMissing(String table, String column, String alterSql) {
@@ -94,6 +99,27 @@ public class DbMigrationRunner implements ApplicationRunner {
             }
         } catch (Exception e) {
             log.warn("[DbMigration] 补齐 {}.{} 列失败: {}", table, column, e.getMessage());
+        }
+    }
+
+    /** 模板市场评分表(幂等建表): 每个用户对每个市场模板最多一条评分 */
+    private void ensureMarketRatingTable() {
+        try {
+            Integer count = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 't_market_rating'",
+                    Integer.class);
+            if (count == null || count == 0) {
+                jdbcTemplate.execute("CREATE TABLE t_market_rating (" +
+                        "user_id BIGINT NOT NULL, " +
+                        "template_id BIGINT NOT NULL, " +
+                        "score TINYINT NOT NULL, " +
+                        "create_time DATETIME DEFAULT CURRENT_TIMESTAMP, " +
+                        "PRIMARY KEY (user_id, template_id)" +
+                        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='模板市场评分'");
+                log.info("[DbMigration] 已创建 t_market_rating 表");
+            }
+        } catch (Exception e) {
+            log.warn("[DbMigration] 创建 t_market_rating 表失败: {}", e.getMessage());
         }
     }
 

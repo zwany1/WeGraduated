@@ -45,6 +45,8 @@ public class UserService {
     private static final int MAX_FAILURES = 5;
     /** 锁定时间(毫秒) */
     private static final long LOCK_MILLIS = 10 * 60 * 1000L;
+    /** 同一 IP 最大失败次数(按 IP 限流) */
+    private static final int IP_MAX_FAILURES = 15;
 
     private final UserMapper userMapper;
     private final JwtUtil jwtUtil;
@@ -64,6 +66,10 @@ public class UserService {
     private final ConcurrentHashMap<String, AtomicInteger> failCount = new ConcurrentHashMap<>();
     /** 锁定记录: 登录名 -> 解锁时间戳 */
     private final ConcurrentHashMap<String, Long> lockUntil = new ConcurrentHashMap<>();
+    /** IP 失败记录: IP -> 失败次数(防止换个用户名继续爆破) */
+    private final ConcurrentHashMap<String, AtomicInteger> ipFailCount = new ConcurrentHashMap<>();
+    /** IP 锁定记录: IP -> 解锁时间戳 */
+    private final ConcurrentHashMap<String, Long> ipLockUntil = new ConcurrentHashMap<>();
 
     public UserService(UserMapper userMapper, JwtUtil jwtUtil, EmailCodeService emailCodeService,
                        FormatTemplateMapper templateMapper, FormatRuleMapper ruleMapper,
@@ -147,12 +153,21 @@ public class UserService {
         }
     }
 
-    public LoginResponse login(LoginDTO dto) {
+    public LoginResponse login(LoginDTO dto, String ip) {
         String account = dto.getAccount() == null ? "" : dto.getAccount().trim().toLowerCase();
         if (account.isEmpty()) {
             throw new BusinessException("请输入用户名或邮箱");
         }
-        // 限流检查
+        // IP 维度限流(防止换用户名爆破)
+        if (ip != null && !ip.isEmpty()) {
+            Long ipLocked = ipLockUntil.get(ip);
+            if (ipLocked != null && System.currentTimeMillis() < ipLocked) {
+                long minutes = (ipLocked - System.currentTimeMillis()) / 60000 + 1;
+                throw new BusinessException("尝试过于频繁，请 " + minutes + " 分钟后再试");
+            }
+            ipLockUntil.remove(ip);
+        }
+        // 账号维度限流
         Long lockedUntil = lockUntil.get(account);
         if (lockedUntil != null && System.currentTimeMillis() < lockedUntil) {
             long minutes = (lockedUntil - System.currentTimeMillis()) / 60000 + 1;
@@ -164,11 +179,25 @@ public class UserService {
         if (user == null || !encoder.matches(dto.getPassword(), user.getPassword())) {
             AtomicInteger counter = failCount.computeIfAbsent(account, k -> new AtomicInteger());
             int times = counter.incrementAndGet();
+            boolean ipLockedNow = false;
+            if (ip != null && !ip.isEmpty()) {
+                AtomicInteger ipCounter = ipFailCount.computeIfAbsent(ip, k -> new AtomicInteger());
+                int ipTimes = ipCounter.incrementAndGet();
+                if (ipTimes >= IP_MAX_FAILURES) {
+                    ipLockUntil.put(ip, System.currentTimeMillis() + LOCK_MILLIS);
+                    ipFailCount.remove(ip);
+                    ipLockedNow = true;
+                }
+            }
             if (times >= MAX_FAILURES) {
                 lockUntil.put(account, System.currentTimeMillis() + LOCK_MILLIS);
                 failCount.remove(account);
                 logService.recordLogin(null, account, false, "登录失败次数过多, 账号已锁定");
                 throw new BusinessException("登录失败次数过多，账号已锁定 10 分钟");
+            }
+            if (ipLockedNow) {
+                logService.recordLogin(null, account, false, "IP 尝试过于频繁, 已临时限制");
+                throw new BusinessException("尝试过于频繁，请 10 分钟后再试");
             }
             logService.recordLogin(null, account, false, "用户名/邮箱或密码错误");
             throw new BusinessException("用户名/邮箱或密码错误，还可尝试 " + (MAX_FAILURES - times) + " 次");
@@ -181,6 +210,10 @@ public class UserService {
         // 成功则清零
         failCount.remove(account);
         lockUntil.remove(account);
+        if (ip != null && !ip.isEmpty()) {
+            ipFailCount.remove(ip);
+            ipLockUntil.remove(ip);
+        }
         logService.recordLogin(user.getId(), user.getUsername(), true, "登录成功");
         return buildLoginResponse(user);
     }

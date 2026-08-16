@@ -24,6 +24,10 @@ public class StructureDetector {
     private static final Pattern SECTION_TITLE = Pattern.compile(
             "^谢\\s*辞\\s*$|^参考文献\\s*$|^附\\s*录\\s*$");
 
+    /** 签名/声明/日期区域: 保持原样, 不做任何格式修改(避免被正文缩进或标题加粗改动) */
+    private static final Pattern SIGNATURE = Pattern.compile(
+            ".*独创性声明.*|.*学位论文作者签名.*|.*作者签名\\s*[:：]?.*|.*指导教师签名\\s*[:：]?.*|^日\\s*期\\s*[:：]?.*|.*签名\\s*[:：]\\s*$");
+
     // ===== 内置一级章节标题识别(不依赖文档样式与模板正则, 自动匹配"第一章"作为排版起点) =====
     /** 第一章 绪论 / 第二章 … */
     private static final Pattern CN_CHAPTER = Pattern.compile("^第[一二三四五六七八九十百千]+章\\s*.*");
@@ -216,6 +220,10 @@ public class StructureDetector {
             return ParagraphKind.EN_KEYWORDS;
         }
         if (SECTION_TITLE.matcher(text).matches()) {
+            return ParagraphKind.SECTION_TITLE;
+        }
+        // 签名/声明/日期区域保持原样(在样式判断之前拦截, 即使原文档该行带 Heading 样式也不改动)
+        if (SIGNATURE.matcher(text).matches()) {
             return ParagraphKind.SECTION_TITLE;
         }
         // 样式标题优先: 标准 heading 样式是最可靠的章节信号

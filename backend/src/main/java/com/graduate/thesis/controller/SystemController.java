@@ -29,9 +29,15 @@ import java.util.List;
 public class SystemController {
 
     private final SystemService systemService;
+    private final com.graduate.thesis.mapper.UserMapper userMapper;
+    private final com.graduate.thesis.service.NotificationService notificationService;
 
-    public SystemController(SystemService systemService) {
+    public SystemController(SystemService systemService,
+                            com.graduate.thesis.mapper.UserMapper userMapper,
+                            com.graduate.thesis.service.NotificationService notificationService) {
         this.systemService = systemService;
+        this.userMapper = userMapper;
+        this.notificationService = notificationService;
     }
 
     // ==================== 字典类型 ====================
@@ -179,6 +185,29 @@ public class SystemController {
     @RequiresPerms("system:notice:delete")
     public Result<Void> deleteNotice(@PathVariable Long id) {
         systemService.deleteNotice(id);
+        return Result.ok();
+    }
+
+    /** 定向通知: 给指定用户推送站内信 */
+    @PostMapping("/admin/system/notice/push")
+    @OperLog(module = "公告管理", action = "定向推送通知")
+    @RequiresPerms("system:notice:add")
+    public Result<Void> pushNotice(@RequestBody java.util.Map<String, Object> body) {
+        String keyword = body.get("keyword") == null ? "" : String.valueOf(body.get("keyword")).trim();
+        String title = body.get("title") == null ? "" : String.valueOf(body.get("title")).trim();
+        String content = body.get("content") == null ? "" : String.valueOf(body.get("content")).trim();
+        if (keyword.isEmpty() || title.isEmpty()) {
+            throw new com.graduate.thesis.common.BusinessException(400, "请填写用户与标题");
+        }
+        com.graduate.thesis.entity.User u = userMapper.selectOne(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.graduate.thesis.entity.User>()
+                        .eq(com.graduate.thesis.entity.User::getUsername, keyword)
+                        .or().eq(com.graduate.thesis.entity.User::getEmail, keyword)
+                        .last("LIMIT 1"));
+        if (u == null) {
+            throw new com.graduate.thesis.common.BusinessException(404, "未找到该用户");
+        }
+        notificationService.send(u.getId(), "notice", title, content, java.util.Collections.emptyMap());
         return Result.ok();
     }
 

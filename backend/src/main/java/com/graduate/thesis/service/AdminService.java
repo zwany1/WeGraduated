@@ -91,6 +91,8 @@ public class AdminService {
         vo.setTemplateCount(safeCount(templateMapper.selectCount(null)));
         vo.setTaskCount(safeCount(taskMapper.selectCount(null)));
         vo.setPaperCount(safeCount(paperFileMapper.selectCount(null)));
+        vo.setTodayTasks(safeCount(taskMapper.selectCount(new LambdaQueryWrapper<FormatTask>()
+                .ge(FormatTask::getCreateTime, LocalDate.now().atStartOfDay()))));
         vo.setAdminCount(safeCount(userMapper.selectCount(new LambdaQueryWrapper<User>()
                 .eq(User::getRole, User.ROLE_ADMIN))));
 
@@ -328,6 +330,33 @@ public class AdminService {
         if (!enabled) {
             // 封禁后使其所有 token 失效
             jwtUtil.revokeAllForUser(userId);
+        }
+    }
+
+    /** 批量封禁/启用用户 */
+    @Transactional
+    public void batchUpdateUserStatus(List<Long> userIds, boolean disabled, Long operatorId) {
+        if (userIds == null || userIds.isEmpty()) {
+            throw new BusinessException(400, "请选择用户");
+        }
+        if (userIds.contains(operatorId)) {
+            throw new BusinessException(400, "不能封禁当前登录账号");
+        }
+        int n = 0;
+        for (Long id : userIds) {
+            User user = userMapper.selectById(id);
+            if (user == null) {
+                continue;
+            }
+            user.setStatus(!disabled);
+            userMapper.updateById(user);
+            if (disabled) {
+                jwtUtil.revokeAllForUser(id);
+            }
+            n++;
+        }
+        if (n == 0) {
+            throw new BusinessException(404, "所选用户不存在");
         }
     }
 

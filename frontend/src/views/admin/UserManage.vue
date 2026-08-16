@@ -12,11 +12,14 @@
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         导出
       </el-button>
+      <el-button v-if="selectedIds.length" v-perm="'system:user:status'" type="danger" plain @click="batchStatus(true)">批量封禁({{ selectedIds.length }})</el-button>
+      <el-button v-if="selectedIds.length" v-perm="'system:user:status'" plain @click="batchStatus(false)">批量启用</el-button>
       <span class="toolbar-note">共 {{ total }} 名用户 · 可管理角色、封禁与重置密码</span>
     </div>
 
     <div class="table-card">
-      <el-table :data="rows" v-loading="loading" stripe>
+      <el-table :data="rows" v-loading="loading" stripe @selection-change="onSelectionChange">
+        <el-table-column type="selection" width="46" />
         <el-table-column prop="id" label="ID" width="70" />
         <el-table-column label="用户" min-width="150">
           <template #default="{ row }">
@@ -226,7 +229,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { listUsers, setUserRole, assignUserRoles, updateUserStatus, resetUserPassword,
+import { listUsers, setUserRole, assignUserRoles, updateUserStatus, resetUserPassword, batchUserStatus,
   listOnlineSessions, kickSession,
   getUserDetail, deleteUser, listAllRoles, exportUsers } from '../../api/admin'
 import { downloadBlob } from '../../utils/download'
@@ -241,6 +244,26 @@ const loading = ref(false)
 const activeTab = ref('users')
 const sessions = ref([])
 const sessionLoading = ref(false)
+const selectedIds = ref([])
+
+function onSelectionChange(sel) {
+  selectedIds.value = sel.map(r => r.id)
+}
+
+async function batchStatus(disabled) {
+  if (!selectedIds.value.length) return
+  try {
+    await ElMessageBox.confirm(`确定${disabled ? '封禁' : '启用'}选中的 ${selectedIds.value.length} 名用户？${disabled ? '封禁后其登录立即失效。' : ''}`, '批量操作', { type: 'warning' })
+  } catch (e) { return }
+  try {
+    await batchUserStatus(selectedIds.value, disabled)
+    ElMessage.success(disabled ? '已批量封禁' : '已批量启用')
+    selectedIds.value = []
+    load()
+  } catch (e) {
+    ElMessage.error(e.message || '操作失败')
+  }
+}
 
 async function loadSessions() {
   sessionLoading.value = true

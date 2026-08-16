@@ -6,6 +6,7 @@
         <input v-model="keyword" placeholder="搜索标题" @keyup.enter="load(1)" />
       </div>
       <el-button type="primary" plain @click="load(1)">查询</el-button>
+      <el-button v-perm="'system:notice:add'" type="primary" plain @click="openPush()">定向通知</el-button>
       <el-button v-perm="'system:notice:add'" type="primary" @click="openCreate()">新增公告</el-button>
     </div>
 
@@ -73,13 +74,32 @@
         <el-button type="primary" :loading="saving" @click="save">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- 定向通知 -->
+    <el-dialog v-model="pushVisible" title="定向推送通知" width="460px" destroy-on-close>
+      <el-form label-width="70px">
+        <el-form-item label="用户">
+          <el-input v-model="pushForm.keyword" placeholder="用户名或邮箱" />
+        </el-form-item>
+        <el-form-item label="标题">
+          <el-input v-model="pushForm.title" placeholder="通知标题" />
+        </el-form-item>
+        <el-form-item label="内容">
+          <el-input v-model="pushForm.content" type="textarea" :rows="4" placeholder="通知内容（将出现在该用户的右上角通知铃铛中）" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="pushVisible = false">取消</el-button>
+        <el-button type="primary" :loading="pushing" @click="push">发送</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { listNotices, saveNotice, deleteNotice } from '../../api/admin'
+import { listNotices, saveNotice, deleteNotice, pushNotice } from '../../api/admin'
 
 const rows = ref([])
 const total = ref(0)
@@ -91,6 +111,31 @@ const dialogVisible = ref(false)
 const saving = ref(false)
 const formRef = ref()
 const form = ref({})
+const pushVisible = ref(false)
+const pushing = ref(false)
+const pushForm = ref({ keyword: '', title: '', content: '' })
+
+function openPush() {
+  pushForm.value = { keyword: '', title: '', content: '' }
+  pushVisible.value = true
+}
+
+async function push() {
+  if (!pushForm.value.keyword.trim() || !pushForm.value.title.trim()) {
+    ElMessage.warning('请填写用户与标题')
+    return
+  }
+  pushing.value = true
+  try {
+    await pushNotice(pushForm.value)
+    ElMessage.success('通知已推送')
+    pushVisible.value = false
+  } catch (e) {
+    ElMessage.error(e.message || '推送失败')
+  } finally {
+    pushing.value = false
+  }
+}
 const rules = {
   title: [{ required: true, message: '请输入标题', trigger: 'blur' }]
 }

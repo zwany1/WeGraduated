@@ -21,6 +21,9 @@ public class AdminStatsVO {
 
     private long paperCount;
 
+    /** 今日新增任务量 */
+    private long todayTasks;
+
     /** 任务状态分布: PENDING / PROCESSING / SUCCESS / FAILED */
     private Map<String, Long> taskStatus;
 

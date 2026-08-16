@@ -54,6 +54,10 @@ export function updateUserStatus(id, status) {
   return api.put(`/admin/users/${id}/status`, { status })
 }
 
+export function batchUserStatus(userIds, disabled) {
+  return api.post('/admin/users/batch-status', { userIds, disabled })
+}
+
 export function resetUserPassword(id, password) {
   return api.put(`/admin/users/${id}/password`, { password })
 }
@@ -248,6 +252,10 @@ export function saveNotice(data) {
 
 export function deleteNotice(id) {
   return api.delete(`/admin/system/notice/${id}`)
+}
+
+export function pushNotice(data) {
+  return api.post('/admin/system/notice/push', data)
 }
 
 export function listPublicNotices(limit = 5) {

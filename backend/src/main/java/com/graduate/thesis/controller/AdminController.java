@@ -143,6 +143,25 @@ public class AdminController {
         return Result.ok();
     }
 
+    /** 批量封禁/启用用户 */
+    @PostMapping("/users/batch-status")
+    @OperLog(module = "用户管理", action = "批量封禁/启用用户")
+    @RequiresPerms("system:user:status")
+    public Result<Void> batchUserStatus(@RequestBody Map<String, Object> body) {
+        List<Long> ids = new java.util.ArrayList<>();
+        Object raw = body.get("userIds");
+        if (raw instanceof List) {
+            for (Object o : (List<?>) raw) {
+                if (o != null) {
+                    ids.add(Long.valueOf(String.valueOf(o)));
+                }
+            }
+        }
+        boolean disabled = Boolean.TRUE.equals(body.get("disabled"));
+        adminService.batchUpdateUserStatus(ids, disabled, UserContext.get());
+        return Result.ok();
+    }
+
     @PutMapping("/users/{id}/password")
     @OperLog(module = "用户管理", action = "重置用户密码")
     @RequiresPerms("system:user:resetPwd")

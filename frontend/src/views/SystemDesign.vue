@@ -450,7 +450,7 @@
       </section>
 
       <section class="canvas-wrap">
-        <div v-if="!graphReady && currentVO?.type !== 'ARCH'" class="canvas-empty">配置后点击「生成」预览</div>
+        <div v-if="!graphReady && currentVO?.type !== 'ARCH' && type !== 'TABLE3'" class="canvas-empty">配置后点击「生成」预览</div>
         <div v-if="graphReady && currentVO && currentVO.type === 'ARCH'" class="arch-box" ref="archRef">
           <div class="arch-outer">
             <div class="arch-title">{{ currentVO.name || '系统架构图' }}</div>

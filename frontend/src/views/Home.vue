@@ -57,7 +57,7 @@
       <div class="notice-inner">
         <span class="notice-icon">📢</span>
         <div class="notice-track">
-          <div v-for="n in notices" :key="n.id" class="notice-item">
+          <div v-for="n in notices" :key="n.id" class="notice-item" @click="showNotice(n)">
             <span class="notice-type">{{ n.noticeType === '2' ? '公告' : '通知' }}</span>
             <span class="notice-text" :title="n.content">{{ n.title }}</span>
           </div>
@@ -321,6 +321,17 @@
         <div class="footer-copy">&copy; 2026 Word 排版助手. All rights reserved.</div>
       </div>
     </footer>
+
+    <!-- 公告详情 -->
+    <el-dialog v-model="noticeVisible" :title="currentNotice ? currentNotice.title : '公告'" width="560px" destroy-on-close>
+      <div v-if="currentNotice" class="notice-detail">
+        <div class="notice-detail-meta">
+          <span class="notice-type">{{ currentNotice.noticeType === '2' ? '公告' : '通知' }}</span>
+          <span class="notice-detail-time">{{ formatNoticeTime(currentNotice.createTime) }}</span>
+        </div>
+        <div class="notice-detail-content" v-html="currentNotice.content"></div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -342,6 +353,18 @@ const userAvatar = ref('')
 const avatarText = computed(() => (userName.value || 'U').slice(0, 1).toUpperCase())
 
 const notices = ref([])
+
+// 公告详情弹窗
+const noticeVisible = ref(false)
+const currentNotice = ref(null)
+function showNotice(n) {
+  currentNotice.value = n
+  noticeVisible.value = true
+}
+function formatNoticeTime(t) {
+  if (!t) return ''
+  return String(t).replace('T', ' ').substring(0, 16)
+}
 
 onMounted(async () => {
   try {
@@ -1440,6 +1463,23 @@ const tools = [
   gap: 8px;
   white-space: nowrap;
   min-width: 0;
+}
+.notice-detail-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.notice-detail-time {
+  font-size: 12px;
+  color: #909399;
+}
+.notice-detail-content {
+  font-size: 14px;
+  line-height: 1.8;
+  color: #303133;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 .notice-type {
   font-size: 10px;

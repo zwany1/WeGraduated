@@ -442,23 +442,9 @@
             <el-button size="small" text type="danger" @click="t3.rows.splice(ri, 1)">×</el-button>
           </div>
           <el-button size="small" class="add-comp-btn" @click="t3.rows.push(Array(t3.headers.length).fill(''))">+ 数据行</el-button>
-          <div class="t3-preview">
-            <div class="t3-caption">{{ t3.title || '表题' }}</div>
-            <table class="t3-table">
-              <thead>
-                <tr><th v-for="(h, hi) in t3.headers" :key="'th' + hi">{{ h || '　' }}</th></tr>
-              </thead>
-              <tbody>
-                <tr v-for="(row, ri) in t3.rows" :key="'tr' + ri">
-                  <td v-for="(c, ci) in row" :key="'td' + ri + '-' + ci">{{ c || '　' }}</td>
-                </tr>
-              </tbody>
-            </table>
-            <div class="t3-tip">顶线/底线 1.5pt 粗线 · 栏目线 0.75pt 细线 · 无竖线（预览为简化样式，下载为准）</div>
-          </div>
           <div class="input-row">
             <el-button type="primary" :loading="generating" @click="generate">生成三线表文档</el-button>
-            <span class="tip">生成 .docx 三线表并下载</span>
+            <span class="tip">右侧实时预览 · 点击生成下载 .docx</span>
           </div>
         </template>
       </section>
@@ -487,6 +473,24 @@
         </div>
         <!-- FLOW/SWIMLANE/USECASE: X6 画布 -->
         <div v-show="graphReady && currentVO && currentVO.type !== 'ARCH'" ref="container" class="x6-container"></div>
+        <!-- 三线表: 右侧大框实时预览 -->
+        <div v-if="type === 'TABLE3'" class="t3-stage">
+          <div class="t3-caption">{{ t3.title || '表题' }}</div>
+          <table class="t3-table">
+            <thead>
+              <tr><th v-for="(h, hi) in t3.headers" :key="'th' + hi">{{ h || '　' }}</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="(row, ri) in t3.rows" :key="'tr' + ri">
+                <td v-for="(c, ci) in row" :key="'td' + ri + '-' + ci">{{ c || '　' }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="t3-tip">顶线/底线 1.5pt 粗线 · 栏目线 0.75pt 细线 · 无竖线</div>
+          <div class="t3-actions">
+            <el-button type="primary" :loading="generating" @click="generate">下载三线表 .docx</el-button>
+          </div>
+        </div>
       </section>
     </main>
   </div>
@@ -2138,12 +2142,14 @@ async function downloadArchSvg() {
   font-size: 14px;
   background: #fafbfc;
 }
-.t3-preview {
-  margin-top: 14px;
-  border: 1px dashed #d9d9d9;
-  border-radius: 8px;
-  padding: 12px;
-  background: #fafbfc;
+.t3-stage {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 24px 32px;
+  overflow: auto;
 }
 .t3-caption {
   text-align: center;
@@ -2174,5 +2180,8 @@ async function downloadArchSvg() {
   margin-top: 8px;
   font-size: 12px;
   color: #909399;
+}
+.t3-actions {
+  margin-top: 16px;
 }
 </style>

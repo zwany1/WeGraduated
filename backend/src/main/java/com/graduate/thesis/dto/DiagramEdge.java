@@ -10,6 +10,9 @@ public class DiagramEdge {
     private String id;
     private String source;
     private String target;
+    /** 自由绘画: 连线锚定端口(可空) */
+    private String sourcePort;
+    private String targetPort;
     private String label;
     /** 连线样式: association(实线) / include(虚线箭头) / request(实线) / return(虚线) */
     private String style;

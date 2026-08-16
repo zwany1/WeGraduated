@@ -46,6 +46,18 @@ public class ERController {
         this.layoutRoot = Paths.get(storageDir).toAbsolutePath().normalize().resolve("erlayout");
     }
 
+    /** 解析建表 SQL 为 ER 实体与关系(支持多表与外键) */
+    @PostMapping("/parse-sql")
+    public Result<com.graduate.thesis.dto.ErParseResult> parseSql(@RequestBody java.util.Map<String, Object> body) {
+        String sql = body.get("sql") == null ? "" : String.valueOf(body.get("sql"));
+        com.graduate.thesis.dto.ErParseResult result =
+                com.graduate.thesis.service.SqlTableParser.parseEr(sql);
+        if (result.getEntities().isEmpty()) {
+            return Result.fail(400, "未能从 SQL 中解析出表结构，请检查语句格式");
+        }
+        return Result.ok(result);
+    }
+
     @PostMapping("/render")
     public ResponseEntity<byte[]> render(@Valid @RequestBody ErDTO dto) {
         if (dto.getEntities() == null || dto.getEntities().isEmpty()) {

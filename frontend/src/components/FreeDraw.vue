@@ -148,7 +148,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Graph } from '@antv/x6'
@@ -166,9 +166,18 @@ const graph = ref(null)
 const mmdDlg = ref(null)
 const tool = ref('select')
 
+// 连线工具下: 禁止拖动节点(端口连线时避免节点被拖动)
+watch(tool, () => {
+  if (!graph.value) return
+  const movable = tool.value !== 'edge'
+  graph.value.getNodes().forEach(n => {
+    n.prop('interacting', { nodeMovable: movable, nodeMagnetable: true })
+  })
+})
+
 function edgeToolClick() {
   tool.value = 'edge'
-  ElMessage.info('连线：按住一个节点拖到另一个节点即可创建连线')
+  ElMessage.info('连线：按住一个节点的锚点(小圆点)拖到另一个节点的锚点即可创建连线')
 }
 const current = ref(null)
 const currentLabel = ref('')
@@ -728,10 +737,49 @@ function initGraph() {
       if (!id || !containerRef.value) return
       const body = containerRef.value.querySelector('.x6-node[data-cell-id="' + id + '"]')
       if (!body) return
+      // 显示端口磁点(8个方向)并允许交互, 供端口间任意连线(连线由下方自定义事件实现)
       body.querySelectorAll('.x6-port-body').forEach(el => {
-        el.style.visibility = 'hidden'
+        el.style.visibility = 'visible'
+        el.style.pointerEvents = 'auto'
+        el.style.opacity = '1'
       })
     })
+  })
+
+  // ===== 端口间连线(自定义): 解决 X6 3.x 端口无法作为连线起点的问题 =====
+  let pendingPortStart = null
+  g.on('node:port:mousedown', ({ node, port, e }) => {
+    pendingPortStart = { nodeId: node.id, portId: port, startX: e.clientX, startY: e.clientY }
+  })
+  // 原生 mouseup: X6 会把 mouseup 委托回起点视图, 故用 elementFromPoint 定位真实目标
+  containerRef.value.addEventListener('mouseup', (e) => {
+    if (!pendingPortStart) return
+    const start = pendingPortStart
+    pendingPortStart = null
+    const moved = Math.hypot(e.clientX - start.startX, e.clientY - start.startY)
+    if (moved < 5) return // 视为点击而非拖拽
+    const target = document.elementFromPoint(e.clientX, e.clientY)
+    if (!target) return
+    const portEl = target.closest('.x6-port-body')
+    const nodeEl = target.closest('.x6-node')
+    const tNodeId = nodeEl ? nodeEl.getAttribute('data-cell-id') : null
+    if (!tNodeId || tNodeId === start.nodeId) return
+    if (portEl) {
+      g.addEdge({
+        source: { cell: start.nodeId, port: start.portId },
+        target: { cell: tNodeId, port: portEl.getAttribute('port') },
+        shape: 'freeline'
+      })
+    } else {
+      g.addEdge({
+        source: { cell: start.nodeId, port: start.portId },
+        target: { cell: tNodeId },
+        shape: 'freeline'
+      })
+    }
+  })
+  g.on('blank:mousedown', () => {
+    pendingPortStart = null
   })
 
   g.on('history:change', () => {
@@ -917,6 +965,8 @@ function serialize() {
     id: e.id,
     source: e.getSourceCellId(),
     target: e.getTargetCellId(),
+    sourcePort: e.getSourcePortId ? (e.getSourcePortId() || null) : null,
+    targetPort: e.getTargetPortId ? (e.getTargetPortId() || null) : null,
     label: ''
   }))
   return { nodes, edges }
@@ -962,7 +1012,9 @@ async function loadDesign(d) {
       graph.value.addNode(nodeData)
     })
     ;(vo.edges || []).forEach(e => {
-      graph.value.addEdge({ source: e.source, target: e.target, shape: 'freeline' })
+      const src = e.sourcePort ? { cell: e.source, port: e.sourcePort } : e.source
+      const tgt = e.targetPort ? { cell: e.target, port: e.targetPort } : e.target
+      graph.value.addEdge({ source: src, target: tgt, shape: 'freeline' })
     })
   } catch (e) {
     ElMessage.error('加载失败')

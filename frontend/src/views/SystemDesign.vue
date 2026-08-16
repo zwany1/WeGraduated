@@ -14,6 +14,8 @@
           <el-radio-button value="USECASE">用例图</el-radio-button>
           <el-radio-button value="SEQUENCE">时序图</el-radio-button>
           <el-radio-button value="CLASS">类图</el-radio-button>
+          <el-radio-button value="ER">ER图</el-radio-button>
+          <el-radio-button value="TABLE3">三线表</el-radio-button>
         </el-radio-group>
       </div>
       <div class="actions">
@@ -350,6 +352,115 @@
             <el-button type="primary" :loading="generating" @click="generate">生成类图</el-button>
           </div>
         </template>
+
+        <!-- ER 图: 实体 + 关系 -->
+        <template v-else-if="type === 'ER'">
+          <div class="input-title">ER 图配置</div>
+          <div class="input-row" style="margin-bottom:10px">
+            <el-button size="small" @click="erShowSql = !erShowSql">{{ erShowSql ? '收起 SQL 导入' : '从 SQL 生成' }}</el-button>
+            <span class="tip">支持多张建表语句与外键关系</span>
+          </div>
+          <div v-if="erShowSql">
+            <el-input v-model="erSql" type="textarea" :rows="6" placeholder="CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR(50));&#10;CREATE TABLE orders (id INT PRIMARY KEY, user_id INT, FOREIGN KEY (user_id) REFERENCES users(id));" />
+            <div class="input-row">
+              <el-button size="small" :loading="erSqlLoading" @click="erImportFromSql">解析 SQL 生成实体</el-button>
+            </div>
+            <div class="section-divider"></div>
+          </div>
+
+          <div class="input-title">实体</div>
+          <div v-for="(e, ei) in erConfig.entities" :key="ei" class="cls-card">
+            <div class="cls-head">
+              <el-input v-model="e.name" size="small" placeholder="实体名，如：用户" class="cls-name-input" />
+              <el-button size="small" text type="danger" @click="removeErEntity(ei)">删除实体</el-button>
+            </div>
+            <div class="cls-sub">属性（勾选为主键）</div>
+            <div class="cls-row" v-for="(a, ai) in e.attrs" :key="ai">
+              <el-checkbox v-model="a.key" size="small" />
+              <el-input v-model="a.name" size="small" placeholder="属性名" style="margin-left:4px" />
+              <el-button size="small" text type="danger" @click="removeErAttr(ei, ai)">×</el-button>
+            </div>
+            <el-button size="small" class="add-comp-btn" @click="addErAttr(ei)">+ 属性</el-button>
+          </div>
+          <el-button size="small" class="add-layer-btn" @click="addErEntity">+ 添加实体</el-button>
+
+          <div class="section-divider"></div>
+          <div class="input-title">关系</div>
+          <div v-for="(r, ri) in erConfig.relations" :key="ri" class="item-card">
+            <span class="item-num">关系 {{ ri + 1 }}</span>
+            <el-select v-model="r.from" size="small" class="edge-sel" placeholder="来源实体">
+              <el-option v-for="e in erEntities" :key="e.id" :label="e.label" :value="e.value" />
+            </el-select>
+            <span class="edge-arrow">→</span>
+            <el-select v-model="r.to" size="small" class="edge-sel" placeholder="目标实体">
+              <el-option v-for="e in erEntities" :key="e.id" :label="e.label" :value="e.value" />
+            </el-select>
+            <el-select v-model="r.cardinality" size="small" class="act-type" placeholder="基数">
+              <el-option label="一对一" value="1:1" />
+              <el-option label="一对多" value="1:n" />
+              <el-option label="多对一" value="n:1" />
+              <el-option label="多对多" value="n:n" />
+            </el-select>
+            <el-input v-model="r.label" size="small" placeholder="关系名" class="edge-sel" />
+            <el-button size="small" text type="danger" @click="removeErRelation(ri)">×</el-button>
+          </div>
+          <el-button size="small" class="add-comp-btn" @click="addErRelation">+ 添加关系</el-button>
+
+          <div class="input-row">
+            <el-button type="primary" :loading="generating" @click="generate">生成 ER 图</el-button>
+          </div>
+        </template>
+
+        <!-- 三线表: 表格内容生成 docx -->
+        <template v-else-if="type === 'TABLE3'">
+          <div class="input-title">三线表配置</div>
+          <el-form label-width="70px" size="small">
+            <el-form-item label="表题">
+              <el-input v-model="t3.title" placeholder="如：表 1 学生信息表" />
+            </el-form-item>
+          </el-form>
+          <div class="input-row" style="margin-bottom:10px">
+            <el-button size="small" @click="t3ShowSql = !t3ShowSql">{{ t3ShowSql ? '收起 SQL 导入' : '从 SQL 导入' }}</el-button>
+          </div>
+          <div v-if="t3ShowSql">
+            <el-input v-model="t3.sqlText" type="textarea" :rows="5" placeholder="CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(20), age INT);" />
+            <div class="input-row">
+              <el-button size="small" :loading="t3SqlLoading" @click="t3ImportFromSql">解析建表 SQL</el-button>
+            </div>
+            <div class="section-divider"></div>
+          </div>
+          <div class="input-title">表头</div>
+          <div class="cls-row" v-for="(h, hi) in t3.headers" :key="hi">
+            <el-input v-model="t3.headers[hi]" size="small" placeholder="列名" />
+            <el-button size="small" text type="danger" @click="t3.headers.splice(hi, 1)">×</el-button>
+          </div>
+          <el-button size="small" class="add-comp-btn" @click="t3.headers.push('')">+ 表头</el-button>
+          <div class="section-divider"></div>
+          <div class="input-title">数据行</div>
+          <div v-for="(row, ri) in t3.rows" :key="ri" class="cls-row">
+            <el-input v-for="(c, ci) in row" :key="ci" v-model="t3.rows[ri][ci]" size="small" placeholder="值" style="margin-right:4px" />
+            <el-button size="small" text type="danger" @click="t3.rows.splice(ri, 1)">×</el-button>
+          </div>
+          <el-button size="small" class="add-comp-btn" @click="t3.rows.push(Array(t3.headers.length).fill(''))">+ 数据行</el-button>
+          <div class="t3-preview">
+            <div class="t3-caption">{{ t3.title || '表题' }}</div>
+            <table class="t3-table">
+              <thead>
+                <tr><th v-for="(h, hi) in t3.headers" :key="'th' + hi">{{ h || '　' }}</th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="(row, ri) in t3.rows" :key="'tr' + ri">
+                  <td v-for="(c, ci) in row" :key="'td' + ri + '-' + ci">{{ c || '　' }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="t3-tip">顶线/底线 1.5pt 粗线 · 栏目线 0.75pt 细线 · 无竖线（预览为简化样式，下载为准）</div>
+          </div>
+          <div class="input-row">
+            <el-button type="primary" :loading="generating" @click="generate">生成三线表文档</el-button>
+            <span class="tip">生成 .docx 三线表并下载</span>
+          </div>
+        </template>
       </section>
 
       <section class="canvas-wrap">
@@ -388,6 +499,8 @@ import { Graph } from '@antv/x6'
 import { DagreLayout } from '@antv/layout'
 import html2canvas from 'html2canvas'
 import { generateDiagram, saveDiagram } from '../api/diagram'
+import { getErGraph } from '../api/er'
+import { parseSql, generateTable3 } from '../api/table3'
 import { toMermaid } from '../utils/mermaid'
 import MermaidExportDialog from '../components/MermaidExportDialog.vue'
 
@@ -756,6 +869,103 @@ function buildClassPayload() {
   return { title: clsConfig.value.title, classes, relations }
 }
 
+// ==================== ER 图配置 ====================
+const erConfig = ref({
+  entities: [
+    { name: '用户', attrs: [{ name: 'id', key: true }, { name: '姓名', key: false }] },
+    { name: '订单', attrs: [{ name: 'id', key: true }, { name: 'user_id', key: false }] }
+  ],
+  relations: [
+    { from: '用户', to: '订单', cardinality: '1:n' }
+  ]
+})
+const erShowSql = ref(false)
+const erSql = ref('')
+const erSqlLoading = ref(false)
+let erSeq = 0
+
+const erEntities = computed(() => erConfig.value.entities.map((e, i) => ({
+  value: e.name || ('实体' + i),
+  label: e.name || ('实体' + i)
+})))
+
+function addErEntity() {
+  erConfig.value.entities.push({ name: '', attrs: [{ name: '', key: false }] })
+}
+function removeErEntity(ei) {
+  const name = erConfig.value.entities[ei].name
+  erConfig.value.entities.splice(ei, 1)
+  erConfig.value.relations = erConfig.value.relations.filter(r => r.from !== name && r.to !== name)
+}
+function addErAttr(ei) {
+  erConfig.value.entities[ei].attrs.push({ name: '', key: false })
+}
+function removeErAttr(ei, ai) {
+  erConfig.value.entities[ei].attrs.splice(ai, 1)
+}
+function addErRelation() {
+  erConfig.value.relations.push({ from: '', to: '', cardinality: '1:n' })
+}
+function removeErRelation(ri) {
+  erConfig.value.relations.splice(ri, 1)
+}
+/** 从建表 SQL 生成实体与关系 */
+async function erImportFromSql() {
+  if (!erSql.value.trim()) {
+    ElMessage.warning('请输入建表 SQL')
+    return
+  }
+  erSqlLoading.value = true
+  try {
+    const res = await fetch('/api/er/parse-sql', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('token') },
+      body: JSON.stringify({ sql: erSql.value })
+    })
+    const j = await res.json()
+    if (j.code !== 200) {
+      ElMessage.error(j.message || '解析失败')
+      return
+    }
+    erConfig.value.entities = j.data.entities.map(e => ({ name: e.name, attrs: e.attrs }))
+    erConfig.value.relations = (j.data.relations || []).map(r => ({ from: r.from, to: r.to, label: r.label || '关联', cardinality: r.cardinality || '1:n' }))
+    erShowSql.value = false
+    ElMessage.success(`已解析 ${erConfig.value.entities.length} 个实体、${erConfig.value.relations.length} 个关系`)
+  } catch (e) {
+    ElMessage.error('解析失败')
+  } finally {
+    erSqlLoading.value = false
+  }
+}
+
+// ==================== 三线表配置 ====================
+const t3 = ref({
+  title: '表 1 数据表',
+  headers: ['字段名', '类型', '说明'],
+  rows: [['id', 'int', '主键'], ['name', 'varchar', '姓名']],
+  sqlText: ''
+})
+const t3ShowSql = ref(false)
+const t3SqlLoading = ref(false)
+async function t3ImportFromSql() {
+  if (!t3.value.sqlText.trim()) {
+    ElMessage.warning('请输入建表 SQL')
+    return
+  }
+  t3SqlLoading.value = true
+  try {
+    const info = await parseSql(t3.value.sqlText)
+    t3.value.headers = ['字段名', '数据类型', '是否可空', '默认值', '说明']
+    t3.value.rows = (info.columns || []).map(c => [c.name || '', c.type || '', c.nullable === false ? '否' : '是', c.defaultValue || '', c.comment || ''])
+    t3ShowSql.value = false
+    ElMessage.success(`已解析 ${t3.value.rows.length} 列`)
+  } catch (e) {
+    ElMessage.error(e.message || '解析失败')
+  } finally {
+    t3SqlLoading.value = false
+  }
+}
+
 // 活动图配置: 泳道 + 节点 + 连线
 const actConfig = ref({
   title: '借阅流程',
@@ -913,8 +1123,7 @@ function buildSwimlanePayload() {
 
 const examples = [
   { typeText: '流程', type: 'FLOW', text: '查询会员余额\nif(余额 >= 商品金额)\n    扣除余额\n    保存订单\nelse\n    返回余额不足' },
-  { typeText: '流程', type: 'FLOW', text: '用户登录\nif(账号存在)\n    验证密码\n    if(密码正确)\n        登录成功\n    else\n        提示密码错误\nelse\n    提示账号不存在' },
-  { typeText: '架构图', type: 'ARCH', text: '用户通过小程序访问会员服务，会员服务调用订单服务，订单服务查询MySQL数据库' }
+  { typeText: '流程', type: 'FLOW', text: '用户登录\nif(账号存在)\n    验证密码\n    if(密码正确)\n        登录成功\n    else\n        提示密码错误\nelse\n    提示账号不存在' }
 ]
 
 const archLayers = computed(() => {
@@ -1113,6 +1322,10 @@ async function renderGraph(vo) {
       else if (n.shape === 'end') { w = 34; h = 34 }
       else if (n.shape === 'condition') { w = n.width || 130; h = 72 }
       else { w = n.width || Math.max(120, n.label.length * 14 + 30); h = 48 }
+    } else if (vo.type === 'ER') {
+      if (n.shape === 'rect') { w = n.width || 150; h = n.height || 60 }
+      else if (n.shape === 'ellipse') { w = n.width || 110; h = n.height || 56 }
+      else { w = n.width || 120; h = n.height || 72 }
     } else {
       w = Math.max(120, n.label.length * 14 + 30)
       h = (n.shape === 'start' || n.shape === 'end') ? 56 : 48
@@ -1128,6 +1341,14 @@ async function renderGraph(vo) {
       zIndex: n.shape === 'system' ? 0 : 10
     }
     // 活动图: 开始=实心黑圆, 结束=双圆叠加
+    if (vo.type === 'ER') {
+      node.shape = n.shape === 'rect' ? 'rect' : (n.shape === 'rhombus' ? 'polygon' : 'ellipse')
+      node.attrs = n.shape === 'rect'
+        ? { body: { fill: '#ffffff', stroke: '#000000', strokeWidth: 1.5 }, label: { text: n.label, fill: '#000', fontSize: 12, textAnchor: 'middle', textVerticalAnchor: 'middle' } }
+        : n.shape === 'rhombus'
+          ? { body: { refPoints: '0,10 10,0 20,10 10,20', fill: '#ffffff', stroke: '#000000', strokeWidth: 1.5 }, label: { text: n.label, fill: '#000', fontSize: 11, textAnchor: 'middle', textVerticalAnchor: 'middle' } }
+          : { body: { fill: '#ffffff', stroke: '#000000', strokeWidth: 1.2 }, label: { text: n.label, fill: '#000', fontSize: 10, textAnchor: 'middle', textVerticalAnchor: 'middle' } }
+    }
     if (vo.type === 'ACTIVITY' && n.shape === 'start') {
       node.attrs = { body: { fill: '#000', stroke: '#000', strokeWidth: 1.5 }, label: { text: '' } }
     }
@@ -1157,6 +1378,16 @@ async function renderGraph(vo) {
         line: isInclude || isReturn
           ? { stroke: '#333333', strokeWidth: 1.2, strokeDasharray: '6 4', targetMarker: { name: 'block', size: 7 } }
           : { stroke: '#333333', strokeWidth: 1.5, targetMarker: 'block' }
+      }
+    }
+    // ER 图: 关系标签(relationText) + 无箭头
+    if (vo.type === 'ER') {
+      edge.attrs.line = { stroke: '#000000', strokeWidth: 1.2, targetMarker: null }
+      if (e.relationText) {
+        edge.labels = [{
+          attrs: { label: { text: e.relationText, fill: '#000', fontSize: 12, textAnchor: 'middle', textVerticalAnchor: 'middle' } },
+          position: { distance: e.textPosition }
+        }]
       }
     }
     // 类图: 关系箭头按类型区分
@@ -1195,8 +1426,8 @@ async function renderGraph(vo) {
     return edge
   })
 
-  // SWIMLANE / ACTIVITY / USECASE / SEQUENCE: 泳道已定位, 节点用后端坐标, 不需 Dagre
-  if (vo.type === 'SWIMLANE' || vo.type === 'ACTIVITY' || vo.type === 'USECASE' || vo.type === 'SEQUENCE') {
+  // SWIMLANE / ACTIVITY / USECASE / SEQUENCE / ER: 泳道已定位, 节点用后端坐标, 不需 Dagre
+  if (vo.type === 'SWIMLANE' || vo.type === 'ACTIVITY' || vo.type === 'USECASE' || vo.type === 'SEQUENCE' || vo.type === 'ER') {
     graph.fromJSON({ nodes, edges })
     graph.centerContent()
     return
@@ -1327,6 +1558,56 @@ async function generate() {
       return
     }
     payload = { type: 'ACTIVITY', activity: act }
+  } else if (type.value === 'ER') {
+    const ents = erConfig.value.entities.filter(e => e.name && e.name.trim()).map(e => ({
+      name: e.name.trim(),
+      attrs: (e.attrs || []).filter(a => a.name && a.name.trim()).map(a => ({ name: a.name.trim(), key: !!a.key }))
+    }))
+    if (ents.length === 0) {
+      ElMessage.warning('请至少填写一个实体名称')
+      return
+    }
+    const rels = erConfig.value.relations.filter(r => r.from && r.to && r.from !== r.to).map(r => ({
+      from: r.from.trim(), to: r.to.trim(), label: (r.label && r.label.trim()) || '关联', cardinality: r.cardinality || '1:n'
+    }))
+    generating.value = true
+    try {
+      const vo = await getErGraph({ fontSize: 12, entities: ents, relations: rels })
+      vo.type = 'ER' // 后端 ER 返回无 type, 补上以便渲染/保存
+      currentVO.value = vo
+      graphReady.value = true
+      await nextTick()
+      if (!graph) initGraph()
+      renderGraph(vo)
+    } catch (e) {
+      ElMessage.error(e.message || 'ER 图生成失败')
+    } finally {
+      generating.value = false
+    }
+    return
+  } else if (type.value === 'TABLE3') {
+    const hs = t3.value.headers.map(h => h.trim()).filter(Boolean)
+    if (hs.length === 0) {
+      ElMessage.warning('请填写表头')
+      return
+    }
+    const rows = t3.value.rows.map(r => r.map(c => (c || '').trim()))
+    generating.value = true
+    try {
+      const blob = await generateTable3({ title: t3.value.title.trim(), headers: hs, rows })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = (t3.value.title.trim() || '三线表') + '.docx'
+      a.click()
+      URL.revokeObjectURL(url)
+      ElMessage.success('三线表已生成并下载')
+    } catch (e) {
+      ElMessage.error(e.message || '生成失败')
+    } finally {
+      generating.value = false
+    }
+    return
   } else {
     if (!description.value.trim()) {
       ElMessage.warning('请输入系统描述')
@@ -1367,7 +1648,9 @@ function initGraph() {
 async function save() {
   if (!currentVO.value) return
   try {
-    const data = { ...currentVO.value, name: type.value }
+    // 用图真实名称(后端已带业务名/标题), 无则退回类型名, 便于保存列表区分
+    const name = (currentVO.value && currentVO.value.name) || type.value
+    const data = { ...currentVO.value, name }
     const saved = await saveDiagram(data)
     currentVO.value = saved
     ElMessage.success('已保存')
@@ -1424,13 +1707,18 @@ async function downloadSvg() {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = '系统图.svg'
+      a.download = (currentVO.value?.name || '系统图') + '.svg'
   a.click()
   URL.revokeObjectURL(url)
 }
 
 /** 导出当前图为 Mermaid(打开预览弹窗, 支持复制/下载) */
 function exportMermaid() {
+  // 优先根据生成的图数据导出(与画布内容一致); 未生成时退回输入配置
+  if (type.value !== 'ER' && type.value !== 'TABLE3' && currentVO.value && currentVO.value.nodes && currentVO.value.nodes.length) {
+    mmdDlg.value.open(toMermaid('VO', currentVO.value), type.value.toLowerCase() + '.mmd')
+    return
+  }
   let mmd = ''
   switch (type.value) {
     case 'ARCH': mmd = toMermaid('ARCH', config.value); break
@@ -1440,6 +1728,18 @@ function exportMermaid() {
     case 'USECASE': mmd = toMermaid('USECASE', ucConfig.value); break
     case 'SEQUENCE': mmd = toMermaid('SEQUENCE', seqConfig.value); break
     case 'CLASS': mmd = toMermaid('CLASS', clsConfig.value); break
+    case 'ER': {
+      const ents = erConfig.value.entities.filter(e => e.name && e.name.trim()).map(e => ({
+        name: e.name.trim(),
+        attrs: (e.attrs || []).filter(a => a.name && a.name.trim()).map(a => ({ name: a.name.trim(), key: !!a.key }))
+      }))
+      const rels = erConfig.value.relations.filter(r => r.from && r.to && r.from !== r.to).map(r => ({
+        from: r.from.trim(), to: r.to.trim(), label: (r.label && r.label.trim()) || '关联', cardinality: r.cardinality || '1:n'
+      }))
+      mmd = toMermaid('ER', ents, rels)
+      break
+    }
+    case 'TABLE3': ElMessage.warning('三线表为表格文档，暂不支持 Mermaid 导出'); return
     default: ElMessage.warning('暂不支持导出该类型'); return
   }
   mmdDlg.value.open(mmd, type.value.toLowerCase() + '.mmd')
@@ -1478,7 +1778,7 @@ async function downloadPng() {
       if (!b) return
       const a = document.createElement('a')
       a.href = URL.createObjectURL(b)
-      a.download = '系统图.png'
+      a.download = (currentVO.value?.name || '系统图') + '.png'
       a.click()
       URL.revokeObjectURL(a.href)
       ElMessage.success('PNG 已导出')
@@ -1837,5 +2137,42 @@ async function downloadArchSvg() {
   color: #909399;
   font-size: 14px;
   background: #fafbfc;
+}
+.t3-preview {
+  margin-top: 14px;
+  border: 1px dashed #d9d9d9;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fafbfc;
+}
+.t3-caption {
+  text-align: center;
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+  margin-bottom: 8px;
+}
+.t3-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.t3-table th,
+.t3-table td {
+  padding: 6px 10px;
+  text-align: center;
+}
+.t3-table thead th {
+  border-top: 1.5px solid #000;
+  border-bottom: 0.75px solid #000;
+  font-weight: 600;
+}
+.t3-table tbody tr:last-child td {
+  border-bottom: 1.5px solid #000;
+}
+.t3-tip {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #909399;
 }
 </style>

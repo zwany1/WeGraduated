@@ -41,7 +41,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { getProfile, logout } from '../../api/user'
 import NotificationBell from '../NotificationBell.vue'
 
@@ -106,6 +106,7 @@ function handleUserCommand(cmd) {
       localStorage.removeItem('userId')
       localStorage.removeItem('username')
       localStorage.removeItem('avatar')
+      ElMessage.success('已退出登录')
       router.push('/home')
     }).catch(() => {})
   }

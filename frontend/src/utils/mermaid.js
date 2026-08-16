@@ -270,6 +270,29 @@ export function toMermaid(type, data, extra) {
     case 'CLASS': return classToMermaid(data)
     case 'ER': return erToMermaid(data, extra)
     case 'FREEDRAW': return freeDrawToMermaid(data)
+    case 'VO': return voToMermaid(data)
     default: return 'flowchart TD\n  A(["待支持"])'
   }
+}
+
+/**
+ * 根据生成的图数据(节点+边)导出 flowchart Mermaid —— 保证导出的内容与画布上的图一致。
+ */
+export function voToMermaid(vo) {
+  const lines = ['flowchart TD']
+  const idMap = {}
+  let seq = 0
+  ;(vo.nodes || []).forEach(n => {
+    const id = 'N' + (seq++)
+    idMap[n.id] = id
+    const label = (n.label || '').replace(/"/g, '')
+    lines.push(`  ${id}["${label || id}"]`)
+  })
+  ;(vo.edges || []).forEach(e => {
+    const s = idMap[e.source] || ('S' + e.source)
+    const t = idMap[e.target] || ('T' + e.target)
+    const lbl = (e.label || e.relationText || '').replace(/"/g, '')
+    lines.push(`  ${s} -->${lbl ? '|' + lbl + '|' : ''} ${t}`)
+  })
+  return lines.join('\n')
 }

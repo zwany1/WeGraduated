@@ -309,17 +309,17 @@ function renderGraph(vo) {
     if (n.shape === 'rect') {
       base.attrs = {
         body: { fill: '#ffffff', stroke: '#000000', strokeWidth: 1.5 },
-        label: { text: n.label, fill: '#000000', fontSize: 12 }
+        label: { text: n.label, fill: '#000000', fontSize: fontSize.value }
       }
     } else if (n.shape === 'rhombus') {
       base.attrs = {
         body: { refPoints: '0,10 10,0 20,10 10,20', fill: '#ffffff', stroke: '#000000', strokeWidth: 1.5 },
-        label: { text: n.label, fill: '#000000', fontSize: 12, textAnchor: 'middle', textVerticalAnchor: 'middle' }
+        label: { text: n.label, fill: '#000000', fontSize: fontSize.value, textAnchor: 'middle', textVerticalAnchor: 'middle' }
       }
     } else {
       base.attrs = {
         body: { fill: '#ffffff', stroke: '#000000', strokeWidth: 1.2 },
-        label: { text: n.label, fill: '#000000', fontSize: 10, textAnchor: 'middle', textVerticalAnchor: 'middle' }
+        label: { text: n.label, fill: '#000000', fontSize: fontSize.value - 2, textAnchor: 'middle', textVerticalAnchor: 'middle' }
       }
     }
     return base

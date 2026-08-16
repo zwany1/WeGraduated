@@ -24,7 +24,8 @@ public class ERGraphService {
         if (g.entities.isEmpty()) {
             throw new BusinessException(400, "请至少填写一个实体名称");
         }
-        Font attrFont = new Font("Microsoft YaHei", Font.PLAIN, 12);
+        int fs = dto.getFontSize() == null ? 12 : dto.getFontSize();
+        Font attrFont = new Font("Microsoft YaHei", Font.PLAIN, fs);
         ERLayoutEngine.layout(g, attrFont);
 
         ERGraphVO vo = new ERGraphVO();

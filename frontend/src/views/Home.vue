@@ -327,7 +327,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { getProfile, logout } from '../api/user'
 import { listPublicNotices } from '../api/admin'
 import NotificationBell from '../components/NotificationBell.vue'
@@ -416,6 +416,7 @@ async function handleUserCommand(cmd) {
       localStorage.removeItem('role')
       isLoggedIn.value = false
       isAdmin.value = false
+      ElMessage.success('已退出登录')
       router.push('/home')
     } catch (e) {
       // 取消
@@ -495,22 +496,8 @@ const tools = [
     icon: '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><path d="M10 9l-1 1 1 1"/>'
   },
   {
-    name: '三线表生成',
-    desc: '快速生成规范的三线表格<br/>支持表头合并、自动编号。',
-    color: 'green',
-    route: '/table3',
-    icon: '<rect x="3" y="3" width="18" height="18" rx="1"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>'
-  },
-  {
-    name: 'ER 图生成',
-    desc: '输入实体、属性和关系<br/>自动生成清晰的 ER 图。',
-    color: 'orange',
-    route: '/er',
-    icon: '<circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><line x1="9" y1="6" x2="15" y2="6"/><line x1="6" y1="9" x2="6" y2="15"/><line x1="18" y1="9" x2="18" y2="15"/><line x1="9" y1="18" x2="15" y2="18"/>'
-  },
-  {
     name: '系统图设计',
-    desc: '支持流程图、泳道图、架构图等<br/>一键生成专业系统设计图。',
+    desc: '流程图、架构图、ER 图、三线表等<br/>一键生成专业图表与文档。',
     color: 'purple',
     route: '/system-design',
     icon: '<rect x="3" y="3" width="7" height="5" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="8" y="14" width="7" height="5" rx="1"/><line x1="6.5" y1="8" x2="6.5" y2="11" stroke-dasharray="2"/><line x1="17.5" y1="8" x2="17.5" y2="11" stroke-dasharray="2"/><line x1="6.5" y1="11" x2="11.5" y2="14"/><line x1="17.5" y1="11" x2="11.5" y2="14"/>'

@@ -6,15 +6,21 @@ import com.graduate.thesis.dto.RuleSaveDTO;
 import com.graduate.thesis.entity.FormatRule;
 import com.graduate.thesis.entity.FormatTemplate;
 import com.graduate.thesis.entity.MarketRating;
+import com.graduate.thesis.entity.TemplateFavorite;
 import com.graduate.thesis.mapper.FormatRuleMapper;
 import com.graduate.thesis.mapper.FormatTemplateMapper;
 import com.graduate.thesis.mapper.MarketRatingMapper;
+import com.graduate.thesis.mapper.TemplateFavoriteMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -28,13 +34,16 @@ public class TemplateService {
     private final FormatTemplateMapper templateMapper;
     private final FormatRuleMapper ruleMapper;
     private final MarketRatingMapper ratingMapper;
+    private final TemplateFavoriteMapper favoriteMapper;
     private final DbRetryService dbRetryService;
 
     public TemplateService(FormatTemplateMapper templateMapper, FormatRuleMapper ruleMapper,
-                           MarketRatingMapper ratingMapper, DbRetryService dbRetryService) {
+                           MarketRatingMapper ratingMapper, TemplateFavoriteMapper favoriteMapper,
+                           DbRetryService dbRetryService) {
         this.templateMapper = templateMapper;
         this.ruleMapper = ruleMapper;
         this.ratingMapper = ratingMapper;
+        this.favoriteMapper = favoriteMapper;
         this.dbRetryService = dbRetryService;
     }
 
@@ -328,5 +337,199 @@ public class TemplateService {
         template.setRatingCount(all.size());
         template.setUpdateTime(LocalDateTime.now());
         templateMapper.updateById(template);
+    }
+
+    // ==================== 收藏 ====================
+
+    /** 收藏/取消收藏市场模板, 返回是否已收藏 */
+    public boolean toggleFavorite(Long userId, Long templateId) {
+        FormatTemplate t = templateMapper.selectById(templateId);
+        if (t == null || !Boolean.TRUE.equals(t.getIsPublic())) {
+            throw new BusinessException(404, "模板不存在或未上架");
+        }
+        TemplateFavorite exist = favoriteMapper.selectOne(new LambdaQueryWrapper<TemplateFavorite>()
+                .eq(TemplateFavorite::getUserId, userId)
+                .eq(TemplateFavorite::getTemplateId, templateId));
+        if (exist != null) {
+            favoriteMapper.delete(new LambdaQueryWrapper<TemplateFavorite>()
+                    .eq(TemplateFavorite::getUserId, userId)
+                    .eq(TemplateFavorite::getTemplateId, templateId));
+            return false;
+        }
+        TemplateFavorite f = new TemplateFavorite();
+        f.setUserId(userId);
+        f.setTemplateId(templateId);
+        f.setCreateTime(LocalDateTime.now());
+        favoriteMapper.insert(f);
+        return true;
+    }
+
+    /** 我的收藏列表(仅展示仍在市场上架的模板) */
+    public List<Map<String, Object>> listFavorites(Long userId) {
+        List<TemplateFavorite> favs = favoriteMapper.selectList(new LambdaQueryWrapper<TemplateFavorite>()
+                .eq(TemplateFavorite::getUserId, userId)
+                .orderByDesc(TemplateFavorite::getCreateTime));
+        if (favs.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<Long> ids = favs.stream().map(TemplateFavorite::getTemplateId).collect(Collectors.toList());
+        Map<Long, FormatTemplate> map = templateMapper.selectList(
+                        new LambdaQueryWrapper<FormatTemplate>().in(FormatTemplate::getId, ids))
+                .stream().collect(Collectors.toMap(FormatTemplate::getId, x -> x, (a, b) -> a));
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (TemplateFavorite f : favs) {
+            FormatTemplate t = map.get(f.getTemplateId());
+            if (t == null || !Boolean.TRUE.equals(t.getIsPublic())) {
+                continue;
+            }
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", t.getId());
+            m.put("name", t.getName());
+            m.put("category", t.getCategory());
+            m.put("recommended", Boolean.TRUE.equals(t.getRecommended()));
+            m.put("publicTime", t.getPublicTime());
+            m.put("downloadCount", nvl(t.getDownloadCount()));
+            m.put("ratingAvg", nvl2(t.getRatingAvg()).doubleValue());
+            m.put("ratingCount", nvl(t.getRatingCount()));
+            m.put("ruleCount", ruleMapper.selectCount(new LambdaQueryWrapper<FormatRule>()
+                    .eq(FormatRule::getTemplateId, t.getId())));
+            out.add(m);
+        }
+        return out;
+    }
+
+    // ==================== 导入 / 导出 ====================
+
+    /** 导出模板(含全部配置与规则)为 JSON */
+    public Map<String, Object> exportTemplate(Long userId, Long templateId) {
+        FormatTemplate t = getOwned(templateId, userId);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("type", "thesis-template");
+        m.put("version", 1);
+        m.put("name", t.getName());
+        m.put("pageConfig", t.getPageConfig());
+        m.put("headingPatterns", t.getHeadingPatterns());
+        m.put("coverConfig", t.getCoverConfig());
+        m.put("generateToc", t.getGenerateToc());
+        m.put("referenceConfig", t.getReferenceConfig());
+        m.put("category", t.getCategory());
+        m.put("rules", ruleMapper.selectList(new LambdaQueryWrapper<FormatRule>()
+                .eq(FormatRule::getTemplateId, templateId)));
+        return m;
+    }
+
+    /** 从 JSON 导入模板(含规则), 返回新模板 */
+    @Transactional
+    public FormatTemplate importTemplate(Long userId, Map<String, Object> data) {
+        if (data == null || data.isEmpty()) {
+            throw new BusinessException("导入数据不能为空");
+        }
+        String name = data.get("name") == null ? "" : String.valueOf(data.get("name")).trim();
+        if (name.isEmpty()) {
+            name = "导入的模板";
+        }
+        FormatTemplate t = new FormatTemplate();
+        t.setUserId(userId);
+        t.setName(name);
+        t.setPageConfig(str(data.get("pageConfig")));
+        t.setHeadingPatterns(str(data.get("headingPatterns")));
+        t.setCoverConfig(str(data.get("coverConfig")));
+        Object gt = data.get("generateToc");
+        t.setGenerateToc(gt != null && (Boolean.TRUE.equals(gt) || "true".equalsIgnoreCase(String.valueOf(gt))));
+        t.setReferenceConfig(str(data.get("referenceConfig")));
+        Object cat = data.get("category");
+        t.setCategory(cat == null ? null : String.valueOf(cat).trim());
+        t.setCreateTime(LocalDateTime.now());
+        t.setUpdateTime(LocalDateTime.now());
+        templateMapper.insert(t);
+        Object rulesObj = data.get("rules");
+        if (rulesObj instanceof List) {
+            for (Object o : (List<?>) rulesObj) {
+                if (!(o instanceof Map)) {
+                    continue;
+                }
+                Map<?, ?> rm = (Map<?, ?>) o;
+                FormatRule nr = new FormatRule();
+                nr.setTemplateId(t.getId());
+                nr.setRuleType(str(rm.get("ruleType")));
+                nr.setFont(str(rm.get("font")));
+                nr.setFontLatin(str(rm.get("fontLatin")));
+                nr.setFontSize(intOf(rm.get("fontSize")));
+                nr.setBold(boolOf(rm.get("bold")));
+                nr.setAlign(str(rm.get("align")));
+                nr.setLineSpacing(floatOf(rm.get("lineSpacing")));
+                nr.setLineSpacingType(str(rm.get("lineSpacingType")));
+                nr.setLineSpacingExact(intOf(rm.get("lineSpacingExact")));
+                nr.setFirstLineIndent(intOf(rm.get("firstLineIndent")));
+                nr.setSpaceBefore(intOf(rm.get("spaceBefore")));
+                nr.setSpaceAfter(intOf(rm.get("spaceAfter")));
+                nr.setCaptionPosition(str(rm.get("captionPosition")));
+                nr.setNumberingPattern(str(rm.get("numberingPattern")));
+                nr.setCaptionEnabled(boolOf(rm.get("captionEnabled")));
+                nr.setCreateTime(LocalDateTime.now());
+                nr.setUpdateTime(LocalDateTime.now());
+                ruleMapper.insert(nr);
+            }
+        }
+        return t;
+    }
+
+    /** 市场模板详情(公开, 无需登录): 用于市场详情弹窗 */
+    public Map<String, Object> marketDetail(Long templateId) {
+        FormatTemplate t = templateMapper.selectById(templateId);
+        if (t == null || !Boolean.TRUE.equals(t.getIsPublic())) {
+            throw new BusinessException(404, "模板不存在或未上架");
+        }
+        List<FormatRule> rules = ruleMapper.selectList(new LambdaQueryWrapper<FormatRule>()
+                .eq(FormatRule::getTemplateId, templateId));
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", t.getId());
+        m.put("name", t.getName());
+        m.put("category", t.getCategory());
+        m.put("recommended", Boolean.TRUE.equals(t.getRecommended()));
+        m.put("publicTime", t.getPublicTime());
+        m.put("downloadCount", nvl(t.getDownloadCount()));
+        m.put("ratingAvg", nvl2(t.getRatingAvg()).doubleValue());
+        m.put("ratingCount", nvl(t.getRatingCount()));
+        m.put("ruleCount", rules.size());
+        m.put("generateToc", t.getGenerateToc());
+        m.put("pageConfig", t.getPageConfig());
+        m.put("headingPatterns", t.getHeadingPatterns());
+        m.put("referenceConfig", t.getReferenceConfig());
+        m.put("rules", rules);
+        return m;
+    }
+
+    private static String str(Object v) {
+        return v == null ? null : String.valueOf(v);
+    }
+
+    private static Integer intOf(Object v) {
+        if (v == null || String.valueOf(v).isEmpty()) {
+            return null;
+        }
+        try {
+            return Double.valueOf(String.valueOf(v)).intValue();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static Float floatOf(Object v) {
+        if (v == null || String.valueOf(v).isEmpty()) {
+            return null;
+        }
+        try {
+            return Float.valueOf(String.valueOf(v));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static Boolean boolOf(Object v) {
+        if (v == null) {
+            return null;
+        }
+        return Boolean.TRUE.equals(v) || "true".equalsIgnoreCase(String.valueOf(v));
     }
 }

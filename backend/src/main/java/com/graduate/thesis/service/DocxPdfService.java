@@ -203,4 +203,50 @@ public class DocxPdfService {
             throw new BusinessException(500, "PDF 转换失败: " + e.getMessage());
         }
     }
+
+    // ==================== .doc 旧格式兼容 ====================
+
+    /**
+     * 用 LibreOffice 将 .doc 旧格式转换为 .docx(排版引擎仅支持 docx)。
+     * 服务器未安装/未配置 LibreOffice 时返回明确错误。
+     */
+    public File convertDocToDocx(File doc) {
+        if (doc == null || !doc.exists()) {
+            throw new BusinessException(404, "源文档不存在");
+        }
+        try {
+            Path outDir = Files.createTempDirectory(workDir, "doc_conv_");
+            ProcessBuilder pb = new ProcessBuilder(
+                    soffice,
+                    "--headless",
+                    "--norestore",
+                    "--convert-to",
+                    "docx",
+                    "--outdir",
+                    outDir.toAbsolutePath().toString(),
+                    doc.getAbsolutePath()
+            );
+            pb.redirectErrorStream(true);
+            Process proc = pb.start();
+            try (java.io.InputStream is = proc.getInputStream()) {
+                byte[] buf = new byte[4096];
+                while (is.read(buf) != -1) {
+                    // discard
+                }
+            }
+            if (!proc.waitFor(120, TimeUnit.SECONDS)) {
+                proc.destroyForcibly();
+                throw new BusinessException(500, ".doc 转换超时");
+            }
+            File[] out = outDir.toFile().listFiles((d, n) -> n.endsWith(".docx"));
+            if (out != null && out.length > 0) {
+                return out[0];
+            }
+            throw new BusinessException(500, "无法将 .doc 转换为 .docx：服务器未安装或未正确配置 LibreOffice，请联系管理员");
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new BusinessException(500, ".doc 转换为 .docx 失败: " + e.getMessage());
+        }
+    }
 }

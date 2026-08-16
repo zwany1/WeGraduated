@@ -76,6 +76,8 @@ public class DbMigrationRunner implements ApplicationRunner {
     /** 幂等补齐扩展列: t_user.status / 模板市场字段(兼容 MySQL 5.7 / 8.0) */
     private void ensureExtColumns() {
         addColumnIfMissing("t_user", "status", "ALTER TABLE t_user ADD COLUMN status TINYINT(1) NOT NULL DEFAULT 1 COMMENT '状态 1正常 0禁用'");
+        addColumnIfMissing("t_user", "github_id", "ALTER TABLE t_user ADD COLUMN github_id VARCHAR(64) DEFAULT NULL COMMENT 'GitHub OAuth 用户id'");
+        addColumnIfMissing("t_user", "github_login", "ALTER TABLE t_user ADD COLUMN github_login VARCHAR(64) DEFAULT NULL COMMENT 'GitHub OAuth 登录名'");
         addColumnIfMissing("t_format_template", "is_public", "ALTER TABLE t_format_template ADD COLUMN is_public TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否上架模板市场'");
         addColumnIfMissing("t_format_template", "recommended", "ALTER TABLE t_format_template ADD COLUMN recommended TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否推荐'");
         addColumnIfMissing("t_format_template", "public_time", "ALTER TABLE t_format_template ADD COLUMN public_time DATETIME DEFAULT NULL COMMENT '上架时间'");
@@ -85,6 +87,8 @@ public class DbMigrationRunner implements ApplicationRunner {
         addColumnIfMissing("t_format_template", "rating_count", "ALTER TABLE t_format_template ADD COLUMN rating_count INT NOT NULL DEFAULT 0 COMMENT '评分人数'");
         addColumnIfMissing("t_format_task", "retry_count", "ALTER TABLE t_format_task ADD COLUMN retry_count INT NOT NULL DEFAULT 0 COMMENT '失败自动重试次数'");
         ensureMarketRatingTable();
+        ensureLoginSessionTable();
+        ensureFavoriteTable();
     }
 
     private void addColumnIfMissing(String table, String column, String alterSql) {
@@ -120,6 +124,50 @@ public class DbMigrationRunner implements ApplicationRunner {
             }
         } catch (Exception e) {
             log.warn("[DbMigration] 创建 t_market_rating 表失败: {}", e.getMessage());
+        }
+    }
+
+    /** 登录会话表(幂等建表): 记录活跃登录, 支持后台查看在线用户与强制下线 */
+    private void ensureLoginSessionTable() {
+        try {
+            Integer count = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 't_login_session'",
+                    Integer.class);
+            if (count == null || count == 0) {
+                jdbcTemplate.execute("CREATE TABLE t_login_session (" +
+                        "id BIGINT AUTO_INCREMENT PRIMARY KEY, " +
+                        "user_id BIGINT NOT NULL, " +
+                        "username VARCHAR(64) DEFAULT NULL, " +
+                        "token VARCHAR(600) NOT NULL, " +
+                        "ip VARCHAR(64) DEFAULT NULL, " +
+                        "login_time DATETIME DEFAULT NULL, " +
+                        "expire_time BIGINT NOT NULL, " +
+                        "KEY idx_login_user (user_id)" +
+                        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='登录会话'");
+                log.info("[DbMigration] 已创建 t_login_session 表");
+            }
+        } catch (Exception e) {
+            log.warn("[DbMigration] 创建 t_login_session 表失败: {}", e.getMessage());
+        }
+    }
+
+    /** 模板收藏表(幂等建表): 用户对市场模板的收藏 */
+    private void ensureFavoriteTable() {
+        try {
+            Integer count = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 't_template_favorite'",
+                    Integer.class);
+            if (count == null || count == 0) {
+                jdbcTemplate.execute("CREATE TABLE t_template_favorite (" +
+                        "user_id BIGINT NOT NULL, " +
+                        "template_id BIGINT NOT NULL, " +
+                        "create_time DATETIME DEFAULT CURRENT_TIMESTAMP, " +
+                        "PRIMARY KEY (user_id, template_id)" +
+                        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='模板收藏'");
+                log.info("[DbMigration] 已创建 t_template_favorite 表");
+            }
+        } catch (Exception e) {
+            log.warn("[DbMigration] 创建 t_template_favorite 表失败: {}", e.getMessage());
         }
     }
 

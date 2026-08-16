@@ -60,6 +60,7 @@ public class UserService {
     private final UserRoleMapper userRoleMapper;
     private final PermissionService permissionService;
     private final LogService logService;
+    private final LoginSessionService sessionService;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
     /** 登录失败记录: 登录名(用户名或邮箱) -> 失败次数 */
@@ -76,7 +77,7 @@ public class UserService {
                        FormatTaskMapper taskMapper, PaperFileMapper paperFileMapper,
                        StorageService storageService, RoleMapper roleMapper,
                        UserRoleMapper userRoleMapper, PermissionService permissionService,
-                       LogService logService) {
+                       LogService logService, LoginSessionService sessionService) {
         this.userMapper = userMapper;
         this.jwtUtil = jwtUtil;
         this.emailCodeService = emailCodeService;
@@ -89,6 +90,7 @@ public class UserService {
         this.userRoleMapper = userRoleMapper;
         this.permissionService = permissionService;
         this.logService = logService;
+        this.sessionService = sessionService;
     }
 
     public LoginResponse resetPassword(ResetPasswordDTO dto) {
@@ -105,7 +107,10 @@ public class UserService {
         // 重置后失效该用户所有旧 token
         jwtUtil.revokeAllForUser(user.getId());
         logService.recordLogin(user.getId(), user.getUsername(), true, "重置密码成功");
-        return buildLoginResponse(user);
+        LoginResponse resp = buildLoginResponse(user);
+        sessionService.createSession(resp.getToken(), user.getId(), user.getUsername(), null,
+                jwtUtil.getExpiration(resp.getToken()).getTime());
+        return resp;
     }
 
     public LoginResponse register(UserAuthDTO dto) {
@@ -137,7 +142,10 @@ public class UserService {
         userMapper.insert(user);
         assignDefaultUserRole(user.getId());
         logService.recordLogin(user.getId(), username, true, "注册成功");
-        return buildLoginResponse(user);
+        LoginResponse resp = buildLoginResponse(user);
+        sessionService.createSession(resp.getToken(), user.getId(), username, null,
+                jwtUtil.getExpiration(resp.getToken()).getTime());
+        return resp;
     }
 
     /** 新注册用户绑定内置普通用户角色 */
@@ -215,12 +223,16 @@ public class UserService {
             ipLockUntil.remove(ip);
         }
         logService.recordLogin(user.getId(), user.getUsername(), true, "登录成功");
-        return buildLoginResponse(user);
+        LoginResponse resp = buildLoginResponse(user);
+        sessionService.createSession(resp.getToken(), user.getId(), user.getUsername(), ip,
+                jwtUtil.getExpiration(resp.getToken()).getTime());
+        return resp;
     }
 
     public void logout(Long userId, String token) {
         if (token != null && !token.isEmpty()) {
             jwtUtil.revoke(token);
+            sessionService.removeByToken(token);
         }
     }
 

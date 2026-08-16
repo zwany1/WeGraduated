@@ -46,13 +46,16 @@ public class AdminController {
     private final AdminService adminService;
     private final PaperService paperService;
     private final ExcelExportService excelExportService;
+    private final com.graduate.thesis.service.LoginSessionService loginSessionService;
 
     public AdminController(AdminService adminService,
                            PaperService paperService,
-                           ExcelExportService excelExportService) {
+                           ExcelExportService excelExportService,
+                           com.graduate.thesis.service.LoginSessionService loginSessionService) {
         this.adminService = adminService;
         this.paperService = paperService;
         this.excelExportService = excelExportService;
+        this.loginSessionService = loginSessionService;
     }
 
     // ==================== 概览与统计 ====================
@@ -85,6 +88,24 @@ public class AdminController {
     @RequiresPerms("system:overview:view")
     public Result<List<Map<String, Object>>> topUsers() {
         return Result.ok(adminService.topUsers());
+    }
+
+    // ==================== 在线会话管理 ====================
+
+    /** 在线用户会话列表 */
+    @GetMapping("/session/online")
+    @RequiresPerms("system:user:list")
+    public Result<List<Map<String, Object>>> onlineSessions() {
+        return Result.ok(loginSessionService.listOnline());
+    }
+
+    /** 强制下线指定会话 */
+    @DeleteMapping("/session/{id}")
+    @OperLog(module = "用户管理", action = "强制下线")
+    @RequiresPerms("system:user:edit")
+    public Result<Void> kickSession(@PathVariable Long id) {
+        loginSessionService.kick(id);
+        return Result.ok();
     }
 
     // ==================== 用户管理 ====================

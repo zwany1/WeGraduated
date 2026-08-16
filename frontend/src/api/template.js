@@ -54,10 +54,32 @@ export function listMarketCategories() {
   return api.get('/template/market/categories')
 }
 
+export function getMarketTemplateDetail(id) {
+  return api.get(`/template/market/${id}/detail`)
+}
+
+export function toggleFavoriteTemplate(id) {
+  return api.post(`/template/market/${id}/favorite`)
+}
+
+export function listFavoriteTemplates() {
+  return api.get('/template/market/favorites')
+}
+
 export function rateMarketTemplate(id, score) {
   return api.post(`/template/market/${id}/rate`, { score })
 }
 
 export function copyMarketTemplate(id) {
   return api.post(`/template/market/${id}/copy`)
+}
+
+// ============ 模板导入 / 导出 ============
+
+export function exportTemplate(id) {
+  return api.get(`/template/${id}/export`)
+}
+
+export function importTemplate(data) {
+  return api.post('/template/import', data)
 }

@@ -29,7 +29,7 @@
           </div>
         </div>
         <div v-if="marketTemplates.length" class="grid">
-          <div class="card" v-for="t in marketTemplates" :key="'p'+t.id" @click="useMarket(t)">
+          <div class="card" v-for="t in marketTemplates" :key="'p'+t.id" @click="openDetail(t)">
             <div class="card-top">
               <div class="card-type" :class="t.recommended ? '推荐' : '官方'">{{ t.recommended ? '推荐' : '官方' }}</div>
               <div class="card-icon">
@@ -39,7 +39,7 @@
             <h3 class="card-title">{{ t.name }}</h3>
             <p class="card-desc">共 {{ t.ruleCount || 0 }} 条排版规则 · {{ t.category || '未分类' }}</p>
             <div class="card-stats">
-              <span class="stars" @click.stop="chooseRate(t)">
+              <span class="stars">
                 <span v-for="i in 5" :key="i" class="star" :class="{ filled: i <= Math.round(t.ratingAvg || 0) }">★</span>
                 <span class="score">{{ (t.ratingAvg || 0).toFixed(1) }}</span>
                 <span class="count">({{ t.ratingCount || 0 }})</span>
@@ -50,10 +50,41 @@
               <span class="tag" v-if="t.recommended">推荐</span>
               <span class="tag">一键复制</span>
             </div>
-            <button class="btn-use" @click.stop="useMarket(t)">使用此模板</button>
+            <div class="card-actions">
+              <button class="btn-use" @click.stop="useMarket(t)">使用此模板</button>
+              <button v-if="isLoggedIn" class="btn-fav" :class="{ on: favSet.has(t.id) }" @click.stop="toggleFav(t)">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M12 21s-6.7-4.35-9.33-8.11C.85 10.16 1.94 6.5 5.16 5.5c1.94-.6 3.98.2 4.84 1.82C10.86 5.7 12.9 4.9 14.84 5.5c3.22 1 4.31 4.66 2.49 7.39C18.7 16.65 12 21 12 21z"/></svg>
+              </button>
+            </div>
           </div>
         </div>
         <p v-else class="empty">暂无符合条件的模板，你可以先使用内置预设或创建自己的模板</p>
+
+        <!-- 我的收藏 -->
+        <template v-if="isLoggedIn && favorites.length">
+          <h2 class="sec-title mt">我的收藏</h2>
+          <p class="sec-sub">收藏的市场模板，随时复制使用</p>
+          <div class="grid">
+            <div class="card" v-for="t in favorites" :key="'f'+t.id" @click="openDetail(t)">
+              <div class="card-top">
+                <div class="card-type 官方">{{ t.category || '收藏' }}</div>
+                <div class="card-icon">
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><path d="M10 9l-1 1 1 1"/></svg>
+                </div>
+              </div>
+              <h3 class="card-title">{{ t.name }}</h3>
+              <p class="card-desc">共 {{ t.ruleCount || 0 }} 条排版规则 · {{ t.category || '未分类' }}</p>
+              <div class="card-stats">
+                <span class="stars">
+                  <span v-for="i in 5" :key="i" class="star" :class="{ filled: i <= Math.round(t.ratingAvg || 0) }">★</span>
+                  <span class="score">{{ (t.ratingAvg || 0).toFixed(1) }}</span>
+                </span>
+                <span class="downloads">下载 {{ t.downloadCount || 0 }}</span>
+              </div>
+              <button class="btn-use" @click.stop="useMarket(t)">使用此模板</button>
+            </div>
+          </div>
+        </template>
 
         <!-- 预设模板 -->
         <template v-if="!marketTemplates.length">
@@ -93,6 +124,49 @@
       </div>
     </section>
 
+    <!-- 模板详情弹窗 -->
+    <el-dialog v-model="detailVisible" :title="detail ? detail.name : '模板详情'" width="640px"
+      align-center destroy-on-close>
+      <div v-if="detail" class="d-body">
+        <div class="d-meta">
+          <span class="d-tag" v-if="detail.recommended">推荐</span>
+          <span class="d-tag gray">{{ detail.category || '未分类' }}</span>
+          <span class="d-stat">★ {{ (detail.ratingAvg || 0).toFixed(1) }}（{{ detail.ratingCount || 0 }} 人评分）</span>
+          <span class="d-stat">已下载 {{ detail.downloadCount || 0 }} 次</span>
+        </div>
+        <div class="d-grid2">
+          <div class="d-item"><span class="d-k">排版规则</span><span class="d-v">{{ detail.ruleCount }} 条</span></div>
+          <div class="d-item"><span class="d-k">自动生成目录</span><span class="d-v">{{ detail.generateToc ? '是' : '否' }}</span></div>
+        </div>
+        <h4 class="d-h">格式规则明细</h4>
+        <el-table :data="detail.rules" size="small" border>
+          <el-table-column label="类型" width="110">
+            <template #default="{ row }">{{ ruleTypeLabel(row.ruleType) }}</template>
+          </el-table-column>
+          <el-table-column label="字体" min-width="140">
+            <template #default="{ row }">{{ row.font || '—' }}<span v-if="row.fontLatin" class="d-muted"> / {{ row.fontLatin }}</span></template>
+          </el-table-column>
+          <el-table-column label="字号" width="70" align="center">
+            <template #default="{ row }">{{ row.fontSize ? row.fontSize + '号' : '—' }}</template>
+          </el-table-column>
+          <el-table-column label="对齐" width="90" align="center">
+            <template #default="{ row }">{{ alignLabel(row.align) }}</template>
+          </el-table-column>
+          <el-table-column label="行距" width="90">
+            <template #default="{ row }">{{ lineSpacingLabel(row) }}</template>
+          </el-table-column>
+        </el-table>
+        <div class="d-actions">
+          <el-button type="primary" @click="useMarket(detail)">使用此模板</el-button>
+          <el-button v-if="isLoggedIn" :type="favSet.has(detail.id) ? 'warning' : 'default'"
+            plain @click="toggleFav(detail)">
+            {{ favSet.has(detail.id) ? '取消收藏' : '收藏' }}
+          </el-button>
+          <el-button v-if="isLoggedIn" plain @click="chooseRate(detail)">评分</el-button>
+        </div>
+      </div>
+    </el-dialog>
+
     <SiteFooter />
   </div>
 </template>
@@ -103,15 +177,19 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import NavBar from '../components/site/NavBar.vue'
 import SiteFooter from '../components/site/SiteFooter.vue'
-import { listTemplates, createTemplate, listMarketTemplates, listMarketCategories, rateMarketTemplate, copyMarketTemplate } from '../api/template'
+import { listTemplates, createTemplate, listMarketTemplates, listMarketCategories, rateMarketTemplate, copyMarketTemplate, getMarketTemplateDetail, toggleFavoriteTemplate, listFavoriteTemplates } from '../api/template'
 
 const router = useRouter()
 const isLoggedIn = ref(false)
 const myTemplates = ref([])
 const marketTemplates = ref([])
+const favorites = ref([])
+const favSet = ref(new Set())
 const categories = ref([])
 const category = ref('')
 const sort = ref('recommended')
+const detailVisible = ref(false)
+const detail = ref(null)
 
 const presets = [
   {
@@ -150,8 +228,58 @@ onMounted(async () => {
     try {
       myTemplates.value = (await listTemplates()) || []
     } catch (e) {}
+    await loadFavorites()
   }
 })
+
+async function loadFavorites() {
+  try {
+    favorites.value = (await listFavoriteTemplates()) || []
+    favSet.value = new Set(favorites.value.map(f => f.id))
+  } catch (e) {}
+}
+
+async function toggleFav(t) {
+  if (!localStorage.getItem('token')) {
+    router.push({ path: '/login', query: { redirect: '/template-market' } })
+    return
+  }
+  try {
+    const res = await toggleFavoriteTemplate(t.id)
+    const on = res.favorited
+    const next = new Set(favSet.value)
+    if (on) next.add(t.id); else next.delete(t.id)
+    favSet.value = next
+    await loadFavorites()
+    ElMessage.success(on ? '已收藏' : '已取消收藏')
+  } catch (e) {
+    ElMessage.error(e.message || '操作失败')
+  }
+}
+
+async function openDetail(t) {
+  try {
+    detail.value = await getMarketTemplateDetail(t.id)
+    detailVisible.value = true
+  } catch (e) {
+    ElMessage.error(e.message || '加载详情失败')
+  }
+}
+
+const ruleTypeLabel = t => ({
+  heading1: '一级标题', heading2: '二级标题', heading3: '三级标题',
+  body: '正文', figure: '图题注', table: '表题注'
+}[t] || t || '—')
+
+const alignLabel = a => ({
+  left: '左对齐', center: '居中', right: '右对齐', justify: '两端对齐'
+}[a] || a || '—')
+
+const lineSpacingLabel = r => {
+  if (r.lineSpacingType === 'exact') return r.lineSpacingExact ? r.lineSpacingExact + ' 磅' : '—'
+  if (r.lineSpacing) return r.lineSpacing + ' 倍'
+  return '—'
+}
 
 async function loadMarket() {
   try {
@@ -347,6 +475,109 @@ function formatTime(t) {
   gap: 6px;
   margin-bottom: 16px;
 }
+.card-actions {
+  display: flex;
+  gap: 8px;
+}
+.btn-use {
+  flex: 1;
+  padding: 9px 0;
+  border: none;
+  border-radius: 8px;
+  background: var(--c-primary);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-use:hover {
+  background: var(--c-primary-dark);
+}
+.btn-fav {
+  width: 38px;
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  background: #fff;
+  color: #c0c4cc;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.btn-fav:hover {
+  border-color: #f56c6c;
+  color: #f56c6c;
+}
+.btn-fav.on {
+  color: #f56c6c;
+  border-color: #f56c6c;
+  background: #fef0f0;
+}
+.d-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.d-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.d-tag {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #FFF7ED, #FEF3C7);
+  color: #b45309;
+}
+.d-tag.gray {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+.d-stat {
+  font-size: 13px;
+  color: var(--c-text2);
+}
+.d-grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 20px;
+  background: #f8f9fc;
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+.d-item {
+  display: flex;
+  gap: 8px;
+  font-size: 13px;
+  align-items: baseline;
+}
+.d-k {
+  color: var(--c-text3);
+  flex-shrink: 0;
+}
+.d-v {
+  color: var(--c-text);
+}
+.d-h {
+  margin: 4px 0 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--c-dark);
+}
+.d-muted {
+  color: var(--c-text3);
+}
+.d-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
 .filter-bar {
   display: flex;
   justify-content: space-between;
@@ -417,6 +648,11 @@ function formatTime(t) {
   font-size: 12px;
   color: var(--c-text3);
 }
+.card.mine .card-meta {
+  font-size: 12px;
+  color: var(--c-text3);
+  margin-bottom: 14px;
+}
 .tag {
   font-size: 11px;
   color: var(--c-text2);
@@ -424,26 +660,6 @@ function formatTime(t) {
   border: 1px solid var(--c-border);
   padding: 2px 8px;
   border-radius: 999px;
-}
-.btn-use {
-  width: 100%;
-  padding: 9px 0;
-  border: none;
-  border-radius: 8px;
-  background: var(--c-primary);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.btn-use:hover {
-  background: var(--c-primary-dark);
-}
-.card.mine .card-meta {
-  font-size: 12px;
-  color: var(--c-text3);
-  margin-bottom: 14px;
 }
 .empty {
   text-align: center;

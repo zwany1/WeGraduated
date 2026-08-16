@@ -62,6 +62,12 @@ public class PaperController {
         return Result.ok(paperService.startFormat(UserContext.get(), dto));
     }
 
+    /** 批量排版: 一次为多篇论文创建任务 */
+    @PostMapping("/format-batch")
+    public Result<List<FormatTask>> formatBatch(@Valid @RequestBody com.graduate.thesis.dto.PaperFormatBatchDTO dto) {
+        return Result.ok(paperService.startFormatBatch(UserContext.get(), dto.getTemplateId(), dto.getFileIds()));
+    }
+
     @GetMapping("/task/{id}")
     public Result<FormatTask> task(@PathVariable Long id) {
         return Result.ok(paperService.getTask(UserContext.get(), id));

@@ -86,6 +86,16 @@ export function setMarketTemplate(id, data) {
   return api.put(`/admin/market/templates/${id}`, data)
 }
 
+// ============ 在线会话 ============
+
+export function listOnlineSessions() {
+  return api.get('/admin/session/online')
+}
+
+export function kickSession(id) {
+  return api.delete(`/admin/session/${id}`)
+}
+
 export function getMarketTemplateDetail(id) {
   return api.get(`/admin/market/templates/${id}/detail`)
 }

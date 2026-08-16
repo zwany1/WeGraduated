@@ -12,6 +12,10 @@ export function startFormat(fileId, templateId) {
   return api.post('/paper/format', { fileId, templateId })
 }
 
+export function startFormatBatch(templateId, fileIds) {
+  return api.post('/paper/format-batch', { templateId, fileIds })
+}
+
 export function getTask(id) {
   return api.get(`/paper/task/${id}`)
 }

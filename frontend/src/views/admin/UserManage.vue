@@ -1,5 +1,7 @@
 <template>
   <div class="mgmt">
+    <el-tabs v-model="activeTab" class="mgmt-tabs">
+      <el-tab-pane label="用户列表" name="users">
     <div class="toolbar">
       <div class="search-box">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#9a917d" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
@@ -82,6 +84,45 @@
           @current-change="load()" @size-change="load(1)" />
       </div>
     </div>
+      </el-tab-pane>
+
+      <el-tab-pane label="在线会话" name="sessions">
+        <div class="table-card">
+          <div class="toolbar sess-toolbar">
+            <span class="toolbar-note">在线会话 = 未过期且未撤销的登录 · 强制下线立即生效</span>
+            <el-button type="primary" plain size="small" @click="loadSessions">刷新</el-button>
+          </div>
+          <el-table :data="sessions" v-loading="sessionLoading" stripe>
+            <el-table-column prop="id" label="会话ID" width="80" />
+            <el-table-column label="用户" min-width="140">
+              <template #default="{ row }">
+                <div class="cell-user">
+                  <span class="cell-avatar">{{ (row.username || 'U').slice(0, 1).toUpperCase() }}</span>
+                  <div class="cell-user-meta">
+                    <span class="cell-name">{{ row.username }}</span>
+                    <span class="cell-uname">#{{ row.userId }}</span>
+                  </div>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column prop="ip" label="登录 IP" width="160">
+              <template #default="{ row }"><span class="cell-muted">{{ row.ip || '—' }}</span></template>
+            </el-table-column>
+            <el-table-column label="登录时间" width="170">
+              <template #default="{ row }"><span class="cell-muted">{{ fmtTime(row.loginTime) }}</span></template>
+            </el-table-column>
+            <el-table-column label="最近活跃" width="170">
+              <template #default="{ row }"><span class="cell-muted">{{ fmtTime(row.lastActive) }}</span></template>
+            </el-table-column>
+            <el-table-column label="操作" width="140" fixed="right">
+              <template #default="{ row }">
+                <el-button v-perm="'system:user:edit'" link type="danger" size="small" @click="kick(row)">强制下线</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </el-tab-pane>
+    </el-tabs>
 
     <!-- 分配角色 -->
     <el-dialog v-model="assignVisible" :title="`分配角色 - ${assignUser ? (assignUser.nickname || assignUser.username) : ''}`" width="480px"
@@ -186,6 +227,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { listUsers, setUserRole, assignUserRoles, updateUserStatus, resetUserPassword,
+  listOnlineSessions, kickSession,
   getUserDetail, deleteUser, listAllRoles, exportUsers } from '../../api/admin'
 import { downloadBlob } from '../../utils/download'
 
@@ -195,6 +237,34 @@ const page = ref(1)
 const size = ref(10)
 const keyword = ref('')
 const loading = ref(false)
+
+const activeTab = ref('users')
+const sessions = ref([])
+const sessionLoading = ref(false)
+
+async function loadSessions() {
+  sessionLoading.value = true
+  try {
+    sessions.value = await listOnlineSessions() || []
+  } catch (e) {
+  } finally {
+    sessionLoading.value = false
+  }
+}
+
+async function kick(row) {
+  try {
+    await ElMessageBox.confirm(`确定强制下线「${row.username}」的当前会话？下线后其登录立即失效。`, '强制下线', { type: 'warning' })
+  } catch (e) {
+    return
+  }
+  try {
+    await kickSession(row.id)
+    ElMessage.success('已强制下线')
+    loadSessions()
+  } catch (e) {
+  }
+}
 
 const assignVisible = ref(false)
 const saving = ref(false)
@@ -360,7 +430,7 @@ async function removeUser(row) {
   } catch (e) {}
 }
 
-onMounted(() => load())
+onMounted(() => { load(); loadSessions() })
 </script>
 
 <style scoped>
@@ -370,6 +440,13 @@ onMounted(() => load())
   flex-direction: column;
   gap: 18px;
   animation: mgmt-in 0.35s ease both;
+}
+.mgmt-tabs :deep(.el-tabs__item) {
+  font-size: 14px;
+  font-weight: 600;
+}
+.sess-toolbar {
+  padding-bottom: 12px;
 }
 @keyframes mgmt-in {
   from { opacity: 0; transform: translateY(8px); }

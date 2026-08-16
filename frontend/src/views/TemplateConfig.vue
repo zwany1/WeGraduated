@@ -5,7 +5,10 @@
         <el-button text @click="$router.push('/templates')">‹ 返回</el-button>
         <span>{{ templateName }}</span>
       </div>
-      <el-button type="primary" :loading="saving" @click="saveAll">保存配置</el-button>
+      <div class="brand-actions">
+        <el-button @click="exportTpl">导出模板</el-button>
+        <el-button type="primary" :loading="saving" @click="saveAll">保存配置</el-button>
+      </div>
     </header>
 
     <main class="body">
@@ -301,7 +304,7 @@
 import { ref, reactive, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getTemplateDetail, savePageConfig, saveHeadingPatterns, saveReferenceConfig, saveRule } from '../api/template'
+import { getTemplateDetail, savePageConfig, saveHeadingPatterns, saveReferenceConfig, saveRule, exportTemplate } from '../api/template'
 
 const route = useRoute()
 const router = useRouter()
@@ -448,6 +451,21 @@ watch(() => route.params.id, () => {
   loadConfig()
 })
 
+async function exportTpl() {
+  try {
+    const data = await exportTemplate(id)
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `模板_${data.name || id}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    ElMessage.error(e.message || '导出失败')
+  }
+}
+
 async function saveAll() {
   const currentId = Number(route.params.id)
   saving.value = true
@@ -501,6 +519,10 @@ async function saveAll() {
   font-size: 17px;
   font-weight: 700;
   color: #2c3e50;
+}
+.brand-actions {
+  display: flex;
+  gap: 8px;
 }
 .body {
   flex: 1;

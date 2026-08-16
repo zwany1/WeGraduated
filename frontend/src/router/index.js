@@ -5,7 +5,7 @@ import { getToken, hasPerm, getMenus, loadUserMenus, flattenMenus } from '../uti
 // 无需登录即可访问的白名单页面
 const PUBLIC_PAGES = [
   '/', '/home',
-  '/login', '/register', '/forgot-password',
+  '/login', '/register', '/forgot-password', '/oauth/callback',
   '/features', '/template-market', '/guide', '/cases', '/pricing',
   '/privacy', '/about', '/terms'
 ]
@@ -34,6 +34,7 @@ const routes = [
   { path: '/login', component: () => import('../views/Login.vue') },
   { path: '/register', component: () => import('../views/Register.vue') },
   { path: '/forgot-password', component: () => import('../views/ForgotPassword.vue') },
+  { path: '/oauth/callback', component: () => import('../views/OAuthCallback.vue') },
   { path: '/templates', component: () => import('../views/TemplateList.vue') },
   { path: '/profile', component: () => import('../views/Profile.vue') },
   { path: '/template/:id', component: () => import('../views/TemplateConfig.vue') },

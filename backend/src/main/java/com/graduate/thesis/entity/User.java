@@ -36,6 +36,12 @@ public class User {
     /** 头像(data URL base64) */
     private String avatar;
 
+    /** 第三方登录: GitHub 用户 id */
+    private String githubId;
+
+    /** 第三方登录: GitHub 登录名 */
+    private String githubLogin;
+
     /** 角色: USER / ADMIN */
     private String role;
 

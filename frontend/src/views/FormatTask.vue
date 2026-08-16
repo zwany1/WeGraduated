@@ -11,22 +11,25 @@
       <section class="upload-box">
         <el-upload
           drag
+          multiple
           :auto-upload="false"
-          :limit="1"
-          accept=".docx"
+          :limit="10"
+          accept=".docx,.doc"
           :on-change="onFileChange"
+          :on-remove="onFileRemove"
           :file-list="fileList"
           style="width: 100%"
         >
           <el-icon class="el-icon--upload"><upload-filled /></el-icon>
-          <div class="el-upload__text">将论文拖到此处，或<em>点击上传</em>（.docx）</div>
+          <div class="el-upload__text">将论文拖到此处，或<em>点击上传</em>（.docx / .doc，可一次选择多篇）</div>
         </el-upload>
         <div class="format-row">
           <span>选择格式方案：</span>
           <el-select v-model="templateId" placeholder="请选择格式方案" style="width: 260px">
             <el-option v-for="t in templates" :key="t.id" :label="t.name" :value="t.id" />
           </el-select>
-          <el-button type="primary" :loading="submitting" @click="submit">开始排版</el-button>
+          <el-button type="primary" :loading="submitting" @click="submit">批量排版</el-button>
+          <span v-if="selectedFiles.length" class="file-count">已选 {{ selectedFiles.length }} 篇</span>
         </div>
       </section>
 
@@ -165,13 +168,14 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { ElMessage } from 'element-plus'
 import { UploadFilled, Loading } from '@element-plus/icons-vue'
 import { listTemplates } from '../api/template'
-import { uploadPaper, startFormat, listTasks, getTask, downloadPaper, downloadPaperOriginal, getDiff } from '../api/paper'
+import { uploadPaper, startFormat, startFormatBatch, listTasks, getTask, downloadPaper, downloadPaperOriginal, getDiff } from '../api/paper'
 import DocxCompare from '../components/DocxCompare.vue'
 
 const templates = ref([])
 const templateId = ref(null)
 const fileList = ref([])
 const selectedFile = ref(null)
+const selectedFiles = ref([])
 const submitting = ref(false)
 const tasks = ref([])
 const previewVisible = ref(false)
@@ -289,17 +293,23 @@ onBeforeUnmount(() => {
 })
 
 function onFileChange(file) {
-  if (file.name && !file.name.toLowerCase().endsWith('.docx')) {
-    ElMessage.error('仅支持 .docx 文件')
-    fileList.value = []
-    selectedFile.value = null
+  if (file.name && !/\.(docx|doc)$/i.test(file.name)) {
+    ElMessage.error('仅支持 .docx / .doc 文件')
+    fileList.value = fileList.value.filter(f => f.uid !== file.uid)
     return
   }
-  selectedFile.value = file.raw || file
+  const raw = file.raw || file
+  selectedFile.value = raw
+  selectedFiles.value = fileList.value.map(f => f.raw || f)
+}
+
+function onFileRemove(file) {
+  fileList.value = fileList.value.filter(f => f.uid !== file.uid)
+  selectedFiles.value = fileList.value.map(f => f.raw || f)
 }
 
 async function submit() {
-  if (!selectedFile.value) {
+  if (!selectedFiles.value.length) {
     ElMessage.warning('请先上传论文文件')
     return
   }
@@ -309,11 +319,16 @@ async function submit() {
   }
   submitting.value = true
   try {
-    const paperFile = await uploadPaper(selectedFile.value)
-    const task = await startFormat(paperFile.id, templateId.value)
-    ElMessage.success('排版任务已提交')
-    selectedFile.value = null
+    const fileIds = []
+    for (const f of selectedFiles.value) {
+      const paperFile = await uploadPaper(f)
+      fileIds.push(paperFile.id)
+    }
+    await startFormatBatch(templateId.value, fileIds)
+    ElMessage.success(`已提交 ${fileIds.length} 篇论文的排版任务`)
+    selectedFiles.value = []
     fileList.value = []
+    selectedFile.value = null
     await loadTasks(true)
     startSse()
   } finally {
@@ -513,6 +528,10 @@ function formatTime(t) {
   gap: 12px;
   margin-top: 20px;
   color: #606266;
+}
+.file-count {
+  font-size: 13px;
+  color: #409eff;
 }
 .task-list {
   margin-top: 24px;

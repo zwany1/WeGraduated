@@ -58,6 +58,25 @@ public class TemplateController {
         return Result.ok(templateService.listMarketCategories());
     }
 
+    /** 模板市场详情(无需登录) */
+    @GetMapping("/market/{id}/detail")
+    public Result<Map<String, Object>> marketDetail(@PathVariable Long id) {
+        return Result.ok(templateService.marketDetail(id));
+    }
+
+    /** 收藏/取消收藏市场模板(登录) */
+    @PostMapping("/market/{id}/favorite")
+    public Result<Map<String, Object>> toggleFavorite(@PathVariable Long id) {
+        boolean favorited = templateService.toggleFavorite(UserContext.get(), id);
+        return Result.ok(java.util.Map.of("favorited", favorited));
+    }
+
+    /** 我的收藏(登录) */
+    @GetMapping("/market/favorites")
+    public Result<List<Map<String, Object>>> myFavorites() {
+        return Result.ok(templateService.listFavorites(UserContext.get()));
+    }
+
     /** 复制公开模板到我的模板 */
     @PostMapping("/market/{id}/copy")
     public Result<FormatTemplate> copyMarket(@PathVariable Long id) {
@@ -87,6 +106,18 @@ public class TemplateController {
     public Result<Void> delete(@PathVariable Long id) {
         templateService.delete(id, UserContext.get());
         return Result.ok();
+    }
+
+    /** 导出模板(含规则)为 JSON */
+    @GetMapping("/{id}/export")
+    public Result<Map<String, Object>> exportTemplate(@PathVariable Long id) {
+        return Result.ok(templateService.exportTemplate(UserContext.get(), id));
+    }
+
+    /** 导入模板(JSON, 含规则) */
+    @PostMapping("/import")
+    public Result<FormatTemplate> importTemplate(@RequestBody Map<String, Object> data) {
+        return Result.ok(templateService.importTemplate(UserContext.get(), data));
     }
 
     @PutMapping("/{id}/page-config")

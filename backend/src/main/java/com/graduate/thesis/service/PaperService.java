@@ -65,8 +65,12 @@ public class PaperService {
         }
         String original = file.getOriginalFilename();
         if (original == null || (!original.toLowerCase().endsWith(".docx") && !original.toLowerCase().endsWith(".doc"))) {
-            throw new BusinessException("仅支持 .docx 文件");
+            throw new BusinessException("仅支持 .docx / .doc 文件");
         }
+        if (file.getSize() > 40L * 1024 * 1024) {
+            throw new BusinessException("文件过大(超过 40MB)，请拆分后重新上传");
+        }
+        validateMagic(file);
         String relative = storageService.store(file, "upload");
         PaperFile paperFile = new PaperFile();
         paperFile.setUserId(userId);
@@ -76,6 +80,32 @@ public class PaperService {
         paperFile.setCreateTime(LocalDateTime.now());
         paperFileMapper.insert(paperFile);
         return paperFile;
+    }
+
+    /** 魔数校验: 防止伪造扩展名的非 Word 文件(docx=ZIP, doc=OLE 复合文档) */
+    private void validateMagic(MultipartFile file) {
+        String name = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase();
+        boolean isDocx = name.endsWith(".docx");
+        boolean isDoc = name.endsWith(".doc");
+        try (java.io.InputStream in = file.getInputStream()) {
+            byte[] head = new byte[8];
+            int n = in.read(head);
+            if (n <= 0) {
+                throw new BusinessException("文件内容为空");
+            }
+            boolean zipMagic = n >= 4 && (head[0] & 0xFF) == 0x50 && (head[1] & 0xFF) == 0x4B
+                    && (head[2] & 0xFF) == 0x03 && (head[3] & 0xFF) == 0x04;
+            boolean oleMagic = n >= 8 && (head[0] & 0xFF) == 0xD0 && (head[1] & 0xFF) == 0xCF
+                    && (head[2] & 0xFF) == 0x11 && (head[3] & 0xFF) == 0xE0;
+            boolean pass = isDocx ? zipMagic : isDoc ? oleMagic : false;
+            if (!pass) {
+                throw new BusinessException("文件内容不是有效的 Word 文档（扩展名与内容不符，可能被伪造或损坏）");
+            }
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new BusinessException("读取文件内容失败");
+        }
     }
 
     public FormatTask startFormat(Long userId, PaperFormatDTO dto) {
@@ -98,6 +128,24 @@ public class PaperService {
         return task;
     }
 
+    /** 批量排版: 为多篇论文批量创建排版任务(单次上限 50) */
+    public List<FormatTask> startFormatBatch(Long userId, Long templateId, List<Long> fileIds) {
+        if (fileIds == null || fileIds.isEmpty()) {
+            throw new BusinessException("请选择要排版的论文");
+        }
+        if (fileIds.size() > 50) {
+            throw new BusinessException("单次批量排版最多 50 篇");
+        }
+        List<FormatTask> tasks = new java.util.ArrayList<>();
+        for (Long fileId : fileIds) {
+            PaperFormatDTO dto = new PaperFormatDTO();
+            dto.setFileId(fileId);
+            dto.setTemplateId(templateId);
+            tasks.add(startFormat(userId, dto));
+        }
+        return tasks;
+    }
+
     @Async
     public void runFormat(Long taskId) {
         FormatTask task = taskMapper.selectById(taskId);
@@ -118,8 +166,14 @@ public class PaperService {
             if (source.length() > 40L * 1024 * 1024) {
                 throw new BusinessException(400, "文档过大(超过 40MB)，请拆分后重新上传");
             }
+            // .doc 旧格式兼容: 先经 LibreOffice 转换为 .docx 再排版
+            File docToFormat = source;
+            String origName = paperFile.getOriginalName() == null ? "" : paperFile.getOriginalName().toLowerCase();
+            if (origName.endsWith(".doc") && !origName.endsWith(".docx")) {
+                docToFormat = docxPdfService.convertDocToDocx(source);
+            }
 
-            File result = formatEngine.format(source, ruleSet, progress -> {
+            File result = formatEngine.format(docToFormat, ruleSet, progress -> {
                 task.setProgress(progress);
                 taskMapper.updateById(task);
                 progressService.publish(taskId, Map.of("type", "progress", "progress", progress, "status", FormatTask.STATUS_PROCESSING));

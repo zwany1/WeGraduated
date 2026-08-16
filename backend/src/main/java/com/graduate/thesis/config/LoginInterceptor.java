@@ -17,9 +17,12 @@ import javax.servlet.http.HttpServletResponse;
 public class LoginInterceptor implements HandlerInterceptor {
 
     private final JwtUtil jwtUtil;
+    private final com.graduate.thesis.service.LoginSessionService sessionService;
 
-    public LoginInterceptor(JwtUtil jwtUtil) {
+    public LoginInterceptor(JwtUtil jwtUtil,
+                            com.graduate.thesis.service.LoginSessionService sessionService) {
         this.jwtUtil = jwtUtil;
+        this.sessionService = sessionService;
     }
 
     @Override
@@ -40,6 +43,7 @@ public class LoginInterceptor implements HandlerInterceptor {
                 throw new BusinessException(401, "登录已失效，请重新登录");
             }
             UserContext.set(userId);
+            sessionService.touch(token);
             return true;
         } catch (BusinessException e) {
             throw e;

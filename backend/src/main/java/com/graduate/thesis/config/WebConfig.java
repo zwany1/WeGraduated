@@ -50,7 +50,10 @@ public class WebConfig implements WebMvcConfigurer {
                         "/health",
                         "/file/download/**",
                         "/public/**",
+                        "/auth/**",
                         "/template/market/list",
+                        "/template/market/categories",
+                        "/template/market/*/detail",
                         "/paper/task/*/progress",
                         "/error"
                 );

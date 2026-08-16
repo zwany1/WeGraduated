@@ -4,10 +4,13 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.graduate.thesis.common.BusinessException;
 import com.graduate.thesis.entity.FormatTemplate;
+import com.graduate.thesis.entity.Notification;
 import com.graduate.thesis.entity.Team;
+import com.graduate.thesis.entity.TeamInvite;
 import com.graduate.thesis.entity.TeamMember;
 import com.graduate.thesis.entity.User;
 import com.graduate.thesis.mapper.FormatTemplateMapper;
+import com.graduate.thesis.mapper.TeamInviteMapper;
 import com.graduate.thesis.mapper.TeamMapper;
 import com.graduate.thesis.mapper.TeamMemberMapper;
 import com.graduate.thesis.mapper.UserMapper;
@@ -23,22 +26,27 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * 团队协作服务: 创建团队/邀请成员/成员管理, 团队内共享模板/论文/任务。
+ * 团队协作服务: 创建团队/邀请成员(需对方同意)/成员管理, 团队内共享模板/论文/任务。
  */
 @Service
 public class TeamService {
 
     private final TeamMapper teamMapper;
     private final TeamMemberMapper memberMapper;
+    private final TeamInviteMapper inviteMapper;
     private final UserMapper userMapper;
     private final FormatTemplateMapper templateMapper;
+    private final NotificationService notificationService;
 
     public TeamService(TeamMapper teamMapper, TeamMemberMapper memberMapper,
-                       UserMapper userMapper, FormatTemplateMapper templateMapper) {
+                       TeamInviteMapper inviteMapper, UserMapper userMapper,
+                       FormatTemplateMapper templateMapper, NotificationService notificationService) {
         this.teamMapper = teamMapper;
         this.memberMapper = memberMapper;
+        this.inviteMapper = inviteMapper;
         this.userMapper = userMapper;
         this.templateMapper = templateMapper;
+        this.notificationService = notificationService;
     }
 
     // ==================== 团队管理 ====================
@@ -124,10 +132,37 @@ public class TeamService {
         result.put("ownerId", team.getOwnerId());
         result.put("createTime", team.getCreateTime());
         result.put("members", memberList);
+        result.put("pendingInvites", pendingInvites(team));
         return result;
     }
 
-    /** 邀请成员: 按用户名或邮箱查找用户加入团队(需 owner) */
+    /** 待处理邀请列表(供队长/成员查看) */
+    private List<Map<String, Object>> pendingInvites(Team team) {
+        List<TeamInvite> pending = inviteMapper.selectList(new LambdaQueryWrapper<TeamInvite>()
+                .eq(TeamInvite::getTeamId, team.getId())
+                .eq(TeamInvite::getStatus, TeamInvite.STATUS_PENDING)
+                .orderByAsc(TeamInvite::getId));
+        if (pending.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<Long> userIds = pending.stream().map(TeamInvite::getUserId).collect(Collectors.toList());
+        Map<Long, User> users = userMapper.selectList(new LambdaQueryWrapper<User>().in(User::getId, userIds))
+                .stream().collect(Collectors.toMap(User::getId, u -> u, (a, b) -> a));
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (TeamInvite inv : pending) {
+            User u = users.get(inv.getUserId());
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", inv.getId());
+            m.put("userId", inv.getUserId());
+            m.put("username", u == null ? "-" : u.getUsername());
+            m.put("nickname", u == null ? "-" : (u.getNickname() == null ? u.getUsername() : u.getNickname()));
+            m.put("inviteTime", inv.getCreateTime());
+            out.add(m);
+        }
+        return out;
+    }
+
+    /** 邀请成员(按用户名或邮箱): 创建待确认邀请并站内信通知对方 */
     public void invite(Long teamId, Long operatorId, String keyword) {
         requireOwner(teamId, operatorId);
         if (keyword == null || keyword.trim().isEmpty()) {
@@ -148,12 +183,85 @@ public class TeamService {
         if (exists != null && exists > 0) {
             throw new BusinessException("该用户已在团队中");
         }
-        TeamMember member = new TeamMember();
-        member.setTeamId(teamId);
-        member.setUserId(target.getId());
-        member.setRole(Team.ROLE_MEMBER);
-        member.setJoinTime(LocalDateTime.now());
-        memberMapper.insert(member);
+        TeamInvite pending = inviteMapper.selectOne(new LambdaQueryWrapper<TeamInvite>()
+                .eq(TeamInvite::getTeamId, teamId)
+                .eq(TeamInvite::getUserId, target.getId())
+                .eq(TeamInvite::getStatus, TeamInvite.STATUS_PENDING));
+        if (pending != null) {
+            throw new BusinessException("已向该用户发送邀请，等待对方确认");
+        }
+        // 历史 REJECTED 记录删除后重新邀请
+        inviteMapper.delete(new LambdaQueryWrapper<TeamInvite>()
+                .eq(TeamInvite::getTeamId, teamId)
+                .eq(TeamInvite::getUserId, target.getId()));
+        Team team = teamMapper.selectById(teamId);
+        TeamInvite inv = new TeamInvite();
+        inv.setTeamId(teamId);
+        inv.setUserId(target.getId());
+        inv.setStatus(TeamInvite.STATUS_PENDING);
+        inv.setCreateTime(LocalDateTime.now());
+        inviteMapper.insert(inv);
+        // 站内信通知被邀请人
+        notificationService.send(target.getId(), Notification.TYPE_TEAM_INVITE, "团队邀请",
+                "队长「" + team.getName() + "」邀请你加入团队，点击同意/拒绝处理",
+                Map.of("inviteId", inv.getId(), "teamId", teamId, "teamName", team.getName()));
+    }
+
+    /** 被邀请人同意: 加入团队并通知队长 */
+    @Transactional
+    public void acceptInvite(Long inviteId, Long userId) {
+        TeamInvite inv = requirePendingInvite(inviteId, userId);
+        Team team = teamMapper.selectById(inv.getTeamId());
+        if (team == null) {
+            throw new BusinessException(404, "团队不存在");
+        }
+        Long exists = memberMapper.selectCount(new LambdaQueryWrapper<TeamMember>()
+                .eq(TeamMember::getTeamId, team.getId()).eq(TeamMember::getUserId, userId));
+        if (exists == null || exists == 0) {
+            TeamMember member = new TeamMember();
+            member.setTeamId(team.getId());
+            member.setUserId(userId);
+            member.setRole(Team.ROLE_MEMBER);
+            member.setJoinTime(LocalDateTime.now());
+            memberMapper.insert(member);
+        }
+        finishInvite(inv, TeamInvite.STATUS_ACCEPTED);
+        User u = userMapper.selectById(userId);
+        notificationService.send(team.getOwnerId(), Notification.TYPE_TEAM_SYSTEM, "成员加入",
+                (u == null ? "用户" : u.getNickname() == null ? u.getUsername() : u.getNickname())
+                        + " 已接受你的邀请，加入团队「" + team.getName() + "」",
+                Map.of("teamId", team.getId(), "teamName", team.getName()));
+    }
+
+    /** 被邀请人拒绝: 不入团队并通知队长 */
+    public void rejectInvite(Long inviteId, Long userId) {
+        TeamInvite inv = requirePendingInvite(inviteId, userId);
+        Team team = teamMapper.selectById(inv.getTeamId());
+        finishInvite(inv, TeamInvite.STATUS_REJECTED);
+        if (team != null) {
+            User u = userMapper.selectById(userId);
+            notificationService.send(team.getOwnerId(), Notification.TYPE_TEAM_SYSTEM, "邀请被拒绝",
+                    (u == null ? "用户" : u.getNickname() == null ? u.getUsername() : u.getNickname())
+                            + " 拒绝了加入团队「" + team.getName() + "」",
+                    Map.of("teamId", team.getId(), "teamName", team.getName()));
+        }
+    }
+
+    private TeamInvite requirePendingInvite(Long inviteId, Long userId) {
+        TeamInvite inv = inviteMapper.selectById(inviteId);
+        if (inv == null || !inv.getUserId().equals(userId)) {
+            throw new BusinessException(404, "邀请不存在或不属于当前用户");
+        }
+        if (!TeamInvite.STATUS_PENDING.equals(inv.getStatus())) {
+            throw new BusinessException(400, "该邀请已处理");
+        }
+        return inv;
+    }
+
+    private void finishInvite(TeamInvite inv, String status) {
+        inv.setStatus(status);
+        inv.setHandleTime(LocalDateTime.now());
+        inviteMapper.updateById(inv);
     }
 
     /** 移除成员(需 owner; owner 本人不可被移除) */

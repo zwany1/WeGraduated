@@ -41,6 +41,13 @@
           <el-input v-model="inviteKw" placeholder="输入用户名或邮箱邀请成员" style="flex: 1" @keyup.enter="invite" />
           <el-button type="primary" :loading="inviting" @click="invite">邀请</el-button>
         </div>
+        <div v-if="d.pendingInvites && d.pendingInvites.length" class="pending-box">
+          <div class="pending-title">待确认邀请（等待对方同意）</div>
+          <div v-for="pi in d.pendingInvites" :key="pi.id" class="pending-item">
+            <span class="pi-name">{{ pi.nickname || pi.username }}</span>
+            <span class="pi-muted">@{{ pi.username }} · {{ fmtTime(pi.inviteTime) }}</span>
+          </div>
+        </div>
         <el-table :data="d.members" size="small" border class="member-table">
           <el-table-column prop="nickname" label="昵称" min-width="110" />
           <el-table-column prop="username" label="用户名" min-width="110" />
@@ -176,6 +183,11 @@ async function del() {
   } catch (e) {}
 }
 
+function fmtTime(t) {
+  if (!t) return ''
+  return String(t).replace('T', ' ').substring(0, 16)
+}
+
 onMounted(async () => {
   load()
   try {
@@ -304,6 +316,34 @@ onMounted(async () => {
   display: flex;
   gap: 10px;
   margin-bottom: 14px;
+}
+.pending-box {
+  background: #FFFDF7;
+  border: 1px solid #F2E8CE;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+}
+.pending-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #8a6a25;
+  margin-bottom: 8px;
+}
+.pending-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 13px;
+}
+.pi-name {
+  color: #2c3140;
+  font-weight: 500;
+}
+.pi-muted {
+  color: #9ca3af;
+  font-size: 12px;
 }
 .member-table {
   margin-top: 4px;

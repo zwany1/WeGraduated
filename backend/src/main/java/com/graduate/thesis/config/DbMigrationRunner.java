@@ -93,6 +93,7 @@ public class DbMigrationRunner implements ApplicationRunner {
         ensureLoginSessionTable();
         ensureFavoriteTable();
         ensureTeamTables();
+        ensureNotificationTables();
     }
 
     private void addColumnIfMissing(String table, String column, String alterSql) {
@@ -207,6 +208,46 @@ public class DbMigrationRunner implements ApplicationRunner {
             }
         } catch (Exception e) {
             log.warn("[DbMigration] 创建团队表失败: {}", e.getMessage());
+        }
+    }
+
+    /** 站内信与团队邀请表(幂等建表) */
+    private void ensureNotificationTables() {
+        try {
+            Integer c1 = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 't_notification'",
+                    Integer.class);
+            if (c1 == null || c1 == 0) {
+                jdbcTemplate.execute("CREATE TABLE t_notification (" +
+                        "id BIGINT AUTO_INCREMENT PRIMARY KEY, " +
+                        "user_id BIGINT NOT NULL, " +
+                        "type VARCHAR(32) NOT NULL DEFAULT 'system', " +
+                        "title VARCHAR(128) DEFAULT NULL, " +
+                        "content VARCHAR(500) DEFAULT NULL, " +
+                        "data VARCHAR(500) DEFAULT NULL, " +
+                        "is_read TINYINT(1) NOT NULL DEFAULT 0, " +
+                        "create_time DATETIME DEFAULT CURRENT_TIMESTAMP, " +
+                        "KEY idx_notif_user (user_id, is_read)" +
+                        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='站内信'");
+                log.info("[DbMigration] 已创建 t_notification 表");
+            }
+            Integer c2 = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 't_team_invite'",
+                    Integer.class);
+            if (c2 == null || c2 == 0) {
+                jdbcTemplate.execute("CREATE TABLE t_team_invite (" +
+                        "id BIGINT AUTO_INCREMENT PRIMARY KEY, " +
+                        "team_id BIGINT NOT NULL, " +
+                        "user_id BIGINT NOT NULL, " +
+                        "status VARCHAR(16) NOT NULL DEFAULT 'PENDING', " +
+                        "create_time DATETIME DEFAULT CURRENT_TIMESTAMP, " +
+                        "handle_time DATETIME DEFAULT NULL, " +
+                        "UNIQUE KEY uk_team_invite (team_id, user_id)" +
+                        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='团队邀请'");
+                log.info("[DbMigration] 已创建 t_team_invite 表");
+            }
+        } catch (Exception e) {
+            log.warn("[DbMigration] 创建站内信/邀请表失败: {}", e.getMessage());
         }
     }
 

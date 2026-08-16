@@ -70,6 +70,20 @@ public class TeamController {
         return Result.ok();
     }
 
+    /** 被邀请人同意加入 */
+    @PostMapping("/invite/{inviteId}/accept")
+    public Result<Void> acceptInvite(@PathVariable Long inviteId) {
+        teamService.acceptInvite(inviteId, UserContext.get());
+        return Result.ok();
+    }
+
+    /** 被邀请人拒绝 */
+    @PostMapping("/invite/{inviteId}/reject")
+    public Result<Void> rejectInvite(@PathVariable Long inviteId) {
+        teamService.rejectInvite(inviteId, UserContext.get());
+        return Result.ok();
+    }
+
     /** 解散团队(队长) */
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {

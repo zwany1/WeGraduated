@@ -22,6 +22,7 @@
         </div>
         <div class="nav-actions">
           <template v-if="isLoggedIn">
+            <NotificationBell />
             <el-dropdown trigger="click" @command="handleUserCommand">
               <div class="user-chip">
                 <img v-if="userAvatar" :src="userAvatar" class="avatar-img" alt="" />
@@ -329,6 +330,7 @@ import { useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import { getProfile, logout } from '../api/user'
 import { listPublicNotices } from '../api/admin'
+import NotificationBell from '../components/NotificationBell.vue'
 
 const router = useRouter()
 

@@ -1,5 +1,7 @@
 <template>
   <div class="landing">
+    <div class="scroll-progress" ref="progRef"></div>
+    <div class="cursor-glow" ref="glowRef"></div>
     <!-- ========== Navbar ========== -->
     <nav class="navbar">
       <div class="nav-inner">
@@ -322,6 +324,11 @@
       </div>
     </footer>
 
+    <!-- 回到顶部 -->
+    <button v-show="showBackTop" class="back-top" @click="scrollToTop">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+    </button>
+
     <!-- 公告详情 -->
     <el-dialog v-model="noticeVisible" :title="currentNotice ? currentNotice.title : '公告'" width="560px" destroy-on-close>
       <div v-if="currentNotice" class="notice-detail">
@@ -409,6 +416,7 @@ onMounted(async () => {
   }
   initReveal()
   initNavShadow()
+  initEffects()
 })
 
 function goLogin() {
@@ -501,6 +509,67 @@ function initNavShadow() {
   const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 12)
   onScroll()
   window.addEventListener('scroll', onScroll, { passive: true })
+}
+
+// ===== 追加特效: 进度条/回顶/鼠标光斑/卡片3D倾斜/按钮波纹 =====
+const progRef = ref(null)
+const glowRef = ref(null)
+const showBackTop = ref(false)
+
+function initEffects() {
+  // 滚动进度条 + 回到顶部按钮
+  const onScroll = () => {
+    const h = document.documentElement
+    const p = h.scrollTop / Math.max(1, h.scrollHeight - h.clientHeight) * 100
+    if (progRef.value) progRef.value.style.width = p + '%'
+    showBackTop.value = h.scrollTop > 400
+  }
+  onScroll()
+  window.addEventListener('scroll', onScroll, { passive: true })
+
+  // 鼠标跟随光斑(全页, 节流)
+  const glow = glowRef.value
+  if (glow) {
+    let raf = 0
+    window.addEventListener('mousemove', e => {
+      if (raf) return
+      raf = requestAnimationFrame(() => {
+        glow.style.left = e.clientX + 'px'
+        glow.style.top = e.clientY + 'px'
+        raf = 0
+      })
+    })
+  }
+
+  // 工具卡片 3D 倾斜 + 跟随光效
+  document.querySelectorAll('.tool-card').forEach(card => {
+    card.addEventListener('mousemove', e => {
+      const r = card.getBoundingClientRect()
+      const x = (e.clientX - r.left) / r.width - 0.5
+      const y = (e.clientY - r.top) / r.height - 0.5
+      card.style.transform = `perspective(900px) rotateX(${(-y * 8).toFixed(2)}deg) rotateY(${(x * 10).toFixed(2)}deg) translateY(-6px)`
+    })
+    card.addEventListener('mouseleave', () => {
+      card.style.transform = ''
+    })
+  })
+
+  // 主按钮点击波纹
+  document.querySelectorAll('.btn-cta-primary').forEach(btn => {
+    btn.addEventListener('click', function (e) {
+      const r = this.getBoundingClientRect()
+      const span = document.createElement('span')
+      span.className = 'ripple'
+      span.style.left = (e.clientX - r.left) + 'px'
+      span.style.top = (e.clientY - r.top) + 'px'
+      this.appendChild(span)
+      setTimeout(() => span.remove(), 650)
+    })
+  })
+}
+
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 const featChecks = [
@@ -1629,4 +1698,123 @@ const tools = [
 .tool-card:hover .tool-icon {
   transform: translateY(-4px) scale(1.06);
 }
+
+/* ===== 鼠标跟随光斑 ===== */
+.cursor-glow {
+  position: fixed;
+  width: 340px;
+  height: 340px;
+  margin: -170px 0 0 -170px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 3;
+  background: radial-gradient(circle, rgba(59, 107, 255, 0.10) 0%, rgba(124, 58, 237, 0.06) 40%, transparent 70%);
+  transform: translate(-100px, -100px);
+  transition: left 0.12s ease-out, top 0.12s ease-out;
+  opacity: 0;
+}
+.landing:hover .cursor-glow {
+  opacity: 1;
+}
+
+/* ===== 滚动进度条 ===== */
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  width: 0;
+  background: linear-gradient(90deg, #3B6BFF, #7c3aed);
+  z-index: 200;
+  transition: width 0.1s linear;
+}
+
+/* ===== 回到顶部 ===== */
+.back-top {
+  position: fixed;
+  right: 26px;
+  bottom: 30px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--c-border);
+  background: rgba(255, 255, 255, 0.9);
+  color: #3B6BFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(15, 40, 100, 0.15);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, opacity 0.25s;
+  z-index: 150;
+}
+.back-top:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(59, 107, 255, 0.3);
+}
+
+/* ===== 按钮波纹 ===== */
+.btn-cta-primary {
+  position: relative;
+  overflow: hidden;
+}
+.ripple {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.45);
+  transform: scale(0);
+  animation: rippleAnim 0.6s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes rippleAnim {
+  to { transform: scale(14); opacity: 0; }
+}
+
+/* ===== 标题下划线生长 ===== */
+.tools-title, .feat-title {
+  position: relative;
+  display: inline-block;
+  padding-bottom: 8px;
+}
+.tools-title::after, .feat-title::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #3B6BFF, #7c3aed);
+  width: 0;
+  transition: width 0.7s ease;
+}
+.reveal.in-view .tools-title::after,
+.reveal.in-view .feat-title::after {
+  width: 100%;
+}
+
+/* ===== 图标呼吸 ===== */
+@keyframes iconFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.fic-icon {
+  animation: iconFloat 4.5s ease-in-out infinite;
+}
+.fic-icon:nth-child(2n) {
+  animation-delay: 0.8s;
+}
+.fic-icon:nth-child(3n) {
+  animation-delay: 1.6s;
+}
+
+/* ===== 工具卡片交错进入 ===== */
+.tools-section.in-view .tool-card {
+  animation: fadeUp 0.6s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.tools-section.in-view .tool-card:nth-child(2) { animation-delay: 0.1s; }
+.tools-section.in-view .tool-card:nth-child(3) { animation-delay: 0.2s; }
+.tools-section.in-view .tool-card:nth-child(4) { animation-delay: 0.3s; }
 </style>

@@ -14,4 +14,7 @@ public class TemplateCreateDTO {
     @NotBlank(message = "模板名称不能为空")
     @Size(max = 64, message = "模板名称过长")
     private String name;
+
+    /** 归属团队(空=个人) */
+    private Long teamId;
 }

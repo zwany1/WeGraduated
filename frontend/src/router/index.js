@@ -39,6 +39,7 @@ const routes = [
   { path: '/profile', component: () => import('../views/Profile.vue') },
   { path: '/template/:id', component: () => import('../views/TemplateConfig.vue') },
   { path: '/tasks', component: () => import('../views/FormatTask.vue') },
+  { path: '/team', component: () => import('../views/TeamManage.vue') },
   { path: '/table3', component: () => import('../views/ThreeTable.vue') },
   { path: '/er', component: () => import('../views/ErDiagram.vue') },
   { path: '/system-design', component: () => import('../views/SystemDesign.vue') },

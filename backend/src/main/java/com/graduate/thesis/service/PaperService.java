@@ -36,6 +36,7 @@ public class PaperService {
     private final DocxPdfService docxPdfService;
     private final DiffService diffService;
     private final TaskProgressService progressService;
+    private final TeamService teamService;
     // 自引用代理: 使 @Async runFormat 生效(避免自调用绕过代理)
     private final PaperService self;
 
@@ -47,6 +48,7 @@ public class PaperService {
                         DocxPdfService docxPdfService,
                         DiffService diffService,
                         TaskProgressService progressService,
+                        TeamService teamService,
                         @Lazy PaperService self) {
         this.paperFileMapper = paperFileMapper;
         this.taskMapper = taskMapper;
@@ -56,6 +58,7 @@ public class PaperService {
         this.docxPdfService = docxPdfService;
         this.diffService = diffService;
         this.progressService = progressService;
+        this.teamService = teamService;
         this.self = self;
     }
 
@@ -86,12 +89,13 @@ public class PaperService {
         if (paperFile == null || !paperFile.getUserId().equals(userId)) {
             throw new BusinessException(404, "论文文件不存在");
         }
-        templateService.getOwned(dto.getTemplateId(), userId);
+        Long teamId = templateService.getOwned(dto.getTemplateId(), userId).getTeamId();
 
         FormatTask task = new FormatTask();
         task.setUserId(userId);
         task.setFileId(dto.getFileId());
         task.setTemplateId(dto.getTemplateId());
+        task.setTeamId(teamId);
         task.setStatus(FormatTask.STATUS_PENDING);
         task.setProgress(0);
         task.setRetryCount(0);
@@ -201,8 +205,13 @@ public class PaperService {
 
     public FormatTask getTask(Long userId, Long taskId) {
         FormatTask task = taskMapper.selectById(taskId);
-        if (task == null || !task.getUserId().equals(userId)) {
+        if (task == null) {
             throw new BusinessException(404, "任务不存在");
+        }
+        boolean mine = task.getUserId().equals(userId);
+        boolean teamAccess = task.getTeamId() != null && teamService.isMember(task.getTeamId(), userId);
+        if (!mine && !teamAccess) {
+            throw new BusinessException(403, "无权访问该任务");
         }
         return task;
     }
@@ -235,6 +244,7 @@ public class PaperService {
         task.setUserId(old.getUserId());
         task.setFileId(old.getFileId());
         task.setTemplateId(old.getTemplateId());
+        task.setTeamId(old.getTeamId());
         task.setStatus(FormatTask.STATUS_PENDING);
         task.setProgress(0);
         task.setCreateTime(LocalDateTime.now());
@@ -260,9 +270,18 @@ public class PaperService {
     }
 
     public List<FormatTask> listTasks(Long userId) {
-        List<FormatTask> tasks = taskMapper.selectList(new LambdaQueryWrapper<FormatTask>()
-                .eq(FormatTask::getUserId, userId)
-                .orderByDesc(FormatTask::getId));
+        List<Long> teamIds = teamService.myTeamIds(userId);
+        List<FormatTask> tasks;
+        if (teamIds.isEmpty()) {
+            tasks = taskMapper.selectList(new LambdaQueryWrapper<FormatTask>()
+                    .eq(FormatTask::getUserId, userId)
+                    .orderByDesc(FormatTask::getId));
+        } else {
+            tasks = taskMapper.selectList(new LambdaQueryWrapper<FormatTask>()
+                    .and(w -> w.eq(FormatTask::getUserId, userId)
+                            .or().in(FormatTask::getTeamId, teamIds))
+                    .orderByDesc(FormatTask::getId));
+        }
         Map<Long, String> names = new java.util.HashMap<>();
         for (FormatTask task : tasks) {
             if (!names.containsKey(task.getFileId())) {
@@ -283,12 +302,12 @@ public class PaperService {
     }
 
     /**
-     * 加载原始上传的 docx 文件(用于排版前后对比)
+     * 加载原始上传的 docx 文件(用于排版前后对比)。任务已校验团队可见, 其源文件一并可见。
      */
     public File loadOriginal(Long userId, Long taskId) {
         FormatTask task = getTask(userId, taskId);
         PaperFile paperFile = paperFileMapper.selectById(task.getFileId());
-        if (paperFile == null || !paperFile.getUserId().equals(userId)) {
+        if (paperFile == null) {
             throw new BusinessException(404, "原始文件不存在");
         }
         return storageService.load(paperFile.getStoredPath());

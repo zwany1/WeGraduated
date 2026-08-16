@@ -36,31 +36,49 @@ public class TemplateService {
     private final MarketRatingMapper ratingMapper;
     private final TemplateFavoriteMapper favoriteMapper;
     private final DbRetryService dbRetryService;
+    private final TeamService teamService;
 
     public TemplateService(FormatTemplateMapper templateMapper, FormatRuleMapper ruleMapper,
                            MarketRatingMapper ratingMapper, TemplateFavoriteMapper favoriteMapper,
-                           DbRetryService dbRetryService) {
+                           DbRetryService dbRetryService, TeamService teamService) {
         this.templateMapper = templateMapper;
         this.ruleMapper = ruleMapper;
         this.ratingMapper = ratingMapper;
         this.favoriteMapper = favoriteMapper;
         this.dbRetryService = dbRetryService;
+        this.teamService = teamService;
     }
 
-    public FormatTemplate create(Long userId, String name) {
+    public FormatTemplate create(Long userId, String name, Long teamId) {
+        if (teamId != null && !teamService.isMember(teamId, userId)) {
+            throw new BusinessException(403, "无权在该团队创建模板");
+        }
         FormatTemplate template = new FormatTemplate();
         template.setUserId(userId);
         template.setName(name);
+        if (teamId != null) {
+            template.setTeamId(teamId);
+        }
         template.setCreateTime(LocalDateTime.now());
         template.setUpdateTime(LocalDateTime.now());
         templateMapper.insert(template);
         return template;
     }
 
+    /** 我的模板(个人 + 团队内共享) */
     public List<FormatTemplate> listByUser(Long userId) {
-        return templateMapper.selectList(new LambdaQueryWrapper<FormatTemplate>()
+        List<FormatTemplate> mine = templateMapper.selectList(new LambdaQueryWrapper<FormatTemplate>()
                 .eq(FormatTemplate::getUserId, userId)
+                .isNull(FormatTemplate::getTeamId)
                 .orderByDesc(FormatTemplate::getId));
+        List<Long> teamIds = teamService.myTeamIds(userId);
+        if (!teamIds.isEmpty()) {
+            List<FormatTemplate> team = templateMapper.selectList(new LambdaQueryWrapper<FormatTemplate>()
+                    .in(FormatTemplate::getTeamId, teamIds)
+                    .orderByDesc(FormatTemplate::getId));
+            mine.addAll(team);
+        }
+        return mine;
     }
 
     public Map<String, Object> detail(Long templateId, Long userId) {
@@ -173,8 +191,10 @@ public class TemplateService {
         if (template == null) {
             throw new BusinessException(404, "模板不存在或已被删除");
         }
-        if (!template.getUserId().equals(userId)) {
-            throw new BusinessException(403, "无权访问该模板（模板不属于当前账号）");
+        boolean mine = template.getUserId().equals(userId);
+        boolean teamAccess = template.getTeamId() != null && teamService.isMember(template.getTeamId(), userId);
+        if (!mine && !teamAccess) {
+            throw new BusinessException(403, "无权访问该模板");
         }
         return template;
     }

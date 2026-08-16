@@ -1,7 +1,7 @@
 import api from './index'
 
-export function createTemplate(name) {
-  return api.post('/template/create', { name })
+export function createTemplate(data) {
+  return api.post('/template/create', typeof data === 'string' ? { name: data } : data)
 }
 
 export function listTemplates() {

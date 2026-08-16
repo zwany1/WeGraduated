@@ -4,6 +4,7 @@
       <div class="brand">论文格式助手</div>
       <div class="actions">
         <el-button @click="$router.push('/home')">首页</el-button>
+        <el-button @click="$router.push('/team')">团队协作</el-button>
         <el-button @click="$router.push('/tasks')">排版任务</el-button>
         <el-button @click="triggerImport">导入模板</el-button>
         <input ref="importInput" type="file" accept=".json,application/json" style="display:none" @change="onImportFile" />
@@ -31,7 +32,10 @@
       </div>
       <div class="grid">
         <div v-for="t in templates" :key="t.id" class="tpl-card">
-          <h3>{{ t.name }}</h3>
+          <h3>
+            {{ t.name }}
+            <span v-if="t.teamId && teamMap[t.teamId]" class="team-badge">{{ teamMap[t.teamId].name }}</span>
+          </h3>
           <p class="time">创建于 {{ formatTime(t.createTime) }}</p>
           <div class="ops">
             <el-button size="small" type="primary" @click="$router.push(`/template/${t.id}`)">配置格式</el-button>
@@ -44,6 +48,9 @@
 
     <el-dialog v-model="showCreate" title="新建格式方案" width="420px">
       <el-input v-model="newName" placeholder="请输入格式方案名称，如：我的毕业论文格式" />
+      <el-select v-model="newTeamId" placeholder="归属（默认个人）" clearable style="width: 100%; margin-top: 12px">
+        <el-option v-for="tm in teams" :key="tm.id" :label="`团队：${tm.name}`" :value="tm.id" />
+      </el-select>
       <template #footer>
         <el-button @click="showCreate = false">取消</el-button>
         <el-button type="primary" :loading="creating" @click="create">创建</el-button>
@@ -58,13 +65,17 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { listTemplates, createTemplate, deleteTemplate, importTemplate } from '../api/template'
 import { getProfile, logout } from '../api/user'
+import { listTeams } from '../api/team'
 
 const router = useRouter()
 const templates = ref([])
 const showCreate = ref(false)
 const newName = ref('')
+const newTeamId = ref(null)
 const creating = ref(false)
 const importInput = ref(null)
+const teams = ref([])
+const teamMap = ref({})
 const nickname = ref(localStorage.getItem('username') || '用户')
 const userAvatar = ref(localStorage.getItem('avatar') || '')
 
@@ -72,6 +83,12 @@ const avatarText = computed(() => (nickname.value || 'U').slice(0, 1).toUpperCas
 
 onMounted(async () => {
   load()
+  try {
+    teams.value = await listTeams() || []
+    const m = {}
+    teams.value.forEach(t => { m[t.id] = t })
+    teamMap.value = m
+  } catch (e) {}
   try {
     const p = await getProfile()
     if (p) {
@@ -113,9 +130,10 @@ async function create() {
   }
   creating.value = true
   try {
-    const t = await createTemplate(newName.value.trim())
+    const t = await createTemplate({ name: newName.value.trim(), teamId: newTeamId.value || undefined })
     ElMessage.success('创建成功')
     showCreate.value = false
+    newTeamId.value = null
     router.push(`/template/${t.id}`)
   } finally {
     creating.value = false
@@ -243,6 +261,19 @@ function formatTime(t) {
 .tpl-card h3 {
   color: #303133;
   margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.team-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #3B6BFF;
+  background: #EEF1FF;
+  border-radius: 999px;
+  padding: 2px 9px;
 }
 .tpl-card .time {
   color: #909399;

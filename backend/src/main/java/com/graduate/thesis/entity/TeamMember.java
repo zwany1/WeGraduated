@@ -8,26 +8,21 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * 论文文件
+ * 团队成员
  */
 @Data
-@TableName("t_paper_file")
-public class PaperFile {
+@TableName("t_team_member")
+public class TeamMember {
 
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    private Long userId;
-
-    /** 所属团队(空=个人) */
     private Long teamId;
 
-    private String originalName;
+    private Long userId;
 
-    /** 存储相对路径 */
-    private String storedPath;
+    /** owner / member */
+    private String role;
 
-    private Long fileSize;
-
-    private LocalDateTime createTime;
+    private LocalDateTime joinTime;
 }

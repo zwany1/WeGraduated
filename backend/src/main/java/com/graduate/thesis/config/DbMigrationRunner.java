@@ -86,9 +86,13 @@ public class DbMigrationRunner implements ApplicationRunner {
         addColumnIfMissing("t_format_template", "rating_avg", "ALTER TABLE t_format_template ADD COLUMN rating_avg DECIMAL(3,1) NOT NULL DEFAULT 0 COMMENT '平均评分'");
         addColumnIfMissing("t_format_template", "rating_count", "ALTER TABLE t_format_template ADD COLUMN rating_count INT NOT NULL DEFAULT 0 COMMENT '评分人数'");
         addColumnIfMissing("t_format_task", "retry_count", "ALTER TABLE t_format_task ADD COLUMN retry_count INT NOT NULL DEFAULT 0 COMMENT '失败自动重试次数'");
+        addColumnIfMissing("t_format_template", "team_id", "ALTER TABLE t_format_template ADD COLUMN team_id BIGINT DEFAULT NULL COMMENT '所属团队(空=个人)'");
+        addColumnIfMissing("t_format_task", "team_id", "ALTER TABLE t_format_task ADD COLUMN team_id BIGINT DEFAULT NULL COMMENT '所属团队(空=个人)'");
+        addColumnIfMissing("t_paper_file", "team_id", "ALTER TABLE t_paper_file ADD COLUMN team_id BIGINT DEFAULT NULL COMMENT '所属团队(空=个人)'");
         ensureMarketRatingTable();
         ensureLoginSessionTable();
         ensureFavoriteTable();
+        ensureTeamTables();
     }
 
     private void addColumnIfMissing(String table, String column, String alterSql) {
@@ -168,6 +172,41 @@ public class DbMigrationRunner implements ApplicationRunner {
             }
         } catch (Exception e) {
             log.warn("[DbMigration] 创建 t_template_favorite 表失败: {}", e.getMessage());
+        }
+    }
+
+    /** 团队表(幂等建表): 多人协作, 团队内共享模板/论文/任务 */
+    private void ensureTeamTables() {
+        try {
+            Integer c1 = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 't_team'",
+                    Integer.class);
+            if (c1 == null || c1 == 0) {
+                jdbcTemplate.execute("CREATE TABLE t_team (" +
+                        "id BIGINT AUTO_INCREMENT PRIMARY KEY, " +
+                        "name VARCHAR(64) NOT NULL, " +
+                        "description VARCHAR(255) DEFAULT NULL, " +
+                        "owner_id BIGINT NOT NULL, " +
+                        "create_time DATETIME DEFAULT CURRENT_TIMESTAMP" +
+                        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='团队'");
+                log.info("[DbMigration] 已创建 t_team 表");
+            }
+            Integer c2 = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 't_team_member'",
+                    Integer.class);
+            if (c2 == null || c2 == 0) {
+                jdbcTemplate.execute("CREATE TABLE t_team_member (" +
+                        "id BIGINT AUTO_INCREMENT PRIMARY KEY, " +
+                        "team_id BIGINT NOT NULL, " +
+                        "user_id BIGINT NOT NULL, " +
+                        "role VARCHAR(16) NOT NULL DEFAULT 'member', " +
+                        "join_time DATETIME DEFAULT CURRENT_TIMESTAMP, " +
+                        "UNIQUE KEY uk_team_user (team_id, user_id)" +
+                        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='团队成员'");
+                log.info("[DbMigration] 已创建 t_team_member 表");
+            }
+        } catch (Exception e) {
+            log.warn("[DbMigration] 创建团队表失败: {}", e.getMessage());
         }
     }
 

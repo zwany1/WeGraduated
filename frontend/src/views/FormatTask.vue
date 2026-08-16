@@ -43,6 +43,12 @@
           <el-table-column label="格式方案" min-width="140">
             <template #default="{ row }">{{ templateName(row) }}</template>
           </el-table-column>
+          <el-table-column label="来源" width="100">
+            <template #default="{ row }">
+              <span v-if="row.teamId && teamMap[row.teamId]" class="src-team">团队</span>
+              <span v-else class="src-mine">个人</span>
+            </template>
+          </el-table-column>
           <el-table-column label="状态" width="140">
             <template #default="{ row }">
               <el-tag v-if="row.status === 'SUCCESS'" type="success">已完成</el-tag>
@@ -168,11 +174,13 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { ElMessage } from 'element-plus'
 import { UploadFilled, Loading } from '@element-plus/icons-vue'
 import { listTemplates } from '../api/template'
+import { listTeams } from '../api/team'
 import { uploadPaper, startFormat, startFormatBatch, listTasks, getTask, downloadPaper, downloadPaperOriginal, getDiff } from '../api/paper'
 import DocxCompare from '../components/DocxCompare.vue'
 
 const templates = ref([])
 const templateId = ref(null)
+const teamMap = ref({})
 const fileList = ref([])
 const selectedFile = ref(null)
 const selectedFiles = ref([])
@@ -282,6 +290,12 @@ async function fetchDiff(taskId) {
 
 onMounted(async () => {
   templates.value = await listTemplates()
+  try {
+    const ts = await listTeams() || []
+    const m = {}
+    ts.forEach(t => { m[t.id] = t })
+    teamMap.value = m
+  } catch (e) {}
   await loadTasks()
   startSse()
 })
@@ -532,6 +546,18 @@ function formatTime(t) {
 .file-count {
   font-size: 13px;
   color: #409eff;
+}
+.src-team {
+  display: inline-block;
+  font-size: 11px;
+  color: #3B6BFF;
+  background: #EEF1FF;
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+.src-mine {
+  font-size: 12px;
+  color: #c0c4cc;
 }
 .task-list {
   margin-top: 24px;

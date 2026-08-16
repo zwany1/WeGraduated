@@ -25,6 +25,9 @@ public class FormatTask {
 
     private Long userId;
 
+    /** 所属团队(空=个人) */
+    private Long teamId;
+
     private Long fileId;
 
     private Long templateId;

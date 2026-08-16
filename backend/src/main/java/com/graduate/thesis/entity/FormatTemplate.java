@@ -19,6 +19,9 @@ public class FormatTemplate {
 
     private Long userId;
 
+    /** 所属团队(空=个人) */
+    private Long teamId;
+
     private String name;
 
     /** 页面设置 JSON: {"paper":"A4","margin":{...},"header":{"height":1.5},"footer":{"type":"center"}} */

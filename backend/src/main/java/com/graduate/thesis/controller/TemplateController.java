@@ -41,7 +41,7 @@ public class TemplateController {
 
     @PostMapping("/create")
     public Result<FormatTemplate> create(@Valid @RequestBody TemplateCreateDTO dto) {
-        return Result.ok(templateService.create(UserContext.get(), dto.getName()));
+        return Result.ok(templateService.create(UserContext.get(), dto.getName(), dto.getTeamId()));
     }
 
     /** 模板市场公开模板(无需登录), 支持分类筛选与排序 */

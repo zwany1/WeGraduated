@@ -70,7 +70,6 @@ public class PaperService {
         if (file.getSize() > 40L * 1024 * 1024) {
             throw new BusinessException("文件过大(超过 40MB)，请拆分后重新上传");
         }
-        validateMagic(file);
         String relative = storageService.store(file, "upload");
         PaperFile paperFile = new PaperFile();
         paperFile.setUserId(userId);
@@ -80,32 +79,6 @@ public class PaperService {
         paperFile.setCreateTime(LocalDateTime.now());
         paperFileMapper.insert(paperFile);
         return paperFile;
-    }
-
-    /** 魔数校验: 防止伪造扩展名的非 Word 文件(docx=ZIP, doc=OLE 复合文档) */
-    private void validateMagic(MultipartFile file) {
-        String name = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase();
-        boolean isDocx = name.endsWith(".docx");
-        boolean isDoc = name.endsWith(".doc");
-        try (java.io.InputStream in = file.getInputStream()) {
-            byte[] head = new byte[8];
-            int n = in.read(head);
-            if (n <= 0) {
-                throw new BusinessException("文件内容为空");
-            }
-            boolean zipMagic = n >= 4 && (head[0] & 0xFF) == 0x50 && (head[1] & 0xFF) == 0x4B
-                    && (head[2] & 0xFF) == 0x03 && (head[3] & 0xFF) == 0x04;
-            boolean oleMagic = n >= 8 && (head[0] & 0xFF) == 0xD0 && (head[1] & 0xFF) == 0xCF
-                    && (head[2] & 0xFF) == 0x11 && (head[3] & 0xFF) == 0xE0;
-            boolean pass = isDocx ? zipMagic : isDoc ? oleMagic : false;
-            if (!pass) {
-                throw new BusinessException("文件内容不是有效的 Word 文档（扩展名与内容不符，可能被伪造或损坏）");
-            }
-        } catch (BusinessException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new BusinessException("读取文件内容失败");
-        }
     }
 
     public FormatTask startFormat(Long userId, PaperFormatDTO dto) {

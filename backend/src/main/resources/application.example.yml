@@ -53,7 +53,17 @@ thesis:
     dir: ${STORAGE_DIR:./data/storage}
   cors:
     allowed-origins: http://localhost:5173,http://localhost:5174
+  scheduler:
+    interval: 1500 # 排版任务调度扫描间隔(毫秒)
+  backup:
+    max-keep: 7 # 数据库备份最多保留份数
+  oauth:
+    github:
+      client-id: ${GITHUB_CLIENT_ID:} # GitHub OAuth: 可选, 填入后启用 GitHub 登录
+      client-secret: ${GITHUB_CLIENT_SECRET:}
+      redirect-uri: http://localhost:13355/api/auth/github/callback
+      frontend-url: http://localhost:5173
 
 logging:
   level:
-    com.graduate.thesis: debug
+    com.graduate.thesis: info

@@ -205,20 +205,20 @@
     </section>
 
     <!-- ========== Stats ========== -->
-    <section class="stats">
+    <section class="stats reveal">
       <div class="stats-inner">
         <div class="stat-item" v-for="(s, i) in stats" :key="i">
           <div class="stat-icon" :class="s.color">
             <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" v-html="s.icon"></svg>
           </div>
-          <div class="stat-number">{{ s.num }}</div>
+          <div class="stat-number">{{ statDisplays[i] }}{{ s.suffix }}</div>
           <div class="stat-label">{{ s.label }}</div>
         </div>
       </div>
     </section>
 
     <!-- ========== Features ========== -->
-    <section class="features">
+    <section class="features reveal">
       <div class="features-inner">
         <div class="feat-left">
           <h2 class="feat-title">用户配置规则</h2>
@@ -265,7 +265,7 @@
     </section>
 
     <!-- ========== Steps ========== -->
-    <section class="steps-section">
+    <section class="steps-section reveal">
       <h2 class="steps-title">三步完成规范排版</h2>
       <div class="steps-inner">
         <div class="step-card" v-for="(s, i) in steps" :key="i">
@@ -288,7 +288,7 @@
     </section>
 
     <!-- ========== Tools ========== -->
-    <section class="tools-section">
+    <section class="tools-section reveal">
       <h2 class="tools-title">丰富的排版与图表工具</h2>
       <div class="tools-grid">
         <div class="tool-card" v-for="(t, i) in tools" :key="i">
@@ -407,6 +407,8 @@ onMounted(async () => {
       localStorage.removeItem('menus')
     }
   }
+  initReveal()
+  initNavShadow()
 })
 
 function goLogin() {
@@ -457,11 +459,49 @@ const mockRules = [
 ]
 
 const stats = [
-  { num: '5,000+', label: '用户信赖选择', color: 'blue', icon: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>' },
-  { num: '98%', label: '格式匹配准确率', color: 'green', icon: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>' },
-  { num: '10万+', label: '文档已智能排版', color: 'blue', icon: '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>' },
-  { num: '99.9%', label: '数据安全保障', color: 'green', icon: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>' }
+  { value: 5000, suffix: '+', label: '用户信赖选择', color: 'blue', icon: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>' },
+  { value: 98, suffix: '%', label: '格式匹配准确率', color: 'green', icon: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>' },
+  { value: 10, suffix: '万+', label: '文档已智能排版', color: 'blue', icon: '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>' },
+  { value: 99.9, suffix: '%', decimal: 1, label: '数据安全保障', color: 'green', icon: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>' }
 ]
+
+// 统计数字滚动显示
+const statDisplays = ref(stats.map(() => '0'))
+function animateStat(index, target, decimal = 0, duration = 1600) {
+  const start = performance.now()
+  const fmt = v => (decimal ? v.toFixed(decimal) : Math.round(v).toLocaleString('en-US'))
+  const step = now => {
+    const t = Math.min(1, (now - start) / duration)
+    const eased = 1 - Math.pow(1 - t, 3)
+    statDisplays.value[index] = fmt(target * eased)
+    if (t < 1) requestAnimationFrame(step)
+  }
+  requestAnimationFrame(step)
+}
+
+// 滚动触发: 区块进入视口淡入上移 + 统计数字滚动
+function initReveal() {
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(en => {
+      if (!en.isIntersecting) return
+      en.target.classList.add('in-view')
+      if (en.target.classList.contains('stats')) {
+        stats.forEach((s, i) => animateStat(i, s.value, s.decimal || 0))
+      }
+      io.unobserve(en.target)
+    })
+  }, { threshold: 0.15 })
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el))
+}
+
+// 导航滚动阴影
+function initNavShadow() {
+  const nav = document.querySelector('.navbar')
+  if (!nav) return
+  const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 12)
+  onScroll()
+  window.addEventListener('scroll', onScroll, { passive: true })
+}
 
 const featChecks = [
   '完全自定义各级标题、字体、段落格式',
@@ -573,6 +613,11 @@ const tools = [
   background: rgba(255,255,255,0.92);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--c-border);
+  transition: box-shadow 0.3s ease, background 0.3s ease;
+}
+.navbar.scrolled {
+  background: rgba(255,255,255,0.96);
+  box-shadow: 0 6px 24px rgba(15, 40, 100, 0.08);
 }
 .nav-inner {
   max-width: 1200px;
@@ -769,12 +814,17 @@ const tools = [
   filter: blur(80px);
   opacity: 0.4;
 }
+@keyframes floatBlob {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(24px, -28px) scale(1.08); }
+}
 .blob-1 {
   width: 500px;
   height: 500px;
   background: #c7d2fe;
   top: -150px;
   right: -100px;
+  animation: floatBlob 14s ease-in-out infinite;
 }
 .blob-2 {
   width: 400px;
@@ -782,6 +832,39 @@ const tools = [
   background: #e0e7ff;
   bottom: -100px;
   left: -100px;
+  animation: floatBlob 18s ease-in-out infinite reverse;
+}
+
+/* Hero 首屏渐入 */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(26px); }
+  to { opacity: 1; transform: none; }
+}
+.hero-badge, .hero-title, .hero-desc, .hero-cta, .hero-features {
+  animation: fadeUp 0.85s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.hero-title { animation-delay: 0.06s; }
+.hero-desc { animation-delay: 0.18s; }
+.hero-cta { animation-delay: 0.3s; }
+.hero-features { animation-delay: 0.42s; }
+
+/* 右侧演示面板: 渐入 + 缓慢浮动 */
+@keyframes floatPanel {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+.hero-right {
+  animation: fadeUp 0.85s cubic-bezier(0.22, 0.61, 0.36, 1) 0.25s both,
+             floatPanel 6s ease-in-out 1.4s infinite;
+}
+
+/* 按钮 hover 微动 */
+.btn-cta-primary {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+.btn-cta-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(59, 107, 255, 0.35);
 }
 .hero-inner {
   position: relative;
@@ -1497,5 +1580,53 @@ const tools = [
   color: #374151;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ===== 滚动触发动效 ===== */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.22, 0.61, 0.36, 1);
+  will-change: opacity, transform;
+}
+.reveal.in-view {
+  opacity: 1;
+  transform: none;
+}
+
+/* ===== 工具卡片微交互 ===== */
+.tool-card {
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 28px 24px;
+  border: 1px solid var(--c-border);
+  transition: all 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
+  position: relative;
+  overflow: hidden;
+}
+.tool-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #3B6BFF, #7c3aed);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.tool-card:hover::before {
+  opacity: 1;
+}
+.tool-card:hover {
+  box-shadow: 0 16px 40px rgba(15, 40, 100, 0.12);
+  transform: translateY(-6px);
+  border-color: #c7d2fe;
+}
+.tool-card .tool-icon {
+  transition: transform 0.3s ease;
+}
+.tool-card:hover .tool-icon {
+  transform: translateY(-4px) scale(1.06);
 }
 </style>

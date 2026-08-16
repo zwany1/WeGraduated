@@ -12,7 +12,7 @@
       <!-- 顶部工具栏 -->
       <div class="toolbar">
         <button class="tb-btn" :class="{ active: tool === 'select' }" title="选择 (V)" @click="tool = 'select'">↖</button>
-        <button class="tb-btn" :class="{ active: tool === 'edge' }" title="连线：从节点边缘锚点拖出" @click="tool = 'edge'">╱</button>
+        <button class="tb-btn" :class="{ active: tool === 'edge' }" title="连线：点击后按住一个节点拖到另一个节点" @click="edgeToolClick">╱</button>
         <span class="tb-sep"></span>
         <button class="tb-btn" :disabled="!canUndo" title="撤销 (Ctrl+Z)" @click="undo">↩</button>
         <button class="tb-btn" :disabled="!canRedo" title="重做 (Ctrl+Y)" @click="redo">↪</button>
@@ -165,6 +165,11 @@ const containerRef = ref(null)
 const graph = ref(null)
 const mmdDlg = ref(null)
 const tool = ref('select')
+
+function edgeToolClick() {
+  tool.value = 'edge'
+  ElMessage.info('连线：按住一个节点拖到另一个节点即可创建连线')
+}
 const current = ref(null)
 const currentLabel = ref('')
 const currentFill = ref('#ffffff')
@@ -621,17 +626,23 @@ function nodeSpec(type) {
 
 const portDef = {
   groups: {
-    all: { position: { name: 'absolute' } }
+    all: {
+      position: { name: 'absolute' },
+      magnet: true,
+      attrs: {
+        portBody: { r: 4, magnet: true, stroke: '#1a73e8', strokeWidth: 1, fill: '#fff', style: { visibility: 'hidden' } }
+      }
+    }
   },
   items: [
-    { id: 'tl', group: 'all', args: { x: '0%', y: '0%' } },
-    { id: 't', group: 'all', args: { x: '50%', y: '0%' } },
-    { id: 'tr', group: 'all', args: { x: '100%', y: '0%' } },
-    { id: 'r', group: 'all', args: { x: '100%', y: '50%' } },
-    { id: 'br', group: 'all', args: { x: '100%', y: '100%' } },
-    { id: 'b', group: 'all', args: { x: '50%', y: '100%' } },
-    { id: 'bl', group: 'all', args: { x: '0%', y: '100%' } },
-    { id: 'l', group: 'all', args: { x: '0%', y: '50%' } }
+    { id: 'tl', group: 'all', args: { x: '0%', y: '0%' }, magnet: true },
+    { id: 't', group: 'all', args: { x: '50%', y: '0%' }, magnet: true },
+    { id: 'tr', group: 'all', args: { x: '100%', y: '0%' }, magnet: true },
+    { id: 'r', group: 'all', args: { x: '100%', y: '50%' }, magnet: true },
+    { id: 'br', group: 'all', args: { x: '100%', y: '100%' }, magnet: true },
+    { id: 'b', group: 'all', args: { x: '50%', y: '100%' }, magnet: true },
+    { id: 'bl', group: 'all', args: { x: '0%', y: '100%' }, magnet: true },
+    { id: 'l', group: 'all', args: { x: '0%', y: '50%' }, magnet: true }
   ]
 }
 
@@ -686,6 +697,7 @@ function initGraph() {
       { tagName: 'circle', selector: 'portBody' }
     ],
     defaultPort: {
+      magnet: true,
       attrs: {
         portBody: { r: 4, magnet: true, stroke: '#1a73e8', strokeWidth: 1, fill: '#fff', style: { visibility: 'hidden' } }
       }
@@ -708,6 +720,19 @@ function initGraph() {
     history: { enabled: true }
   })
   graph.value = g
+
+  // X6 3.x 下端口无法作为连线起点(从节点本体拖出可用), 故隐藏端口磁点, 避免出现拖不动的假锚点
+  g.on('node:added', ({ node }) => {
+    requestAnimationFrame(() => {
+      const id = node && node.id
+      if (!id || !containerRef.value) return
+      const body = containerRef.value.querySelector('.x6-node[data-cell-id="' + id + '"]')
+      if (!body) return
+      body.querySelectorAll('.x6-port-body').forEach(el => {
+        el.style.visibility = 'hidden'
+      })
+    })
+  })
 
   g.on('history:change', () => {
     canUndo.value = g.canUndo()

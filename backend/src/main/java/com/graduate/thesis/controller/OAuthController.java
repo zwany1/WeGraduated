@@ -28,7 +28,7 @@ public class OAuthController {
     private final ConcurrentHashMap<String, Long> states = new ConcurrentHashMap<>();
 
     public OAuthController(GitHubOAuthService oauthService,
-                           @Value("${thesis.oauth.github.frontend-url:http://localhost:5173}") String frontendUrl) {
+                           @Value("${thesis.oauth.github.frontend-url:http://123.56.158.11}") String frontendUrl) {
         this.oauthService = oauthService;
         this.frontendUrl = frontendUrl;
     }

@@ -1,5 +1,5 @@
 # ---------- 构建阶段 ----------
-FROM maven:3.9-eclipse-temurin-11 AS builder
+FROM maven:3.9-eclipse-temurin-17 AS builder
 WORKDIR /build
 # 使用阿里云 Maven 镜像加速依赖下载(服务器访问中央仓库慢)
 RUN mkdir -p /root/.m2 && \
@@ -11,7 +11,7 @@ RUN mvn package -DskipTests -B -q
 
 # ---------- 运行阶段 ----------
 # 基于 Ubuntu + JDK11 + LibreOffice(PDF 转换依赖)
-FROM eclipse-temurin:11-jre-focal
+FROM eclipse-temurin:17-jre-focal
 ENV DEBIAN_FRONTEND=noninteractive
 
 # 安装 LibreOffice (docx -> PDF)

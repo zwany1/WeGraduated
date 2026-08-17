@@ -1,4 +1,4 @@
-﻿server:
+server:
   port: 13355
   servlet:
     context-path: /api
@@ -52,7 +52,7 @@ thesis:
   storage:
     dir: ${STORAGE_DIR:./data/storage}
   cors:
-    allowed-origins: http://localhost:5173,http://localhost:5174
+    allowed-origins: http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176
   scheduler:
     interval: 1500 # 排版任务调度扫描间隔(毫秒)
   backup:

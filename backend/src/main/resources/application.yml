@@ -1,4 +1,4 @@
-﻿server:
+server:
   port: 13355
   servlet:
     context-path: /api
@@ -52,7 +52,7 @@ thesis:
   storage:
     dir: ${STORAGE_DIR:./data/storage}
   cors:
-    allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:5174}
+    allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176}
   scheduler:
     interval: ${SCHEDULER_INTERVAL:1500}
   backup:

@@ -1,6 +1,7 @@
 -- ============================================================
 -- 论文格式助手 数据库初始化脚本(安全幂等版)
 -- CREATE TABLE IF NOT EXISTS: 不删除已有表, 重启不会清空数据
+-- 结构对齐生产库(2026-08-17 导出): 含团队/站内信/会话/评分等扩展表
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS t_user (
@@ -14,6 +15,8 @@ CREATE TABLE IF NOT EXISTS t_user (
     security_answer   VARCHAR(128) DEFAULT NULL,
     role              VARCHAR(16)  NOT NULL DEFAULT 'USER',
     status            TINYINT(1)   NOT NULL DEFAULT 1 COMMENT '状态 1正常 0禁用',
+    github_id         VARCHAR(64)  DEFAULT NULL COMMENT 'GitHub OAuth 用户id',
+    github_login      VARCHAR(64)  DEFAULT NULL COMMENT 'GitHub OAuth 登录名',
     create_time       DATETIME     DEFAULT NULL,
     UNIQUE KEY uk_username (username),
     UNIQUE KEY uk_email (email)
@@ -31,6 +34,11 @@ CREATE TABLE IF NOT EXISTS t_format_template (
     is_public         TINYINT(1)   NOT NULL DEFAULT 0 COMMENT '是否上架模板市场',
     recommended       TINYINT(1)   NOT NULL DEFAULT 0 COMMENT '是否推荐',
     public_time       DATETIME     DEFAULT NULL COMMENT '上架时间',
+    category          VARCHAR(50)  DEFAULT NULL COMMENT '市场分类',
+    download_count    INT          NOT NULL DEFAULT 0 COMMENT '市场下载量',
+    rating_avg        DECIMAL(3,1) NOT NULL DEFAULT 0 COMMENT '平均评分',
+    rating_count      INT          NOT NULL DEFAULT 0 COMMENT '评分人数',
+    team_id           BIGINT       DEFAULT NULL COMMENT '所属团队(空=个人)',
     create_time       DATETIME     DEFAULT NULL,
     update_time       DATETIME     DEFAULT NULL,
     KEY idx_user (user_id),
@@ -66,6 +74,7 @@ CREATE TABLE IF NOT EXISTS t_paper_file (
     original_name VARCHAR(255) NOT NULL,
     stored_path   VARCHAR(255) NOT NULL,
     file_size     BIGINT      DEFAULT NULL,
+    team_id       BIGINT      DEFAULT NULL COMMENT '所属团队(空=个人)',
     create_time   DATETIME    DEFAULT NULL,
     KEY idx_user (user_id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='论文文件表';
@@ -80,9 +89,11 @@ CREATE TABLE IF NOT EXISTS t_format_task (
     result_path VARCHAR(255) DEFAULT NULL,
     pdf_path    VARCHAR(255) DEFAULT NULL,
     error_msg   TEXT         DEFAULT NULL,
-    retry_count INT          NOT NULL DEFAULT 0 COMMENT '失败自动重试次数',
     create_time DATETIME    DEFAULT NULL,
     finish_time DATETIME    DEFAULT NULL,
+    retry_count INT          NOT NULL DEFAULT 0 COMMENT '失败自动重试次数',
+    summary     VARCHAR(500) DEFAULT NULL COMMENT '排版校验摘要',
+    team_id     BIGINT       DEFAULT NULL COMMENT '所属团队(空=个人)',
     KEY idx_user (user_id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='排版任务表';
 
@@ -216,3 +227,79 @@ CREATE TABLE IF NOT EXISTS t_notice (
     create_time DATETIME     DEFAULT NULL,
     update_time DATETIME     DEFAULT NULL
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='通知公告表';
+
+-- ============================================================
+-- 扩展功能: 登录会话 / 模板市场评分与收藏 / 团队协作 / 站内信
+-- ============================================================
+
+-- 登录会话表: 记录活跃登录, 支持后台查看在线用户与强制下线
+CREATE TABLE IF NOT EXISTS t_login_session (
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id     BIGINT       NOT NULL,
+    username    VARCHAR(64)  DEFAULT NULL,
+    token       VARCHAR(600) NOT NULL,
+    ip          VARCHAR(64)  DEFAULT NULL,
+    login_time  DATETIME     DEFAULT NULL,
+    expire_time BIGINT       NOT NULL,
+    KEY idx_login_user (user_id)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='登录会话';
+
+-- 模板市场评分表: 每个用户对每个市场模板最多一条评分
+CREATE TABLE IF NOT EXISTS t_market_rating (
+    user_id     BIGINT   NOT NULL,
+    template_id BIGINT   NOT NULL,
+    score       TINYINT  NOT NULL,
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, template_id)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='模板市场评分';
+
+-- 模板收藏表: 用户对市场模板的收藏
+CREATE TABLE IF NOT EXISTS t_template_favorite (
+    user_id     BIGINT   NOT NULL,
+    template_id BIGINT   NOT NULL,
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, template_id)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='模板收藏';
+
+-- 团队表: 多人协作, 团队内共享模板/论文/任务
+CREATE TABLE IF NOT EXISTS t_team (
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name        VARCHAR(64)  NOT NULL,
+    description VARCHAR(255) DEFAULT NULL,
+    owner_id    BIGINT       NOT NULL,
+    create_time DATETIME     DEFAULT CURRENT_TIMESTAMP
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='团队';
+
+-- 团队成员表
+CREATE TABLE IF NOT EXISTS t_team_member (
+    id        BIGINT AUTO_INCREMENT PRIMARY KEY,
+    team_id   BIGINT      NOT NULL,
+    user_id   BIGINT      NOT NULL,
+    role      VARCHAR(16) NOT NULL DEFAULT 'member',
+    join_time DATETIME    DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_team_user (team_id, user_id)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='团队成员';
+
+-- 团队邀请表
+CREATE TABLE IF NOT EXISTS t_team_invite (
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    team_id     BIGINT      NOT NULL,
+    user_id     BIGINT      NOT NULL,
+    status      VARCHAR(16) NOT NULL DEFAULT 'PENDING',
+    create_time DATETIME    DEFAULT CURRENT_TIMESTAMP,
+    handle_time DATETIME    DEFAULT NULL,
+    UNIQUE KEY uk_team_invite (team_id, user_id)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='团队邀请';
+
+-- 站内信表
+CREATE TABLE IF NOT EXISTS t_notification (
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id     BIGINT       NOT NULL,
+    type        VARCHAR(32)  NOT NULL DEFAULT 'system',
+    title       VARCHAR(128) DEFAULT NULL,
+    content     VARCHAR(500) DEFAULT NULL,
+    data        VARCHAR(500) DEFAULT NULL,
+    is_read     TINYINT(1)   NOT NULL DEFAULT 0,
+    create_time DATETIME     DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_notif_user (user_id, is_read)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='站内信';

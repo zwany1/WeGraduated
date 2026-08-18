@@ -12,6 +12,14 @@ services:
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
+      - --innodb-buffer-pool-size=64M
+      - --innodb-log-buffer-size=4M
+      - --max-connections=30
+      - --performance-schema=OFF
+      - --table-open-cache=200
+      - --thread-cache-size=10
+    mem_limit: 300m
+    oom_score_adj: -500
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:
@@ -39,6 +47,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       STORAGE_DIR: /app/data/storage
       CORS_ORIGINS: ${CORS_ORIGINS:-http://123.56.158.11}
+      JAVA_TOOL_OPTIONS: -Xmx256m -Xms128m
     volumes:
       - thesis-data:/app/data
     networks:

@@ -6,7 +6,6 @@ import com.graduate.thesis.dto.PaperFormatDTO;
 import com.graduate.thesis.entity.FormatTask;
 import com.graduate.thesis.entity.PaperFile;
 import com.graduate.thesis.mapper.FormatTaskMapper;
-import com.graduate.thesis.service.DocxPdfService;
 import com.graduate.thesis.service.PaperService;
 import com.graduate.thesis.service.TaskProgressService;
 import com.graduate.thesis.util.JwtUtil;
@@ -37,16 +36,14 @@ import java.util.List;
 public class PaperController {
 
     private final PaperService paperService;
-    private final DocxPdfService docxPdfService;
     private final TaskProgressService progressService;
     private final FormatTaskMapper taskMapper;
     private final JwtUtil jwtUtil;
 
-    public PaperController(PaperService paperService, DocxPdfService docxPdfService,
+    public PaperController(PaperService paperService,
                            TaskProgressService progressService,
                            FormatTaskMapper taskMapper, JwtUtil jwtUtil) {
         this.paperService = paperService;
-        this.docxPdfService = docxPdfService;
         this.progressService = progressService;
         this.taskMapper = taskMapper;
         this.jwtUtil = jwtUtil;
@@ -124,18 +121,6 @@ public class PaperController {
     }
 
     /**
-     * 在线预览排版结果: 返回 PDF(优先缓存, 无缓存则即时转换)
-     */
-    @GetMapping("/preview/{taskId}")
-    public ResponseEntity<FileSystemResource> preview(@PathVariable Long taskId) {
-        File pdf = paperService.loadPreviewPdf(UserContext.get(), taskId);
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=" + encode("preview.pdf"))
-                .contentType(MediaType.APPLICATION_PDF)
-                .body(new FileSystemResource(pdf));
-    }
-
-    /**
      * 原始上传文档(排版前 docx), 用于前后对比
      */
     @GetMapping("/download-original/{taskId}")
@@ -145,18 +130,6 @@ public class PaperController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=" + encode("original.docx"))
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(new FileSystemResource(file));
-    }
-
-    /**
-     * 下载排版结果的 PDF 版本
-     */
-    @GetMapping("/download-pdf/{taskId}")
-    public ResponseEntity<FileSystemResource> downloadPdf(@PathVariable Long taskId) {
-        File pdf = paperService.loadPreviewPdf(UserContext.get(), taskId);
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + encode("已排版论文.pdf"))
-                .contentType(MediaType.APPLICATION_PDF)
-                .body(new FileSystemResource(pdf));
     }
 
     private String encode(String name) {

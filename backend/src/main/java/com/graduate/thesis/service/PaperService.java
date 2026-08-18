@@ -33,7 +33,6 @@ public class PaperService {
     private final StorageService storageService;
     private final TemplateService templateService;
     private final FormatEngine formatEngine;
-    private final DocxPdfService docxPdfService;
     private final DiffService diffService;
     private final TaskProgressService progressService;
     private final TeamService teamService;
@@ -45,7 +44,6 @@ public class PaperService {
                         StorageService storageService,
                         TemplateService templateService,
                         FormatEngine formatEngine,
-                        DocxPdfService docxPdfService,
                         DiffService diffService,
                         TaskProgressService progressService,
                         TeamService teamService,
@@ -55,7 +53,6 @@ public class PaperService {
         this.storageService = storageService;
         this.templateService = templateService;
         this.formatEngine = formatEngine;
-        this.docxPdfService = docxPdfService;
         this.diffService = diffService;
         this.progressService = progressService;
         this.teamService = teamService;
@@ -67,8 +64,8 @@ public class PaperService {
             throw new BusinessException("文件不能为空");
         }
         String original = file.getOriginalFilename();
-        if (original == null || (!original.toLowerCase().endsWith(".docx") && !original.toLowerCase().endsWith(".doc"))) {
-            throw new BusinessException("仅支持 .docx / .doc 文件");
+        if (original == null || !original.toLowerCase().endsWith(".docx")) {
+            throw new BusinessException("仅支持 .docx 文件(旧版 .doc 请先另存为 .docx)");
         }
         if (file.getSize() > 40L * 1024 * 1024) {
             throw new BusinessException("文件过大(超过 40MB)，请拆分后重新上传");
@@ -135,9 +132,6 @@ public class PaperService {
         if (m.contains("图片") && (m.contains("无法") || m.contains("不支持") || m.contains("读取"))) {
             return "文档中存在无法读取的图片，请将图片转为 JPG/PNG 后重试";
         }
-        if (m.contains(".doc 转换") || m.contains("LibreOffice")) {
-            return "当前服务器未安装 LibreOffice，无法处理 .doc 旧格式，请上传 .docx 文件";
-        }
         if (m.contains("document.xml") || m.contains("XWPF") || m.contains("docx4j") || m.contains("无法解析") || m.contains("不是有效的")) {
             return "文档无法解析，请确认上传的是有效的 Word 文档(.docx)";
         }
@@ -170,18 +164,9 @@ public class PaperService {
             if (source.length() > 40L * 1024 * 1024) {
                 throw new BusinessException(400, "文档过大(超过 40MB)，请拆分后重新上传");
             }
-            // .doc 旧格式兼容: 先经 LibreOffice 转换为 .docx 再排版
-            File docToFormat = source;
-            String origName = paperFile.getOriginalName() == null ? "" : paperFile.getOriginalName().toLowerCase();
-            if (origName.endsWith(".doc") && !origName.endsWith(".docx")) {
-                progressService.publish(taskId, Map.of("type", "progress", "progress", 8, "status", FormatTask.STATUS_PROCESSING,
-                        "stage", "convert", "stageText", "正在转换 .doc 旧格式"));
-                docToFormat = docxPdfService.convertDocToDocx(source);
-            }
-
             progressService.publish(taskId, Map.of("type", "progress", "progress", 10, "status", FormatTask.STATUS_PROCESSING,
                     "stage", "formatting", "stageText", "正在识别标题并应用格式规则"));
-            File result = formatEngine.format(docToFormat, ruleSet, progress -> {
+            File result = formatEngine.format(source, ruleSet, progress -> {
                 task.setProgress(progress);
                 taskMapper.updateById(task);
                 progressService.publish(taskId, Map.of("type", "progress", "progress", progress, "status", FormatTask.STATUS_PROCESSING,
@@ -197,16 +182,6 @@ public class PaperService {
             taskMapper.updateById(task);
             progressService.publish(taskId, Map.of("type", "progress", "progress", 100, "status", FormatTask.STATUS_SUCCESS,
                     "stage", "done", "stageText", "排版完成"));
-
-            // 转 PDF 预览缓存(失败不影响排版结果)
-            try {
-                File pdf = docxPdfService.convert(result);
-                String pdfPath = storageService.storePdf(task.getUserId(), pdf);
-                task.setPdfPath(pdfPath);
-                taskMapper.updateById(task);
-            } catch (Exception pe) {
-                log.warn("PDF 转换失败 taskId={}, 预览不可用", taskId, pe);
-            }
         } catch (Exception e) {
             log.error("排版失败 taskId={}", taskId, e);
             // 失败自动重试 1 次(非致命错误, 如临时资源/超时等), 避免用户手动重复提交
@@ -346,36 +321,7 @@ public class PaperService {
     }
 
     /**
-     * 加载预览 PDF: 优先缓存 pdfPath, 否则即时转换 docx->pdf(不写缓存)
-     */
-    public File loadPreviewPdf(Long userId, Long taskId) {
-        FormatTask task = getTask(userId, taskId);
-        if (!FormatTask.STATUS_SUCCESS.equals(task.getStatus()) || task.getResultPath() == null) {
-            throw new BusinessException(400, "任务尚未完成");
-        }
-        if (task.getPdfPath() != null) {
-            try {
-                return storageService.load(task.getPdfPath());
-            } catch (BusinessException ignore) {
-                // 缓存文件丢失, 走即时转换
-            }
-        }
-        File result = storageService.load(task.getResultPath());
-        File pdf = docxPdfService.convert(result);
-        // 即时转换结果写入缓存, 下次预览直接读取(首次转换较慢, 之后秒开)
-        try {
-            String pdfPath = storageService.storePdf(task.getUserId(), pdf);
-            task.setPdfPath(pdfPath);
-            taskMapper.updateById(task);
-        } catch (Exception ignore) {
-            // 缓存写入失败不影响本次预览
-        }
-        return pdf;
-    }
-
-    /**
-     * 排版差异分析: 对比排版前后 docx 格式差异(纯 POI, 不依赖 LibreOffice)
-     * 有缓存 PDF 时附页码坐标(增强), 无缓存/转换不可用时差异仍正常返回, 前端走文本定位
+     * 排版差异分析: 对比排版前后 docx 格式差异(纯 POI)
      */
     public List<DiffItem> listDiffs(Long userId, Long taskId) {
         FormatTask task = getTask(userId, taskId);
@@ -388,15 +334,6 @@ public class PaperService {
         }
         File original = storageService.load(paperFile.getStoredPath());
         File formatted = storageService.load(task.getResultPath());
-        // 仅使用已缓存的 PDF(不触发即时转换), 无缓存则差异仅文本定位
-        File pdf = null;
-        if (task.getPdfPath() != null) {
-            try {
-                pdf = storageService.load(task.getPdfPath());
-            } catch (Exception ignore) {
-                pdf = null;
-            }
-        }
-        return diffService.diff(original, formatted, pdf);
+        return diffService.diff(original, formatted);
     }
 }

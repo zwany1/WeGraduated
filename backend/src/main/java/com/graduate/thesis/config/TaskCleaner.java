@@ -70,9 +70,6 @@ public class TaskCleaner {
                 if (t.getResultPath() != null) {
                     referenced.add(t.getResultPath());
                 }
-                if (t.getPdfPath() != null) {
-                    referenced.add(t.getPdfPath());
-                }
             }
             for (PaperFile f : paperFileMapper.selectList(null)) {
                 referenced.add(f.getStoredPath());

@@ -1,10 +1,6 @@
 package com.graduate.thesis.service;
 
 import com.graduate.thesis.dto.DiffItem;
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.pdmodel.PDPage;
-import org.apache.pdfbox.text.PDFTextStripper;
-import org.apache.pdfbox.text.TextPosition;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
@@ -19,21 +15,18 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * 排版差异分析(纯 Java, 不依赖 LibreOffice):
- * 1. 用 POI 对比排版前/后 docx 段落格式差异, 输出结构化变更(字段/变更前后值)
- * 2. pdf 为可选增强(用于页码定位), 无缓存/不可用时差异仍正常返回, 页码为 0
+ * 排版差异分析(纯 Java):
+ * 用 POI 对比排版前/后 docx 段落格式差异, 输出结构化变更(字段/变更前/变更后)
  */
 @Service
 public class DiffService {
 
     /** 显示用的文本摘要长度 */
     private static final int TEXT_SUMMARY = 30;
-    /** PDF 中搜索匹配用的片段长度(去空白) */
-    private static final int MATCH_LEN = 15;
 
-    public List<DiffItem> diff(File original, File formatted, File pdf) {
+    /** 对比排版前/后 docx 段落格式差异, 输出结构化变更(字段/变更前/变更后) */
+    public List<DiffItem> diff(File original, File formatted) {
         List<DiffItem> items = new ArrayList<>();
-        // 1. 读取两文档, 按段落文本索引排版后段落
         List<XWPFParagraph> origParas = readParas(original);
         List<XWPFParagraph> fmtParas = readParas(formatted);
         Map<String, List<XWPFParagraph>> fmtIndex = new HashMap<>();
@@ -42,7 +35,6 @@ public class DiffService {
             if (t.isEmpty()) continue;
             fmtIndex.computeIfAbsent(t, k -> new ArrayList<>()).add(p);
         }
-        // 2. 逐段对比格式差异, 收集结构化字段变更
         List<RawDiff> raw = new ArrayList<>();
         for (XWPFParagraph op : origParas) {
             String t = clean(op.getText());
@@ -54,29 +46,11 @@ public class DiffService {
                 raw.add(new RawDiff(t, fields));
             }
         }
-        // 3. 可选: 提取结果 PDF 行文本坐标定位页码(失败/无缓存则页码为 0, 前端走文本定位)
-        List<Line> lines = null;
-        if (pdf != null && pdf.exists()) {
-            try {
-                lines = extractLines(pdf);
-            } catch (Exception ignore) {
-                lines = null;
-            }
-        }
         int idx = 0;
         for (RawDiff rd : raw) {
             idx++;
-            int page = 0;
-            double y = 0;
-            if (lines != null) {
-                Line hit = locate(rd.text, lines);
-                if (hit != null) {
-                    page = hit.page;
-                    y = round2(hit.y / pageHeight(pdf, hit.page));
-                }
-            }
             String type = rd.fields.get(0)[0];
-            items.add(new DiffItem(truncate(rd.text), type, changeDesc(rd.fields), idx, page, y, 0.05));
+            items.add(new DiffItem(truncate(rd.text), type, changeDesc(rd.fields), idx, 0, 0.0, 0.05));
         }
         return items;
     }
@@ -193,83 +167,6 @@ public class DiffService {
         return String.valueOf(v).trim();
     }
 
-    /** 提取 PDF 每行文本及纵向坐标 */
-    private List<Line> extractLines(File pdf) {
-        List<Line> lines = new ArrayList<>();
-        try (PDDocument doc = PDDocument.load(pdf)) {
-            PDFTextStripper st = new PDFTextStripper() {
-                private float lastY = Float.NaN;
-                private final StringBuilder line = new StringBuilder();
-                private float lineTop = 0;
-                private int pageNo = 0;
-
-                @Override
-                protected void startPage(PDPage page) throws java.io.IOException {
-                    super.startPage(page);
-                    pageNo = getCurrentPageNo();
-                    lastY = Float.NaN;
-                    line.setLength(0);
-                    lineTop = 0;
-                }
-
-                @Override
-                protected void endPage(PDPage page) throws java.io.IOException {
-                    flush();
-                    super.endPage(page);
-                }
-
-                @Override
-                protected void processTextPosition(TextPosition tp) {
-                    float y = tp.getYDirAdj();
-                    if (Float.isNaN(lastY) || Math.abs(y - lastY) > 3f) {
-                        flush();
-                        line.append(tp.getUnicode());
-                        lineTop = y;
-                    } else {
-                        line.append(tp.getUnicode());
-                    }
-                    lastY = y;
-                }
-
-                private void flush() {
-                    if (line.length() > 0) {
-                        String t = line.toString().replaceAll("\\s", "");
-                        if (!t.isEmpty()) {
-                            lines.add(new Line(pageNo, lineTop, t));
-                        }
-                        line.setLength(0);
-                    }
-                }
-            };
-            st.setSortByPosition(true);
-            st.getText(doc);
-        } catch (Exception ignore) {
-            // PDF 解析失败则返回空
-        }
-        return lines;
-    }
-
-    private Line locate(String text, List<Line> lines) {
-        String needle = text.replaceAll("\\s", "");
-        if (needle.length() > MATCH_LEN) needle = needle.substring(0, MATCH_LEN);
-        if (needle.isEmpty()) return null;
-        for (Line l : lines) {
-            if (l.text.contains(needle)) return l;
-        }
-        return null;
-    }
-
-    private double pageHeight(File pdf, int pageNo) {
-        try (PDDocument doc = PDDocument.load(pdf)) {
-            if (pageNo >= 1 && pageNo <= doc.getNumberOfPages()) {
-                PDPage page = doc.getPage(pageNo - 1);
-                return page.getMediaBox().getHeight();
-            }
-        } catch (Exception ignore) {
-        }
-        return 842.0;
-    }
-
     private String clean(String s) {
         return s == null ? "" : s.replaceAll("\\s", "");
     }
@@ -277,10 +174,6 @@ public class DiffService {
     private String truncate(String s) {
         String t = clean(s);
         return t.length() > TEXT_SUMMARY ? t.substring(0, TEXT_SUMMARY) + "…" : t;
-    }
-
-    private double round2(double v) {
-        return Math.round(v * 10000.0) / 10000.0;
     }
 
     private static class RawDiff {
@@ -293,15 +186,4 @@ public class DiffService {
         }
     }
 
-    private static class Line {
-        final int page;
-        final float y;
-        final String text;
-
-        Line(int page, float y, String text) {
-            this.page = page;
-            this.y = y;
-            this.text = text;
-        }
-    }
 }

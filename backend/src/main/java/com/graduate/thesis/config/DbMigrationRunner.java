@@ -86,6 +86,8 @@ public class DbMigrationRunner implements ApplicationRunner {
         addColumnIfMissing("t_format_template", "rating_avg", "ALTER TABLE t_format_template ADD COLUMN rating_avg DECIMAL(3,1) NOT NULL DEFAULT 0 COMMENT '平均评分'");
         addColumnIfMissing("t_format_template", "rating_count", "ALTER TABLE t_format_template ADD COLUMN rating_count INT NOT NULL DEFAULT 0 COMMENT '评分人数'");
         addColumnIfMissing("t_format_task", "retry_count", "ALTER TABLE t_format_task ADD COLUMN retry_count INT NOT NULL DEFAULT 0 COMMENT '失败自动重试次数'");
+        addColumnIfMissing("t_format_task", "summary", "ALTER TABLE t_format_task ADD COLUMN summary VARCHAR(500) DEFAULT NULL COMMENT '排版校验摘要'");
+        addColumnIfMissing("t_format_rule", "caption_enabled", "ALTER TABLE t_format_rule ADD COLUMN caption_enabled TINYINT(1) DEFAULT NULL COMMENT '标题编号是否启用'");
         addColumnIfMissing("t_format_template", "team_id", "ALTER TABLE t_format_template ADD COLUMN team_id BIGINT DEFAULT NULL COMMENT '所属团队(空=个人)'");
         addColumnIfMissing("t_format_task", "team_id", "ALTER TABLE t_format_task ADD COLUMN team_id BIGINT DEFAULT NULL COMMENT '所属团队(空=个人)'");
         addColumnIfMissing("t_paper_file", "team_id", "ALTER TABLE t_paper_file ADD COLUMN team_id BIGINT DEFAULT NULL COMMENT '所属团队(空=个人)'");

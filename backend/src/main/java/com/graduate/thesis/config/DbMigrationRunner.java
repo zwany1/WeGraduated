@@ -76,8 +76,6 @@ public class DbMigrationRunner implements ApplicationRunner {
     /** 幂等补齐扩展列: t_user.status / 模板市场字段(兼容 MySQL 5.7 / 8.0) */
     private void ensureExtColumns() {
         addColumnIfMissing("t_user", "status", "ALTER TABLE t_user ADD COLUMN status TINYINT(1) NOT NULL DEFAULT 1 COMMENT '状态 1正常 0禁用'");
-        addColumnIfMissing("t_user", "github_id", "ALTER TABLE t_user ADD COLUMN github_id VARCHAR(64) DEFAULT NULL COMMENT 'GitHub OAuth 用户id'");
-        addColumnIfMissing("t_user", "github_login", "ALTER TABLE t_user ADD COLUMN github_login VARCHAR(64) DEFAULT NULL COMMENT 'GitHub OAuth 登录名'");
         addColumnIfMissing("t_format_template", "is_public", "ALTER TABLE t_format_template ADD COLUMN is_public TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否上架模板市场'");
         addColumnIfMissing("t_format_template", "recommended", "ALTER TABLE t_format_template ADD COLUMN recommended TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否推荐'");
         addColumnIfMissing("t_format_template", "public_time", "ALTER TABLE t_format_template ADD COLUMN public_time DATETIME DEFAULT NULL COMMENT '上架时间'");

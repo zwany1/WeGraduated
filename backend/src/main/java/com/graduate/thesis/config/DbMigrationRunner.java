@@ -473,8 +473,7 @@ public class DbMigrationRunner implements ApplicationRunner {
             insertConfigIfMissing("上传文件大小上限(MB)", "upload.max.size", "50", 1, "论文上传大小限制");
             insertConfigIfMissing("任务并发数", "task.max.concurrent", "4", 1, "排版任务最大并发");
             insertConfigIfMissing("文件保留天数", "storage.keep.days", "30", 1, "超过该天数的旧文件可被清理");
-            insertConfigIfMissing("预览开关", "preview.enabled", "true", 1, "是否启用PDF预览");
-        } catch (Exception e) {
+                    } catch (Exception e) {
             log.warn("[DbMigration] 初始化字典/参数失败: {}", e.getMessage());
         }
     }

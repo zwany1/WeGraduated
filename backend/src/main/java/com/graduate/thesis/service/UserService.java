@@ -259,7 +259,6 @@ public class UserService {
                 new LambdaQueryWrapper<FormatTask>().eq(FormatTask::getUserId, userId));
         for (FormatTask t : tasks) {
             storageService.delete(t.getResultPath());
-            storageService.delete(t.getPdfPath());
         }
         taskMapper.delete(new LambdaQueryWrapper<FormatTask>()
                 .eq(FormatTask::getUserId, userId));

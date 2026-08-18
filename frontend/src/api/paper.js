@@ -28,10 +28,6 @@ export function downloadPaper(taskId) {
   return api.get(`/paper/download/${taskId}`, { responseType: 'blob' })
 }
 
-export function previewPaper(taskId) {
-  return api.get(`/paper/preview/${taskId}`, { responseType: 'blob' })
-}
-
 // 排版差异分析: 返回差异段落列表(含 PDF 页码与坐标)
 export function getDiff(taskId) {
   return api.get(`/paper/diff/${taskId}`)
@@ -43,8 +39,4 @@ export function previewPaperOriginal(taskId) {
 
 export function downloadPaperOriginal(taskId) {
   return api.get(`/paper/download-original/${taskId}`, { responseType: 'blob' })
-}
-
-export function downloadPaperPdf(taskId) {
-  return api.get(`/paper/download-pdf/${taskId}`, { responseType: 'blob' })
 }

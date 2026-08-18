@@ -40,9 +40,6 @@ public class FormatTask {
     /** 结果文件相对路径 */
     private String resultPath;
 
-    /** 预览 PDF 相对路径(缓存, 排版成功后生成) */
-    private String pdfPath;
-
     private String errorMsg;
 
     /** 失败自动重试次数 */

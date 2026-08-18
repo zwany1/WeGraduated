@@ -1,6 +1,6 @@
 # Docker 部署指南
 
-基于 Docker Compose 一键部署论文排版系统（后端 + 前端 + MySQL + LibreOffice）。
+基于 Docker Compose 一键部署论文排版系统（后端 + 前端 + MySQL）。
 
 ## 一、服务器要求
 
@@ -32,8 +32,6 @@ vim deploy/.env   # 填写真实密钥
 - `MYSQL_ROOT_PASSWORD`：MySQL root 密码（强密码）
 - `MAIL_PASSWORD`：QQ 邮箱 SMTP 授权码
 - `JWT_SECRET`：JWT 密钥，用 `openssl rand -base64 32` 生成
-
-> ⚠️ 服务器上如果 LibreOffice 转换中文出问题，需安装中文字体（Dockerfile 已内置 wqy 字体）。
 
 ### 3. 构建并启动
 
@@ -94,7 +92,6 @@ docker cp thesis-backend:/app/data/storage ./storage_backup
 | 问题 | 解决 |
 |---|---|
 | 后端连不上 MySQL | 检查 `.env` 的 `MYSQL_ROOT_PASSWORD` 与 compose 一致 |
-| PDF 预览/对比失败 | LibreOffice 未安装或中文字体缺失，确认容器内 `libreoffice` 可用 |
 | 上传大文件 413 | Nginx `client_max_body_size` 已设为 100m，若更大需调整 |
 | 端口冲突 | 修改 `docker-compose.yml` frontend 的 `80:80` 映射 |
 | 邮箱验证码发不出 | 确认 `MAIL_PASSWORD` 是 SMTP 授权码（非 QQ 密码） |

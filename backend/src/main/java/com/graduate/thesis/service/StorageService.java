@@ -86,16 +86,6 @@ public class StorageService {
         return storeCopy(relative, file);
     }
 
-    /**
-     * 保存预览 PDF, 返回相对路径
-     */
-    public String storePdf(Long userId, File pdf) {
-        String date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        String filename = "preview_" + userId + "_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12) + ".pdf";
-        String relative = "result/" + date + "/" + filename;
-        return storeCopy(relative, pdf);
-    }
-
     private String storeCopy(String relative, File file) {
         try {
             Path target = root.resolve(relative).normalize();

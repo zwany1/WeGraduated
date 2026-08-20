@@ -132,27 +132,12 @@
           </div>
 
           <div class="input-block">
-            <label for="captcha" class="input-label">图形验证码 <span style="color:#e74c3c">*</span></label>
-            <div class="flex items-center gap-3">
-              <input
-                id="captcha"
-                v-model="form.captchaCode"
-                type="text"
-                maxlength="4"
-                placeholder="请输入验证码"
-                autocomplete="off"
-                class="flex-1"
-              />
-              <button
-                type="button"
-                @click="refreshCaptcha"
-                class="shrink-0 h-10 w-[110px] rounded-md overflow-hidden cursor-pointer border border-[#dcdfe6] bg-white"
-                :disabled="!captchaImage"
-              >
-                <img v-if="captchaImage" :src="'data:image/png;base64,' + captchaImage" alt="验证码" class="w-full h-full object-cover" />
-                <span v-else class="text-xs text-muted-foreground">加载中</span>
-              </button>
-            </div>
+            <label for="captcha" class="input-label">验证码 <span style="color:#e74c3c">*</span></label>
+            <CaptchaWidget
+              v-model:captcha-code="form.captchaCode"
+              v-model:captcha-id="form.captchaId"
+              ref="captchaRef"
+            />
           </div>
 
           <button type="submit" :disabled="loading" class="input-button w-full">
@@ -176,8 +161,8 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { register, getProfile, sendEmailCode } from '../api/user'
-import { generateCaptcha } from '../api/captcha'
 import AnimatedCharacters from '../components/auth/AnimatedCharacters.vue'
+import CaptchaWidget from '../components/auth/CaptchaWidget.vue'
 
 // ===== 注册页状态 =====
 const router = useRouter()
@@ -185,7 +170,7 @@ const loading = ref(false)
 const showPassword = ref(false)
 const isTyping = ref(false)
 const pwdRef = ref(null)
-const captchaImage = ref('')
+const captchaRef = ref(null)
 const sending = ref(false)
 const countdown = ref(0)
 let countdownTimer = null
@@ -200,15 +185,6 @@ const form = reactive({
 })
 const hint = ref('')
 const password = computed(() => form.password)
-
-async function refreshCaptcha() {
-  try {
-    const data = await generateCaptcha()
-    form.captchaId = data.captchaId
-    captchaImage.value = data.imageBase64
-    form.captchaCode = ''
-  } catch (e) {}
-}
 
 const strength = computed(() => {
   const p = form.password
@@ -243,7 +219,6 @@ onMounted(async () => {
     router.replace('/home')
     return
   }
-  refreshCaptcha()
 })
 
 onBeforeUnmount(() => {
@@ -287,7 +262,7 @@ async function submit() {
   if (form.password.length < 6 || form.password.length > 64) { ElMessage.warning('密码长度为6-64位'); return }
   if (strength.value < 2) { ElMessage.warning('密码强度过弱，请使用字母+数字组合'); return }
   if (form.password !== form.confirm) { ElMessage.warning('两次输入的密码不一致'); return }
-  if (!form.captchaCode.trim()) { ElMessage.warning('请输入图形验证码'); return }
+  if (!form.captchaCode.trim()) { ElMessage.warning('请先完成验证码'); return }
   loading.value = true
   hint.value = '请稍候...'
   try {
@@ -317,7 +292,7 @@ async function submit() {
     router.push(router.currentRoute.value.query.redirect || '/home')
   } catch (e) {
     hint.value = e.message || ''
-    refreshCaptcha()
+    captchaRef.value?.refresh()
   } finally {
     loading.value = false
   }

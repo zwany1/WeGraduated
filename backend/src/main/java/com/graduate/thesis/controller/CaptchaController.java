@@ -10,7 +10,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 图形验证码接口
+ * 验证码接口: 点选/滑动/旋转三种类型随机
  */
 @RestController
 @RequestMapping("/captcha")
@@ -23,11 +23,14 @@ public class CaptchaController {
     }
 
     @GetMapping("/generate")
-    public Result<Map<String, String>> generate() {
+    public Result<Map<String, Object>> generate() {
         CaptchaService.CaptchaResult r = captchaService.generate();
-        Map<String, String> data = new HashMap<>();
+        Map<String, Object> data = new HashMap<>();
         data.put("captchaId", r.captchaId);
-        data.put("imageBase64", r.imageBase64);
+        data.put("type", r.type);
+        if (r.render != null) {
+            data.putAll(r.render);
+        }
         return Result.ok(data);
     }
 }

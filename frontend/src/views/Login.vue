@@ -84,26 +84,11 @@
 
           <div class="input-block">
             <label for="captcha" class="input-label">验证码</label>
-            <div class="flex items-center gap-3">
-              <input
-                id="captcha"
-                v-model="form.captchaCode"
-                type="text"
-                maxlength="4"
-                placeholder="请输入验证码"
-                autocomplete="off"
-                class="flex-1"
-              />
-              <button
-                type="button"
-                @click="refreshCaptcha"
-                class="shrink-0 h-10 w-[110px] rounded-md overflow-hidden cursor-pointer border border-[#dcdfe6] bg-white"
-                :disabled="!captchaImage"
-              >
-                <img v-if="captchaImage" :src="'data:image/png;base64,' + captchaImage" alt="验证码" class="w-full h-full object-cover" />
-                <span v-else class="text-xs text-muted-foreground">加载中</span>
-              </button>
-            </div>
+            <CaptchaWidget
+              v-model:captcha-code="form.captchaCode"
+              v-model:captcha-id="form.captchaId"
+              ref="captchaRef"
+            />
           </div>
 
           <div class="flex items-center justify-between" style="margin: 10px;">
@@ -122,20 +107,6 @@
             class="input-button w-full"
           >{{ loading ? '...' : '登录' }}</button>
 
-          <div v-if="githubEnabled" class="github-row">
-            <button type="button" class="github-btn" @click="githubLogin">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58v-2.03c-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.49.99.11-.78.42-1.31.76-1.61-2.67-.3-5.47-1.34-5.47-5.95 0-1.31.47-2.39 1.24-3.23-.13-.3-.54-1.53.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6.01 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.65.25 2.88.12 3.18.77.84 1.24 1.92 1.24 3.23 0 4.62-2.8 5.64-5.48 5.94.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.82.58A12.01 12.01 0 0 0 24 12C24 5.37 18.63 0 12 0z"/></svg>
-              GitHub 登录
-            </button>
-          </div>
-
-          <div v-if="githubEnabled" class="github-row">
-            <button type="button" class="github-btn" @click="githubLogin">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58v-2.03c-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.49.99.11-.78.42-1.31.76-1.61-2.67-.3-5.47-1.34-5.47-5.95 0-1.31.47-2.39 1.24-3.23-.13-.3-.54-1.53.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6.01 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.65.25 2.88.12 3.18.77.84 1.24 1.92 1.24 3.23 0 4.62-2.8 5.64-5.48 5.94.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.82.58A12.01 12.01 0 0 0 24 12C24 5.37 18.63 0 12 0z"/></svg>
-              GitHub 登录
-            </button>
-          </div>
-
           <p class="text-center text-sm min-h-5" style="color:#909399">{{ hint }}</p>
         </form>
 
@@ -153,9 +124,9 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { login, getProfile } from '../api/user'
-import { generateCaptcha } from '../api/captcha'
 import { getMenus } from '../api/admin'
 import AnimatedCharacters from '../components/auth/AnimatedCharacters.vue'
+import CaptchaWidget from '../components/auth/CaptchaWidget.vue'
 
 // ===== 登录页状态 =====
 const router = useRouter()
@@ -164,20 +135,10 @@ const showPassword = ref(false)
 const rememberMe = ref(false)
 const isTyping = ref(false)
 const pwdRef = ref(null)
-const captchaImage = ref('')
-const githubEnabled = ref(false)
+const captchaRef = ref(null)
 const form = reactive({ username: '', password: '', captchaCode: '', captchaId: '' })
 const hint = ref('')
 const password = computed(() => form.password)
-
-async function refreshCaptcha() {
-  try {
-    const data = await generateCaptcha()
-    form.captchaId = data.captchaId
-    captchaImage.value = data.imageBase64
-    form.captchaCode = ''
-  } catch (e) {}
-}
 
 onMounted(async () => {
   if (localStorage.getItem('token')) {
@@ -193,17 +154,7 @@ onMounted(async () => {
       try { form.password = decodeURIComponent(atob(savedPwd)) } catch (e) {}
     }
   }
-  refreshCaptcha()
-  try {
-    const res = await fetch('/api/auth/github/enabled')
-    const j = await res.json()
-    githubEnabled.value = j.data === true
-  } catch (e) {}
 })
-
-function githubLogin() {
-  window.location.href = '/api/auth/github/authorize'
-}
 
 function goRegister() {
   router.push('/register')
@@ -225,7 +176,7 @@ async function submit() {
   if (loading.value) return
   if (!form.username.trim()) { ElMessage.warning('请输入用户名或邮箱'); return }
   if (!form.password) { ElMessage.warning('请输入密码'); return }
-  if (!form.captchaCode.trim()) { ElMessage.warning('请输入图形验证码'); return }
+  if (!form.captchaCode.trim()) { ElMessage.warning('请先完成验证码'); return }
   loading.value = true
   hint.value = '请稍候...'
   try {
@@ -265,7 +216,7 @@ async function submit() {
     router.push(router.currentRoute.value.query.redirect || '/home')
   } catch (e) {
     hint.value = e.message || ''
-    refreshCaptcha()
+    captchaRef.value?.refresh()
   } finally {
     loading.value = false
   }
@@ -381,29 +332,6 @@ async function submit() {
 }
 .input-button:disabled::before {
   opacity: 0;
-}
-.github-row {
-  margin: 12px 0 0;
-}
-.github-btn {
-  width: 100%;
-  padding: 10px 0;
-  border: 1px solid #dcdfe6;
-  border-radius: 8px;
-  background: #fff;
-  color: #24292e;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  transition: all 0.2s;
-}
-.github-btn:hover {
-  border-color: #24292e;
-  background: #f6f8fa;
 }
 .sign-up {
   margin: 56px 0 0;

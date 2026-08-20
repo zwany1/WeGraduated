@@ -19,7 +19,7 @@
 
       <div class="relative z-20 flex items-center gap-8 text-sm text-white/60">
         <span class="hover:text-white transition-colors cursor-pointer" @click="goPrivacy">隐私政策</span>
-        <span class="hover:text-white transition-colors cursor-pointer">服务条款</span>
+        <span class="hover:text-white transition-colors cursor-pointer" @click="goTerms">服务条款</span>
       </div>
 
       <!-- Decorative elements -->
@@ -215,6 +215,10 @@ function goForgot() {
 
 function goPrivacy() {
   router.push('/privacy')
+}
+
+function goTerms() {
+  router.push('/terms')
 }
 
 async function submit() {

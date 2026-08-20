@@ -19,7 +19,7 @@
 
       <div class="relative z-20 flex items-center gap-8 text-sm text-white/60">
         <span class="hover:text-white transition-colors cursor-pointer" @click="goPrivacy">隐私政策</span>
-        <span class="hover:text-white transition-colors cursor-pointer" @click="goTerms">服务条款</span>
+        <span class="hover:text-white transition-colors cursor-pointer">服务条款</span>
       </div>
 
       <!-- Decorative elements -->
@@ -84,11 +84,26 @@
 
           <div class="input-block">
             <label for="captcha" class="input-label">验证码</label>
-            <CaptchaWidget
-              v-model:captcha-code="form.captchaCode"
-              v-model:captcha-id="form.captchaId"
-              ref="captchaRef"
-            />
+            <div class="flex items-center gap-3">
+              <input
+                id="captcha"
+                v-model="form.captchaCode"
+                type="text"
+                maxlength="4"
+                placeholder="请输入验证码"
+                autocomplete="off"
+                class="flex-1"
+              />
+              <button
+                type="button"
+                @click="refreshCaptcha"
+                class="shrink-0 h-10 w-[110px] rounded-md overflow-hidden cursor-pointer border border-[#dcdfe6] bg-white"
+                :disabled="!captchaImage"
+              >
+                <img v-if="captchaImage" :src="'data:image/png;base64,' + captchaImage" alt="验证码" class="w-full h-full object-cover" />
+                <span v-else class="text-xs text-muted-foreground">加载中</span>
+              </button>
+            </div>
           </div>
 
           <div class="flex items-center justify-between" style="margin: 10px;">
@@ -138,9 +153,9 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { login, getProfile } from '../api/user'
+import { generateCaptcha } from '../api/captcha'
 import { getMenus } from '../api/admin'
 import AnimatedCharacters from '../components/auth/AnimatedCharacters.vue'
-import CaptchaWidget from '../components/auth/CaptchaWidget.vue'
 
 // ===== 登录页状态 =====
 const router = useRouter()
@@ -149,11 +164,20 @@ const showPassword = ref(false)
 const rememberMe = ref(false)
 const isTyping = ref(false)
 const pwdRef = ref(null)
-const captchaRef = ref(null)
+const captchaImage = ref('')
 const githubEnabled = ref(false)
 const form = reactive({ username: '', password: '', captchaCode: '', captchaId: '' })
 const hint = ref('')
 const password = computed(() => form.password)
+
+async function refreshCaptcha() {
+  try {
+    const data = await generateCaptcha()
+    form.captchaId = data.captchaId
+    captchaImage.value = data.imageBase64
+    form.captchaCode = ''
+  } catch (e) {}
+}
 
 onMounted(async () => {
   if (localStorage.getItem('token')) {
@@ -169,6 +193,7 @@ onMounted(async () => {
       try { form.password = decodeURIComponent(atob(savedPwd)) } catch (e) {}
     }
   }
+  refreshCaptcha()
   try {
     const res = await fetch('/api/auth/github/enabled')
     const j = await res.json()
@@ -192,15 +217,11 @@ function goPrivacy() {
   router.push('/privacy')
 }
 
-function goTerms() {
-  router.push('/terms')
-}
-
 async function submit() {
   if (loading.value) return
   if (!form.username.trim()) { ElMessage.warning('请输入用户名或邮箱'); return }
   if (!form.password) { ElMessage.warning('请输入密码'); return }
-  if (!form.captchaCode.trim()) { ElMessage.warning('请先完成验证码'); return }
+  if (!form.captchaCode.trim()) { ElMessage.warning('请输入图形验证码'); return }
   loading.value = true
   hint.value = '请稍候...'
   try {
@@ -240,7 +261,7 @@ async function submit() {
     router.push(router.currentRoute.value.query.redirect || '/home')
   } catch (e) {
     hint.value = e.message || ''
-    captchaRef.value?.refresh()
+    refreshCaptcha()
   } finally {
     loading.value = false
   }

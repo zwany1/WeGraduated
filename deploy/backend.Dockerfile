@@ -10,22 +10,14 @@ COPY backend/src ./src
 RUN mvn package -DskipTests -B -q
 
 # ---------- 运行阶段 ----------
-# 基于 Ubuntu + JDK11 + LibreOffice(PDF 转换依赖)
+# 基于 Ubuntu + JDK17
 FROM eclipse-temurin:17-jre-focal
 ENV DEBIAN_FRONTEND=noninteractive
 
-# 安装 LibreOffice (docx -> PDF)
+# 基础工具
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libreoffice-writer \
-    libreoffice-core \
-    fonts-wqy-microhei \
-    fonts-wqy-zenhei \
-    fontconfig \
     curl \
     && rm -rf /var/lib/apt/lists/*
-
-# 中文字体缓存
-RUN fc-cache -f
 
 WORKDIR /app
 COPY --from=builder /build/target/thesis-format.jar /app/thesis-format.jar

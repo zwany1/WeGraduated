@@ -51,8 +51,15 @@ echo "[3/4] 重建后端并更新容器..."
 docker compose -f deploy/docker-compose.yml up -d --build backend
 
 echo "[4/4] 检查状态..."
-sleep 3
 docker compose -f deploy/docker-compose.yml ps
 echo "--- 健康检查 ---"
-curl -s http://localhost/api/health && echo ""
+# 轮询等待后端启动完成(最多 60s), 再探前端可达
+for i in $(seq 1 30); do
+  if docker logs thesis-backend 2>&1 | grep -q "Started ThesisApplication"; then
+    echo "backend ready"
+    break
+  fi
+  sleep 2
+done
+curl -s -o /dev/null -w "frontend http=%{http_code}\n" --max-time 5 http://localhost/
 echo "更新完成"

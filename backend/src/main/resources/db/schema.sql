@@ -15,8 +15,6 @@ CREATE TABLE IF NOT EXISTS t_user (
     security_answer   VARCHAR(128) DEFAULT NULL,
     role              VARCHAR(16)  NOT NULL DEFAULT 'USER',
     status            TINYINT(1)   NOT NULL DEFAULT 1 COMMENT '状态 1正常 0禁用',
-    github_id         VARCHAR(64)  DEFAULT NULL COMMENT 'GitHub OAuth 用户id',
-    github_login      VARCHAR(64)  DEFAULT NULL COMMENT 'GitHub OAuth 登录名',
     create_time       DATETIME     DEFAULT NULL,
     UNIQUE KEY uk_username (username),
     UNIQUE KEY uk_email (email)
@@ -87,7 +85,6 @@ CREATE TABLE IF NOT EXISTS t_format_task (
     status      VARCHAR(16) NOT NULL,
     progress    INT         DEFAULT 0,
     result_path VARCHAR(255) DEFAULT NULL,
-    pdf_path    VARCHAR(255) DEFAULT NULL,
     error_msg   TEXT         DEFAULT NULL,
     create_time DATETIME    DEFAULT NULL,
     finish_time DATETIME    DEFAULT NULL,

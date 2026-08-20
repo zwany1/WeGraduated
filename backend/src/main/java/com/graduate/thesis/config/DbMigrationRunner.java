@@ -76,8 +76,6 @@ public class DbMigrationRunner implements ApplicationRunner {
     /** 幂等补齐扩展列: t_user.status / 模板市场字段(兼容 MySQL 5.7 / 8.0) */
     private void ensureExtColumns() {
         addColumnIfMissing("t_user", "status", "ALTER TABLE t_user ADD COLUMN status TINYINT(1) NOT NULL DEFAULT 1 COMMENT '状态 1正常 0禁用'");
-        addColumnIfMissing("t_user", "github_id", "ALTER TABLE t_user ADD COLUMN github_id VARCHAR(64) DEFAULT NULL COMMENT 'GitHub OAuth 用户id'");
-        addColumnIfMissing("t_user", "github_login", "ALTER TABLE t_user ADD COLUMN github_login VARCHAR(64) DEFAULT NULL COMMENT 'GitHub OAuth 登录名'");
         addColumnIfMissing("t_format_template", "is_public", "ALTER TABLE t_format_template ADD COLUMN is_public TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否上架模板市场'");
         addColumnIfMissing("t_format_template", "recommended", "ALTER TABLE t_format_template ADD COLUMN recommended TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否推荐'");
         addColumnIfMissing("t_format_template", "public_time", "ALTER TABLE t_format_template ADD COLUMN public_time DATETIME DEFAULT NULL COMMENT '上架时间'");
@@ -86,6 +84,8 @@ public class DbMigrationRunner implements ApplicationRunner {
         addColumnIfMissing("t_format_template", "rating_avg", "ALTER TABLE t_format_template ADD COLUMN rating_avg DECIMAL(3,1) NOT NULL DEFAULT 0 COMMENT '平均评分'");
         addColumnIfMissing("t_format_template", "rating_count", "ALTER TABLE t_format_template ADD COLUMN rating_count INT NOT NULL DEFAULT 0 COMMENT '评分人数'");
         addColumnIfMissing("t_format_task", "retry_count", "ALTER TABLE t_format_task ADD COLUMN retry_count INT NOT NULL DEFAULT 0 COMMENT '失败自动重试次数'");
+        addColumnIfMissing("t_format_task", "summary", "ALTER TABLE t_format_task ADD COLUMN summary VARCHAR(500) DEFAULT NULL COMMENT '排版校验摘要'");
+        addColumnIfMissing("t_format_rule", "caption_enabled", "ALTER TABLE t_format_rule ADD COLUMN caption_enabled TINYINT(1) DEFAULT NULL COMMENT '标题编号是否启用'");
         addColumnIfMissing("t_format_template", "team_id", "ALTER TABLE t_format_template ADD COLUMN team_id BIGINT DEFAULT NULL COMMENT '所属团队(空=个人)'");
         addColumnIfMissing("t_format_task", "team_id", "ALTER TABLE t_format_task ADD COLUMN team_id BIGINT DEFAULT NULL COMMENT '所属团队(空=个人)'");
         addColumnIfMissing("t_paper_file", "team_id", "ALTER TABLE t_paper_file ADD COLUMN team_id BIGINT DEFAULT NULL COMMENT '所属团队(空=个人)'");
@@ -473,8 +473,7 @@ public class DbMigrationRunner implements ApplicationRunner {
             insertConfigIfMissing("上传文件大小上限(MB)", "upload.max.size", "50", 1, "论文上传大小限制");
             insertConfigIfMissing("任务并发数", "task.max.concurrent", "4", 1, "排版任务最大并发");
             insertConfigIfMissing("文件保留天数", "storage.keep.days", "30", 1, "超过该天数的旧文件可被清理");
-            insertConfigIfMissing("预览开关", "preview.enabled", "true", 1, "是否启用PDF预览");
-        } catch (Exception e) {
+                    } catch (Exception e) {
             log.warn("[DbMigration] 初始化字典/参数失败: {}", e.getMessage());
         }
     }

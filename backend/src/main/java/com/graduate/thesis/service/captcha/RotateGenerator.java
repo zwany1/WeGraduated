@@ -3,7 +3,6 @@ package com.graduate.thesis.service.captcha;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.stereotype.Component;
 
-import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
@@ -18,13 +17,18 @@ import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * 旋转验证码: 多图案模板随机, 拖动转盘将图案旋正
- * 图案均为正立姿态明确(字母/人物/房子), 倒过来一眼可辨正位
+ * 图案均为正立姿态明确的矢量图形(字母/人物/房子/鱼/树), 倒过来一眼可辨正位, 不使用箭头
  */
 @Component
 public class RotateGenerator implements CaptchaGenerator {
 
     private static final int SIZE = 200;
     private static final int TOLERANCE = 12;
+    private static final Color MAIN = new Color(64, 158, 255);
+    private static final Color ACCENT = new Color(231, 76, 60);
+    private static final Color WARM = new Color(245, 158, 11);
+    private static final Color GREEN = new Color(103, 194, 58);
+    private static final Color BROWN = new Color(120, 80, 50);
 
     @Override
     public String type() {
@@ -35,7 +39,7 @@ public class RotateGenerator implements CaptchaGenerator {
     public CaptchaData generate() {
         Random r = ThreadLocalRandom.current();
         int targetAngle = r.nextInt(360);
-        int tpl = r.nextInt(4); // 0字母F 1字母P 2人物 3房子
+        int tpl = r.nextInt(6); // 0字母F 1字母R 2人物 3房子 4鱼 5树
 
         BufferedImage img = new BufferedImage(SIZE, SIZE, BufferedImage.TYPE_INT_RGB);
         Graphics2D g = img.createGraphics();
@@ -49,9 +53,11 @@ public class RotateGenerator implements CaptchaGenerator {
         g.setTransform(t);
         switch (tpl) {
             case 0: drawLetterF(g); break;
-            case 1: drawLetterP(g); break;
+            case 1: drawLetterR(g); break;
             case 2: drawPerson(g); break;
-            default: drawHouse(g); break;
+            case 3: drawHouse(g); break;
+            case 4: drawFish(g); break;
+            default: drawTree(g); break;
         }
         g.dispose();
 
@@ -64,64 +70,75 @@ public class RotateGenerator implements CaptchaGenerator {
 
     /** 模板0: 字母 F (正读方向明确, 倒立一眼可辨) */
     private void drawLetterF(Graphics2D g) {
-        g.setColor(new Color(64, 158, 255));
-        g.setFont(new Font("Arial", Font.BOLD, 120));
-        g.drawString("F", 60, 135);
-        g.setColor(new Color(231, 76, 60));
-        g.fillOval(125, 72, 14, 14);
-        g.setColor(new Color(103, 194, 58));
-        g.setStroke(new BasicStroke(4));
-        g.drawLine(140, 140, 160, 160);
+        g.setColor(MAIN);
+        g.setFont(new Font("Arial", Font.BOLD, 130));
+        g.drawString("F", 62, 142);
     }
 
-    /** 模板1: 字母 P */
-    private void drawLetterP(Graphics2D g) {
-        g.setColor(new Color(64, 158, 255));
-        g.setFont(new Font("Arial", Font.BOLD, 120));
-        g.drawString("P", 58, 135);
-        g.setColor(new Color(231, 76, 60));
-        g.fillOval(128, 70, 14, 14);
-        g.setColor(new Color(245, 158, 11));
-        g.setStroke(new BasicStroke(4));
-        g.drawLine(60, 150, 80, 165);
+    /** 模板1: 字母 R */
+    private void drawLetterR(Graphics2D g) {
+        g.setColor(MAIN);
+        g.setFont(new Font("Arial", Font.BOLD, 130));
+        g.drawString("R", 58, 142);
     }
 
     /** 模板2: 人物剪影(头在上, 脚在下, 正立姿态明确) */
     private void drawPerson(Graphics2D g) {
-        g.setColor(new Color(64, 158, 255));
-        // 头
-        g.fillOval(82, 32, 36, 36);
-        // 身体
-        g.fillRoundRect(88, 70, 24, 50, 8, 8);
-        // 手臂
-        g.fillRoundRect(58, 78, 30, 12, 6, 6);
-        g.fillRoundRect(112, 78, 30, 12, 6, 6);
-        // 腿
-        g.fillRoundRect(86, 120, 12, 40, 4, 4);
-        g.fillRoundRect(102, 120, 12, 40, 4, 4);
-        // 脸部点缀(让朝向更可辨)
-        g.setColor(new Color(231, 76, 60));
-        g.fillOval(94, 44, 12, 8);
+        g.setColor(MAIN);
+        g.fillOval(82, 30, 36, 36);            // 头
+        g.fillRoundRect(88, 68, 24, 52, 8, 8); // 身体
+        g.fillRoundRect(58, 76, 30, 12, 6, 6); // 左臂
+        g.fillRoundRect(112, 76, 30, 12, 6, 6);// 右臂
+        g.fillRoundRect(86, 120, 12, 42, 4, 4);// 左腿
+        g.fillRoundRect(102, 120, 12, 42, 4, 4);// 右腿
+        g.setColor(ACCENT);
+        g.fillOval(94, 42, 12, 8);             // 脸部朝向点缀
     }
 
     /** 模板3: 房子(屋顶尖朝上, 倒过来一眼可辨) */
     private void drawHouse(Graphics2D g) {
-        g.setColor(new Color(64, 158, 255));
-        // 墙
-        g.fillRect(68, 85, 64, 55);
-        // 屋顶(三角, 尖朝上)
-        Polygon roof = new Polygon();
+        g.setColor(MAIN);
+        g.fillRect(68, 85, 64, 55);            // 墙
+        Polygon roof = new Polygon();          // 屋顶(三角, 尖朝上)
         roof.addPoint(60, 85);
         roof.addPoint(140, 85);
         roof.addPoint(100, 45);
         g.fill(roof);
-        // 门
-        g.setColor(new Color(120, 80, 50));
-        g.fillRoundRect(92, 105, 16, 35, 4, 4);
-        // 窗
-        g.setColor(new Color(103, 194, 58));
-        g.fillRect(76, 95, 14, 14);
-        g.fillRect(110, 95, 14, 14);
+        g.setColor(BROWN);
+        g.fillRoundRect(92, 105, 16, 35, 4, 4);// 门
+        g.setColor(GREEN);
+        g.fillRect(76, 95, 14, 14);            // 左窗
+        g.fillRect(110, 95, 14, 14);           // 右窗
+    }
+
+    /** 模板4: 鱼(头朝左, 尾朝右, 正立姿态明确) */
+    private void drawFish(Graphics2D g) {
+        g.setColor(MAIN);
+        g.fillOval(55, 85, 90, 40);            // 鱼身(横向椭圆, 左端为头)
+        Polygon tail = new Polygon();          // 尾(右侧三角)
+        tail.addPoint(140, 75);
+        tail.addPoint(140, 135);
+        tail.addPoint(172, 105);
+        g.fill(tail);
+        g.setColor(WARM);
+        Polygon fin = new Polygon();           // 背鳍(上方)
+        fin.addPoint(90, 85);
+        fin.addPoint(110, 85);
+        fin.addPoint(100, 70);
+        g.fill(fin);
+        g.setColor(ACCENT);
+        g.fillOval(70, 96, 10, 10);            // 眼(靠左, 示头部朝向)
+    }
+
+    /** 模板5: 树(树冠在上, 树干在下, 正立姿态明确) */
+    private void drawTree(Graphics2D g) {
+        g.setColor(BROWN);
+        g.fillRect(92, 118, 16, 48);           // 树干(下)
+        g.setColor(GREEN);
+        g.fillOval(68, 36, 64, 64);            // 树冠(上)
+        g.fillOval(82, 56, 44, 44);
+        g.setColor(ACCENT);
+        g.fillOval(116, 70, 12, 12);           // 果实(点缀朝向)
     }
 
     @Override

@@ -97,9 +97,9 @@ public class TocFormatter {
         if (cts == null) {
             return;
         }
-        addTocStyle(cts, "toc1", 28, "����");
-        addTocStyle(cts, "toc2", 24, "����");
-        addTocStyle(cts, "toc3", 24, "����");
+        addTocStyle(cts, "toc1", 28, "宋体");
+        addTocStyle(cts, "toc2", 24, "宋体");
+        addTocStyle(cts, "toc3", 24, "宋体");
     }
 
     private XWPFStyles resolveStyles(XWPFDocument doc) {

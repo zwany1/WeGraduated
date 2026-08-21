@@ -70,13 +70,10 @@ onMounted(async () => {
     return
   }
   const savedUser = localStorage.getItem('remembered_user')
-  const savedPwd = localStorage.getItem('remembered_pwd')
+  localStorage.removeItem('remembered_pwd')
   if (savedUser) {
     form.username = savedUser
     rememberMe.value = true
-    if (savedPwd) {
-      try { form.password = decodeURIComponent(atob(savedPwd)) } catch (e) {}
-    }
   }
   try {
     const resp = await fetch('/welcome-scene.svg')
@@ -264,10 +261,8 @@ async function submit() {
     localStorage.removeItem('menus')
     if (rememberMe.value) {
       localStorage.setItem('remembered_user', form.username.trim())
-      localStorage.setItem('remembered_pwd', btoa(encodeURIComponent(form.password)))
     } else {
       localStorage.removeItem('remembered_user')
-      localStorage.removeItem('remembered_pwd')
     }
     ElMessage.success(tab.value === 'login' ? '登录成功' : '注册成功')
     router.push('/home')

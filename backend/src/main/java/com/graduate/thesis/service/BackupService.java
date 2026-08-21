@@ -138,6 +138,44 @@ public class BackupService {
         }
     }
 
+    /** 恢复备份: 调用 mysql 客户端导入 sql, 高危操作 */
+    public void restore(String filename) {
+        File backupFile = loadBackup(filename);
+        try {
+            DbInfo info = parseDbInfo(jdbcUrl);
+            List<String> cmd = new ArrayList<>();
+            cmd.add("mysql");
+            cmd.add("-h"); cmd.add(info.host);
+            cmd.add("-P"); cmd.add(info.port);
+            cmd.add("-u"); cmd.add(dbUsername);
+            cmd.add("--password=" + dbPassword);
+            cmd.add("--default-character-set=utf8mb4");
+            cmd.add(info.database);
+            ProcessBuilder pb = new ProcessBuilder(cmd);
+            pb.redirectErrorStream(false);
+            Process process = pb.start();
+            try (java.io.InputStream is = new java.io.FileInputStream(backupFile);
+                 java.io.OutputStream os = process.getOutputStream()) {
+                byte[] buf = new byte[8192];
+                int n;
+                while ((n = is.read(buf)) != -1) {
+                    os.write(buf, 0, n);
+                }
+                os.flush();
+            }
+            int exit = process.waitFor();
+            if (exit != 0) {
+                throw new BusinessException(500, "恢复失败(mysql 退出码 " + exit + ")，请确认服务器已安装 mysql 客户端");
+            }
+            log.info("[Backup] 数据库恢复完成: {}", filename);
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("[Backup] 恢复失败", e);
+            throw new BusinessException(500, "恢复失败: " + e.getMessage());
+        }
+    }
+
     /** 保留最近 maxKeep 份, 删除更旧的(每次备份后清理, 实现定期清理) */
     private void cleanupOld() {
         File[] files = backupDir.toFile().listFiles((d, n) -> n.endsWith(".sql"));

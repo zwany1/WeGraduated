@@ -366,6 +366,7 @@ public class AdminService {
         if (newPassword == null || newPassword.trim().length() < 6) {
             throw new BusinessException(400, "密码长度至少 6 位");
         }
+        userService.checkPasswordStrength(newPassword);
         User user = userMapper.selectById(userId);
         if (user == null) {
             throw new BusinessException(404, "用户不存在");

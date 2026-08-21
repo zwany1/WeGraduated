@@ -1,7 +1,7 @@
 -- ============================================================
 -- 论文格式助手 数据库初始化脚本(安全幂等版)
 -- CREATE TABLE IF NOT EXISTS: 不删除已有表, 重启不会清空数据
--- 结构对齐生产库(2026-08-17 导出): 含团队/站内信/会话/评分等扩展表
+-- 结构对齐生产库(2026-08-21 导出): 含团队/站内信/会话/评分等扩展表
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS t_user (
@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS t_user (
     security_answer   VARCHAR(128) DEFAULT NULL,
     role              VARCHAR(16)  NOT NULL DEFAULT 'USER',
     status            TINYINT(1)   NOT NULL DEFAULT 1 COMMENT '状态 1正常 0禁用',
+    github_id         VARCHAR(64)  DEFAULT NULL COMMENT 'GitHub OAuth 用户id',
+    github_login      VARCHAR(64)  DEFAULT NULL COMMENT 'GitHub OAuth 登录名',
     create_time       DATETIME     DEFAULT NULL,
     UNIQUE KEY uk_username (username),
     UNIQUE KEY uk_email (email)
@@ -59,7 +61,7 @@ CREATE TABLE IF NOT EXISTS t_format_rule (
     space_before       INT          DEFAULT NULL,
     space_after        INT          DEFAULT NULL,
     caption_position   VARCHAR(16)  DEFAULT NULL,
-    caption_enabled    TINYINT(1)   DEFAULT NULL,
+    caption_enabled    TINYINT(1)   DEFAULT 1 COMMENT '图表题注编号开关',
     numbering_pattern  VARCHAR(64)  DEFAULT NULL,
     create_time        DATETIME     DEFAULT NULL,
     update_time        DATETIME     DEFAULT NULL,
@@ -85,6 +87,7 @@ CREATE TABLE IF NOT EXISTS t_format_task (
     status      VARCHAR(16) NOT NULL,
     progress    INT         DEFAULT 0,
     result_path VARCHAR(255) DEFAULT NULL,
+    pdf_path    VARCHAR(255) DEFAULT NULL,
     error_msg   TEXT         DEFAULT NULL,
     create_time DATETIME    DEFAULT NULL,
     finish_time DATETIME    DEFAULT NULL,
@@ -177,6 +180,21 @@ CREATE TABLE IF NOT EXISTS t_login_log (
     KEY idx_user (user_id),
     KEY idx_time (create_time)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='登录日志表';
+
+CREATE TABLE IF NOT EXISTS t_risk_event (
+    id               BIGINT AUTO_INCREMENT PRIMARY KEY,
+    ip               VARCHAR(64)  DEFAULT NULL,
+    fingerprint_hash VARCHAR(64)  DEFAULT NULL COMMENT '设备指纹摘要(sha256)',
+    account          VARCHAR(128) DEFAULT NULL,
+    action           VARCHAR(32)  DEFAULT NULL COMMENT 'assess/login/register/send_code/verify',
+    level            VARCHAR(8)   DEFAULT NULL COMMENT 'LOW/MID/HIGH',
+    score            INT          DEFAULT NULL,
+    passed           TINYINT(1)   NOT NULL DEFAULT 0 COMMENT '1放行 0拦截',
+    reason           VARCHAR(500) DEFAULT NULL,
+    create_time      DATETIME     DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_ip_time (ip, create_time),
+    KEY idx_fp_time (fingerprint_hash, create_time)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='风控事件表';
 
 CREATE TABLE IF NOT EXISTS t_dict_type (
     id          BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -300,3 +318,20 @@ CREATE TABLE IF NOT EXISTS t_notification (
     create_time DATETIME     DEFAULT CURRENT_TIMESTAMP,
     KEY idx_notif_user (user_id, is_read)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='站内信';
+
+-- 用户反馈表: 公开反馈墙 + 管理员回复
+CREATE TABLE IF NOT EXISTS t_feedback (
+    id            BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id       BIGINT       NOT NULL,
+    category      VARCHAR(32)  NOT NULL DEFAULT 'other' COMMENT 'suggestion/bug/other',
+    content       TEXT         NOT NULL,
+    images        LONGTEXT     DEFAULT NULL COMMENT '图片base64 JSON数组',
+    contact       VARCHAR(128) DEFAULT NULL COMMENT '选填联系方式',
+    status        VARCHAR(16)  NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING/REPLIED/CLOSED',
+    reply         TEXT         DEFAULT NULL,
+    reply_user_id BIGINT       DEFAULT NULL,
+    reply_time    DATETIME     DEFAULT NULL,
+    create_time   DATETIME     DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_feedback_user (user_id),
+    KEY idx_feedback_status (status)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='用户反馈';

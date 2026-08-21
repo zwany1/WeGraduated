@@ -20,6 +20,12 @@ public class ResetPasswordDTO {
     /** 邮箱验证码 */
     private String emailCode;
 
+    @NotBlank(message = "请完成图形验证码")
+    private String captchaId;
+
+    @NotBlank(message = "请完成图形验证码")
+    private String captchaCode;
+
     @NotBlank(message = "新密码不能为空")
     @Size(min = 6, max = 64, message = "密码长度为6-64位")
     private String newPassword;

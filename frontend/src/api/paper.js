@@ -24,6 +24,11 @@ export function listTasks() {
   return api.get('/paper/tasks')
 }
 
+// 排版进度 SSE 一次性票据: 登录态签发, 60 秒内用于建立进度推送连接
+export function progressTicket(taskId) {
+  return api.post(`/paper/task/${taskId}/progress-ticket`)
+}
+
 export function downloadPaper(taskId) {
   return api.get(`/paper/download/${taskId}`, { responseType: 'blob' })
 }

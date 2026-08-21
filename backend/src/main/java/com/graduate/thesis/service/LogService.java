@@ -141,15 +141,7 @@ public class LogService {
                 return null;
             }
             HttpServletRequest request = attrs.getRequest();
-            String ip = request.getHeader("X-Forwarded-For");
-            if (StringUtils.hasText(ip) && !"unknown".equalsIgnoreCase(ip)) {
-                return ip.split(",")[0].trim();
-            }
-            ip = request.getHeader("X-Real-IP");
-            if (StringUtils.hasText(ip) && !"unknown".equalsIgnoreCase(ip)) {
-                return ip;
-            }
-            return request.getRemoteAddr();
+            return com.graduate.thesis.util.IpUtils.clientIp(request);
         } catch (Exception e) {
             return null;
         }

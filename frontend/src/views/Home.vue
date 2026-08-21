@@ -336,19 +336,20 @@
           <span class="notice-type">{{ currentNotice.noticeType === '2' ? '公告' : '通知' }}</span>
           <span class="notice-detail-time">{{ formatNoticeTime(currentNotice.createTime) }}</span>
         </div>
-        <div class="notice-detail-content" v-html="currentNotice.content"></div>
+        <div class="notice-detail-content">{{ currentNotice.content }}</div>
       </div>
     </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getProfile, logout } from '../api/user'
 import { listPublicNotices } from '../api/admin'
 import NotificationBell from '../components/NotificationBell.vue'
+import { clearAuth } from '../utils/perm'
 
 const router = useRouter()
 
@@ -443,10 +444,7 @@ async function handleUserCommand(cmd) {
     try {
       await ElMessageBox.confirm('确定退出登录？', '提示', { type: 'warning' })
       try { await logout() } catch (e) {}
-      localStorage.removeItem('token')
-      localStorage.removeItem('username')
-      localStorage.removeItem('avatar')
-      localStorage.removeItem('role')
+      clearAuth()
       isLoggedIn.value = false
       isAdmin.value = false
       ElMessage.success('已退出登录')
@@ -500,6 +498,7 @@ function initReveal() {
     })
   }, { threshold: 0.15 })
   document.querySelectorAll('.reveal').forEach(el => io.observe(el))
+  revealIo = io
 }
 
 // 导航滚动阴影
@@ -508,13 +507,15 @@ function initNavShadow() {
   if (!nav) return
   const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 12)
   onScroll()
-  window.addEventListener('scroll', onScroll, { passive: true })
+  window.addEventListener('scroll', onScroll, { passive: true, signal: domCleanup.signal })
 }
 
 // ===== 追加特效: 进度条/回顶/鼠标光斑/卡片3D倾斜/按钮波纹 =====
 const progRef = ref(null)
 const glowRef = ref(null)
 const showBackTop = ref(false)
+const domCleanup = new AbortController()
+let revealIo = null
 
 function initEffects() {
   // 滚动进度条 + 回到顶部按钮
@@ -525,7 +526,7 @@ function initEffects() {
     showBackTop.value = h.scrollTop > 400
   }
   onScroll()
-  window.addEventListener('scroll', onScroll, { passive: true })
+  window.addEventListener('scroll', onScroll, { passive: true, signal: domCleanup.signal })
 
   // 鼠标跟随光斑(全页, 节流)
   const glow = glowRef.value
@@ -538,7 +539,7 @@ function initEffects() {
         glow.style.top = e.clientY + 'px'
         raf = 0
       })
-    })
+    }, { signal: domCleanup.signal })
   }
 
   // 工具卡片 3D 倾斜 + 跟随光效
@@ -567,6 +568,11 @@ function initEffects() {
     })
   })
 }
+
+onBeforeUnmount(() => {
+  domCleanup.abort()
+  if (revealIo) revealIo.disconnect()
+})
 
 function scrollToTop() {
   window.scrollTo({ top: 0, behavior: 'smooth' })

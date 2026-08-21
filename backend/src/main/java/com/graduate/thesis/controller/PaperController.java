@@ -8,7 +8,7 @@ import com.graduate.thesis.entity.PaperFile;
 import com.graduate.thesis.mapper.FormatTaskMapper;
 import com.graduate.thesis.service.PaperService;
 import com.graduate.thesis.service.TaskProgressService;
-import com.graduate.thesis.util.JwtUtil;
+import com.graduate.thesis.service.ProgressTicketService;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -38,15 +38,15 @@ public class PaperController {
     private final PaperService paperService;
     private final TaskProgressService progressService;
     private final FormatTaskMapper taskMapper;
-    private final JwtUtil jwtUtil;
+    private final ProgressTicketService ticketService;
 
     public PaperController(PaperService paperService,
                            TaskProgressService progressService,
-                           FormatTaskMapper taskMapper, JwtUtil jwtUtil) {
+                           FormatTaskMapper taskMapper, ProgressTicketService ticketService) {
         this.paperService = paperService;
         this.progressService = progressService;
         this.taskMapper = taskMapper;
-        this.jwtUtil = jwtUtil;
+        this.ticketService = ticketService;
     }
 
     @PostMapping("/upload")
@@ -71,31 +71,26 @@ public class PaperController {
     }
 
     /**
-     * 排版进度 SSE 推送(替代轮询). 浏览器 EventSource 无法带 header, 故用 query token 手动鉴权,
-     * 该路径已在 WebConfig 白名单排除登录拦截器.
+     * 排版进度 SSE 推送(替代轮询). 该路径已排除登录拦截器, 用一次性票据手动鉴权.
      */
     @GetMapping("/task/{id}/progress")
     public SseEmitter progress(@PathVariable Long id,
-                               @RequestParam(value = "token", required = false) String token) {
-        if (token == null || token.trim().isEmpty()) {
-            throw new com.graduate.thesis.common.BusinessException(401, "未登录或登录已过期");
+                               @RequestParam(value = "ticket", required = false) String ticket) {
+        if (!ticketService.consume(ticket, id)) {
+            throw new com.graduate.thesis.common.BusinessException(401, "凭据已失效，请重新加载任务");
         }
-        Long userId;
-        try {
-            if (jwtUtil.isRevoked(token)) {
-                throw new com.graduate.thesis.common.BusinessException(401, "登录已失效，请重新登录");
-            }
-            userId = jwtUtil.parseUserId(token);
-        } catch (com.graduate.thesis.common.BusinessException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new com.graduate.thesis.common.BusinessException(401, "未登录或登录已过期");
-        }
+        return progressService.subscribe(id);
+    }
+
+    /** 签发排版进度 SSE 的一次性票据(走登录拦截器, 校验任务归属) */
+    @PostMapping("/task/{id}/progress-ticket")
+    public Result<java.util.Map<String, String>> progressTicket(@PathVariable Long id) {
+        Long userId = UserContext.get();
         FormatTask task = taskMapper.selectById(id);
         if (task == null || !task.getUserId().equals(userId)) {
             throw new com.graduate.thesis.common.BusinessException(404, "任务不存在");
         }
-        return progressService.subscribe(id);
+        return Result.ok(java.util.Collections.singletonMap("ticket", ticketService.generate(userId, id)));
     }
 
     /**

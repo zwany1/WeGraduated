@@ -49,6 +49,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getProfile, updateProfile, deleteAccount } from '../api/user'
+import { clearAuth } from '../utils/perm'
 
 const router = useRouter()
 const username = ref('')
@@ -137,7 +138,7 @@ async function confirmDelete() {
   deleting.value = true
   try {
     await deleteAccount()
-    localStorage.clear()
+    clearAuth()
     ElMessage.success('账号已注销')
     router.replace('/login')
   } catch (e) {

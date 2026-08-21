@@ -1,0 +1,4 @@
+# 生产环境: 密钥一律通过环境变量注入(application.yml 中的 ${DB_PASSWORD} 等占位符自动从 env 解析)
+# 启动方式: SPRING_PROFILES_ACTIVE=prod
+# 必设环境变量: DB_PASSWORD / JWT_SECRET(>=32字节) / MAIL_PASSWORD / CORS_ORIGINS(生产域名) / STORAGE_DIR
+# 缺失任一密钥环境变量将启动失败(强制注入, 防止默认弱密钥上线)

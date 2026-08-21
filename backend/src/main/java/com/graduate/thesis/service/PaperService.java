@@ -143,7 +143,7 @@ public class PaperService {
         return m.isEmpty() ? "排版失败，请重试" : ("排版失败：" + m);
     }
 
-    @Async
+    @Async("formatExecutor")
     public void runFormat(Long taskId) {
         FormatTask task = taskMapper.selectById(taskId);
         if (task == null) {
@@ -194,8 +194,7 @@ public class PaperService {
                 task.setErrorMsg(null);
                 taskMapper.updateById(task);
                 progressService.publish(taskId, Map.of("type", "progress", "progress", 0, "status", FormatTask.STATUS_PENDING, "retry", true));
-                log.warn("排版失败, 第 {} 次自动重试 taskId={}", retry, taskId);
-                self.runFormat(taskId);
+                log.warn("排版失败, 第 {} 次自动重试 taskId={}, 已重置为待处理, 等待调度器重新派发", retry, taskId);
             } else {
                 task.setStatus(FormatTask.STATUS_FAILED);
                 task.setErrorMsg(friendlyFormatError(e.getMessage()));
@@ -289,13 +288,17 @@ public class PaperService {
                             .or().in(FormatTask::getTeamId, teamIds))
                     .orderByDesc(FormatTask::getId));
         }
+        // 批量取文件名, 避免逐任务 N+1 查询
+        java.util.Set<Long> fileIds = tasks.stream().map(FormatTask::getFileId)
+                .filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet());
         Map<Long, String> names = new java.util.HashMap<>();
-        for (FormatTask task : tasks) {
-            if (!names.containsKey(task.getFileId())) {
-                PaperFile pf = paperFileMapper.selectById(task.getFileId());
-                names.put(task.getFileId(), pf != null ? pf.getOriginalName() : String.valueOf(task.getFileId()));
+        if (!fileIds.isEmpty()) {
+            for (PaperFile pf : paperFileMapper.selectBatchIds(fileIds)) {
+                names.put(pf.getId(), pf.getOriginalName());
             }
-            task.setOriginalName(names.get(task.getFileId()));
+        }
+        for (FormatTask task : tasks) {
+            task.setOriginalName(names.getOrDefault(task.getFileId(), String.valueOf(task.getFileId())));
         }
         return tasks;
     }

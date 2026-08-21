@@ -26,7 +26,7 @@ public class StructureDetector {
 
     /** 签名/声明/日期区域: 保持原样, 不做任何格式修改(避免被正文缩进或标题加粗改动) */
     private static final Pattern SIGNATURE = Pattern.compile(
-            ".*独创性声明.*|.*学位论文作者签名.*|.*作者签名\\s*[:：]?.*|.*指导教师签名\\s*[:：]?.*|^日\\s*期\\s*[:：]?.*|.*签名\\s*[:：]\\s*$");
+            ".*独创性声明.*|.*学位论文作者签名.*|.*作者签名\\s*[:：]?.*|.*指导教师签名\\s*[:：]?.*|^\\s*日\\s*期\\s*[:：]?.*|.*签名\\s*[:：]\\s*$");
 
     // ===== 内置一级章节标题识别(不依赖文档样式与模板正则, 自动匹配"第一章"作为排版起点) =====
     /** 第一章 绪论 / 第二章 … */
@@ -44,14 +44,19 @@ public class StructureDetector {
         // 避免封面标题/签名/日期等被误判为第一章, 导致章节前内容被排版
         boolean hasFrontStructure = hasFrontStructure(doc, ruleSet);
         List<DocItem> items = new ArrayList<>();
-        int currentChapter = 0;
+        int currentChapter = 0; 
         boolean chapterStarted = false;
         boolean sawFront = false;
         boolean inToc = false;
         for (XWPFParagraph paragraph : doc.getParagraphs()) {
             String text = paragraph.getText() == null ? "" : paragraph.getText().trim();
             boolean containsImage = containsImage(paragraph);
-            ParagraphKind kind = classify(text, containsImage, paragraph, ruleSet);
+            ParagraphKind kind = classify(text, containsImage, paragraph, ruleSet); 
+            // 目录结构(TOC域/PAGEREF/toc样式)一律保持原样, 不被标题/正文规则改动
+            boolean tocStructure = isTocStructure(paragraph);
+            if (tocStructure) {
+                kind = ParagraphKind.BODY;
+            }
             DocItem item = new DocItem(paragraph, kind, text, containsImage);
 
             // 目录区检测: 只要文本是"目 录"(无论是否带样式), 即进入目录区.
@@ -63,7 +68,8 @@ public class StructureDetector {
                 item = new DocItem(paragraph, kind, text, containsImage);
             } else if (inToc && !chapterStarted) {
                 // 目录区结束: 遇到正文标题(heading 样式, 或匹配一级标题规则但非"页码结尾"的目录条目)
-                if (headingLevelByStyle(paragraph) > 0 || isBodyChapterTitle(text, ruleSet)) {
+                // 目录结构(TOC域/toc样式)条目不触发关闭, 避免无页码目录条目被误判为正文标题提前关闭目录区
+                if (!tocStructure && (headingLevelByStyle(paragraph) > 0 || isBodyChapterTitle(text, ruleSet))) {
                     inToc = false;
                 } else {
                     kind = ParagraphKind.BODY; // 目录条目, 不识别为标题
@@ -81,7 +87,7 @@ public class StructureDetector {
                     // 排版起点: 带编号的正文章节标题, 且(有前置区段时)必须出现在摘要/目录之后.
                     // 避免封面/标题页的样式标题或签名日期被误判为第一章
                     boolean afterFront = !hasFrontStructure || sawFront;
-                    if (afterFront && isNumberedChapter(text, ruleSet)) {
+                    if (afterFront && isNumberedChapter(text, ruleSet) && !isTocEntry(text)) {
                         currentChapter = 1;
                         chapterStarted = true;
                         item.setChapterNo(currentChapter);
@@ -99,6 +105,14 @@ public class StructureDetector {
             }
             // 第一个正文一级标题之前的内容视为前置内容(封面/声明/摘要/目录), 不做格式修改
             item.setFrontMatter(!chapterStarted);
+            // 目录结构条目即使章节已开始也一律保持原样(防止目录区被提前关闭后误套用正文/标题规则)
+            if (tocStructure) {
+                item.setFrontMatter(true);
+            }
+            // 签名/声明/日期行一律保持原样, 即使章节已误开始也不被正文/标题规则改动(保留下划线/留白)
+            if (SIGNATURE.matcher(text).matches()) {
+                item.setFrontMatter(true);
+            }
             items.add(item);
         }
         return items;
@@ -133,8 +147,10 @@ public class StructureDetector {
             return false;
         }
         String t = text.trim();
-        return t.matches(".*\\.{2,}\\s*\\d{1,4}\\s*$")      // 点线引导 + 页码
-                || t.matches(".*[\\s\\u00A0，,．.、]\\d{1,4}\\s*$"); // 空格/标点 + 页码
+        // 目录条目以页码结尾: 行末为 1-4 位半角/全角数字(允许尾随空白).
+        // 不限定前置分隔符形式, 避免全角数字/特殊点线/制表符等页码格式漏认,
+        // 导致目录条目被误判为正文标题、提前关闭目录区、章节起点被误触发.
+        return t.matches(".*[0-9０-９]{1,4}\\s*$");
     }
 
     private static boolean isTocTitle(String text) {
@@ -304,5 +320,28 @@ public class StructureDetector {
         return CN_CHAPTER.matcher(t).matches()
                 || NUM_CHAPTER.matcher(t).matches()
                 || CN_NUM_CHAPTER.matcher(t).matches();
+    }
+
+    /**
+     * 段落是否属于目录结构(Word 自动生成的目录条目): 含页码引用域(PAGEREF)或 toc 样式.
+     * 用于无页码文本目录被误判为正文标题时, 仍按结构保护目录条目不被正文/标题规则改动.
+     */
+    private static boolean isTocStructure(XWPFParagraph p) {
+        try {
+            // toc 样式优先(只读 pPr, 不序列化整段 XML): Word 自动目录条目必有 toc 样式
+            CTPPr pPr = p.getCTP().getPPr();
+            if (pPr != null && pPr.isSetPStyle() && pPr.getPStyle().getVal() != null) {
+                if (pPr.getPStyle().getVal().toLowerCase().contains("toc")) {
+                    return true;
+                }
+            }
+            // 无 toc 样式时再检测 PAGEREF 域(整段 XML 序列化, 仅对少数段落, 避免大文档每段序列化)
+            String xml = p.getCTP().xmlText();
+            if (xml != null && xml.contains("PAGEREF")) {
+                return true;
+            }
+        } catch (Exception ignore) {
+        }
+        return false;
     }
 }

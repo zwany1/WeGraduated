@@ -17,6 +17,7 @@ public class Notification {
     public static final String TYPE_TEAM_INVITE = "team_invite";
     public static final String TYPE_TEAM_SYSTEM = "team_system";
     public static final String TYPE_SYSTEM = "system";
+    public static final String TYPE_FEEDBACK_REPLY = "feedback_reply";
 
     @TableId(type = IdType.AUTO)
     private Long id;

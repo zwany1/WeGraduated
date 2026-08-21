@@ -50,8 +50,8 @@ public class FormatEngine {
         ZipSecureFile.setMinInflateRatio(0.001);
         try (XWPFDocument doc = new XWPFDocument(new FileInputStream(source))) {
             // 超大文档保护: 段落数过多说明文档极其复杂, 避免排版时间过长/内存溢出
-            if (doc.getParagraphs().size() > 8000) {
-                throw new BusinessException(400, "文档内容过多(超过 8000 段)，请拆分后重试");
+            if (doc.getParagraphs().size() > 20000) {
+                throw new BusinessException(400, "文档内容过多(超过 20000 段)，请拆分后重试");
             }
             progress.accept(10);
 
@@ -62,7 +62,7 @@ public class FormatEngine {
             progress.accept(40);
 
             new AbstractFormatter().apply(doc, ruleSet, items);
-            new SectionFormatter().apply(doc);
+            new SectionFormatter().apply(doc, items);
             progress.accept(50);
 
             HeadingFormatter.apply(doc, items, ruleSet);

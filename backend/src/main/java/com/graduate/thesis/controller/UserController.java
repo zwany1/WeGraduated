@@ -67,6 +67,7 @@ public class UserController {
     /** 忘记密码: 邮箱验证码重置并重新签发 token */
     @PostMapping("/reset-password")
     public Result<LoginResponse> resetPassword(@Valid @RequestBody ResetPasswordDTO dto) {
+        captchaService.verify(dto.getCaptchaId(), dto.getCaptchaCode());
         return Result.ok(userService.resetPassword(dto));
     }
 
@@ -113,16 +114,8 @@ public class UserController {
         return Result.ok(userService.updateProfile(UserContext.get(), dto));
     }
 
-    /** 获取客户端 IP(兼容反向代理) */
+    /** 获取客户端 IP */
     private String clientIp(HttpServletRequest request) {
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip != null && !ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) {
-            return ip.split(",")[0].trim();
-        }
-        ip = request.getHeader("X-Real-IP");
-        if (ip != null && !ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) {
-            return ip.trim();
-        }
-        return request.getRemoteAddr();
+        return com.graduate.thesis.util.IpUtils.clientIp(request);
     }
 }

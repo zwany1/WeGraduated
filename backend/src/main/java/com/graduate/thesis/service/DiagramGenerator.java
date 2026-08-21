@@ -41,13 +41,12 @@ public class DiagramGenerator {
     private static final String[] CONNECTION_WORDS = {"通过", "访问", "调用", "查询", "连接", "依赖", "读写",
             "更新", "存储", "保存", "返回", "写入", "读取", "请求", "发送", "投递", "搜索", "订阅", "推送"};
 
-    private int seq = 0;
+    private final java.util.concurrent.atomic.AtomicInteger seq = new java.util.concurrent.atomic.AtomicInteger();
 
     public DiagramVO generate(String type, String description) {
         if (description == null || description.trim().isEmpty()) {
             throw new BusinessException(400, "请输入系统描述");
         }
-        seq = 0;
         List<String> clauses = split(description);
         DiagramModel model;
         String t = type == null ? "FLOW" : type.toUpperCase();
@@ -484,7 +483,7 @@ public class DiagramGenerator {
 
     private DiagramNode node(String label, String shape) {
         DiagramNode n = new DiagramNode();
-        n.setId("n" + (seq++));
+        n.setId("n" + (seq.getAndIncrement()));
         n.setLabel(label);
         n.setShape(shape);
         return n;
@@ -501,7 +500,7 @@ public class DiagramGenerator {
 
     private DiagramEdge edge(String src, String tgt, String label) {
         DiagramEdge e = new DiagramEdge();
-        e.setId("e" + (seq++));
+        e.setId("e" + (seq.getAndIncrement()));
         e.setSource(src);
         e.setTarget(tgt);
         e.setLabel(label);

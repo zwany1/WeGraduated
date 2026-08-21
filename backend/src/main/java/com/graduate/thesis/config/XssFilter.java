@@ -26,6 +26,9 @@ import java.util.Map;
 @Order(1)
 public class XssFilter extends OncePerRequestFilter {
 
+    /** JSON 请求体消毒上限: 超过直接拒绝, 避免超大 body 全量缓冲进内存 */
+    private static final int MAX_JSON_BODY = 30 * 1024 * 1024;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
@@ -34,6 +37,11 @@ public class XssFilter extends OncePerRequestFilter {
         String contentType = request.getContentType();
         if (contentType != null && contentType.toLowerCase().contains("application/json")
                 && !isMultipart(request)) {
+            int len = request.getContentLength();
+            if (len > MAX_JSON_BODY) {
+                response.sendError(HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE, "请求体过大");
+                return;
+            }
             byte[] body = readBody(request);
             String json = new String(body, StandardCharsets.UTF_8);
             String cleaned = sanitizeJson(json);
@@ -80,7 +88,7 @@ public class XssFilter extends OncePerRequestFilter {
     /** 不转义字段: 密码/验证码等敏感字段, 以及内部 JSON 配置字段(其引号是 JSON 语法, 转义会破坏结构) */
     private static final java.util.Set<String> NO_ESCAPE_KEYS = new java.util.HashSet<>(java.util.Arrays.asList(
             "password", "newPassword", "confirmPassword", "emailCode", "captchaCode", "securityAnswer",
-            "pageConfig", "headingPatterns", "coverConfig", "referenceConfig"
+            "pageConfig", "headingPatterns", "coverConfig", "referenceConfig", "images"
     ));
 
     @SuppressWarnings("unchecked")

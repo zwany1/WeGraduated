@@ -1,6 +1,7 @@
 package com.graduate.thesis.config;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.graduate.thesis.entity.FormatTask;
 import com.graduate.thesis.mapper.FormatTaskMapper;
 import com.graduate.thesis.service.PaperService;
@@ -45,6 +46,14 @@ public class TaskScheduler {
                     .orderByAsc(FormatTask::getId)
                     .last("LIMIT " + slots));
             for (FormatTask task : pending) {
+                // CAS 原子抢占: 只把状态从 PENDING 改成 PROCESSING 成功才派发, 避免并发/重试重复执行同一任务
+                int affected = taskMapper.update(null, new LambdaUpdateWrapper<FormatTask>()
+                        .eq(FormatTask::getId, task.getId())
+                        .eq(FormatTask::getStatus, FormatTask.STATUS_PENDING)
+                        .set(FormatTask::getStatus, FormatTask.STATUS_PROCESSING));
+                if (affected <= 0) {
+                    continue;
+                }
                 try {
                     paperService.runFormat(task.getId());
                 } catch (Exception e) {

@@ -47,6 +47,8 @@ public class UserService {
     private static final long LOCK_MILLIS = 10 * 60 * 1000L;
     /** 同一 IP 最大失败次数(按 IP 限流) */
     private static final int IP_MAX_FAILURES = 15;
+    /** 登录限流 Map 容量上限, 超限清理防止内存累积 */
+    private static final int LOGIN_MAP_MAX = 10000;
 
     private final UserMapper userMapper;
     private final JwtUtil jwtUtil;
@@ -98,7 +100,7 @@ public class UserService {
         User user = userMapper.selectOne(new LambdaQueryWrapper<User>()
                 .eq(User::getEmail, email));
         if (user == null) {
-            throw new BusinessException("该邮箱未注册");
+            throw new BusinessException("重置失败，请检查邮箱与验证码");
         }
         emailCodeService.verify(email, dto.getEmailCode());
         checkPasswordStrength(dto.getNewPassword());
@@ -162,6 +164,7 @@ public class UserService {
     }
 
     public LoginResponse login(LoginDTO dto, String ip) {
+        sweepLoginMaps();
         String account = dto.getAccount() == null ? "" : dto.getAccount().trim().toLowerCase();
         if (account.isEmpty()) {
             throw new BusinessException("请输入用户名或邮箱");
@@ -208,7 +211,7 @@ public class UserService {
                 throw new BusinessException("尝试过于频繁，请 10 分钟后再试");
             }
             logService.recordLogin(null, account, false, "用户名/邮箱或密码错误");
-            throw new BusinessException("用户名/邮箱或密码错误，还可尝试 " + (MAX_FAILURES - times) + " 次");
+            throw new BusinessException("用户名/邮箱或密码错误");
         }
         // 封禁检查
         if (user.getStatus() != null && !user.getStatus()) {
@@ -227,6 +230,19 @@ public class UserService {
         sessionService.createSession(resp.getToken(), user.getId(), user.getUsername(), ip,
                 jwtUtil.getExpiration(resp.getToken()).getTime());
         return resp;
+    }
+
+    /** 清理登录限流 Map 的过期项与超限条目, 防止内存累积 */
+    private void sweepLoginMaps() {
+        long now = System.currentTimeMillis();
+        lockUntil.entrySet().removeIf(e -> e.getValue() < now);
+        ipLockUntil.entrySet().removeIf(e -> e.getValue() < now);
+        if (failCount.size() > LOGIN_MAP_MAX) {
+            failCount.clear();
+        }
+        if (ipFailCount.size() > LOGIN_MAP_MAX) {
+            ipFailCount.clear();
+        }
     }
 
     public void logout(Long userId, String token) {
@@ -317,7 +333,10 @@ public class UserService {
         throw new BusinessException("用户名生成失败，请手动填写用户名");
     }
 
-    private void checkPasswordStrength(String password) {
+    public void checkPasswordStrength(String password) {
+        if (password == null || password.length() < 8 || password.length() > 64) {
+            throw new BusinessException("密码长度需为 8-64 位");
+        }
         boolean hasLetter = password.matches(".*[a-zA-Z].*");
         boolean hasDigit = password.matches(".*[0-9].*");
         if (!(hasLetter && hasDigit)) {

@@ -1,0 +1,11 @@
+# 本地开发环境: 提供默认密钥方便启动, 勿用于生产
+spring:
+  datasource:
+    password: 123456
+  mail:
+    password: kmavtesnmummdjej
+thesis:
+  admin:
+    password: ${THESIS_ADMIN_PASSWORD:admin123}
+  jwt:
+    secret: graduate-thesis-format-secret-key-2026-please-change-me

@@ -1,6 +1,7 @@
 package com.graduate.thesis.service;
 
 import com.graduate.thesis.dto.DiffItem;
+import org.apache.poi.openxml4j.util.ZipSecureFile;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
@@ -26,10 +27,15 @@ public class DiffService {
 
     /** 对比排版前/后 docx 段落格式差异, 输出结构化变更(字段/变更前/变更后) */
     public List<DiffItem> diff(File original, File formatted) {
+        // 放宽 ZIP 压缩比限制: 论文 docx 可能高压缩(内嵌字体), 被误判为炸弹导致读取失败(diff 全空)
+        ZipSecureFile.setMinInflateRatio(0.001);
         List<DiffItem> items = new ArrayList<>();
         List<XWPFParagraph> origParas = readParas(original);
         List<XWPFParagraph> fmtParas = readParas(formatted);
         Map<String, List<XWPFParagraph>> fmtIndex = new HashMap<>();
+        // 同文本段落按出现顺序逐个消费, 避免跨段落错配
+        // (如两行签名行 text 相同, 原文第2行误匹配到排版后第1行, 误报缩进变化)
+        Map<String, Integer> fmtCursor = new HashMap<>();
         for (XWPFParagraph p : fmtParas) {
             String t = clean(p.getText());
             if (t.isEmpty()) continue;
@@ -41,7 +47,11 @@ public class DiffService {
             if (t.isEmpty()) continue;
             List<XWPFParagraph> cand = fmtIndex.get(t);
             if (cand == null || cand.isEmpty()) continue;
-            List<String[]> fields = diffFields(op, cand.get(0));
+            int cursor = fmtCursor.getOrDefault(t, 0);
+            if (cursor >= cand.size()) continue; // 该文本段落已全部匹配完, 不再跨段落错配
+            XWPFParagraph fp = cand.get(cursor);
+            fmtCursor.put(t, cursor + 1);
+            List<String[]> fields = diffFields(op, fp);
             if (!fields.isEmpty()) {
                 raw.add(new RawDiff(t, fields));
             }

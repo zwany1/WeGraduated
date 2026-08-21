@@ -189,7 +189,7 @@ import { ElMessage, ElNotification } from 'element-plus'
 import { UploadFilled, Loading } from '@element-plus/icons-vue'
 import { listTemplates } from '../api/template'
 import { listTeams } from '../api/team'
-import { uploadPaper, startFormat, startFormatBatch, listTasks, getTask, downloadPaper, downloadPaperOriginal, getDiff } from '../api/paper'
+import { uploadPaper, startFormat, startFormatBatch, listTasks, getTask, downloadPaper, downloadPaperOriginal, getDiff, progressTicket } from '../api/paper'
 import DocxCompare from '../components/DocxCompare.vue'
 
 const templates = ref([])
@@ -234,11 +234,15 @@ let pollTimer = null
 // SSE 进度推送连接: taskId -> EventSource
 const sseMap = new Map()
 
-function subscribeSse(taskId) {
+async function subscribeSse(taskId) {
   if (sseMap.has(taskId)) return
-  const token = localStorage.getItem('token')
-  if (!token) return
-  const es = new EventSource(`/api/paper/task/${taskId}/progress?token=${encodeURIComponent(token)}`)
+  let ticket
+  try {
+    const data = await progressTicket(taskId)
+    ticket = data?.ticket
+  } catch (e) { return }
+  if (!ticket) return
+  const es = new EventSource(`/api/paper/task/${taskId}/progress?ticket=${encodeURIComponent(ticket)}`)
   sseMap.set(taskId, es)
   es.addEventListener('progress', ev => {
     try {

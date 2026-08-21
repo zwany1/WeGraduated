@@ -28,7 +28,11 @@ public class JwtUtil {
 
     public JwtUtil(@Value("${thesis.jwt.secret}") String secret,
                    @Value("${thesis.jwt.expire-hours}") long expireHours) {
-        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length < 32) {
+            throw new IllegalStateException("JWT 密钥长度不足, HS256 要求至少 32 字节, 请通过环境变量 JWT_SECRET 设置足够强度的密钥");
+        }
+        this.key = Keys.hmacShaKeyFor(keyBytes);
         this.expireMillis = expireHours * 3600 * 1000L;
     }
 

@@ -21,13 +21,12 @@ import java.util.List;
 @Service
 public class FlowParser {
 
-    private int seq = 0;
+    private final java.util.concurrent.atomic.AtomicInteger seq = new java.util.concurrent.atomic.AtomicInteger();
 
     public DiagramVO parse(String content) {
         if (content == null || content.trim().isEmpty()) {
             throw new BusinessException(400, "请输入流程脚本");
         }
-        seq = 0;
         List<Line> lines = readLines(content);
         GraphBuilder gb = new GraphBuilder();
         // 开始节点
@@ -183,7 +182,7 @@ public class FlowParser {
 
     private DiagramNode node(String label, String shape) {
         DiagramNode n = new DiagramNode();
-        n.setId("n" + (seq++));
+        n.setId("n" + (seq.getAndIncrement()));
         n.setLabel(label);
         n.setShape(shape);
         return n;
@@ -225,7 +224,7 @@ public class FlowParser {
 
         void connect(String from, String to, String label) {
             DiagramEdge e = new DiagramEdge();
-            e.setId("e" + (seq++));
+            e.setId("e" + (seq.getAndIncrement()));
             e.setSource(from);
             e.setTarget(to);
             e.setLabel(label);

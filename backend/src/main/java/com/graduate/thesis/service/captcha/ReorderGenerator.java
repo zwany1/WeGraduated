@@ -52,15 +52,10 @@ public class ReorderGenerator implements CaptchaGenerator {
             order.add(i);
         }
         Collections.shuffle(order, r);
-        // correctSlotToken[slot] = 应放 word[slot] 字母的那个 token 的 id
-        int[] correctSlotToken = new int[n];
-        for (int slot = 0; slot < n; slot++) {
-            for (int k = 0; k < n; k++) {
-                if (order.get(k) == slot) {
-                    correctSlotToken[slot] = k;
-                    break;
-                }
-            }
+        // tokenChar[k] = 第 k 个棋子的字符(校验时按字符而非棋子 id 比对, 相同字母互换不算错)
+        char[] tokenChar = new char[n];
+        for (int k = 0; k < n; k++) {
+            tokenChar[k] = word.charAt(order.get(k));
         }
 
         // 槽位: 画布下半部均匀分布
@@ -148,7 +143,7 @@ public class ReorderGenerator implements CaptchaGenerator {
         render.put("width", WIDTH);
         render.put("height", HEIGHT);
         render.put("count", n);
-        return new CaptchaData("REORDER", render, new ReorderSecret(correctSlotToken));
+        return new CaptchaData("REORDER", render, new ReorderSecret(word, tokenChar));
     }
 
     private boolean overlaps(List<int[]> existing, int x, int y) {
@@ -167,22 +162,32 @@ public class ReorderGenerator implements CaptchaGenerator {
         }
         ReorderSecret s = (ReorderSecret) secret;
         JsonNode slots = payload.path("slots");
-        if (!slots.isArray() || slots.size() != s.correctSlotToken.length) {
+        if (!slots.isArray() || slots.size() != s.word.length()) {
             return false;
         }
-        for (int i = 0; i < s.correctSlotToken.length; i++) {
-            if (slots.get(i).asInt() != s.correctSlotToken[i]) {
+        // 按"每个槽位应放的字符"比对: 相同字母的不同棋子互换位置仍算正确;
+        // 同时要求每个棋子只能用一个槽位, 防止用同一棋子填多个相同字母槽位
+        boolean[] used = new boolean[s.tokenChar.length];
+        for (int i = 0; i < s.word.length(); i++) {
+            int tid = slots.get(i).asInt();
+            if (tid < 0 || tid >= s.tokenChar.length || used[tid]) {
+                return false;
+            }
+            used[tid] = true;
+            if (s.tokenChar[tid] != s.word.charAt(i)) {
                 return false;
             }
         }
         return true;
     }
 
-    /** 还原秘密: 每个槽位应放的 token id */
+    /** 还原秘密: 目标词 + 各棋子字符(按棋子 id 索引) */
     static class ReorderSecret {
-        final int[] correctSlotToken;
-        ReorderSecret(int[] correctSlotToken) {
-            this.correctSlotToken = correctSlotToken;
+        final String word;
+        final char[] tokenChar;
+        ReorderSecret(String word, char[] tokenChar) {
+            this.word = word;
+            this.tokenChar = tokenChar;
         }
     }
 }

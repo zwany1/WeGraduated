@@ -84,6 +84,15 @@
           </div>
 
           <div class="input-block">
+            <label for="captcha" class="input-label">图形验证码 <span style="color:#e74c3c">*</span></label>
+            <CaptchaWidget
+              v-model:captcha-code="form.captchaCode"
+              v-model:captcha-id="form.captchaId"
+              ref="captchaRef"
+            />
+          </div>
+
+          <div class="input-block">
             <label for="newPassword" class="input-label">新密码 <span style="color:#e74c3c">*</span></label>
             <div class="relative">
               <input
@@ -129,6 +138,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { resetPassword, sendEmailCode } from '../api/user'
 import AnimatedCharacters from '../components/auth/AnimatedCharacters.vue'
+import CaptchaWidget from '../components/auth/CaptchaWidget.vue'
 
 // ===== 重置密码状态 =====
 const router = useRouter()
@@ -137,9 +147,10 @@ const sending = ref(false)
 const showPassword = ref(false)
 const isTyping = ref(false)
 const pwdRef = ref(null)
+const captchaRef = ref(null)
 const countdown = ref(0)
 let countdownTimer = null
-const form = reactive({ email: '', emailCode: '', newPassword: '' })
+const form = reactive({ email: '', emailCode: '', newPassword: '', captchaCode: '', captchaId: '' })
 const hint = ref('')
 const password = computed(() => form.newPassword)
 
@@ -196,6 +207,7 @@ async function submit() {
   if (!form.email.trim()) { ElMessage.warning('请输入邮箱'); return }
   if (!emailRe.test(form.email.trim())) { ElMessage.warning('邮箱格式不正确'); return }
   if (!form.emailCode.trim()) { ElMessage.warning('请输入邮箱验证码'); return }
+  if (!form.captchaCode.trim()) { ElMessage.warning('请先完成图形验证码'); return }
   if (!form.newPassword) { ElMessage.warning('请输入新密码'); return }
   if (form.newPassword.length < 6 || form.newPassword.length > 64) { ElMessage.warning('密码长度为6-64位'); return }
   const hasLetter = /[a-zA-Z]/.test(form.newPassword)
@@ -207,7 +219,9 @@ async function submit() {
     await resetPassword({
       email: form.email.trim(),
       emailCode: form.emailCode.trim(),
-      newPassword: form.newPassword
+      newPassword: form.newPassword,
+      captchaId: form.captchaId,
+      captchaCode: form.captchaCode
     })
     // 重置成功后不自动登录, 清除本地状态回登录页用新密码登录
     localStorage.removeItem('token')
@@ -218,6 +232,7 @@ async function submit() {
     router.replace('/login')
   } catch (e) {
     hint.value = e.message || ''
+    captchaRef.value?.refresh()
   } finally {
     loading.value = false
   }

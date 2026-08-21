@@ -50,7 +50,7 @@ public class DbMigrationRunner implements ApplicationRunner {
                              MenuMapper menuMapper,
                              RoleMenuMapper roleMenuMapper,
                              @Value("${thesis.admin.username:admin}") String adminUsername,
-                             @Value("${thesis.admin.password:admin123}") String adminPassword) {
+                             @Value("${thesis.admin.password}") String adminPassword) {
         this.jdbcTemplate = jdbcTemplate;
         this.userMapper = userMapper;
         this.roleMapper = roleMapper;
@@ -94,6 +94,9 @@ public class DbMigrationRunner implements ApplicationRunner {
         ensureFavoriteTable();
         ensureTeamTables();
         ensureNotificationTables();
+        ensureFeedbackTable();
+        addColumnIfMissing("t_feedback", "images",
+                "ALTER TABLE t_feedback ADD COLUMN images LONGTEXT DEFAULT NULL COMMENT '图片base64 JSON数组'");
     }
 
     private void addColumnIfMissing(String table, String column, String alterSql) {
@@ -248,6 +251,35 @@ public class DbMigrationRunner implements ApplicationRunner {
             }
         } catch (Exception e) {
             log.warn("[DbMigration] 创建站内信/邀请表失败: {}", e.getMessage());
+        }
+    }
+
+    /** 用户反馈表(幂等建表): 公开反馈墙 + 管理员回复 */
+    private void ensureFeedbackTable() {
+        try {
+            Integer count = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 't_feedback'",
+                    Integer.class);
+            if (count == null || count == 0) {
+                jdbcTemplate.execute("CREATE TABLE t_feedback (" +
+                        "id BIGINT AUTO_INCREMENT PRIMARY KEY, " +
+                        "user_id BIGINT NOT NULL, " +
+                        "category VARCHAR(32) NOT NULL DEFAULT 'other', " +
+                        "content TEXT NOT NULL, " +
+                        "images LONGTEXT DEFAULT NULL, " +
+                        "contact VARCHAR(128) DEFAULT NULL, " +
+                        "status VARCHAR(16) NOT NULL DEFAULT 'PENDING', " +
+                        "reply TEXT DEFAULT NULL, " +
+                        "reply_user_id BIGINT DEFAULT NULL, " +
+                        "reply_time DATETIME DEFAULT NULL, " +
+                        "create_time DATETIME DEFAULT CURRENT_TIMESTAMP, " +
+                        "KEY idx_feedback_user (user_id), " +
+                        "KEY idx_feedback_status (status)" +
+                        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户反馈'");
+                log.info("[DbMigration] 已创建 t_feedback 表");
+            }
+        } catch (Exception e) {
+            log.warn("[DbMigration] 创建 t_feedback 表失败: {}", e.getMessage());
         }
     }
 
@@ -426,6 +458,12 @@ public class DbMigrationRunner implements ApplicationRunner {
                 "backup", 9, "数据库备份与恢复"});
         rows.put("1046", new Object[]{1045L, "立即备份", "F", null, null, "system:backup:create", null, 1, "立即备份"});
         rows.put("1047", new Object[]{1045L, "删除备份", "F", null, null, "system:backup:delete", null, 2, "删除备份"});
+
+        // ---- 用户反馈 ----
+        rows.put("1048", new Object[]{1021L, "用户反馈管理", "C", "feedback", "admin/FeedbackManage", "system:feedback:list",
+                "message", 2, "用户反馈管理"});
+        rows.put("1049", new Object[]{1048L, "反馈回复", "F", null, null, "system:feedback:reply", null, 1, "反馈回复"});
+        rows.put("1050", new Object[]{1048L, "反馈删除", "F", null, null, "system:feedback:delete", null, 2, "反馈删除"});
         return rows;
     }
 

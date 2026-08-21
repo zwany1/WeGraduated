@@ -146,13 +146,10 @@ onMounted(async () => {
     return
   }
   const savedUser = localStorage.getItem('remembered_user')
-  const savedPwd = localStorage.getItem('remembered_pwd')
+  localStorage.removeItem('remembered_pwd')
   if (savedUser) {
     form.username = savedUser
     rememberMe.value = true
-    if (savedPwd) {
-      try { form.password = decodeURIComponent(atob(savedPwd)) } catch (e) {}
-    }
   }
 })
 
@@ -207,10 +204,8 @@ async function submit() {
     }
     if (rememberMe.value) {
       localStorage.setItem('remembered_user', form.username.trim())
-      localStorage.setItem('remembered_pwd', btoa(encodeURIComponent(form.password)))
     } else {
       localStorage.removeItem('remembered_user')
-      localStorage.removeItem('remembered_pwd')
     }
     ElMessage.success('登录成功')
     router.push(router.currentRoute.value.query.redirect || '/home')

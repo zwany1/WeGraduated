@@ -28,7 +28,7 @@ import java.util.Map;
 @Service
 public class ActivityDiagramRuleEngine {
 
-    private int seq = 0;
+    private final java.util.concurrent.atomic.AtomicInteger seq = new java.util.concurrent.atomic.AtomicInteger();
 
     public DiagramVO build(ActivityConfig config) {
         if (config == null) {
@@ -43,8 +43,6 @@ public class ActivityDiagramRuleEngine {
         if (nodes.isEmpty()) {
             throw new BusinessException(400, "请至少配置一个节点");
         }
-        seq = 0;
-
         DiagramVO vo = new DiagramVO();
         vo.setType("ACTIVITY");
         vo.setName(config.getTitle() == null || config.getTitle().trim().isEmpty()
@@ -121,7 +119,7 @@ public class ActivityDiagramRuleEngine {
                 x += laneWMap.get(prev.getId()) + laneGap;
             }
             DiagramLane dl = new DiagramLane();
-            dl.setId("lane" + (seq++));
+            dl.setId("lane" + (seq.getAndIncrement()));
             dl.setName(lane.getName());
             dl.setX(x);
             dl.setY(0);
@@ -272,7 +270,7 @@ public class ActivityDiagramRuleEngine {
 
     private DiagramEdge edge(String src, String tgt, String label) {
         DiagramEdge e = new DiagramEdge();
-        e.setId("e" + (seq++));
+        e.setId("e" + (seq.getAndIncrement()));
         e.setSource(src);
         e.setTarget(tgt);
         e.setLabel(label);

@@ -13,6 +13,8 @@ import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 /**
  * 文件存储服务(本地磁盘)
@@ -41,9 +43,40 @@ public class StorageService {
             }
             Files.createDirectories(target.getParent());
             file.transferTo(target);
+            checkZipBomb(target.toFile());
             return relative;
         } catch (IOException e) {
             throw new BusinessException(500, "文件保存失败: " + e.getMessage());
+        }
+    }
+
+    /** docx/zip 解压后总大小上限, 拦截压缩炸弹(放宽 ZipSecureFile 比例后的兜底) */
+    private static final long MAX_UNCOMPRESSED_TOTAL = 200L * 1024 * 1024;
+
+    /** 检查 docx/zip 解压后总大小, 超限删除并拒绝, 防止排版时 OOM */
+    private void checkZipBomb(File f) {
+        String name = f.getName().toLowerCase();
+        if (!name.endsWith(".docx") && !name.endsWith(".zip")) {
+            return;
+        }
+        try (ZipFile zf = new ZipFile(f)) {
+            long total = 0;
+            java.util.Enumeration<? extends ZipEntry> entries = zf.entries();
+            while (entries.hasMoreElements()) {
+                ZipEntry e = entries.nextElement();
+                long size = e.getSize();
+                if (size > 0) {
+                    total += size;
+                    if (total > MAX_UNCOMPRESSED_TOTAL) {
+                        Files.deleteIfExists(f.toPath());
+                        throw new BusinessException(400, "文档解压后体积过大，疑似异常文件");
+                    }
+                }
+            }
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            // 非合法 zip, 让后续 POI 处理报错
         }
     }
 

@@ -25,7 +25,7 @@ import java.util.Map;
 @Service
 public class SequenceRuleEngine {
 
-    private int seq = 0;
+    private final java.util.concurrent.atomic.AtomicInteger seq = new java.util.concurrent.atomic.AtomicInteger();
 
     public DiagramVO build(SequenceConfig config) {
         if (config == null) {
@@ -39,8 +39,6 @@ public class SequenceRuleEngine {
         if (messages.isEmpty()) {
             throw new BusinessException(400, "请至少配置一条消息");
         }
-        seq = 0;
-
         DiagramVO vo = new DiagramVO();
         vo.setType("SEQUENCE");
         vo.setName(config.getTitle() == null || config.getTitle().trim().isEmpty()
@@ -70,7 +68,7 @@ public class SequenceRuleEngine {
 
             // 生命线(作为 lane, 前端画竖线)
             DiagramLane lane = new DiagramLane();
-            lane.setId("line" + (seq++));
+            lane.setId("line" + (seq.getAndIncrement()));
             lane.setName(p.getName());
             lane.setX(x);
             lane.setY(lifelineTop);
@@ -88,7 +86,7 @@ public class SequenceRuleEngine {
             double y = msgY0 + idx * msgGap;
 
             DiagramEdge edge = new DiagramEdge();
-            edge.setId("m" + (seq++));
+            edge.setId("m" + (seq.getAndIncrement()));
             edge.setSource(m.getFrom());
             edge.setTarget(m.getTo());
             edge.setLabel(m.getText());

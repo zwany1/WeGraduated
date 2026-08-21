@@ -51,11 +51,19 @@ public class OperLogAspect {
         }
         List<String> parts = new ArrayList<>();
         for (Object arg : args) {
-            String json = logService.toJson(arg);
+            String json = sanitizeParams(logService.toJson(arg));
             if (json != null) {
                 parts.add(json);
             }
         }
         return parts.isEmpty() ? null : String.join(", ", parts);
+    }
+
+    /** 脱敏敏感字段(密码等), 避免明文写入操作日志 */
+    private String sanitizeParams(String json) {
+        if (json == null) {
+            return null;
+        }
+        return json.replaceAll("(\"(?:password|newPassword|oldPassword|pwd)\"\\s*:\\s*)\"[^\"]*\"", "$1\"***\"");
     }
 }

@@ -279,3 +279,25 @@ export function downloadBackup(name) {
 export function deleteBackup(name) {
   return api.delete(`/admin/system/backup/${name}`)
 }
+
+// ============ 用户反馈管理 ============
+
+export function listFeedbacks(params) {
+  return api.get('/admin/feedback/list', { params })
+}
+
+export function getFeedbackDetail(id) {
+  return api.get(`/admin/feedback/${id}`)
+}
+
+export function replyFeedback(id, reply) {
+  return api.post(`/admin/feedback/${id}/reply`, { reply })
+}
+
+export function updateFeedbackStatus(id, status) {
+  return api.post(`/admin/feedback/${id}/status`, { status })
+}
+
+export function deleteFeedback(id) {
+  return api.delete(`/admin/feedback/${id}`)
+}

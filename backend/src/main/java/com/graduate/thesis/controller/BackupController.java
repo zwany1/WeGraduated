@@ -69,4 +69,13 @@ public class BackupController {
         backupService.deleteBackup(name);
         return Result.ok();
     }
+
+    /** 恢复备份(高危操作) */
+    @PostMapping("/restore/{name}")
+    @OperLog(module = "数据备份", action = "恢复备份")
+    @RequiresPerms("system:backup:create")
+    public Result<Void> restore(@PathVariable String name) {
+        backupService.restore(name);
+        return Result.ok();
+    }
 }

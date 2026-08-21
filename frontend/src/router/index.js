@@ -25,6 +25,7 @@ const viewMap = {
   'admin/ConfigManage': () => import('../views/admin/ConfigManage.vue'),
   'admin/NoticeManage': () => import('../views/admin/NoticeManage.vue'),
   'admin/BackupManage': () => import('../views/admin/BackupManage.vue'),
+  'admin/FeedbackManage': () => import('../views/admin/FeedbackManage.vue'),
   'admin/ComingSoon': () => import('../views/admin/ComingSoon.vue')
 }
 
@@ -121,6 +122,7 @@ function firstAdminPath() {
   return null
 }
 
+// 前端权限校验仅用于交互引导, 越权访问由服务端 @RequiresPerms 兜底拦截
 router.beforeEach(async (to, from, next) => {
   const token = getToken()
   if (!PUBLIC_PAGES.includes(to.path) && !token) {

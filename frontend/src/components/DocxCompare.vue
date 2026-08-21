@@ -81,15 +81,27 @@ function updateBodyStyle() {
 function scrollToText(text) {
   const needle = (text || '').replace(/\s+/g, '')
   if (!needle || !bodyRef.value) return
+  const paras = bodyRef.value.querySelectorAll('p')
+  const jump = (p) => {
+    p.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    p.classList.add('diff-target')
+    setTimeout(() => p.classList.remove('diff-target'), 2200)
+  }
+  // 1. 精确匹配优先: 避免目录条目"参考文献33"抢匹配正文"参考文献", 定位到真正被改的段落
+  for (const p of paras) {
+    const t = (p.textContent || '').replace(/\s+/g, '')
+    if (t === needle) {
+      jump(p)
+      return
+    }
+  }
+  // 2. 无精确匹配时(长文本被截断的场景), 退回前缀包含定位
   const head = needle.slice(0, 10)
   if (!head) return
-  const paras = bodyRef.value.querySelectorAll('p')
   for (const p of paras) {
     const t = (p.textContent || '').replace(/\s+/g, '')
     if (t && (t.includes(head) || head.includes(t.slice(0, 10)))) {
-      p.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      p.classList.add('diff-target')
-      setTimeout(() => p.classList.remove('diff-target'), 2200)
+      jump(p)
       return
     }
   }

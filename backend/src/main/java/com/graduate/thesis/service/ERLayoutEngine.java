@@ -31,15 +31,10 @@ public final class ERLayoutEngine {
     private ERLayoutEngine() {
     }
 
-    private static List<ErGraph.Entity> allEntities = new ArrayList<>();
-    private static List<ErGraph.Relation> allRelations = new ArrayList<>();
-
     public static void layout(ErGraph g, Font attrFont) {
         if (g.entities.isEmpty()) {
             return;
         }
-        allEntities = g.entities;
-        allRelations = g.relations;
         measureAttributes(g, attrFont);
         initEntitySize(g);
         hierarchyLayoutEntities(g);
@@ -514,7 +509,7 @@ public final class ERLayoutEngine {
                 double cx = pcx + Math.cos(angle) * radius;
                 double cy = pcy + Math.sin(angle) * radius;
                 // 硬冲突: 压到属性/实体/菱形
-                if (conflicts(cx, cy, a.rx, a.ry, parent, placed)) {
+                if (conflicts(g, cx, cy, a.rx, a.ry, parent, placed)) {
                     continue;
                 }
                 // 评分: 越低越好
@@ -526,7 +521,7 @@ public final class ERLayoutEngine {
                 // 连线交叉惩罚
                 score += countAttrLineCrossings(g, a, cx, cy, parent) * 8.0;
                 // 与实体/菱形间距惩罚
-                score += nearShapePenalty(cx, cy, a.rx, a.ry, parent);
+                score += nearShapePenalty(g, cx, cy, a.rx, a.ry, parent);
                 if (score < bestScore) {
                     bestScore = score;
                     best[0] = cx;
@@ -583,9 +578,9 @@ public final class ERLayoutEngine {
     /**
      * 距离惩罚: 属性离其他实体/菱形越近分越高
      */
-    private static double nearShapePenalty(double cx, double cy, double rx, double ry, Object parent) {
+    private static double nearShapePenalty(ErGraph g, double cx, double cy, double rx, double ry, Object parent) {
         double penalty = 0;
-        for (ErGraph.Entity e : allEntities) {
+        for (ErGraph.Entity e : g.entities) {
             if (parent instanceof ErGraph.Entity && e == parent) {
                 continue;
             }
@@ -594,7 +589,7 @@ public final class ERLayoutEngine {
                 penalty += (70 - d) * 0.3;
             }
         }
-        for (ErGraph.Relation r : allRelations) {
+        for (ErGraph.Relation r : g.relations) {
             double hw = r.hw + (parent == r ? 10 : 0);
             double hh = r.hh + (parent == r ? 10 : 0);
             double d = distToRect(cx, cy, r.cx, r.cy, hw, hh);
@@ -614,7 +609,7 @@ public final class ERLayoutEngine {
     /**
      * 检查椭圆 (cx,cy,rx,ry) 是否与已放置属性、其他实体/菱形冲突
      */
-    private static boolean conflicts(double cx, double cy, double rx, double ry,
+    private static boolean conflicts(ErGraph g, double cx, double cy, double rx, double ry,
                                      Object parent, List<ErGraph.Attribute> placed) {
         for (ErGraph.Attribute b : placed) {
             double d = Math.hypot(b.cx - cx, b.cy - cy);
@@ -625,7 +620,7 @@ public final class ERLayoutEngine {
         if (parent instanceof ErGraph.Entity) {
             ErGraph.Entity me = (ErGraph.Entity) parent;
             // 不能压到其他实体
-            for (ErGraph.Entity e : allEntities) {
+            for (ErGraph.Entity e : g.entities) {
                 if (e == me) {
                     continue;
                 }
@@ -634,19 +629,19 @@ public final class ERLayoutEngine {
                 }
             }
             // 不能压到菱形
-            for (ErGraph.Relation r : allRelations) {
+            for (ErGraph.Relation r : g.relations) {
                 if (overlapCircleRect(cx, cy, rx, ry, r.cx, r.cy, r.hw, r.hh)) {
                     return true;
                 }
             }
         } else {
             // 关系属性: 不能压到任何实体/菱形(包括自己的父菱形, 但父菱形用外扩边界留线空间)
-            for (ErGraph.Entity e : allEntities) {
+            for (ErGraph.Entity e : g.entities) {
                 if (overlapCircleRect(cx, cy, rx, ry, e.cx, e.cy, e.w / 2, e.h / 2)) {
                     return true;
                 }
             }
-            for (ErGraph.Relation r : allRelations) {
+            for (ErGraph.Relation r : g.relations) {
                 double hw = r.hw + (r == parent ? 8 : 0);
                 double hh = r.hh + (r == parent ? 8 : 0);
                 if (overlapCircleRect(cx, cy, rx, ry, r.cx, r.cy, hw, hh)) {

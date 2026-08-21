@@ -2,7 +2,7 @@
   <div class="page">
     <header class="bar">
       <div class="brand">
-        <el-button text @click="$router.push('/home')">‹ 返回</el-button>
+        <el-button text @click="backOrHome($router)">‹ 返回</el-button>
         <span>ER 图生成</span>
       </div>
       <div class="actions">
@@ -111,6 +111,7 @@ import { getErGraph, saveErLayout, loadErLayout } from '../api/er'
 import { validateEr } from '../utils/erValidate'
 import { toMermaid } from '../utils/mermaid'
 import MermaidExportDialog from '../components/MermaidExportDialog.vue'
+import { backOrHome } from '../utils/nav'
 
 let graph = null
 const mmdDlg = ref(null)

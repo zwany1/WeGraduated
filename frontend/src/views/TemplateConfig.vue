@@ -2,7 +2,7 @@
   <div class="config">
     <header class="bar">
       <div class="brand">
-        <el-button text @click="$router.push('/templates')">‹ 返回</el-button>
+        <el-button text @click="backOrHome($router)">‹ 返回</el-button>
         <span>{{ templateName }}</span>
       </div>
       <div class="brand-actions">
@@ -303,6 +303,7 @@
 <script setup>
 import { ref, reactive, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { backOrHome } from '../utils/nav'
 import { ElMessage } from 'element-plus'
 import { getTemplateDetail, savePageConfig, saveHeadingPatterns, saveReferenceConfig, saveRule, exportTemplate } from '../api/template'
 

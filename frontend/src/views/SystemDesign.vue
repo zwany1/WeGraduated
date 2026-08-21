@@ -2,7 +2,7 @@
   <div class="page">
     <header class="bar">
       <div class="brand">
-        <el-button text @click="$router.push('/home')">‹ 返回</el-button>
+        <el-button text @click="backOrHome($router)">‹ 返回</el-button>
         <span>系统图设计</span>
       </div>
       <div class="type-tabs">
@@ -507,6 +507,7 @@ import { getErGraph } from '../api/er'
 import { parseSql, generateTable3 } from '../api/table3'
 import { toMermaid } from '../utils/mermaid'
 import MermaidExportDialog from '../components/MermaidExportDialog.vue'
+import { backOrHome } from '../utils/nav'
 
 // 注册数据库圆柱形状
 Graph.registerNode('db', {

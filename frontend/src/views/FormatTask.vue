@@ -2,7 +2,7 @@
   <div class="page">
     <header class="bar">
       <div class="brand">
-        <el-button text @click="$router.push('/home')">‹ 返回首页</el-button>
+        <el-button text @click="backOrHome($router)">‹ 返回首页</el-button>
         <span>排版任务</span>
       </div>
     </header>
@@ -191,6 +191,7 @@ import { listTemplates } from '../api/template'
 import { listTeams } from '../api/team'
 import { uploadPaper, startFormat, startFormatBatch, listTasks, getTask, downloadPaper, downloadPaperOriginal, getDiff, progressTicket } from '../api/paper'
 import DocxCompare from '../components/DocxCompare.vue'
+import { backOrHome } from '../utils/nav'
 
 const templates = ref([])
 const templateId = ref(null)

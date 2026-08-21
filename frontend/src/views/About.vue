@@ -92,10 +92,11 @@
 <script setup>
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
+import { backOrHome } from '../utils/nav'
 const router = useRouter()
 
 function goBack() {
-  router.back()
+  backOrHome(router)
 }
 
 const cfIndex = ref(0)

@@ -46,6 +46,7 @@ import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { login, register, getProfile } from '../api/user'
+import { getMenus } from '../api/admin'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
@@ -258,7 +259,12 @@ async function submit() {
         localStorage.setItem('avatar', p.avatar || '')
       }
     } catch (e) {}
-    localStorage.removeItem('menus')
+    try {
+      const menus = await getMenus()
+      localStorage.setItem('menus', JSON.stringify(menus || []))
+    } catch (e) {
+      localStorage.removeItem('menus')
+    }
     if (rememberMe.value) {
       localStorage.setItem('remembered_user', form.username.trim())
     } else {

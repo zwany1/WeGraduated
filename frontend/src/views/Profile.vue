@@ -47,6 +47,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { backOrHome } from '../utils/nav'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getProfile, updateProfile, deleteAccount } from '../api/user'
 import { clearAuth } from '../utils/perm'
@@ -75,7 +76,7 @@ onMounted(async () => {
 })
 
 function goBack() {
-  router.back()
+  backOrHome(router)
 }
 
 function pickAvatar() {

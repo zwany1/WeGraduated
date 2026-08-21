@@ -2,7 +2,7 @@
   <div class="page">
     <header class="bar">
       <div class="brand">
-        <el-button text @click="$router.push('/home')">‹ 返回</el-button>
+        <el-button text @click="backOrHome($router)">‹ 返回</el-button>
         <span>三线表生成</span>
       </div>
       <div class="actions">
@@ -122,6 +122,7 @@
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { generateTable3, parseSql } from '../api/table3'
+import { backOrHome } from '../utils/nav'
 
 const title = ref('实验数据统计')
 const autoNumber = ref(true)

@@ -31,10 +31,11 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
+import { backOrHome } from '../utils/nav'
 const router = useRouter()
 
 function goBack() {
-  router.back()
+  backOrHome(router)
 }
 
 const sections = [

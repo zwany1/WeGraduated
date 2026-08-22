@@ -7,6 +7,7 @@
         <span class="zoom-val">{{ Math.round(scale * 100) }}%</span>
         <el-button size="small" @click="zoomIn">+</el-button>
       </div>
+      <el-button size="small" plain :disabled="!lastText" @click="refocus">聚焦上次</el-button>
     </div>
     <div class="docx-wrap" ref="wrapRef">
       <div ref="bodyRef" class="docx-body" :style="bodyStyle"></div>
@@ -16,7 +17,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { renderAsync } from 'docx-preview'
 
 const props = defineProps({
@@ -27,15 +28,15 @@ const wrapRef = ref(null)
 const bodyRef = ref(null)
 const scale = ref(1)
 const loading = ref(true)
-
 let currentDoc = null
+let lastText = ref('')
 
-const bodyStyle = {
-  width: `${Math.round(100 * scale.value)}%`,
-  maxWidth: '1000px',
-  margin: '0 auto',
-  transition: 'width 0.1s'
-}
+// 响应式 bodyStyle: 用 transform scale 缩放, 不破坏布局宽度
+const bodyStyle = computed(() => ({
+  transform: `scale(${scale.value})`,
+  transformOrigin: 'top center',
+  transition: 'transform 0.15s ease'
+}))
 
 onMounted(async () => {
   loading.value = true
@@ -64,30 +65,26 @@ onBeforeUnmount(() => {
 
 function zoomIn() {
   scale.value = Math.min(2, Math.round((scale.value + 0.1) * 10) / 10)
-  updateBodyStyle()
 }
 function zoomOut() {
   scale.value = Math.max(0.5, Math.round((scale.value - 0.1) * 10) / 10)
-  updateBodyStyle()
-}
-function updateBodyStyle() {
-  bodyStyle.width = `${Math.round(100 * scale.value)}%`
 }
 
-/**
- * 按文本定位到对应段落并高亮(供差异索引跳转)
- * 排版前后仅改格式不改文字, 可用文本前缀匹配定位
- */
+/** 聚焦到上次定位的段落 */
+function refocus() {
+  if (lastText.value) scrollToText(lastText.value)
+}
+
 function scrollToText(text) {
   const needle = (text || '').replace(/\s+/g, '')
   if (!needle || !bodyRef.value) return
+  lastText.value = text
   const paras = bodyRef.value.querySelectorAll('p')
   const jump = (p) => {
     p.scrollIntoView({ behavior: 'smooth', block: 'start' })
     p.classList.add('diff-target')
     setTimeout(() => p.classList.remove('diff-target'), 2200)
   }
-  // 1. 精确匹配优先: 避免目录条目"参考文献33"抢匹配正文"参考文献", 定位到真正被改的段落
   for (const p of paras) {
     const t = (p.textContent || '').replace(/\s+/g, '')
     if (t === needle) {
@@ -95,7 +92,6 @@ function scrollToText(text) {
       return
     }
   }
-  // 2. 无精确匹配时(长文本被截断的场景), 退回前缀包含定位
   const head = needle.slice(0, 10)
   if (!head) return
   for (const p of paras) {
@@ -151,6 +147,9 @@ defineExpose({ scrollToText })
   background: #fff;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
   min-height: 200px;
+  max-width: 900px;
+  margin: 0 auto;
+  overflow-x: hidden;
 }
 .loading {
   position: absolute;

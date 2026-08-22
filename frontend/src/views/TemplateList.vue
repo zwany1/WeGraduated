@@ -6,8 +6,6 @@
         <el-button @click="$router.push('/home')">首页</el-button>
         <el-button @click="$router.push('/team')">团队协作</el-button>
         <el-button @click="$router.push('/tasks')">排版任务</el-button>
-        <el-button @click="triggerImport">导入模板</el-button>
-        <input ref="importInput" type="file" accept=".json,application/json" style="display:none" @change="onImportFile" />
         <el-button type="primary" @click="showCreate = true">新建格式方案</el-button>
         <el-dropdown trigger="click" @command="onUserCommand">
           <div class="user-chip">
@@ -65,7 +63,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { listTemplates, createTemplate, deleteTemplate, importTemplate, cloneTemplate, getMissingRules } from '../api/template'
+import { listTemplates, createTemplate, deleteTemplate, cloneTemplate, getMissingRules } from '../api/template'
 import { getProfile, logout } from '../api/user'
 import { listTeams } from '../api/team'
 
@@ -75,7 +73,6 @@ const showCreate = ref(false)
 const newName = ref('')
 const newTeamId = ref(null)
 const creating = ref(false)
-const importInput = ref(null)
 const teams = ref([])
 const teamMap = ref({})
 const missing = ref({})
@@ -158,27 +155,6 @@ async function create() {
     router.push(`/template/${t.id}`)
   } finally {
     creating.value = false
-  }
-}
-
-function triggerImport() {
-  importInput.value && importInput.value.click()
-}
-
-async function onImportFile(e) {
-  const file = e.target.files && e.target.files[0]
-  if (!file) return
-  try {
-    const text = await file.text()
-    const data = JSON.parse(text)
-    if (typeof data !== 'object' || data === null) throw new Error('格式无效')
-    await importTemplate(data)
-    ElMessage.success('模板导入成功')
-    load()
-  } catch (err) {
-    ElMessage.error('导入失败：请选择有效的模板 JSON 文件')
-  } finally {
-    e.target.value = ''
   }
 }
 

@@ -412,7 +412,11 @@ async function download(row) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `已排版论文_${row.id}.docx`
+  // 文件名: 上传文件名_模板名_时间戳.docx
+  const base = (row.originalName || fileName(row)).replace(/\.[^.]+$/, '')
+  const tpl = templateName(row)
+  const ts = new Date().toLocaleString('zh-CN', { hour12: false }).replace(/[\/\s:]/g, '').slice(0, 14)
+  a.download = `${base}_${tpl}_${ts}.docx`
   a.click()
   URL.revokeObjectURL(url)
 }
@@ -803,6 +807,7 @@ function formatTime(t) {
 .compare-body {
   flex: 1;
   min-height: 0;
+  overflow: hidden;
 }
 .compare-divider {
   width: 2px;

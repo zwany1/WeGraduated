@@ -19,6 +19,9 @@ public class AdminUserVO {
 
     private String nickname;
 
+    /** 头像(data URL base64) */
+    private String avatar;
+
     private String role;
 
     /** 状态: 1正常 0禁用 */

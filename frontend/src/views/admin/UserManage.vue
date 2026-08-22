@@ -24,7 +24,10 @@
         <el-table-column label="用户" min-width="150">
           <template #default="{ row }">
             <div class="cell-user">
-              <span class="cell-avatar">{{ (row.username || 'U').slice(0, 1).toUpperCase() }}</span>
+              <span class="cell-avatar" @click="openAvatarUpload(row)">
+                <img v-if="row.avatar" :src="row.avatar" class="cell-avatar-img" />
+                <span v-else>{{ (row.username || 'U').slice(0, 1).toUpperCase() }}</span>
+              </span>
               <div class="cell-user-meta">
                 <span class="cell-name">{{ row.nickname || row.username }}</span>
                 <span class="cell-uname">@{{ row.username }}</span>
@@ -78,7 +81,7 @@
             </template>
             <span v-else class="cell-muted">—</span>
           </template>
-        </el-table-column>
+      </el-table-column>
       </el-table>
 
       <div class="pager">
@@ -99,8 +102,11 @@
             <el-table-column prop="id" label="会话ID" width="80" />
             <el-table-column label="用户" min-width="140">
               <template #default="{ row }">
-                <div class="cell-user">
-                  <span class="cell-avatar">{{ (row.username || 'U').slice(0, 1).toUpperCase() }}</span>
+            <div class="cell-user">
+              <span class="cell-avatar">
+                <img v-if="row.avatar" :src="row.avatar" class="cell-avatar-img" />
+                <span v-else>{{ (row.username || 'U').slice(0, 1).toUpperCase() }}</span>
+              </span>
                   <div class="cell-user-meta">
                     <span class="cell-name">{{ row.username }}</span>
                     <span class="cell-uname">#{{ row.userId }}</span>
@@ -223,6 +229,26 @@
         </template>
       </div>
     </el-dialog>
+
+    <!-- 换头像弹窗 -->
+    <el-dialog v-model="avatarVisible" :title="`更换头像 - ${avatarUser ? (avatarUser.nickname || avatarUser.username) : ''}`" width="420px"
+      class="admin-dialog" modal-class="admin-overlay" destroy-on-close append-to-body>
+      <div class="avatar-upload-box">
+        <div class="avatar-preview" @click="triggerAvatarPick">
+          <img v-if="avatarData" :src="avatarData" class="avatar-preview-img" />
+          <span v-else class="avatar-preview-placeholder">
+            <img v-if="avatarUser && avatarUser.avatar" :src="avatarUser.avatar" class="avatar-preview-img" />
+            <span v-else>{{ (avatarUser ? avatarUser.username : 'U').slice(0, 1).toUpperCase() }}</span>
+          </span>
+        </div>
+        <input ref="avatarInput" type="file" accept="image/*" style="display:none" @change="onAvatarChange" />
+        <p class="avatar-tip">点击头像选择图片（JPG/PNG，≤2MB）</p>
+      </div>
+      <template #footer>
+        <el-button @click="avatarVisible = false">取消</el-button>
+        <el-button type="primary" :loading="avatarUploading" @click="saveAvatar">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -230,7 +256,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { listUsers, setUserRole, assignUserRoles, updateUserStatus, resetUserPassword, batchUserStatus,
-  listOnlineSessions, kickSession,
+  listOnlineSessions, kickSession, updateUserAvatar,
   getUserDetail, deleteUser, listAllRoles, exportUsers } from '../../api/admin'
 import { downloadBlob } from '../../utils/download'
 
@@ -286,6 +312,58 @@ async function kick(row) {
     ElMessage.success('已强制下线')
     loadSessions()
   } catch (e) {
+  }
+}
+
+// 头像更换
+const avatarVisible = ref(false)
+const avatarUser = ref(null)
+const avatarData = ref('')
+const avatarUploading = ref(false)
+const avatarInput = ref(null)
+
+function openAvatarUpload(row) {
+  avatarUser.value = row
+  avatarData.value = ''
+  avatarVisible.value = true
+}
+
+function triggerAvatarPick() {
+  avatarInput.value && avatarInput.value.click()
+}
+
+function onAvatarChange(e) {
+  const file = e.target.files && e.target.files[0]
+  if (!file) return
+  if (file.size > 2 * 1024 * 1024) {
+    ElMessage.warning('图片不能超过 2MB')
+    e.target.value = ''
+    return
+  }
+  const reader = new FileReader()
+  reader.onload = () => {
+    avatarData.value = reader.result
+  }
+  reader.readAsDataURL(file)
+  e.target.value = ''
+}
+
+async function saveAvatar() {
+  if (!avatarUser.value) return
+  if (!avatarData.value) {
+    ElMessage.warning('请先选择图片')
+    return
+  }
+  avatarUploading.value = true
+  try {
+    await updateUserAvatar(avatarUser.value.id, avatarData.value)
+    ElMessage.success('头像已更新')
+    avatarVisible.value = false
+    await load()
+  } catch (e) {
+    ElMessage.error(e.message || '保存失败')
+  } finally {
+    avatarUploading.value = false
   }
 }
 
@@ -551,7 +629,12 @@ onMounted(() => { load(); loadSessions() })
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+  overflow: hidden;
 }
+.cell-avatar:hover { box-shadow: 0 0 0 2px rgba(201,164,92,0.4); }
+.cell-avatar-img { width: 100%; height: 100%; object-fit: cover; }
 .cell-user-meta {
   display: flex;
   flex-direction: column;
@@ -730,4 +813,33 @@ onMounted(() => { load(); loadSessions() })
   background: rgba(58, 110, 165, 0.1);
   border: 1px solid rgba(58, 110, 165, 0.35);
 }
+
+/* 头像上传弹窗 */
+.avatar-upload-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 0;
+}
+.avatar-preview {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #152a4d, #0d1b2e);
+  color: #c9a45c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  font-weight: 700;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid #e6ded0;
+  transition: box-shadow 0.2s;
+}
+.avatar-preview:hover { box-shadow: 0 0 0 3px rgba(201,164,92,0.3); }
+.avatar-preview-img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-preview-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+.avatar-tip { font-size: 13px; color: #9a917d; text-align: center; }
 </style>

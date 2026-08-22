@@ -3,6 +3,8 @@
     <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
     </svg>
+    <span class="fab-label">反馈</span>
+    <span class="fab-pulse"></span>
   </button>
   <FeedbackDialog v-model:visible="visible" />
 </template>
@@ -35,21 +37,47 @@ function open() {
   right: 26px;
   bottom: 84px;
   z-index: 150;
-  width: 48px;
-  height: 48px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
-  border: none;
+  border: 1px solid rgba(59, 107, 255, 0.2);
   cursor: pointer;
   color: #fff;
-  background: linear-gradient(135deg, #3b6bff, #5b8cff);
-  box-shadow: 0 6px 18px rgba(59, 107, 255, 0.35);
+  background: linear-gradient(135deg, #3b6bff, #7c3aed);
+  box-shadow: 0 6px 20px rgba(59, 107, 255, 0.35);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  transition: transform 0.2s, box-shadow 0.2s;
+  gap: 1px;
+  backdrop-filter: blur(8px);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .feedback-fab:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 28px rgba(59, 107, 255, 0.45);
+  transform: translateY(-4px) scale(1.06);
+  box-shadow: 0 12px 32px rgba(59, 107, 255, 0.5);
+}
+.feedback-fab:active {
+  transform: translateY(-2px) scale(1.02);
+}
+.fab-label {
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.05em;
+}
+/* 脉冲光圈 */
+.fab-pulse {
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  border: 2px solid rgba(59, 107, 255, 0.4);
+  animation: fabPulse 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+}
+@keyframes fabPulse {
+  0% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.3); opacity: 0; }
+  100% { transform: scale(1.3); opacity: 0; }
 }
 </style>

@@ -46,6 +46,9 @@ public class FeedbackVO {
     /** 回复管理员用户名 */
     private String replyUsername;
 
+    /** 回复管理员头像(data URL base64) */
+    private String replyAvatar;
+
     private LocalDateTime replyTime;
 
     private LocalDateTime createTime;

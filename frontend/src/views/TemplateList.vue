@@ -1,6 +1,7 @@
 <template>
   <div class="page">
     <header class="bar">
+      <el-button text @click="backOrHome($router)">‹ 返回</el-button>
       <div class="brand">论文格式助手</div>
       <div class="actions">
         <el-button @click="$router.push('/home')">首页</el-button>
@@ -66,6 +67,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { listTemplates, createTemplate, deleteTemplate, cloneTemplate, getMissingRules } from '../api/template'
 import { getProfile, logout } from '../api/user'
 import { listTeams } from '../api/team'
+import { backOrHome } from '../utils/nav'
 
 const router = useRouter()
 const templates = ref([])

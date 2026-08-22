@@ -143,6 +143,15 @@ public class AdminController {
         return Result.ok();
     }
 
+    /** 管理员更换用户头像 */
+    @PutMapping("/users/{id}/avatar")
+    @OperLog(module = "用户管理", action = "更换用户头像")
+    @RequiresPerms("system:user:edit")
+    public Result<Void> updateUserAvatar(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        adminService.updateUserAvatar(id, body.get("avatar") == null ? "" : String.valueOf(body.get("avatar")));
+        return Result.ok();
+    }
+
     /** 批量封禁/启用用户 */
     @PostMapping("/users/batch-status")
     @OperLog(module = "用户管理", action = "批量封禁/启用用户")

@@ -332,6 +332,7 @@ public class FeedbackService {
         User replier = fb.getReplyUserId() == null ? null : userMap.get(fb.getReplyUserId());
         if (replier != null) {
             vo.setReplyUsername(replier.getUsername());
+            vo.setReplyAvatar(replier.getAvatar());
         }
         return vo;
     }

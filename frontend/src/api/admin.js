@@ -54,6 +54,10 @@ export function updateUserStatus(id, status) {
   return api.put(`/admin/users/${id}/status`, { status })
 }
 
+export function updateUserAvatar(id, avatar) {
+  return api.put(`/admin/users/${id}/avatar`, { avatar })
+}
+
 export function batchUserStatus(userIds, disabled) {
   return api.post('/admin/users/batch-status', { userIds, disabled })
 }

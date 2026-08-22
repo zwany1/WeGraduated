@@ -174,6 +174,7 @@ public class AdminService {
             vo.setUsername(u.getUsername());
             vo.setEmail(u.getEmail());
             vo.setNickname(u.getNickname());
+            vo.setAvatar(u.getAvatar());
             vo.setRole(u.getRole() == null ? User.ROLE_USER : u.getRole());
             vo.setStatus(u.getStatus() == null ? Boolean.TRUE : u.getStatus());
             List<Long> roleIds = userRoleMap.getOrDefault(u.getId(), Collections.emptyList());
@@ -328,9 +329,21 @@ public class AdminService {
         user.setStatus(enabled);
         userMapper.updateById(user);
         if (!enabled) {
-            // 封禁后使其所有 token 失效
             jwtUtil.revokeAllForUser(userId);
         }
+    }
+
+    /** 管理员更换用户头像 */
+    public void updateUserAvatar(Long userId, String avatar) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(404, "用户不存在");
+        }
+        if (avatar != null && avatar.length() > 3 * 1024 * 1024) {
+            throw new BusinessException(400, "头像过大，请压缩后上传");
+        }
+        user.setAvatar(avatar == null || avatar.isEmpty() ? null : avatar);
+        userMapper.updateById(user);
     }
 
     /** 批量封禁/启用用户 */

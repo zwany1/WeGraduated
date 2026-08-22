@@ -23,6 +23,10 @@
           <a class="nav-link" @click="goPage('/pricing')">价格</a>
         </div>
         <div class="nav-actions">
+          <button class="theme-toggle" @click="toggleTheme" :title="isDark ? '切换亮色' : '切换暗色'">
+            <svg v-if="isDark" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+            <svg v-else viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          </button>
           <template v-if="isLoggedIn">
             <NotificationBell />
             <el-dropdown trigger="click" @command="handleUserCommand">
@@ -72,6 +76,7 @@
       <div class="hero-bg">
         <div class="hero-blob blob-1"></div>
         <div class="hero-blob blob-2"></div>
+        <div class="hero-blob blob-3" v-if="isDark"></div>
       </div>
       <div class="hero-inner">
         <div class="hero-left">
@@ -357,6 +362,13 @@ const isLoggedIn = ref(false)
 const isAdmin = ref(false)
 const userName = ref('')
 const userAvatar = ref('')
+const isDark = ref(false)
+
+function toggleTheme() {
+  isDark.value = !isDark.value
+  document.querySelector('.landing')?.classList.toggle('dark', isDark.value)
+  localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
+}
 
 const avatarText = computed(() => (userName.value || 'U').slice(0, 1).toUpperCase())
 
@@ -418,6 +430,11 @@ onMounted(async () => {
   initReveal()
   initNavShadow()
   initEffects()
+  // 恢复主题
+  if (localStorage.getItem('theme') === 'dark') {
+    isDark.value = true
+    document.querySelector('.landing')?.classList.add('dark')
+  }
 })
 
 function goLogin() {
@@ -653,9 +670,18 @@ const tools = [
 <style scoped>
 /* ===== Variables ===== */
 .landing {
+  /* 品牌色 */
   --c-primary: #3B6BFF;
   --c-primary-light: #EEF1FF;
   --c-primary-dark: #2D52CC;
+  /* 多色点缀(CC Switch 风格) */
+  --c-accent-blue: #3b82f6;
+  --c-accent-amber: #f59e0b;
+  --c-accent-emerald: #10b981;
+  --c-accent-purple: #8b5cf6;
+  --c-accent-orange: #f97316;
+  --c-accent-cyan: #06b6d4;
+  /* 浅色模式(默认) */
   --c-dark: #1a1a2e;
   --c-text: #374151;
   --c-text2: #6b7280;
@@ -664,20 +690,51 @@ const tools = [
   --c-bg: #ffffff;
   --c-bg2: #f8f9fc;
   --c-bg3: #f0f4ff;
+  --c-card: #ffffff;
+  --c-card-border: #e5e7eb;
   --c-green: #10b981;
   --c-purple: #7c3aed;
   --c-orange: #f59e0b;
+  /* 暗色模式变量(给 dark 类覆盖用) */
+  --c-dark-bg: #0b0b10;
+  --c-dark-card: #1a1a1a;
+  --c-dark-card2: #252525;
+  --c-dark-border: #2a2a35;
+  --c-dark-text: #f0f0f5;
+  --c-dark-text2: #9ca3af;
+  --c-dark-text3: #6b7280;
+  /* 字体: Inter 主字 + JetBrains Mono 代码字 */
+  --font: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace;
+  /* 统一缓动 + 阴影 */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
   --radius: 12px;
+  --radius-lg: 20px;
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
   --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
   --shadow-lg: 0 8px 32px rgba(0,0,0,0.10);
   --shadow-xl: 0 16px 48px rgba(0,0,0,0.12);
-  --font: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+  --shadow-glow: 0 0 40px rgba(59, 107, 255, 0.15);
 
   font-family: var(--font);
   color: var(--c-text);
   background: var(--c-bg);
   overflow-x: hidden;
+  transition: background 0.3s var(--ease), color 0.3s var(--ease);
+}
+
+/* 暗色模式 */
+.landing.dark {
+  --c-dark: #f0f0f5;
+  --c-text: #f0f0f5;
+  --c-text2: #9ca3af;
+  --c-text3: #6b7280;
+  --c-border: #2a2a35;
+  --c-bg: #0b0b10;
+  --c-bg2: #16161e;
+  --c-bg3: #1a1a24;
+  --c-card: #1a1a1a;
+  --c-card-border: #2a2a35;
 }
 
 /* ===== Navbar ===== */
@@ -685,14 +742,22 @@ const tools = [
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(255,255,255,0.92);
-  backdrop-filter: blur(12px);
+  background: rgba(255,255,255,0.72);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
   border-bottom: 1px solid var(--c-border);
-  transition: box-shadow 0.3s ease, background 0.3s ease;
+  transition: box-shadow 0.3s var(--ease), background 0.3s var(--ease);
 }
 .navbar.scrolled {
-  background: rgba(255,255,255,0.96);
-  box-shadow: 0 6px 24px rgba(15, 40, 100, 0.08);
+  background: rgba(255,255,255,0.88);
+  box-shadow: 0 8px 32px rgba(15, 40, 100, 0.10);
+}
+.landing.dark .navbar {
+  background: rgba(11,11,16,0.72);
+}
+.landing.dark .navbar.scrolled {
+  background: rgba(11,11,16,0.88);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 .nav-inner {
   max-width: 1200px;
@@ -780,6 +845,24 @@ const tools = [
   display: flex;
   align-items: center;
   gap: 12px;
+}
+.theme-toggle {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid var(--c-border);
+  background: var(--c-bg2);
+  color: var(--c-text2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s var(--ease);
+}
+.theme-toggle:hover {
+  border-color: var(--c-primary);
+  color: var(--c-primary);
+  transform: scale(1.08);
 }
 .user-chip {
   display: flex;
@@ -883,11 +966,17 @@ const tools = [
   background: linear-gradient(180deg, #f0f4ff 0%, #ffffff 100%);
   z-index: 0;
 }
+.landing.dark .hero-bg {
+  background: linear-gradient(180deg, #0b0b10 0%, #16161e 100%);
+}
 .hero-blob {
   position: absolute;
   border-radius: 50%;
   filter: blur(80px);
   opacity: 0.4;
+}
+.landing.dark .hero-blob {
+  opacity: 0.25;
 }
 @keyframes floatBlob {
   0%, 100% { transform: translate(0, 0) scale(1); }
@@ -901,6 +990,9 @@ const tools = [
   right: -100px;
   animation: floatBlob 14s ease-in-out infinite;
 }
+.landing.dark .blob-1 {
+  background: #3b82f6;
+}
 .blob-2 {
   width: 400px;
   height: 400px;
@@ -909,14 +1001,52 @@ const tools = [
   left: -100px;
   animation: floatBlob 18s ease-in-out infinite reverse;
 }
+.landing.dark .blob-2 {
+  background: #8b5cf6;
+}
+/* 暗色模式额外多色光晕 */
+.landing.dark .blob-3 {
+  width: 300px;
+  height: 300px;
+  background: #f59e0b;
+  bottom: 20%;
+  right: 20%;
+  opacity: 0.12;
+  animation: floatBlob 22s ease-in-out infinite;
+}
 
 /* Hero 首屏渐入 */
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(26px); }
   to { opacity: 1; transform: none; }
 }
+/* CC Switch 风格: enter/exit/pulse/spin/accordion */
+@keyframes enter {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes exit {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(-8px) scale(0.98); }
+}
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(59, 107, 255, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(59, 107, 255, 0); }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes accordionDown {
+  from { height: 0; opacity: 0; }
+  to { height: var(--accordion-height, auto); opacity: 1; }
+}
+@keyframes accordionUp {
+  from { height: var(--accordion-height, auto); opacity: 1; }
+  to { height: 0; opacity: 0; }
+}
+/* 统一过渡: 全站元素用 ease + 0.2s */
 .hero-badge, .hero-title, .hero-desc, .hero-cta, .hero-features {
-  animation: fadeUp 0.85s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation: fadeUp 0.85s var(--ease) both;
 }
 .hero-title { animation-delay: 0.06s; }
 .hero-desc { animation-delay: 0.18s; }
@@ -933,13 +1063,17 @@ const tools = [
              floatPanel 6s ease-in-out 1.4s infinite;
 }
 
-/* 按钮 hover 微动 */
+/* 按钮 hover 微动 + pulse */
 .btn-cta-primary {
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease), background 0.2s var(--ease);
 }
 .btn-cta-primary:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 24px rgba(59, 107, 255, 0.35);
+}
+/* 通知铃铛未读脉冲 */
+.has-unread {
+  animation: pulse 2s infinite;
 }
 .hero-inner {
   position: relative;
@@ -1058,19 +1192,28 @@ const tools = [
   min-width: 0;
 }
 .mock-panel {
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: var(--shadow-xl);
-  border: 1px solid var(--c-border);
+  background: var(--c-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl), var(--shadow-glow);
+  border: 1px solid var(--c-card-border);
   overflow: hidden;
+  backdrop-filter: blur(12px);
+}
+.landing.dark .mock-panel {
+  background: var(--c-dark-card);
+  border-color: var(--c-dark-border);
+  box-shadow: 0 16px 48px rgba(0,0,0,0.4), 0 0 40px rgba(59,107,255,0.08);
 }
 .mock-titlebar {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 14px 20px;
-  background: #fafbfc;
+  background: var(--c-bg2);
   border-bottom: 1px solid var(--c-border);
+}
+.landing.dark .mock-titlebar {
+  background: var(--c-dark-card2);
 }
 .mock-dots {
   display: flex;
@@ -1268,7 +1411,11 @@ const tools = [
   padding: 48px 32px;
   border-top: 1px solid var(--c-border);
   border-bottom: 1px solid var(--c-border);
-  background: #fff;
+  background: var(--c-card);
+}
+.landing.dark .stats {
+  background: var(--c-dark-card);
+  border-color: var(--c-dark-border);
 }
 .stats-inner {
   max-width: 1200px;
@@ -1307,6 +1454,9 @@ const tools = [
 .features {
   padding: 80px 32px;
   background: var(--c-bg3);
+}
+.landing.dark .features {
+  background: var(--c-dark-bg);
 }
 .features-inner {
   max-width: 1200px;
@@ -1476,6 +1626,9 @@ const tools = [
 .tools-section {
   padding: 80px 32px 100px;
   background: var(--c-bg2);
+}
+.landing.dark .tools-section {
+  background: var(--c-dark-bg);
 }
 .tools-title {
   text-align: center;
@@ -1671,13 +1824,18 @@ const tools = [
 
 /* ===== 工具卡片微交互 ===== */
 .tool-card {
-  background: #fff;
+  background: var(--c-card);
   border-radius: var(--radius);
   padding: 28px 24px;
-  border: 1px solid var(--c-border);
-  transition: all 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
+  border: 1px solid var(--c-card-border);
+  transition: all 0.3s var(--ease);
   position: relative;
   overflow: hidden;
+  backdrop-filter: blur(8px);
+}
+.landing.dark .tool-card {
+  background: var(--c-dark-card);
+  border-color: var(--c-dark-border);
 }
 .tool-card::before {
   content: '';

@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.graduate.thesis.common.BusinessException;
 import com.graduate.thesis.dto.RuleSaveDTO;
 import com.graduate.thesis.entity.FormatRule;
+import com.graduate.thesis.entity.FormatTask;
 import com.graduate.thesis.entity.FormatTemplate;
 import com.graduate.thesis.entity.MarketComment;
 import com.graduate.thesis.entity.MarketLike;
@@ -11,6 +12,7 @@ import com.graduate.thesis.entity.MarketRating;
 import com.graduate.thesis.entity.TemplateFavorite;
 import com.graduate.thesis.entity.User;
 import com.graduate.thesis.mapper.FormatRuleMapper;
+import com.graduate.thesis.mapper.FormatTaskMapper;
 import com.graduate.thesis.mapper.FormatTemplateMapper;
 import com.graduate.thesis.mapper.MarketCommentMapper;
 import com.graduate.thesis.mapper.MarketLikeMapper;
@@ -39,6 +41,7 @@ public class TemplateService {
 
     private final FormatTemplateMapper templateMapper;
     private final FormatRuleMapper ruleMapper;
+    private final FormatTaskMapper taskMapper;
     private final MarketRatingMapper ratingMapper;
     private final TemplateFavoriteMapper favoriteMapper;
     private final MarketCommentMapper commentMapper;
@@ -48,12 +51,14 @@ public class TemplateService {
     private final TeamService teamService;
 
     public TemplateService(FormatTemplateMapper templateMapper, FormatRuleMapper ruleMapper,
+                           FormatTaskMapper taskMapper,
                            MarketRatingMapper ratingMapper, TemplateFavoriteMapper favoriteMapper,
                            MarketCommentMapper commentMapper, MarketLikeMapper likeMapper,
                            UserMapper userMapper,
                            DbRetryService dbRetryService, TeamService teamService) {
         this.templateMapper = templateMapper;
         this.ruleMapper = ruleMapper;
+        this.taskMapper = taskMapper;
         this.ratingMapper = ratingMapper;
         this.favoriteMapper = favoriteMapper;
         this.commentMapper = commentMapper;
@@ -218,10 +223,12 @@ public class TemplateService {
                 .eq(FormatTemplate::getIsPublic, true)
                 .eq(category != null && !category.isEmpty(), FormatTemplate::getCategory, category)
                 .orderByAsc(FormatTemplate::getId));
-        // 排序: recommended(推荐优先,默认) / downloads(下载量) / rating(评分) / newest(最新上架)
+        List<Long> ids = list.stream().map(FormatTemplate::getId).collect(Collectors.toList());
+        Map<Long, Long> usage = marketUsageCounts(ids);
+        // 排序: recommended(推荐优先,默认) / usage(使用量) / rating(评分) / newest(最新上架)
         String s = sort == null ? "recommended" : sort;
-        if ("downloads".equals(s)) {
-            list.sort((a, b) -> Integer.compare(nvl(b.getDownloadCount()), nvl(a.getDownloadCount())));
+        if ("usage".equals(s)) {
+            list.sort((a, b) -> Long.compare(usage.getOrDefault(b.getId(), 0L), usage.getOrDefault(a.getId(), 0L)));
         } else if ("rating".equals(s)) {
             list.sort((a, b) -> {
                 int c = nvl2(b.getRatingAvg()).compareTo(nvl2(a.getRatingAvg()));
@@ -242,13 +249,47 @@ public class TemplateService {
             m.put("category", t.getCategory());
             m.put("recommended", Boolean.TRUE.equals(t.getRecommended()));
             m.put("publicTime", t.getPublicTime());
-            m.put("downloadCount", nvl(t.getDownloadCount()));
+            m.put("usageCount", usage.getOrDefault(t.getId(), 0L));
             m.put("ratingAvg", nvl2(t.getRatingAvg()).doubleValue());
             m.put("ratingCount", nvl(t.getRatingCount()));
             m.put("ruleCount", ruleMapper.selectCount(new LambdaQueryWrapper<FormatRule>()
                     .eq(FormatRule::getTemplateId, t.getId())));
             return m;
         }).collect(Collectors.toList());
+    }
+
+    /** 市场模板使用量: 该模板及其所有副本被用于排版任务的次数总和(实时统计) */
+    public Map<Long, Long> marketUsageCounts(List<Long> publicIds) {
+        if (publicIds == null || publicIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        List<FormatTemplate> copies = templateMapper.selectList(new LambdaQueryWrapper<FormatTemplate>()
+                .in(FormatTemplate::getSourceTemplateId, publicIds));
+        Map<Long, List<Long>> copiesBySource = copies.stream()
+                .collect(Collectors.groupingBy(FormatTemplate::getSourceTemplateId,
+                        Collectors.mapping(FormatTemplate::getId, Collectors.toList())));
+        java.util.Set<Long> allIds = new java.util.HashSet<>(publicIds);
+        copiesBySource.values().forEach(allIds::addAll);
+        Map<Long, Long> taskCount = new HashMap<>();
+        if (!allIds.isEmpty()) {
+            List<FormatTask> tasks = taskMapper.selectList(new LambdaQueryWrapper<FormatTask>()
+                    .in(FormatTask::getTemplateId, allIds)
+                    .select(FormatTask::getTemplateId));
+            for (FormatTask t : tasks) {
+                if (t.getTemplateId() != null) {
+                    taskCount.merge(t.getTemplateId(), 1L, Long::sum);
+                }
+            }
+        }
+        Map<Long, Long> usage = new HashMap<>();
+        for (Long pid : publicIds) {
+            long u = taskCount.getOrDefault(pid, 0L);
+            for (Long cid : copiesBySource.getOrDefault(pid, Collections.emptyList())) {
+                u += taskCount.getOrDefault(cid, 0L);
+            }
+            usage.put(pid, u);
+        }
+        return usage;
     }
 
     /** 模板市场分类列表 */
@@ -283,17 +324,10 @@ public class TemplateService {
         copy.setGenerateToc(source.getGenerateToc());
         copy.setReferenceConfig(source.getReferenceConfig());
         copy.setCategory(source.getCategory());
+        copy.setSourceTemplateId(publicTemplateId);
         copy.setCreateTime(LocalDateTime.now());
         copy.setUpdateTime(LocalDateTime.now());
         templateMapper.insert(copy);
-
-        // 复制成功计为一次市场下载
-        if (source.getDownloadCount() == null) {
-            source.setDownloadCount(0);
-        }
-        source.setDownloadCount(source.getDownloadCount() + 1);
-        source.setUpdateTime(LocalDateTime.now());
-        dbRetryService.run(() -> templateMapper.updateById(source));
 
         List<FormatRule> rules = ruleMapper.selectList(new LambdaQueryWrapper<FormatRule>()
                 .eq(FormatRule::getTemplateId, publicTemplateId));
@@ -504,6 +538,7 @@ public class TemplateService {
         Map<Long, FormatTemplate> map = templateMapper.selectList(
                         new LambdaQueryWrapper<FormatTemplate>().in(FormatTemplate::getId, ids))
                 .stream().collect(Collectors.toMap(FormatTemplate::getId, x -> x, (a, b) -> a));
+        Map<Long, Long> usage = marketUsageCounts(ids);
         List<Map<String, Object>> out = new ArrayList<>();
         for (TemplateFavorite f : favs) {
             FormatTemplate t = map.get(f.getTemplateId());
@@ -516,7 +551,7 @@ public class TemplateService {
             m.put("category", t.getCategory());
             m.put("recommended", Boolean.TRUE.equals(t.getRecommended()));
             m.put("publicTime", t.getPublicTime());
-            m.put("downloadCount", nvl(t.getDownloadCount()));
+            m.put("usageCount", usage.getOrDefault(t.getId(), 0L));
             m.put("ratingAvg", nvl2(t.getRatingAvg()).doubleValue());
             m.put("ratingCount", nvl(t.getRatingCount()));
             m.put("ruleCount", ruleMapper.selectCount(new LambdaQueryWrapper<FormatRule>()
@@ -526,24 +561,7 @@ public class TemplateService {
         return out;
     }
 
-    // ==================== 导入 / 导出 ====================
-
-    /** 导出模板(含全部配置与规则)为 JSON */
-    public Map<String, Object> exportTemplate(Long userId, Long templateId) {
-        FormatTemplate t = getOwned(templateId, userId);
-        Map<String, Object> m = new LinkedHashMap<>();
-        m.put("type", "thesis-template");
-        m.put("version", 1);
-        m.put("name", t.getName());
-        m.put("pageConfig", t.getPageConfig());
-        m.put("headingPatterns", t.getHeadingPatterns());
-        m.put("generateToc", t.getGenerateToc());
-        m.put("referenceConfig", t.getReferenceConfig());
-        m.put("category", t.getCategory());
-        m.put("rules", ruleMapper.selectList(new LambdaQueryWrapper<FormatRule>()
-                .eq(FormatRule::getTemplateId, templateId)));
-        return m;
-    }
+    // ==================== 克隆 / 校验 ====================
 
     /** 克隆模板: 复制本人/团队可见的模板(含全部配置与规则)为个人模板 */
     @Transactional
@@ -604,61 +622,6 @@ public class TemplateService {
         return missing;
     }
 
-    /** 从 JSON 导入模板(含规则), 返回新模板 */
-    @Transactional
-    public FormatTemplate importTemplate(Long userId, Map<String, Object> data) {
-        if (data == null || data.isEmpty()) {
-            throw new BusinessException("导入数据不能为空");
-        }
-        String name = data.get("name") == null ? "" : String.valueOf(data.get("name")).trim();
-        if (name.isEmpty()) {
-            name = "导入的模板";
-        }
-        FormatTemplate t = new FormatTemplate();
-        t.setUserId(userId);
-        t.setName(name);
-        t.setPageConfig(str(data.get("pageConfig")));
-        t.setHeadingPatterns(str(data.get("headingPatterns")));
-        Object gt = data.get("generateToc");
-        t.setGenerateToc(gt != null && (Boolean.TRUE.equals(gt) || "true".equalsIgnoreCase(String.valueOf(gt))));
-        t.setReferenceConfig(str(data.get("referenceConfig")));
-        Object cat = data.get("category");
-        t.setCategory(cat == null ? null : String.valueOf(cat).trim());
-        t.setCreateTime(LocalDateTime.now());
-        t.setUpdateTime(LocalDateTime.now());
-        templateMapper.insert(t);
-        Object rulesObj = data.get("rules");
-        if (rulesObj instanceof List) {
-            for (Object o : (List<?>) rulesObj) {
-                if (!(o instanceof Map)) {
-                    continue;
-                }
-                Map<?, ?> rm = (Map<?, ?>) o;
-                FormatRule nr = new FormatRule();
-                nr.setTemplateId(t.getId());
-                nr.setRuleType(str(rm.get("ruleType")));
-                nr.setFont(str(rm.get("font")));
-                nr.setFontLatin(str(rm.get("fontLatin")));
-                nr.setFontSize(intOf(rm.get("fontSize")));
-                nr.setBold(boolOf(rm.get("bold")));
-                nr.setAlign(str(rm.get("align")));
-                nr.setLineSpacing(floatOf(rm.get("lineSpacing")));
-                nr.setLineSpacingType(str(rm.get("lineSpacingType")));
-                nr.setLineSpacingExact(intOf(rm.get("lineSpacingExact")));
-                nr.setFirstLineIndent(intOf(rm.get("firstLineIndent")));
-                nr.setSpaceBefore(intOf(rm.get("spaceBefore")));
-                nr.setSpaceAfter(intOf(rm.get("spaceAfter")));
-                nr.setCaptionPosition(str(rm.get("captionPosition")));
-                nr.setNumberingPattern(str(rm.get("numberingPattern")));
-                nr.setCaptionEnabled(boolOf(rm.get("captionEnabled")));
-                nr.setCreateTime(LocalDateTime.now());
-                nr.setUpdateTime(LocalDateTime.now());
-                ruleMapper.insert(nr);
-            }
-        }
-        return t;
-    }
-
     /** 市场模板详情(公开, 无需登录): 用于市场详情弹窗 */
     public Map<String, Object> marketDetail(Long templateId) {
         FormatTemplate t = templateMapper.selectById(templateId);
@@ -673,7 +636,7 @@ public class TemplateService {
         m.put("category", t.getCategory());
         m.put("recommended", Boolean.TRUE.equals(t.getRecommended()));
         m.put("publicTime", t.getPublicTime());
-        m.put("downloadCount", nvl(t.getDownloadCount()));
+        m.put("usageCount", marketUsageCounts(Collections.singletonList(templateId)).getOrDefault(templateId, 0L));
         m.put("ratingAvg", nvl2(t.getRatingAvg()).doubleValue());
         m.put("ratingCount", nvl(t.getRatingCount()));
         m.put("ruleCount", rules.size());
@@ -685,36 +648,4 @@ public class TemplateService {
         return m;
     }
 
-    private static String str(Object v) {
-        return v == null ? null : String.valueOf(v);
-    }
-
-    private static Integer intOf(Object v) {
-        if (v == null || String.valueOf(v).isEmpty()) {
-            return null;
-        }
-        try {
-            return Double.valueOf(String.valueOf(v)).intValue();
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private static Float floatOf(Object v) {
-        if (v == null || String.valueOf(v).isEmpty()) {
-            return null;
-        }
-        try {
-            return Float.valueOf(String.valueOf(v));
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private static Boolean boolOf(Object v) {
-        if (v == null) {
-            return null;
-        }
-        return Boolean.TRUE.equals(v) || "true".equalsIgnoreCase(String.valueOf(v));
-    }
 }

@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS t_format_template (
     recommended       TINYINT(1)   NOT NULL DEFAULT 0 COMMENT '是否推荐',
     public_time       DATETIME     DEFAULT NULL COMMENT '上架时间',
     category          VARCHAR(50)  DEFAULT NULL COMMENT '市场分类',
-    download_count    INT          NOT NULL DEFAULT 0 COMMENT '市场下载量',
+    source_template_id BIGINT       DEFAULT NULL COMMENT '复制自市场模板的源模板',
     rating_avg        DECIMAL(3,1) NOT NULL DEFAULT 0 COMMENT '平均评分',
     rating_count      INT          NOT NULL DEFAULT 0 COMMENT '评分人数',
     team_id           BIGINT       DEFAULT NULL COMMENT '所属团队(空=个人)',

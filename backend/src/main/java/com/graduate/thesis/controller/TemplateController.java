@@ -135,12 +135,6 @@ public class TemplateController {
         return Result.ok();
     }
 
-    /** 导出模板(含规则)为 JSON */
-    @GetMapping("/{id}/export")
-    public Result<Map<String, Object>> exportTemplate(@PathVariable Long id) {
-        return Result.ok(templateService.exportTemplate(UserContext.get(), id));
-    }
-
     /** 克隆模板(复制配置与规则) */
     @PostMapping("/{id}/clone")
     public Result<FormatTemplate> cloneTemplate(@PathVariable Long id) {
@@ -151,12 +145,6 @@ public class TemplateController {
     @GetMapping("/{id}/missing-rules")
     public Result<List<String>> missingRules(@PathVariable Long id) {
         return Result.ok(templateService.missingRules(id, UserContext.get()));
-    }
-
-    /** 导入模板(JSON, 含规则) */
-    @PostMapping("/import")
-    public Result<FormatTemplate> importTemplate(@RequestBody Map<String, Object> data) {
-        return Result.ok(templateService.importTemplate(UserContext.get(), data));
     }
 
     @PutMapping("/{id}/page-config")

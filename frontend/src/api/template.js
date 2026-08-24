@@ -86,16 +86,6 @@ export function copyMarketTemplate(id) {
   return api.post(`/template/market/${id}/copy`)
 }
 
-// ============ 模板导入 / 导出 ============
-
-export function exportTemplate(id) {
-  return api.get(`/template/${id}/export`)
-}
-
-export function importTemplate(data) {
-  return api.post('/template/import', data)
-}
-
 export function cloneTemplate(id) {
   return api.post(`/template/${id}/clone`)
 }

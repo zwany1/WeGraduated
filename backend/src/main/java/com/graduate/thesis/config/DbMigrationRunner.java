@@ -80,7 +80,7 @@ public class DbMigrationRunner implements ApplicationRunner {
         addColumnIfMissing("t_format_template", "recommended", "ALTER TABLE t_format_template ADD COLUMN recommended TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否推荐'");
         addColumnIfMissing("t_format_template", "public_time", "ALTER TABLE t_format_template ADD COLUMN public_time DATETIME DEFAULT NULL COMMENT '上架时间'");
         addColumnIfMissing("t_format_template", "category", "ALTER TABLE t_format_template ADD COLUMN category VARCHAR(50) DEFAULT NULL COMMENT '市场分类'");
-        addColumnIfMissing("t_format_template", "download_count", "ALTER TABLE t_format_template ADD COLUMN download_count INT NOT NULL DEFAULT 0 COMMENT '市场下载量'");
+        addColumnIfMissing("t_format_template", "source_template_id", "ALTER TABLE t_format_template ADD COLUMN source_template_id BIGINT DEFAULT NULL COMMENT '复制自市场模板的源模板'");
         addColumnIfMissing("t_format_template", "rating_avg", "ALTER TABLE t_format_template ADD COLUMN rating_avg DECIMAL(3,1) NOT NULL DEFAULT 0 COMMENT '平均评分'");
         addColumnIfMissing("t_format_template", "rating_count", "ALTER TABLE t_format_template ADD COLUMN rating_count INT NOT NULL DEFAULT 0 COMMENT '评分人数'");
         addColumnIfMissing("t_format_task", "retry_count", "ALTER TABLE t_format_task ADD COLUMN retry_count INT NOT NULL DEFAULT 0 COMMENT '失败自动重试次数'");

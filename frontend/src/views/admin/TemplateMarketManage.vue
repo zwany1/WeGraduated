@@ -24,9 +24,9 @@
         <el-table-column label="分类" width="100" align="center">
           <template #default="{ row }"><span class="cell-user-tag">{{ row.category || '—' }}</span></template>
         </el-table-column>
-        <el-table-column label="下载/评分" width="120" align="center">
+        <el-table-column label="使用量/评分" width="120" align="center">
           <template #default="{ row }">
-            <span class="cell-num">{{ row.downloadCount || 0 }} 次 · {{ (row.ratingAvg || 0).toFixed(1) }} ({{ row.ratingCount || 0 }})</span>
+            <span class="cell-num">{{ row.usageCount || 0 }} 次 · {{ (row.ratingAvg || 0).toFixed(1) }} ({{ row.ratingCount || 0 }})</span>
           </template>
         </el-table-column>
         <el-table-column label="被引用" width="90" align="center">
@@ -80,7 +80,7 @@
               <div class="d-item"><span class="d-label">所属用户</span><span class="d-value">{{ d.username }}</span></div>
               <div class="d-item"><span class="d-label">规则数</span><span class="d-value">{{ d.rules.length }}</span></div>
               <div class="d-item"><span class="d-label">分类</span><span class="d-value">{{ d.category || '—' }}</span></div>
-              <div class="d-item"><span class="d-label">下载量</span><span class="d-value">{{ d.downloadCount || 0 }} 次</span></div>
+              <div class="d-item"><span class="d-label">使用量</span><span class="d-value">{{ d.usageCount || 0 }} 次</span></div>
               <div class="d-item"><span class="d-label">评分</span><span class="d-value">{{ (d.ratingAvg || 0).toFixed(1) }} / 5（{{ d.ratingCount || 0 }} 人）</span></div>
               <div class="d-item"><span class="d-label">上架状态</span><span class="d-value">{{ d.isPublic ? '已上架' : '未上架' }}</span></div>
               <div class="d-item"><span class="d-label">推荐</span><span class="d-value">{{ d.recommended ? '是' : '否' }}</span></div>

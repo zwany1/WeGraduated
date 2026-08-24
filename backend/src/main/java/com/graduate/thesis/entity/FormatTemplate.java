@@ -48,8 +48,8 @@ public class FormatTemplate {
     /** 市场分类(毕业论文/期刊论文/报告文档等) */
     private String category;
 
-    /** 下载量(市场复制次数) */
-    private Integer downloadCount;
+    /** 复制自市场模板的源模板(仅市场副本有值) */
+    private Long sourceTemplateId;
 
     /** 平均评分 */
     private java.math.BigDecimal ratingAvg;

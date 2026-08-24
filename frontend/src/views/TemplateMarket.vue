@@ -23,7 +23,7 @@
           <div class="filter-right">
             <span class="filter-label">排序</span>
             <button class="chip" :class="{ on: sort === 'recommended' }" @click="changeSort('recommended')">推荐</button>
-            <button class="chip" :class="{ on: sort === 'downloads' }" @click="changeSort('downloads')">下载量</button>
+            <button class="chip" :class="{ on: sort === 'usage' }" @click="changeSort('usage')">使用量</button>
             <button class="chip" :class="{ on: sort === 'rating' }" @click="changeSort('rating')">评分</button>
             <button class="chip" :class="{ on: sort === 'newest' }" @click="changeSort('newest')">最新</button>
           </div>
@@ -45,7 +45,7 @@
                 <span class="score">{{ (t.ratingAvg || 0).toFixed(1) }}</span>
                 <span class="count">({{ t.ratingCount || 0 }})</span>
               </span>
-              <span class="downloads">下载 {{ t.downloadCount || 0 }}</span>
+              <span class="usage">使用 {{ t.usageCount || 0 }}</span>
             </div>
             <div class="card-tags">
               <span class="tag" v-if="t.recommended">推荐</span>
@@ -80,7 +80,7 @@
                   <span v-for="i in 5" :key="i" class="star" :class="{ filled: i <= Math.round(t.ratingAvg || 0) }">★</span>
                   <span class="score">{{ (t.ratingAvg || 0).toFixed(1) }}</span>
                 </span>
-                <span class="downloads">下载 {{ t.downloadCount || 0 }}</span>
+                <span class="usage">使用 {{ t.usageCount || 0 }}</span>
               </div>
               <div class="card-actions">
                 <button class="btn-use" @click.stop="useMarket(t)">使用此模板</button>
@@ -137,7 +137,7 @@
           <span class="d-tag" v-if="detail.recommended">推荐</span>
           <span class="d-tag gray">{{ detail.category || '未分类' }}</span>
           <span class="d-stat">★ {{ (detail.ratingAvg || 0).toFixed(1) }}（{{ detail.ratingCount || 0 }} 人评分）</span>
-          <span class="d-stat">已下载 {{ detail.downloadCount || 0 }} 次</span>
+          <span class="d-stat">已使用 {{ detail.usageCount || 0 }} 次</span>
         </div>
         <div class="d-grid2">
           <div class="d-item"><span class="d-k">排版规则</span><span class="d-v">{{ detail.ruleCount }} 条</span></div>
@@ -782,7 +782,7 @@ function formatTime(t) {
   font-size: 12px;
   color: var(--c-text3);
 }
-.downloads {
+.usage {
   font-size: 12px;
   color: var(--c-text3);
 }

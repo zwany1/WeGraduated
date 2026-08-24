@@ -57,6 +57,7 @@ public class AdminService {
     private final RoleMapper roleMapper;
     private final UserRoleMapper userRoleMapper;
     private final PermissionService permissionService;
+    private final TemplateService templateService;
     private final DbRetryService dbRetryService;
 
     public AdminService(UserMapper userMapper,
@@ -69,6 +70,7 @@ public class AdminService {
                         RoleMapper roleMapper,
                         UserRoleMapper userRoleMapper,
                         PermissionService permissionService,
+                        TemplateService templateService,
                         DbRetryService dbRetryService) {
         this.userMapper = userMapper;
         this.templateMapper = templateMapper;
@@ -80,6 +82,7 @@ public class AdminService {
         this.roleMapper = roleMapper;
         this.userRoleMapper = userRoleMapper;
         this.permissionService = permissionService;
+        this.templateService = templateService;
         this.dbRetryService = dbRetryService;
     }
 
@@ -536,6 +539,8 @@ public class AdminService {
         Map<Long, String> usernameMap = userIds.isEmpty() ? Collections.emptyMap()
                 : userMapper.selectList(new LambdaQueryWrapper<User>().in(User::getId, userIds))
                 .stream().collect(Collectors.toMap(User::getId, User::getUsername, (a, b) -> a));
+        Map<Long, Long> usage = templateService.marketUsageCounts(
+                page.getRecords().stream().map(FormatTemplate::getId).collect(Collectors.toList()));
         List<Map<String, Object>> records = new ArrayList<>();
         for (FormatTemplate t : page.getRecords()) {
             Map<String, Object> m = new HashMap<>();
@@ -546,7 +551,7 @@ public class AdminService {
             m.put("isPublic", Boolean.TRUE.equals(t.getIsPublic()));
             m.put("recommended", Boolean.TRUE.equals(t.getRecommended()));
             m.put("category", t.getCategory());
-            m.put("downloadCount", t.getDownloadCount() == null ? 0 : t.getDownloadCount());
+            m.put("usageCount", usage.getOrDefault(t.getId(), 0L));
             m.put("ratingAvg", t.getRatingAvg() == null ? 0.0 : t.getRatingAvg().doubleValue());
             m.put("ratingCount", t.getRatingCount() == null ? 0 : t.getRatingCount());
             m.put("publicTime", t.getPublicTime());
@@ -570,6 +575,7 @@ public class AdminService {
         User owner = userMapper.selectById(t.getUserId());
         List<FormatRule> rules = ruleMapper.selectList(new LambdaQueryWrapper<FormatRule>()
                 .eq(FormatRule::getTemplateId, id));
+        Map<Long, Long> usage = templateService.marketUsageCounts(Collections.singletonList(id));
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", t.getId());
         m.put("name", t.getName());
@@ -578,7 +584,7 @@ public class AdminService {
         m.put("isPublic", Boolean.TRUE.equals(t.getIsPublic()));
         m.put("recommended", Boolean.TRUE.equals(t.getRecommended()));
         m.put("category", t.getCategory());
-        m.put("downloadCount", t.getDownloadCount() == null ? 0 : t.getDownloadCount());
+        m.put("usageCount", usage.getOrDefault(id, 0L));
         m.put("ratingAvg", t.getRatingAvg() == null ? 0.0 : t.getRatingAvg().doubleValue());
         m.put("ratingCount", t.getRatingCount() == null ? 0 : t.getRatingCount());
         m.put("publicTime", t.getPublicTime());

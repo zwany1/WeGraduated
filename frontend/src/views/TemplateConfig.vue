@@ -1,7 +1,6 @@
 <template>
   <div class="config">
     <SiteNav>
-      <el-button @click="exportTpl">导出模板</el-button>
       <el-button type="success" @click="goFormat">用此方案排版</el-button>
       <el-button type="primary" :loading="saving" @click="saveAll">保存配置</el-button>
     </SiteNav>
@@ -320,7 +319,7 @@ import { ref, reactive, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import SiteNav from '../components/SiteNav.vue'
 import { ElMessage } from 'element-plus'
-import { getTemplateDetail, savePageConfig, saveHeadingPatterns, saveReferenceConfig, saveRule, exportTemplate } from '../api/template'
+import { getTemplateDetail, savePageConfig, saveHeadingPatterns, saveReferenceConfig, saveRule } from '../api/template'
 
 const route = useRoute()
 const router = useRouter()
@@ -515,21 +514,6 @@ onMounted(loadConfig)
 watch(() => route.params.id, () => {
   loadConfig()
 })
-
-async function exportTpl() {
-  try {
-    const data = await exportTemplate(id)
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `模板_${data.name || id}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-  } catch (e) {
-    ElMessage.error(e.message || '导出失败')
-  }
-}
 
 async function saveAll() {
   const currentId = Number(route.params.id)

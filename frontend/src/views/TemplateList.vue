@@ -1,36 +1,24 @@
 <template>
   <div class="page">
-    <header class="bar">
-      <el-button text @click="backOrHome($router)">‹ 返回</el-button>
-      <div class="brand">论文格式助手</div>
-      <div class="actions">
-        <el-button @click="$router.push('/home')">首页</el-button>
-        <el-button @click="$router.push('/team')">团队协作</el-button>
-        <el-button @click="$router.push('/tasks')">排版任务</el-button>
-        <el-button type="primary" @click="showCreate = true">新建格式方案</el-button>
-        <el-dropdown trigger="click" @command="onUserCommand">
-          <div class="user-chip">
-            <img v-if="userAvatar" :src="userAvatar" class="user-avatar" alt="" />
-            <span v-else class="user-avatar-text">{{ avatarText }}</span>
-            <span class="user-name">{{ nickname }}</span>
-          </div>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="profile">个人资料</el-dropdown-item>
-              <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
-      </div>
-    </header>
+    <SiteNav>
+      <el-button type="primary" @click="showCreate = true">新建格式方案</el-button>
+    </SiteNav>
 
     <main class="content">
       <h2>我的格式方案</h2>
-      <div v-if="templates.length === 0" class="empty">
-        <p>还没有格式方案，点击右上角「新建格式方案」创建</p>
+      <div class="filter-bar">
+        <el-input v-model="keyword" placeholder="搜索方案名称" clearable :prefix-icon="Search" style="width: 240px" />
+        <el-select v-model="teamFilter" placeholder="全部归属" clearable style="width: 180px">
+          <el-option label="个人" :value="0" />
+          <el-option v-for="tm in teams" :key="tm.id" :label="tm.name" :value="tm.id" />
+        </el-select>
+        <span class="count">共 {{ filteredTemplates.length }} 个方案</span>
+      </div>
+      <div v-if="filteredTemplates.length === 0" class="empty">
+        <p>{{ templates.length === 0 ? '还没有格式方案，点击右上角「新建格式方案」创建' : '没有符合条件的方案' }}</p>
       </div>
       <div class="grid">
-        <div v-for="t in templates" :key="t.id" class="tpl-card">
+        <div v-for="t in pagedTemplates" :key="t.id" class="tpl-card">
           <h3>
             {{ t.name }}
             <span v-if="t.teamId && teamMap[t.teamId]" class="team-badge">{{ teamMap[t.teamId].name }}</span>
@@ -45,6 +33,7 @@
           </div>
         </div>
       </div>
+      <el-pagination v-if="filteredTemplates.length > pageSize" v-model:current-page="page" :page-size="pageSize" :total="filteredTemplates.length" layout="prev, pager, next" class="pager" />
     </main>
 
     <el-dialog v-model="showCreate" title="新建格式方案" width="420px">
@@ -61,16 +50,35 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search } from '@element-plus/icons-vue'
+import SiteNav from '../components/SiteNav.vue'
 import { listTemplates, createTemplate, deleteTemplate, cloneTemplate, getMissingRules } from '../api/template'
-import { getProfile, logout } from '../api/user'
 import { listTeams } from '../api/team'
-import { backOrHome } from '../utils/nav'
 
 const router = useRouter()
 const templates = ref([])
+const keyword = ref('')
+const teamFilter = ref(null)
+const page = ref(1)
+const pageSize = 9
+
+const filteredTemplates = computed(() => {
+  const kw = keyword.value.trim().toLowerCase()
+  return templates.value.filter(t => {
+    if (kw && !(t.name || '').toLowerCase().includes(kw)) return false
+    if (teamFilter.value === null || teamFilter.value === undefined) return true
+    if (teamFilter.value === 0) return !t.teamId
+    return t.teamId === teamFilter.value
+  })
+})
+const pagedTemplates = computed(() => {
+  const start = (page.value - 1) * pageSize
+  return filteredTemplates.value.slice(start, start + pageSize)
+})
+watch([keyword, teamFilter], () => { page.value = 1 })
 const showCreate = ref(false)
 const newName = ref('')
 const newTeamId = ref(null)
@@ -78,10 +86,6 @@ const creating = ref(false)
 const teams = ref([])
 const teamMap = ref({})
 const missing = ref({})
-const nickname = ref(localStorage.getItem('username') || '用户')
-const userAvatar = ref(localStorage.getItem('avatar') || '')
-
-const avatarText = computed(() => (nickname.value || 'U').slice(0, 1).toUpperCase())
 
 onMounted(async () => {
   load()
@@ -91,35 +95,7 @@ onMounted(async () => {
     teams.value.forEach(t => { m[t.id] = t })
     teamMap.value = m
   } catch (e) {}
-  try {
-    const p = await getProfile()
-    if (p) {
-      nickname.value = p.nickname || p.username || '用户'
-      userAvatar.value = p.avatar || ''
-      localStorage.setItem('username', nickname.value)
-      localStorage.setItem('avatar', userAvatar.value)
-    }
-  } catch (e) {
-    // 拦截器已提示
-  }
 })
-
-async function onUserCommand(cmd) {
-  if (cmd === 'profile') {
-    router.push('/profile')
-  } else if (cmd === 'logout') {
-    try {
-      await ElMessageBox.confirm('确定退出登录？', '提示', { type: 'warning' })
-      try { await logout() } catch (e) {}
-      localStorage.removeItem('token')
-      localStorage.removeItem('username')
-      localStorage.removeItem('avatar')
-      router.push('/home')
-    } catch (e) {
-      // 取消
-    }
-  }
-}
 
 async function load() {
   templates.value = await listTemplates()
@@ -238,6 +214,22 @@ function formatTime(t) {
 .content h2 {
   color: #303133;
   margin-bottom: 20px;
+}
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.filter-bar .count {
+  font-size: 13px;
+  color: #909399;
+}
+.pager {
+  margin-top: 24px;
+  justify-content: center;
+  display: flex;
 }
 .empty {
   text-align: center;

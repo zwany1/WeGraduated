@@ -30,9 +30,6 @@ public class FormatTemplate {
     /** 标题识别正则 JSON: {"heading1":"^...章","heading2":"^\\d+\\.\\d+","heading3":"^\\d+\\.\\d+\\.\\d+"} */
     private String headingPatterns;
 
-    /** 封面信息 JSON: {"enabled":true,"title":"...","college":"...","major":"...","studentName":"...","studentNo":"...","teacherUnit":"...","teacher":"...","teacherTitle":"...","topicType":"...","date":"..."} */
-    private String coverConfig;
-
     /** 是否生成目录(默认 false) */
     private Boolean generateToc;
 

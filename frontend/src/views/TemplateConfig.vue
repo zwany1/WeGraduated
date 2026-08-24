@@ -1,15 +1,10 @@
 <template>
   <div class="config">
-    <header class="bar">
-      <div class="brand">
-        <el-button text @click="backOrHome($router)">‹ 返回</el-button>
-        <span>{{ templateName }}</span>
-      </div>
-      <div class="brand-actions">
-        <el-button @click="exportTpl">导出模板</el-button>
-        <el-button type="primary" :loading="saving" @click="saveAll">保存配置</el-button>
-      </div>
-    </header>
+    <SiteNav>
+      <el-button @click="exportTpl">导出模板</el-button>
+      <el-button type="success" @click="goFormat">用此方案排版</el-button>
+      <el-button type="primary" :loading="saving" @click="saveAll">保存配置</el-button>
+    </SiteNav>
 
     <main class="body">
       <aside class="menu">
@@ -295,6 +290,26 @@
           </el-form>
           <div class="tip">参考文献另起一页、置于正文后。条目格式：序号 [1] 中括号+空两格，换行第二行对齐序号（悬挂缩进）。作者只写前 3 位，余者"等"/"et al"。</div>
         </template>
+
+        <!-- 效果预览: 按当前规则用 CSS 模拟排版样式 -->
+        <template v-else-if="active === 'preview'">
+          <h3>排版效果预览</h3>
+          <p class="tip">按当前规则的格式样式预览（字体/字号/行距/缩进/对齐/段距）。标题识别正则、题注自动编号、参考文献重排等结构处理需实际排版后体现。</p>
+          <div class="preview-doc">
+            <div :style="ruleStyle('heading1')">第一章 绪论</div>
+            <div :style="ruleStyle('heading2')">1.1 研究背景</div>
+            <div :style="ruleStyle('heading3')">1.1.1 国内研究现状</div>
+            <div :style="ruleStyle('body')">随着信息技术的发展，学术论文的排版规范日益重要。本研究针对毕业论文排版中的标题层级、正文格式、图表题注与参考文献等关键要素，提出一套自动化排版方案，以提升论文撰写效率与规范性。</div>
+            <div :style="ruleStyle('body')">本系统基于文档结构识别技术，自动应用格式规则，减少人工排版工作量，确保排版结果符合院校与期刊的格式要求。</div>
+            <div :style="captionStyle('figure')">图1-1 系统架构示意图</div>
+            <div :style="captionStyle('table')">表1-1 排版规则示例</div>
+            <template v-if="refConfig.enabled">
+              <div :style="refTitleStyle()">{{ refConfig.title || '参考文献' }}</div>
+              <div :style="refItemStyle()">[1] 张三, 李四, 王五. 基于 POI 的论文自动排版系统[J]. 计算机工程, 2024, 40(3): 12-18.</div>
+              <div :style="refItemStyle()">[2] Smith J, Brown A. Automated document formatting[C]//Proc. of ICDM. 2023: 45-52.</div>
+            </template>
+          </div>
+        </template>
       </section>
     </main>
   </div>
@@ -303,7 +318,7 @@
 <script setup>
 import { ref, reactive, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { backOrHome } from '../utils/nav'
+import SiteNav from '../components/SiteNav.vue'
 import { ElMessage } from 'element-plus'
 import { getTemplateDetail, savePageConfig, saveHeadingPatterns, saveReferenceConfig, saveRule, exportTemplate } from '../api/template'
 
@@ -316,7 +331,8 @@ const menus = [
   { key: 'heading', label: '标题格式' },
   { key: 'body', label: '正文格式' },
   { key: 'figure', label: '图表格式' },
-  { key: 'reference', label: '参考文献' }
+  { key: 'reference', label: '参考文献' },
+  { key: 'preview', label: '效果预览' }
 ]
 const active = ref('page')
 const templateName = ref('格式方案')
@@ -383,6 +399,54 @@ const presets = {
 
 function applyPreset(name) {
   Object.assign(headingPatterns, presets[name])
+}
+
+/** 按规则生成内联样式对象, 供预览区实时反映当前配置 */
+function ruleStyle(key) {
+  const r = rules[key]
+  if (!r) return {}
+  return {
+    fontFamily: `'${r.font || '宋体'}', '${r.fontLatin || 'Times New Roman'}', serif`,
+    fontSize: (r.fontSize || 12) + 'pt',
+    fontWeight: r.bold ? '700' : '400',
+    textAlign: r.align || 'left',
+    lineHeight: r.lineSpacingType === 'exact' ? (r.lineSpacingExact || 20) + 'pt' : (r.lineSpacing || 1.5),
+    textIndent: r.firstLineIndent ? r.firstLineIndent + 'em' : '0',
+    marginTop: (r.spaceBefore || 0) + 'pt',
+    marginBottom: (r.spaceAfter || 0) + 'pt'
+  }
+}
+
+function captionStyle(key) {
+  const r = rules[key]
+  if (!r) return {}
+  return {
+    fontFamily: `'${r.font || '宋体'}', '${r.fontLatin || 'Times New Roman'}', serif`,
+    fontSize: (r.fontSize || 10) + 'pt',
+    textAlign: 'center',
+    margin: '6pt 0'
+  }
+}
+
+function refTitleStyle() {
+  return {
+    fontFamily: `'${refConfig.titleFont || '黑体'}', serif`,
+    fontSize: (refConfig.titleFontSize || 14) + 'pt',
+    fontWeight: '700',
+    textAlign: 'left',
+    marginTop: '12pt',
+    marginBottom: '6pt'
+  }
+}
+
+function refItemStyle() {
+  return {
+    fontFamily: `'${refConfig.itemFont || '宋体'}', '${refConfig.itemFontLatin || 'Times New Roman'}', serif`,
+    fontSize: (refConfig.itemFontSize || 10) + 'pt',
+    textAlign: 'left',
+    lineHeight: 1.5,
+    marginBottom: '2pt'
+  }
 }
 
 async function loadConfig() {
@@ -493,9 +557,17 @@ async function saveAll() {
   saving.value = false
   if (failed > 0) {
     ElMessage.error(`有 ${failed} 项配置保存失败，请重试；已成功的配置已保存`)
+    return false
   } else {
     ElMessage.success('配置保存成功')
+    return true
   }
+}
+
+/** 保存当前配置后跳转任务页并预选本方案 */
+async function goFormat() {
+  const ok = await saveAll()
+  if (ok) router.push({ path: '/tasks', query: { templateId: String(id) } })
 }
 </script>
 
@@ -587,5 +659,14 @@ async function saveAll() {
   color: #909399;
   font-size: 12px;
   margin-left: 8px;
+}
+.preview-doc {
+  background: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  padding: 40px 56px;
+  max-width: 720px;
+  margin-top: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04) inset;
 }
 </style>

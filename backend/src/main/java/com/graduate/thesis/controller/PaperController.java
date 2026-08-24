@@ -13,6 +13,7 @@ import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -125,6 +126,26 @@ public class PaperController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=" + encode("original.docx"))
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(new FileSystemResource(file));
+    }
+
+    /** 删除排版任务: 级联清理结果文件, 原文档无其他任务引用时一并删除 */
+    @DeleteMapping("/task/{id}")
+    public Result<Void> deleteTask(@PathVariable Long id) {
+        paperService.deleteTask(UserContext.get(), id);
+        return Result.ok();
+    }
+
+    /** 我的上传文档列表(含关联任务数) */
+    @GetMapping("/files")
+    public Result<List<PaperFile>> files() {
+        return Result.ok(paperService.listFiles(UserContext.get()));
+    }
+
+    /** 删除上传文档: 级联删其所有关联任务(含结果文件) */
+    @DeleteMapping("/file/{id}")
+    public Result<Void> deleteFile(@PathVariable Long id) {
+        paperService.deleteFile(UserContext.get(), id);
+        return Result.ok();
     }
 
     private String encode(String name) {

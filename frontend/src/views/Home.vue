@@ -2,6 +2,7 @@
   <div class="landing">
     <div class="scroll-progress" ref="progRef"></div>
     <div class="cursor-glow" ref="glowRef"></div>
+    <OnboardingDialog />
     <!-- ========== Navbar ========== -->
     <nav class="navbar">
       <div class="nav-inner">
@@ -93,9 +94,9 @@
               开始智能排版
               <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
             </button>
-            <button class="btn-cta-ghost">
+            <button class="btn-cta-ghost" @click="$router.push('/guide')">
               <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><polygon points="6,3 13,8 6,13"/></svg>
-              查看演示视频
+              使用指南
             </button>
           </div>
           <div class="hero-features">
@@ -233,7 +234,7 @@
           </ul>
           <div class="feat-buttons">
             <button class="btn-cta-primary" @click="goStart">立即配置规则</button>
-            <button class="btn-cta-ghost">使用预设模板</button>
+            <button class="btn-cta-ghost" @click="$router.push('/template-market')">使用预设模板</button>
           </div>
         </div>
         <div class="feat-right">
@@ -349,6 +350,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { getProfile, logout } from '../api/user'
 import { listPublicNotices } from '../api/admin'
 import NotificationBell from '../components/NotificationBell.vue'
+import OnboardingDialog from '../components/OnboardingDialog.vue'
 import { clearAuth } from '../utils/perm'
 
 const router = useRouter()

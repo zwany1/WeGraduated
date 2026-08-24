@@ -1,11 +1,6 @@
 <template>
   <div class="page">
-    <header class="bar">
-      <div class="brand">
-        <el-button text @click="backOrHome($router)">‹ 返回首页</el-button>
-        <span>排版任务</span>
-      </div>
-    </header>
+    <SiteNav />
 
     <main class="content">
       <section class="upload-box">
@@ -35,7 +30,17 @@
 
       <section class="task-list">
         <h3>历史任务</h3>
-        <el-table :data="tasks" empty-text="暂无任务">
+        <div class="task-filter">
+          <el-radio-group v-model="statusFilter" size="small">
+            <el-radio-button label="">全部</el-radio-button>
+            <el-radio-button label="processing">处理中</el-radio-button>
+            <el-radio-button label="SUCCESS">已完成</el-radio-button>
+            <el-radio-button label="FAILED">失败</el-radio-button>
+          </el-radio-group>
+          <el-input v-model="taskKeyword" placeholder="搜索论文文件名" clearable :prefix-icon="Search" style="width: 220px" />
+          <span class="task-count">{{ filteredTasks.length }} / {{ tasks.length }}</span>
+        </div>
+        <el-table :data="pagedTasks" empty-text="暂无任务">
           <el-table-column prop="id" label="ID" width="60" />
           <el-table-column label="论文" min-width="140">
             <template #default="{ row }">{{ fileName(row) }}</template>
@@ -72,7 +77,7 @@
               <span v-else style="color:#c0c4cc">—</span>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="300" fixed="right">
+          <el-table-column label="操作" width="360" fixed="right">
             <template #default="{ row }">
               <div class="op-row">
                 <el-button v-if="row.status === 'SUCCESS'" size="small" @click="preview(row)">预览</el-button>
@@ -80,11 +85,36 @@
                 <el-button v-if="row.status === 'SUCCESS'" size="small" type="primary" @click="download(row)">下载</el-button>
                 <el-button v-if="row.status === 'FAILED'" size="small" @click="retry(row)">重试</el-button>
                 <el-button v-if="row.status === 'SUCCESS' || row.status === 'FAILED'" size="small" plain @click="openRerun(row)">换模板</el-button>
+                <el-button size="small" type="danger" plain @click="removeTask(row)">删除</el-button>
               </div>
             </template>
           </el-table-column>
           <el-table-column label="创建时间" width="170">
             <template #default="{ row }">{{ formatTime(row.createTime) }}</template>
+          </el-table-column>
+        </el-table>
+        <el-pagination v-if="filteredTasks.length > taskPageSize" v-model:current-page="taskPage" :page-size="taskPageSize" :total="filteredTasks.length" layout="prev, pager, next" class="pager" />
+      </section>
+
+      <section class="file-list">
+        <h3>我的上传文档</h3>
+        <el-table :data="files" empty-text="暂无上传文档">
+          <el-table-column label="文件名" min-width="180">
+            <template #default="{ row }">{{ row.originalName }}</template>
+          </el-table-column>
+          <el-table-column label="大小" width="110">
+            <template #default="{ row }">{{ formatSize(row.fileSize) }}</template>
+          </el-table-column>
+          <el-table-column label="关联任务" width="100">
+            <template #default="{ row }">{{ row.taskCount || 0 }}</template>
+          </el-table-column>
+          <el-table-column label="上传时间" width="170">
+            <template #default="{ row }">{{ formatTime(row.createTime) }}</template>
+          </el-table-column>
+          <el-table-column label="操作" width="100" fixed="right">
+            <template #default="{ row }">
+              <el-button size="small" type="danger" plain @click="removeFile(row)">删除</el-button>
+            </template>
           </el-table-column>
         </el-table>
       </section>
@@ -184,23 +214,47 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { ElMessage, ElNotification } from 'element-plus'
-import { UploadFilled, Loading } from '@element-plus/icons-vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import { ElMessage, ElNotification, ElMessageBox } from 'element-plus'
+import { UploadFilled, Loading, Search } from '@element-plus/icons-vue'
 import { listTemplates } from '../api/template'
 import { listTeams } from '../api/team'
-import { uploadPaper, startFormat, startFormatBatch, listTasks, getTask, downloadPaper, downloadPaperOriginal, getDiff, progressTicket } from '../api/paper'
+import { uploadPaper, startFormat, startFormatBatch, listTasks, getTask, downloadPaper, downloadPaperOriginal, getDiff, progressTicket, deleteTask, listFiles, deleteFile } from '../api/paper'
 import DocxCompare from '../components/DocxCompare.vue'
-import { backOrHome } from '../utils/nav'
+import SiteNav from '../components/SiteNav.vue'
 
+const route = useRoute()
 const templates = ref([])
-const templateId = ref(null)
+const templateId = ref(route.query.templateId ? Number(route.query.templateId) : null)
 const teamMap = ref({})
 const fileList = ref([])
 const selectedFile = ref(null)
 const selectedFiles = ref([])
 const submitting = ref(false)
 const tasks = ref([])
+const files = ref([])
+const statusFilter = ref('')
+const taskKeyword = ref('')
+const taskPage = ref(1)
+const taskPageSize = 10
+const filteredTasks = computed(() => {
+  const kw = taskKeyword.value.trim().toLowerCase()
+  return tasks.value.filter(t => {
+    if (statusFilter.value) {
+      if (statusFilter.value === 'processing' && !(t.status === 'PENDING' || t.status === 'PROCESSING')) return false
+      if (statusFilter.value === 'SUCCESS' && t.status !== 'SUCCESS') return false
+      if (statusFilter.value === 'FAILED' && t.status !== 'FAILED') return false
+    }
+    if (kw && !(fileName(t) || '').toLowerCase().includes(kw)) return false
+    return true
+  })
+})
+const pagedTasks = computed(() => {
+  const start = (taskPage.value - 1) * taskPageSize
+  return filteredTasks.value.slice(start, start + taskPageSize)
+})
+watch([statusFilter, taskKeyword], () => { taskPage.value = 1 })
 const previewVisible = ref(false)
 const previewData = ref([])
 const compareVisible = ref(false)
@@ -324,6 +378,7 @@ onMounted(async () => {
     teamMap.value = m
   } catch (e) {}
   await loadTasks()
+  await loadFiles()
   startSse()
 })
 
@@ -375,6 +430,7 @@ async function submit() {
     fileList.value = []
     selectedFile.value = null
     await loadTasks(true)
+    await loadFiles()
     startSse()
   } finally {
     submitting.value = false
@@ -552,6 +608,48 @@ async function doRerun() {
   }
 }
 
+async function loadFiles() {
+  try {
+    files.value = await listFiles()
+  } catch (e) {}
+}
+
+async function removeTask(row) {
+  try {
+    await ElMessageBox.confirm(`确定删除任务 #${row.id}（${fileName(row)}）？该任务的结果文件将一并删除，若原文档无其他任务引用也会一并删除。`, '删除任务', { type: 'warning' })
+  } catch (e) { return }
+  try {
+    await deleteTask(row.id)
+    ElMessage.success('已删除任务')
+    await loadTasks(true)
+    await loadFiles()
+  } catch (e) {
+    ElMessage.error('删除失败：' + (e.message || ''))
+  }
+}
+
+async function removeFile(row) {
+  const n = row.taskCount || 0
+  try {
+    await ElMessageBox.confirm(n > 0 ? `确定删除文档「${row.originalName}」？该文档有 ${n} 个关联任务，将一并删除（含结果文件）。` : `确定删除文档「${row.originalName}」？`, '删除文档', { type: 'warning' })
+  } catch (e) { return }
+  try {
+    await deleteFile(row.id)
+    ElMessage.success('已删除文档')
+    await loadFiles()
+    await loadTasks(true)
+  } catch (e) {
+    ElMessage.error('删除失败：' + (e.message || ''))
+  }
+}
+
+function formatSize(bytes) {
+  if (!bytes) return '—'
+  if (bytes < 1024) return bytes + ' B'
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+  return (bytes / 1024 / 1024).toFixed(1) + ' MB'
+}
+
 function fileName(row) {
   return row.originalName || (row.fileId + '.docx')
 }
@@ -586,9 +684,10 @@ function formatTime(t) {
   color: #2c3e50;
 }
 .content {
-  max-width: 1280px;
-  margin: 24px auto;
-  padding: 0 20px;
+  width: 100%;
+  margin: 24px 0;
+  padding: 0 30px;
+  box-sizing: border-box;
 }
 .upload-box {
   background: #fff;
@@ -637,6 +736,33 @@ function formatTime(t) {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 .task-list h3 {
+  color: #303133;
+  margin-bottom: 16px;
+}
+.task-filter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.task-count {
+  font-size: 13px;
+  color: #909399;
+}
+.pager {
+  margin-top: 16px;
+  justify-content: center;
+  display: flex;
+}
+.file-list {
+  margin-top: 24px;
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px 24px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+.file-list h3 {
   color: #303133;
   margin-bottom: 16px;
 }

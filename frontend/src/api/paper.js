@@ -45,3 +45,15 @@ export function previewPaperOriginal(taskId) {
 export function downloadPaperOriginal(taskId) {
   return api.get(`/paper/download-original/${taskId}`, { responseType: 'blob' })
 }
+
+export function deleteTask(id) {
+  return api.delete(`/paper/task/${id}`)
+}
+
+export function listFiles() {
+  return api.get('/paper/files')
+}
+
+export function deleteFile(id) {
+  return api.delete(`/paper/file/${id}`)
+}

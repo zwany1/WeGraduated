@@ -27,9 +27,10 @@
             <button class="chip" :class="{ on: sort === 'rating' }" @click="changeSort('rating')">评分</button>
             <button class="chip" :class="{ on: sort === 'newest' }" @click="changeSort('newest')">最新</button>
           </div>
+          <el-input v-model="keyword" placeholder="搜索模板名称" clearable :prefix-icon="Search" class="search-input" />
         </div>
-        <div v-if="marketTemplates.length" class="grid">
-          <div class="card" v-for="t in marketTemplates" :key="'p'+t.id" @click="openDetail(t)">
+        <div v-if="filteredMarket.length" class="grid">
+          <div class="card" v-for="t in filteredMarket" :key="'p'+t.id" @click="openDetail(t)">
             <div class="card-top">
               <div class="card-type" :class="t.recommended ? '推荐' : '官方'">{{ t.recommended ? '推荐' : '官方' }}</div>
               <div class="card-icon">
@@ -167,14 +168,27 @@
       </div>
     </el-dialog>
 
+    <!-- 评分弹窗 -->
+    <el-dialog v-model="rateVisible" title="模板评分" width="340px" align-center destroy-on-close>
+      <div class="rate-body">
+        <p class="rate-tip">为「{{ rateTarget ? rateTarget.name : '' }}」打分</p>
+        <el-rate v-model="rateScore" :max="5" show-text :texts="['很差','较差','一般','较好','很好']" />
+      </div>
+      <template #footer>
+        <el-button @click="rateVisible = false">取消</el-button>
+        <el-button type="primary" :loading="rateSubmitting" @click="submitRate">提交评分</el-button>
+      </template>
+    </el-dialog>
+
     <SiteFooter />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { Search } from '@element-plus/icons-vue'
 import NavBar from '../components/site/NavBar.vue'
 import SiteFooter from '../components/site/SiteFooter.vue'
 import { listTemplates, createTemplate, listMarketTemplates, listMarketCategories, rateMarketTemplate, copyMarketTemplate, getMarketTemplateDetail, toggleFavoriteTemplate, listFavoriteTemplates } from '../api/template'
@@ -188,8 +202,14 @@ const favSet = ref(new Set())
 const categories = ref([])
 const category = ref('')
 const sort = ref('recommended')
+const keyword = ref('')
 const detailVisible = ref(false)
 const detail = ref(null)
+const filteredMarket = computed(() => {
+  const kw = keyword.value.trim().toLowerCase()
+  if (!kw) return marketTemplates.value
+  return marketTemplates.value.filter(t => (t.name || '').toLowerCase().includes(kw))
+})
 
 const presets = [
   {
@@ -299,23 +319,37 @@ function changeSort(s) {
   loadMarket()
 }
 
-/** 登录用户点击评分(点星星选择 1~5) */
-async function chooseRate(t) {
+const rateVisible = ref(false)
+const rateScore = ref(5)
+const rateTarget = ref(null)
+const rateSubmitting = ref(false)
+
+/** 登录用户点击评分: 打开星级弹窗 */
+function chooseRate(t) {
   if (!localStorage.getItem('token')) {
     router.push({ path: '/login', query: { redirect: '/template-market' } })
     return
   }
+  rateTarget.value = t
+  rateScore.value = 5
+  rateVisible.value = true
+}
+
+async function submitRate() {
+  if (!rateTarget.value || !rateScore.value) {
+    ElMessage.warning('请选择评分')
+    return
+  }
+  rateSubmitting.value = true
   try {
-    const score = Number(window.prompt(`为「${t.name}」评分 (1~5)：`, '5'))
-    if (!score || isNaN(score) || score < 1 || score > 5) {
-      ElMessage.warning('评分范围需为 1~5')
-      return
-    }
-    await rateMarketTemplate(t.id, score)
+    await rateMarketTemplate(rateTarget.value.id, rateScore.value)
     ElMessage.success('评分成功')
+    rateVisible.value = false
     loadMarket()
   } catch (e) {
     ElMessage.error(e.message || '评分失败')
+  } finally {
+    rateSubmitting.value = false
   }
 }
 
@@ -578,6 +612,15 @@ function formatTime(t) {
   gap: 8px;
   margin-top: 4px;
 }
+.rate-body {
+  text-align: center;
+  padding: 8px 0 4px;
+}
+.rate-tip {
+  color: var(--c-text2);
+  font-size: 14px;
+  margin: 0 0 16px;
+}
 .filter-bar {
   display: flex;
   justify-content: space-between;
@@ -590,6 +633,9 @@ function formatTime(t) {
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
+}
+.search-input {
+  width: 220px;
 }
 .filter-label {
   font-size: 13px;

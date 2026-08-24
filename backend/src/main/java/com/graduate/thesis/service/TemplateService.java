@@ -90,7 +90,6 @@ public class TemplateService {
         templateMap.put("name", template.getName());
         templateMap.put("pageConfig", template.getPageConfig());
         templateMap.put("headingPatterns", template.getHeadingPatterns());
-        templateMap.put("coverConfig", template.getCoverConfig());
         templateMap.put("generateToc", template.getGenerateToc());
         templateMap.put("referenceConfig", template.getReferenceConfig());
         templateMap.put("createTime", template.getCreateTime());
@@ -115,13 +114,6 @@ public class TemplateService {
     public void saveHeadingPatterns(Long templateId, Long userId, String headingPatterns) {
         FormatTemplate template = getOwned(templateId, userId);
         template.setHeadingPatterns(headingPatterns);
-        template.setUpdateTime(LocalDateTime.now());
-        templateMapper.updateById(template);
-    }
-
-    public void saveCoverConfig(Long templateId, Long userId, String coverConfig) {
-        FormatTemplate template = getOwned(templateId, userId);
-        template.setCoverConfig(coverConfig);
         template.setUpdateTime(LocalDateTime.now());
         templateMapper.updateById(template);
     }
@@ -274,7 +266,6 @@ public class TemplateService {
         copy.setName(source.getName() + "（副本）");
         copy.setPageConfig(source.getPageConfig());
         copy.setHeadingPatterns(source.getHeadingPatterns());
-        copy.setCoverConfig(source.getCoverConfig());
         copy.setGenerateToc(source.getGenerateToc());
         copy.setReferenceConfig(source.getReferenceConfig());
         copy.setCategory(source.getCategory());
@@ -429,7 +420,6 @@ public class TemplateService {
         m.put("name", t.getName());
         m.put("pageConfig", t.getPageConfig());
         m.put("headingPatterns", t.getHeadingPatterns());
-        m.put("coverConfig", t.getCoverConfig());
         m.put("generateToc", t.getGenerateToc());
         m.put("referenceConfig", t.getReferenceConfig());
         m.put("category", t.getCategory());
@@ -448,7 +438,6 @@ public class TemplateService {
         c.setTeamId(src.getTeamId());
         c.setPageConfig(src.getPageConfig());
         c.setHeadingPatterns(src.getHeadingPatterns());
-        c.setCoverConfig(src.getCoverConfig());
         c.setGenerateToc(src.getGenerateToc());
         c.setReferenceConfig(src.getReferenceConfig());
         c.setCategory(src.getCategory());
@@ -513,7 +502,6 @@ public class TemplateService {
         t.setName(name);
         t.setPageConfig(str(data.get("pageConfig")));
         t.setHeadingPatterns(str(data.get("headingPatterns")));
-        t.setCoverConfig(str(data.get("coverConfig")));
         Object gt = data.get("generateToc");
         t.setGenerateToc(gt != null && (Boolean.TRUE.equals(gt) || "true".equalsIgnoreCase(String.valueOf(gt))));
         t.setReferenceConfig(str(data.get("referenceConfig")));

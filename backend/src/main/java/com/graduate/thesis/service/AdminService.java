@@ -587,7 +587,6 @@ public class AdminService {
         m.put("generateToc", Boolean.TRUE.equals(t.getGenerateToc()));
         m.put("pageConfig", t.getPageConfig());
         m.put("headingPatterns", t.getHeadingPatterns());
-        m.put("coverConfig", t.getCoverConfig());
         m.put("referenceConfig", t.getReferenceConfig());
         m.put("rules", rules);
         return m;

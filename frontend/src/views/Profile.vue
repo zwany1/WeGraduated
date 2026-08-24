@@ -1,11 +1,6 @@
 <template>
   <div class="page">
-    <header class="bar">
-      <div class="brand">
-        <el-button text @click="goBack">‹ 返回</el-button>
-        <span>个人资料</span>
-      </div>
-    </header>
+    <SiteNav />
 
     <main class="content">
       <div class="card">
@@ -47,7 +42,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { backOrHome } from '../utils/nav'
+import SiteNav from '../components/SiteNav.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getProfile, updateProfile, deleteAccount } from '../api/user'
 import { clearAuth } from '../utils/perm'
@@ -74,10 +69,6 @@ onMounted(async () => {
     // 拦截器已提示
   }
 })
-
-function goBack() {
-  backOrHome(router)
-}
 
 function pickAvatar() {
   fileInput.value && fileInput.value.click()

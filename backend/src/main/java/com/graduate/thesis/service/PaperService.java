@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
@@ -338,5 +339,71 @@ public class PaperService {
         File original = storageService.load(paperFile.getStoredPath());
         File formatted = storageService.load(task.getResultPath());
         return diffService.diff(original, formatted);
+    }
+
+    /** 删除排版任务: 级联清理结果文件; 原文档无其他任务引用时一并删除 */
+    @Transactional
+    public void deleteTask(Long userId, Long taskId) {
+        FormatTask task = taskMapper.selectById(taskId);
+        if (task == null) {
+            throw new BusinessException(404, "任务不存在");
+        }
+        if (!task.getUserId().equals(userId)) {
+            throw new BusinessException(403, "无权删除该任务");
+        }
+        storageService.delete(task.getResultPath());
+        Long fileId = task.getFileId();
+        if (fileId != null) {
+            Long rest = taskMapper.selectCount(new LambdaQueryWrapper<FormatTask>()
+                    .eq(FormatTask::getFileId, fileId)
+                    .ne(FormatTask::getId, taskId));
+            if (rest == null || rest == 0L) {
+                PaperFile paperFile = paperFileMapper.selectById(fileId);
+                if (paperFile != null) {
+                    storageService.delete(paperFile.getStoredPath());
+                    paperFileMapper.deleteById(fileId);
+                }
+            }
+        }
+        taskMapper.deleteById(taskId);
+    }
+
+    /** 我的上传文档列表(含关联任务数) */
+    public List<PaperFile> listFiles(Long userId) {
+        List<PaperFile> files = paperFileMapper.selectList(new LambdaQueryWrapper<PaperFile>()
+                .eq(PaperFile::getUserId, userId)
+                .orderByDesc(PaperFile::getId));
+        if (files.isEmpty()) {
+            return files;
+        }
+        List<Long> fileIds = files.stream().map(PaperFile::getId).collect(java.util.stream.Collectors.toList());
+        List<FormatTask> tasks = taskMapper.selectList(new LambdaQueryWrapper<FormatTask>()
+                .in(FormatTask::getFileId, fileIds));
+        java.util.Map<Long, Long> counts = tasks.stream()
+                .collect(java.util.stream.Collectors.groupingBy(FormatTask::getFileId, java.util.stream.Collectors.counting()));
+        for (PaperFile f : files) {
+            f.setTaskCount(counts.getOrDefault(f.getId(), 0L).intValue());
+        }
+        return files;
+    }
+
+    /** 删除上传文档: 级联删其所有关联任务(含结果文件) */
+    @Transactional
+    public void deleteFile(Long userId, Long fileId) {
+        PaperFile paperFile = paperFileMapper.selectById(fileId);
+        if (paperFile == null) {
+            throw new BusinessException(404, "文件不存在");
+        }
+        if (!paperFile.getUserId().equals(userId)) {
+            throw new BusinessException(403, "无权删除该文件");
+        }
+        List<FormatTask> tasks = taskMapper.selectList(new LambdaQueryWrapper<FormatTask>()
+                .eq(FormatTask::getFileId, fileId));
+        for (FormatTask t : tasks) {
+            storageService.delete(t.getResultPath());
+            taskMapper.deleteById(t.getId());
+        }
+        storageService.delete(paperFile.getStoredPath());
+        paperFileMapper.deleteById(fileId);
     }
 }

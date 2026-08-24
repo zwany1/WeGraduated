@@ -28,7 +28,6 @@ CREATE TABLE IF NOT EXISTS t_format_template (
     name              VARCHAR(64)  NOT NULL,
     page_config       TEXT         DEFAULT NULL,
     heading_patterns  TEXT         DEFAULT NULL,
-    cover_config      TEXT         DEFAULT NULL,
     generate_toc      TINYINT(1)   NOT NULL DEFAULT 0,
     reference_config  TEXT         DEFAULT NULL,
     is_public         TINYINT(1)   NOT NULL DEFAULT 0 COMMENT '是否上架模板市场',

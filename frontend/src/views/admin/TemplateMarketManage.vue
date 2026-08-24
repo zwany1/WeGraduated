@@ -102,23 +102,6 @@
             </div>
           </section>
 
-          <section v-if="cover" class="d-sec">
-            <h4 class="d-sec-title">封面配置</h4>
-            <div class="d-grid">
-              <div class="d-item"><span class="d-label">生成封面</span><span class="d-value">{{ cover.enabled ? '是' : '否' }}</span></div>
-              <template v-if="cover.enabled">
-                <div class="d-item"><span class="d-label">论文题目</span><span class="d-value">{{ cover.title || '—' }}</span></div>
-                <div class="d-item"><span class="d-label">学院</span><span class="d-value">{{ cover.college || '—' }}</span></div>
-                <div class="d-item"><span class="d-label">专业</span><span class="d-value">{{ cover.major || '—' }}</span></div>
-                <div class="d-item"><span class="d-label">学生姓名</span><span class="d-value">{{ cover.studentName || '—' }}</span></div>
-                <div class="d-item"><span class="d-label">学号</span><span class="d-value">{{ cover.studentNo || '—' }}</span></div>
-                <div class="d-item"><span class="d-label">指导教师</span><span class="d-value">{{ (cover.teacher || '—') + (cover.teacherTitle ? '（' + cover.teacherTitle + '）' : '') + (cover.teacherUnit ? ' · ' + cover.teacherUnit : '') }}</span></div>
-                <div class="d-item"><span class="d-label">课题类型</span><span class="d-value">{{ cover.topicType || '—' }}</span></div>
-                <div class="d-item"><span class="d-label">日期</span><span class="d-value">{{ cover.date || '—' }}</span></div>
-              </template>
-            </div>
-          </section>
-
           <section v-if="headings" class="d-sec">
             <h4 class="d-sec-title">标题识别规则</h4>
             <div class="d-grid">
@@ -216,7 +199,6 @@ const parseJson = (s, fb) => {
   try { return s ? JSON.parse(s) : fb } catch (e) { return fb }
 }
 const pageCfg = computed(() => parseJson(d.value?.pageConfig, {}))
-const cover = computed(() => parseJson(d.value?.coverConfig, null))
 const headings = computed(() => parseJson(d.value?.headingPatterns, null))
 const refCfg = computed(() => parseJson(d.value?.referenceConfig, null))
 

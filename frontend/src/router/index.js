@@ -30,35 +30,36 @@ const viewMap = {
 }
 
 const routes = [
-  { path: '/', component: () => import('../views/Welcome.vue') },
-  { path: '/home', component: () => import('../views/Home.vue') },
-  { path: '/login', component: () => import('../views/Login.vue') },
-  { path: '/register', component: () => import('../views/Register.vue') },
-  { path: '/forgot-password', component: () => import('../views/ForgotPassword.vue') },
-  { path: '/templates', component: () => import('../views/TemplateList.vue') },
-  { path: '/profile', component: () => import('../views/Profile.vue') },
-  { path: '/template/:id', component: () => import('../views/TemplateConfig.vue') },
-  { path: '/tasks', component: () => import('../views/FormatTask.vue') },
-  { path: '/team', component: () => import('../views/TeamManage.vue') },
-  { path: '/table3', component: () => import('../views/ThreeTable.vue') },
-  { path: '/er', component: () => import('../views/ErDiagram.vue') },
-  { path: '/system-design', component: () => import('../views/SystemDesign.vue') },
-  { path: '/free-draw', component: () => import('../components/FreeDraw.vue') },
-  { path: '/features', component: () => import('../views/Features.vue') },
-  { path: '/template-market', component: () => import('../views/TemplateMarket.vue') },
-  { path: '/guide', component: () => import('../views/Guide.vue') },
-  { path: '/cases', component: () => import('../views/Cases.vue') },
-  { path: '/pricing', component: () => import('../views/Pricing.vue') },
-  { path: '/privacy', component: () => import('../views/Privacy.vue') },
-  { path: '/about', component: () => import('../views/About.vue') },
-  { path: '/terms', component: () => import('../views/Terms.vue') },
+  { path: '/', component: () => import('../views/Welcome.vue'), meta: { title: '论文格式助手' } },
+  { path: '/home', component: () => import('../views/Home.vue'), meta: { title: '首页' } },
+  { path: '/login', component: () => import('../views/Login.vue'), meta: { title: '登录' } },
+  { path: '/register', component: () => import('../views/Register.vue'), meta: { title: '注册' } },
+  { path: '/forgot-password', component: () => import('../views/ForgotPassword.vue'), meta: { title: '找回密码' } },
+  { path: '/templates', component: () => import('../views/TemplateList.vue'), meta: { title: '我的格式方案' } },
+  { path: '/profile', component: () => import('../views/Profile.vue'), meta: { title: '个人资料' } },
+  { path: '/template/:id', component: () => import('../views/TemplateConfig.vue'), meta: { title: '格式方案配置' } },
+  { path: '/tasks', component: () => import('../views/FormatTask.vue'), meta: { title: '排版任务' } },
+  { path: '/team', component: () => import('../views/TeamManage.vue'), meta: { title: '团队协作' } },
+  { path: '/table3', component: () => import('../views/ThreeTable.vue'), meta: { title: '三线表' } },
+  { path: '/er', component: () => import('../views/ErDiagram.vue'), meta: { title: 'ER 图' } },
+  { path: '/system-design', component: () => import('../views/SystemDesign.vue'), meta: { title: '系统图设计' } },
+  { path: '/free-draw', component: () => import('../components/FreeDraw.vue'), meta: { title: '自由绘画' } },
+  { path: '/features', component: () => import('../views/Features.vue'), meta: { title: '功能特性' } },
+  { path: '/template-market', component: () => import('../views/TemplateMarket.vue'), meta: { title: '模板市场' } },
+  { path: '/guide', component: () => import('../views/Guide.vue'), meta: { title: '使用指南' } },
+  { path: '/cases', component: () => import('../views/Cases.vue'), meta: { title: '案例' } },
+  { path: '/pricing', component: () => import('../views/Pricing.vue'), meta: { title: '价格' } },
+  { path: '/privacy', component: () => import('../views/Privacy.vue'), meta: { title: '隐私政策' } },
+  { path: '/about', component: () => import('../views/About.vue'), meta: { title: '关于我们' } },
+  { path: '/terms', component: () => import('../views/Terms.vue'), meta: { title: '服务条款' } },
   {
     path: '/admin',
     name: 'Admin',
     component: () => import('../views/admin/AdminLayout.vue'),
-    meta: { requiresAdmin: true },
+    meta: { requiresAdmin: true, title: '管理后台' },
     children: []
-  }
+  },
+  { path: '/:pathMatch(.*)*', component: () => import('../views/NotFound.vue'), meta: { title: '页面不存在' } }
 ]
 
 const router = createRouter({
@@ -73,6 +74,10 @@ const router = createRouter({
     }
     return { top: 0 }
   }
+})
+
+router.afterEach((to) => {
+  if (to.meta?.title) document.title = to.meta.title
 })
 
 let lastMenuSignature = null

@@ -12,41 +12,12 @@
       <span class="sb-arrow">↓</span>
       <span class="sb-text">进入首页</span>
     </div>
-    <transition name="slide-up">
-      <div v-if="showLoginPanel" class="login-overlay" @click.self="showLoginPanel = false">
-        <div class="login-card">
-          <button class="close-btn" @click="showLoginPanel = false">×</button>
-          <div class="tabs">
-            <span :class="{ active: tab === 'login' }" @click="switchTab('login')">登录</span>
-            <span class="divider">|</span>
-            <span :class="{ active: tab === 'register' }" @click="switchTab('register')">注册</span>
-          </div>
-          <div class="field">
-            <input v-model="form.username" type="text" placeholder="用户名(3-32位)" @keyup.enter="focusPwd" />
-          </div>
-          <div class="field">
-            <input ref="pwdRef" v-model="form.password" :type="showPwd ? 'text' : 'password'" placeholder="密码(6位以上)" @keyup.enter="submit" />
-            <span class="eye" @click="showPwd = !showPwd">👁</span>
-          </div>
-          <label class="remember" @click="rememberMe = !rememberMe">
-            <span class="checkbox" :class="{ checked: rememberMe }"></span>
-            记住我
-          </label>
-          <button class="submit-btn" :disabled="loading" @click="submit">
-            {{ loading ? '提交中...' : (tab === 'login' ? '登 录' : '注 册') }}
-          </button>
-        </div>
-      </div>
-    </transition>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { login, register, getProfile } from '../api/user'
-import { getMenus } from '../api/admin'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
@@ -55,13 +26,6 @@ gsap.registerPlugin(ScrollTrigger)
 const router = useRouter()
 const sceneSvg = ref('')
 const showLogin = ref(false)
-const showLoginPanel = ref(false)
-const tab = ref('login')
-const loading = ref(false)
-const showPwd = ref(false)
-const rememberMe = ref(false)
-const pwdRef = ref(null)
-const form = reactive({ username: '', password: '' })
 
 let ctx = null
 
@@ -69,12 +33,6 @@ onMounted(async () => {
   if (localStorage.getItem('token')) {
     router.replace('/home')
     return
-  }
-  const savedUser = localStorage.getItem('remembered_user')
-  localStorage.removeItem('remembered_pwd')
-  if (savedUser) {
-    form.username = savedUser
-    rememberMe.value = true
   }
   try {
     const resp = await fetch('/welcome-scene.svg')
@@ -226,56 +184,8 @@ function initParallax() {
   }, 300)
 }
 
-function switchTab(t) {
-  tab.value = t
-  form.password = ''
-}
-function focusPwd() {
-  pwdRef.value && pwdRef.value.focus()
-}
-
 function goHome() {
   router.push('/home')
-}
-
-async function submit() {
-  if (loading.value) return
-  if (!form.username.trim()) { ElMessage.warning('请输入用户名'); return }
-  if (!form.password) { ElMessage.warning('请输入密码'); return }
-  loading.value = true
-  try {
-    const fn = tab.value === 'login' ? login : register
-    const data = await fn({ username: form.username.trim(), password: form.password })
-    localStorage.setItem('token', data.token)
-    localStorage.setItem('userId', data.userId)
-    localStorage.setItem('username', data.username)
-    localStorage.setItem('role', data.role || 'USER')
-    localStorage.setItem('roles', JSON.stringify(data.roles || []))
-    localStorage.setItem('perms', JSON.stringify(data.perms || []))
-    try {
-      const p = await getProfile()
-      if (p) {
-        localStorage.setItem('username', p.nickname || p.username || data.username)
-        localStorage.setItem('avatar', p.avatar || '')
-      }
-    } catch (e) {}
-    try {
-      const menus = await getMenus()
-      localStorage.setItem('menus', JSON.stringify(menus || []))
-    } catch (e) {
-      localStorage.removeItem('menus')
-    }
-    if (rememberMe.value) {
-      localStorage.setItem('remembered_user', form.username.trim())
-    } else {
-      localStorage.removeItem('remembered_user')
-    }
-    ElMessage.success(tab.value === 'login' ? '登录成功' : '注册成功')
-    router.push('/home')
-  } catch (e) {
-  } finally {
-    loading.value = false
-  }
 }
 </script>
 
@@ -375,37 +285,4 @@ svg.parallax {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(6px); }
 }
-.login-overlay {
-  position: fixed; inset: 0; z-index: 100; background: rgba(20,22,40,0.75);
-  display: flex; align-items: center; justify-content: center;
-}
-.login-card {
-  width: 360px; background: #fff; border-radius: 16px; padding: 32px;
-  box-shadow: 0 16px 50px rgba(0,0,0,0.3); position: relative;
-}
-.close-btn { position: absolute; top: 12px; right: 16px; border: none; background: none; font-size: 22px; color: #999; cursor: pointer; }
-.close-btn:hover { color: #333; }
-.tabs { display: flex; justify-content: center; gap: 16px; margin-bottom: 24px; font-size: 15px; }
-.tabs span { cursor: pointer; color: #909399; }
-.tabs span.active { color: #3B6BFF; font-weight: 700; }
-.tabs .divider { cursor: default; color: #d0d4da; }
-.field { position: relative; margin-bottom: 14px; }
-.field input {
-  width: 100%; height: 44px; border: 1.5px solid #e0e4ea; border-radius: 8px;
-  padding: 0 40px 0 14px; font-size: 14px; box-sizing: border-box; outline: none; transition: border-color 0.2s;
-}
-.field input:focus { border-color: #3B6BFF; }
-.eye { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); cursor: pointer; opacity: 0.6; }
-.remember { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #666; cursor: pointer; margin-bottom: 18px; user-select: none; }
-.checkbox { width: 16px; height: 16px; border: 1.5px solid #c0c6ce; border-radius: 4px; transition: all 0.2s; }
-.checkbox.checked { background: #3B6BFF; border-color: #3B6BFF; }
-.submit-btn {
-  width: 100%; height: 46px; border: none; border-radius: 8px;
-  background: linear-gradient(45deg, #3B6BFF, #6a8bff); color: #fff;
-  font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity 0.2s;
-}
-.submit-btn:hover:not(:disabled) { filter: brightness(1.05); }
-.submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.slide-up-enter-active, .slide-up-leave-active { transition: opacity 0.3s, transform 0.3s; }
-.slide-up-enter-from, .slide-up-leave-to { opacity: 0; transform: translateY(40px); }
 </style>

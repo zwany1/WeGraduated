@@ -24,10 +24,6 @@ export function saveHeadingPatterns(id, headingPatterns) {
   return api.put(`/template/${id}/heading-patterns`, headingPatterns)
 }
 
-export function saveCoverConfig(id, coverConfig) {
-  return api.put(`/template/${id}/cover-config`, { pageConfig: JSON.stringify(coverConfig) })
-}
-
 export function saveGenerateToc(id, generateToc) {
   return api.put(`/template/${id}/generate-toc`, { generateToc })
 }

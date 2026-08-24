@@ -1,11 +1,6 @@
 <template>
   <div class="page">
-    <header class="bar">
-      <div class="brand">
-        <el-button text @click="backOrHome($router)">‹ 返回</el-button>
-        <span>团队协作</span>
-      </div>
-    </header>
+    <SiteNav />
 
     <main class="content">
       <section class="create-card">
@@ -79,9 +74,9 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import SiteNav from '../components/SiteNav.vue'
 import { createTeam, listTeams, getTeamDetail, inviteMember, removeMember, leaveTeam, deleteTeam } from '../api/team'
 import { getProfile } from '../api/user'
-import { backOrHome } from '../utils/nav'
 
 const teams = ref([])
 const newName = ref('')

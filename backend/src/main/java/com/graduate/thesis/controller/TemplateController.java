@@ -2,7 +2,6 @@ package com.graduate.thesis.controller;
 
 import com.graduate.thesis.common.Result;
 import com.graduate.thesis.common.UserContext;
-import com.graduate.thesis.dto.CoverConfigSaveDTO;
 import com.graduate.thesis.dto.GenerateTocSaveDTO;
 import com.graduate.thesis.dto.HeadingPatternsSaveDTO;
 import com.graduate.thesis.dto.PageConfigSaveDTO;
@@ -144,12 +143,6 @@ public class TemplateController {
                 "{\"heading1\":\"" + escapeJson(dto.getHeading1())
                         + "\",\"heading2\":\"" + escapeJson(dto.getHeading2())
                         + "\",\"heading3\":\"" + escapeJson(dto.getHeading3()) + "\"}");
-        return Result.ok();
-    }
-
-    @PutMapping("/{id}/cover-config")
-    public Result<Void> saveCoverConfig(@PathVariable Long id, @RequestBody CoverConfigSaveDTO dto) {
-        templateService.saveCoverConfig(id, UserContext.get(), dto.getPageConfig());
         return Result.ok();
     }
 

@@ -30,7 +30,7 @@ const viewMap = {
 }
 
 const routes = [
-  { path: '/', component: () => import('../views/Welcome.vue'), meta: { title: '论文格式助手' } },
+  { path: '/', redirect: '/home' },
   { path: '/home', component: () => import('../views/Home.vue'), meta: { title: '首页' } },
   { path: '/login', component: () => import('../views/Login.vue'), meta: { title: '登录' } },
   { path: '/register', component: () => import('../views/Register.vue'), meta: { title: '注册' } },

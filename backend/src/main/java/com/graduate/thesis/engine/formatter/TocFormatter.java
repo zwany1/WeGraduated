@@ -86,7 +86,7 @@ public class TocFormatter {
     }
 
     /**
-     * ΪĿ¼���� toc1-3 ��ʽ: ���� Times New Roman, Ŀ¼�о�1.5��
+     * 为目录定义 toc1-3 样式: 西文 Times New Roman, 目录行距1.5倍
      */
     private void addTocStyles(XWPFDocument doc) {
         XWPFStyles styles = resolveStyles(doc);
@@ -134,7 +134,7 @@ public class TocFormatter {
             field.setAccessible(true);
             field.set(styles, cts);
         } catch (Exception ignore) {
-            // ��ӳ���Ϸ��ܣ���Զ�Ҳ��.
+            // 反射设置失败, 延迟兜底也兼容.
         }
     }
 

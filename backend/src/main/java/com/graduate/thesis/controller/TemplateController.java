@@ -91,6 +91,34 @@ public class TemplateController {
         return Result.ok();
     }
 
+    /** 模板评论列表(公开) */
+    @GetMapping("/market/{id}/comments")
+    public Result<List<Map<String, Object>>> listComments(@PathVariable Long id) {
+        return Result.ok(templateService.listComments(id));
+    }
+
+    /** 发布评论或回复(登录) */
+    @PostMapping("/market/{id}/comment")
+    public Result<com.graduate.thesis.entity.MarketComment> addComment(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        Object p = body.get("parentId");
+        Long parentId = p == null ? null : Long.valueOf(String.valueOf(p));
+        String content = body.get("content") == null ? null : String.valueOf(body.get("content"));
+        return Result.ok(templateService.addComment(UserContext.get(), id, content, parentId));
+    }
+
+    /** 删除评论(本人或模板作者) */
+    @DeleteMapping("/comment/{commentId}")
+    public Result<Void> deleteComment(@PathVariable Long commentId) {
+        templateService.deleteComment(UserContext.get(), commentId);
+        return Result.ok();
+    }
+
+    /** 点赞/取消点赞(登录) */
+    @PostMapping("/market/{id}/like")
+    public Result<Map<String, Object>> toggleLike(@PathVariable Long id) {
+        return Result.ok(templateService.toggleLike(UserContext.get(), id));
+    }
+
     @GetMapping("/list")
     public Result<List<FormatTemplate>> list() {
         return Result.ok(templateService.listByUser(UserContext.get()));

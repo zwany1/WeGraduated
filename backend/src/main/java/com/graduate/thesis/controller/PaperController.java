@@ -116,6 +116,43 @@ public class PaperController {
                 .body(new FileSystemResource(file));
     }
 
+    /** 批量下载多个已排版任务的结果, 打包成 zip */
+    @PostMapping("/download-batch")
+    public ResponseEntity<org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody> downloadBatch(
+            @RequestBody java.util.Map<String, java.util.List<Long>> body) {
+        java.util.List<Long> ids = body.get("taskIds");
+        java.util.List<FormatTask> tasks = paperService.loadResultsBatch(UserContext.get(), ids);
+        org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody srb = out -> {
+            try (java.util.zip.ZipOutputStream zos = new java.util.zip.ZipOutputStream(out)) {
+                java.util.Set<String> used = new java.util.HashSet<>();
+                for (FormatTask t : tasks) {
+                    File f = paperService.resultFileOf(t);
+                    String base = t.getOriginalName() == null ? ("task_" + t.getId()) : t.getOriginalName();
+                    base = base.replaceAll("[\\\\/:*?\"<>|]", "_");
+                    if (!base.toLowerCase().endsWith(".docx")) {
+                        base += ".docx";
+                    }
+                    String name = base;
+                    int n = 2;
+                    while (used.contains(name)) {
+                        name = base.substring(0, base.lastIndexOf('.')) + "_" + n + ".docx";
+                        n++;
+                    }
+                    used.add(name);
+                    zos.putNextEntry(new java.util.zip.ZipEntry(name));
+                    java.nio.file.Files.copy(f.toPath(), zos);
+                    zos.closeEntry();
+                }
+            } catch (java.io.IOException e) {
+                throw new RuntimeException(e);
+            }
+        };
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + encode("已排版论文批量.zip"))
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(srb);
+    }
+
     /**
      * 原始上传文档(排版前 docx), 用于前后对比
      */

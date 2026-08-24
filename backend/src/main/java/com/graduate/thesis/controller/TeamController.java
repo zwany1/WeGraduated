@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -81,6 +82,22 @@ public class TeamController {
     @PostMapping("/invite/{inviteId}/reject")
     public Result<Void> rejectInvite(@PathVariable Long inviteId) {
         teamService.rejectInvite(inviteId, UserContext.get());
+        return Result.ok();
+    }
+
+    /** 设置成员角色(admin/editor/viewer/member) */
+    @PutMapping("/{id}/member/{userId}/role")
+    public Result<Void> setRole(@PathVariable Long id, @PathVariable Long userId, @RequestBody Map<String, Object> body) {
+        String role = body.get("role") == null ? null : String.valueOf(body.get("role"));
+        teamService.setRole(id, UserContext.get(), userId, role);
+        return Result.ok();
+    }
+
+    /** 转让队长所有权(原队长降为管理员) */
+    @PostMapping("/{id}/transfer")
+    public Result<Void> transfer(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        Long newOwnerId = body.get("newOwnerId") == null ? null : Long.valueOf(String.valueOf(body.get("newOwnerId")));
+        teamService.transferOwnership(id, UserContext.get(), newOwnerId);
         return Result.ok();
     }
 

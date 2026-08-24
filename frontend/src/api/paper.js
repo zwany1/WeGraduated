@@ -33,6 +33,11 @@ export function downloadPaper(taskId) {
   return api.get(`/paper/download/${taskId}`, { responseType: 'blob' })
 }
 
+// 批量下载多个已排版任务, 打包成 zip
+export function downloadPaperBatch(taskIds) {
+  return api.post('/paper/download-batch', { taskIds }, { responseType: 'blob' })
+}
+
 // 排版差异分析: 返回差异段落列表(含 PDF 页码与坐标)
 export function getDiff(taskId) {
   return api.get(`/paper/diff/${taskId}`)

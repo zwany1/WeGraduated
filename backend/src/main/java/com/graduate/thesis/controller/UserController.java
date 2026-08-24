@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpServletRequest;
@@ -53,8 +54,17 @@ public class UserController {
     @PostMapping("/login")
     public Result<LoginResponse> login(@Valid @RequestBody LoginDTO dto,
                                        HttpServletRequest request) {
-        captchaService.verify(dto.getCaptchaId(), dto.getCaptchaCode());
+        // 失败次数达到阈值才要求图形验证码, 降低正常用户登录摩擦
+        if (userService.needCaptcha(dto.getAccount())) {
+            captchaService.verify(dto.getCaptchaId(), dto.getCaptchaCode());
+        }
         return Result.ok(userService.login(dto, clientIp(request)));
+    }
+
+    /** 查询账号是否需要图形验证码(免登录, 供前端按需显示验证码) */
+    @GetMapping("/need-captcha")
+    public Result<Boolean> needCaptcha(@RequestParam("account") String account) {
+        return Result.ok(userService.needCaptcha(account));
     }
 
     /** 发送邮箱验证码 */

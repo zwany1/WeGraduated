@@ -43,6 +43,8 @@ public class UserService {
 
     /** 最大连续失败次数 */
     private static final int MAX_FAILURES = 5;
+    /** 失败达到此次数后要求图形验证码(降低正常用户登录摩擦) */
+    private static final int CAPTCHA_THRESHOLD = 2;
     /** 锁定时间(毫秒) */
     private static final long LOCK_MILLIS = 10 * 60 * 1000L;
     /** 同一 IP 最大失败次数(按 IP 限流) */
@@ -243,6 +245,11 @@ public class UserService {
         if (ipFailCount.size() > LOGIN_MAP_MAX) {
             ipFailCount.clear();
         }
+    }
+
+    /** 登录是否需要图形验证码(策略: 始终要求, 防止自动化登录尝试) */
+    public boolean needCaptcha(String account) {
+        return account != null && !account.isEmpty();
     }
 
     public void logout(Long userId, String token) {

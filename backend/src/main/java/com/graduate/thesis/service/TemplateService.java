@@ -5,12 +5,18 @@ import com.graduate.thesis.common.BusinessException;
 import com.graduate.thesis.dto.RuleSaveDTO;
 import com.graduate.thesis.entity.FormatRule;
 import com.graduate.thesis.entity.FormatTemplate;
+import com.graduate.thesis.entity.MarketComment;
+import com.graduate.thesis.entity.MarketLike;
 import com.graduate.thesis.entity.MarketRating;
 import com.graduate.thesis.entity.TemplateFavorite;
+import com.graduate.thesis.entity.User;
 import com.graduate.thesis.mapper.FormatRuleMapper;
 import com.graduate.thesis.mapper.FormatTemplateMapper;
+import com.graduate.thesis.mapper.MarketCommentMapper;
+import com.graduate.thesis.mapper.MarketLikeMapper;
 import com.graduate.thesis.mapper.MarketRatingMapper;
 import com.graduate.thesis.mapper.TemplateFavoriteMapper;
+import com.graduate.thesis.mapper.UserMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,16 +41,24 @@ public class TemplateService {
     private final FormatRuleMapper ruleMapper;
     private final MarketRatingMapper ratingMapper;
     private final TemplateFavoriteMapper favoriteMapper;
+    private final MarketCommentMapper commentMapper;
+    private final MarketLikeMapper likeMapper;
+    private final UserMapper userMapper;
     private final DbRetryService dbRetryService;
     private final TeamService teamService;
 
     public TemplateService(FormatTemplateMapper templateMapper, FormatRuleMapper ruleMapper,
                            MarketRatingMapper ratingMapper, TemplateFavoriteMapper favoriteMapper,
+                           MarketCommentMapper commentMapper, MarketLikeMapper likeMapper,
+                           UserMapper userMapper,
                            DbRetryService dbRetryService, TeamService teamService) {
         this.templateMapper = templateMapper;
         this.ruleMapper = ruleMapper;
         this.ratingMapper = ratingMapper;
         this.favoriteMapper = favoriteMapper;
+        this.commentMapper = commentMapper;
+        this.likeMapper = likeMapper;
+        this.userMapper = userMapper;
         this.dbRetryService = dbRetryService;
         this.teamService = teamService;
     }
@@ -348,6 +362,109 @@ public class TemplateService {
         template.setRatingCount(all.size());
         template.setUpdateTime(LocalDateTime.now());
         templateMapper.updateById(template);
+    }
+
+    // ==================== 评论 / 点赞 ====================
+
+    /** 模板评论列表(按 id 正序), 含用户昵称 */
+    public List<Map<String, Object>> listComments(Long templateId) {
+        List<MarketComment> comments = commentMapper.selectList(new LambdaQueryWrapper<MarketComment>()
+                .eq(MarketComment::getTemplateId, templateId)
+                .orderByAsc(MarketComment::getId));
+        if (comments.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<Long> userIds = comments.stream().map(MarketComment::getUserId).distinct().collect(Collectors.toList());
+        Map<Long, User> users = userMapper.selectList(new LambdaQueryWrapper<User>().in(User::getId, userIds))
+                .stream().collect(Collectors.toMap(User::getId, u -> u, (a, b) -> a));
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (MarketComment c : comments) {
+            User u = users.get(c.getUserId());
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", c.getId());
+            m.put("userId", c.getUserId());
+            m.put("nickname", u == null ? "-" : (u.getNickname() == null ? u.getUsername() : u.getNickname()));
+            m.put("username", u == null ? "-" : u.getUsername());
+            m.put("content", c.getContent());
+            m.put("parentId", c.getParentId());
+            m.put("createTime", c.getCreateTime());
+            out.add(m);
+        }
+        return out;
+    }
+
+    /** 发布评论(或回复) */
+    @Transactional
+    public MarketComment addComment(Long userId, Long templateId, String content, Long parentId) {
+        if (content == null || content.trim().isEmpty()) {
+            throw new BusinessException("评论内容不能为空");
+        }
+        if (content.length() > 500) {
+            throw new BusinessException("评论最多 500 字");
+        }
+        FormatTemplate template = templateMapper.selectById(templateId);
+        if (template == null || !Boolean.TRUE.equals(template.getIsPublic())) {
+            throw new BusinessException(404, "模板不存在或未上架");
+        }
+        MarketComment c = new MarketComment();
+        c.setTemplateId(templateId);
+        c.setUserId(userId);
+        c.setContent(content.trim());
+        c.setParentId(parentId);
+        c.setCreateTime(LocalDateTime.now());
+        commentMapper.insert(c);
+        return c;
+    }
+
+    /** 删除评论(本人或模板作者) */
+    @Transactional
+    public void deleteComment(Long userId, Long commentId) {
+        MarketComment c = commentMapper.selectById(commentId);
+        if (c == null) {
+            throw new BusinessException(404, "评论不存在");
+        }
+        if (c.getUserId().equals(userId)) {
+            commentMapper.deleteById(commentId);
+            return;
+        }
+        FormatTemplate template = templateMapper.selectById(c.getTemplateId());
+        if (template != null && template.getUserId().equals(userId)) {
+            commentMapper.deleteById(commentId);
+            return;
+        }
+        throw new BusinessException(403, "无权删除该评论");
+    }
+
+    /** 点赞/取消点赞, 返回当前是否已赞与总赞数 */
+    @Transactional
+    public Map<String, Object> toggleLike(Long userId, Long templateId) {
+        FormatTemplate template = templateMapper.selectById(templateId);
+        if (template == null || !Boolean.TRUE.equals(template.getIsPublic())) {
+            throw new BusinessException(404, "模板不存在或未上架");
+        }
+        MarketLike exist = likeMapper.selectOne(new LambdaQueryWrapper<MarketLike>()
+                .eq(MarketLike::getTemplateId, templateId)
+                .eq(MarketLike::getUserId, userId));
+        if (exist == null) {
+            MarketLike like = new MarketLike();
+            like.setTemplateId(templateId);
+            like.setUserId(userId);
+            like.setCreateTime(LocalDateTime.now());
+            likeMapper.insert(like);
+            return likeResult(true, templateId);
+        } else {
+            likeMapper.deleteById(exist.getId());
+            return likeResult(false, templateId);
+        }
+    }
+
+    private Map<String, Object> likeResult(boolean liked, Long templateId) {
+        Long count = likeMapper.selectCount(new LambdaQueryWrapper<MarketLike>()
+                .eq(MarketLike::getTemplateId, templateId));
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("liked", liked);
+        m.put("likeCount", count == null ? 0 : count);
+        return m;
     }
 
     // ==================== 收藏 ====================

@@ -66,7 +66,7 @@ public class PaperService {
         }
         String original = file.getOriginalFilename();
         if (original == null || !original.toLowerCase().endsWith(".docx")) {
-            throw new BusinessException("仅支持 .docx 文件(旧版 .doc 请先另存为 .docx)");
+            throw new BusinessException("仅支持 .docx 文件，旧版 .doc 请先用 Word 另存为 .docx 后再上传");
         }
         if (file.getSize() > 40L * 1024 * 1024) {
             throw new BusinessException("文件过大(超过 40MB)，请拆分后重新上传");
@@ -405,5 +405,46 @@ public class PaperService {
         }
         storageService.delete(paperFile.getStoredPath());
         paperFileMapper.deleteById(fileId);
+    }
+
+    /** 批量加载已排版结果(校验归属与完成状态), 并补全 originalName 供打包命名 */
+    public List<FormatTask> loadResultsBatch(Long userId, List<Long> taskIds) {
+        if (taskIds == null || taskIds.isEmpty()) {
+            throw new BusinessException("请选择要下载的任务");
+        }
+        if (taskIds.size() > 50) {
+            throw new BusinessException("单次批量下载最多 50 个");
+        }
+        List<FormatTask> tasks = taskMapper.selectBatchIds(taskIds);
+        if (tasks.size() != taskIds.size()) {
+            throw new BusinessException(404, "部分任务不存在");
+        }
+        java.util.Set<Long> fileIds = tasks.stream().map(FormatTask::getFileId)
+                .filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet());
+        java.util.Map<Long, String> names = new java.util.HashMap<>();
+        if (!fileIds.isEmpty()) {
+            for (PaperFile pf : paperFileMapper.selectBatchIds(fileIds)) {
+                names.put(pf.getId(), pf.getOriginalName());
+            }
+        }
+        List<FormatTask> ok = new java.util.ArrayList<>();
+        for (FormatTask t : tasks) {
+            boolean mine = t.getUserId() != null && t.getUserId().equals(userId);
+            boolean teamAccess = t.getTeamId() != null && teamService.isMember(t.getTeamId(), userId);
+            if (!mine && !teamAccess) {
+                throw new BusinessException(403, "无权下载任务 #" + t.getId());
+            }
+            if (!FormatTask.STATUS_SUCCESS.equals(t.getStatus()) || t.getResultPath() == null) {
+                throw new BusinessException(400, "任务 #" + t.getId() + " 尚未完成，无法下载");
+            }
+            t.setOriginalName(names.getOrDefault(t.getFileId(), "task_" + t.getId()));
+            ok.add(t);
+        }
+        return ok;
+    }
+
+    /** 已校验任务的结果文件 */
+    public File resultFileOf(FormatTask task) {
+        return storageService.load(task.getResultPath());
     }
 }

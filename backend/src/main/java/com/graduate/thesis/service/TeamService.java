@@ -307,6 +307,61 @@ public class TeamService {
         teamMapper.deleteById(teamId);
     }
 
+    /** 设置成员角色(owner 不可直接设他人为 owner, 需用转让) */
+    @Transactional
+    public void setRole(Long teamId, Long operatorId, Long targetUserId, String role) {
+        requireOwner(teamId, operatorId);
+        if (role == null) {
+            throw new BusinessException("请选择角色");
+        }
+        if (Team.ROLE_OWNER.equals(role)) {
+            throw new BusinessException("队长需通过「转让所有权」变更");
+        }
+        if (!java.util.Arrays.asList(Team.ROLE_ADMIN, Team.ROLE_EDITOR, Team.ROLE_VIEWER, Team.ROLE_MEMBER).contains(role)) {
+            throw new BusinessException("不支持的角色: " + role);
+        }
+        if (targetUserId.equals(operatorId)) {
+            throw new BusinessException("不能修改自己的角色");
+        }
+        TeamMember m = memberMapper.selectOne(new LambdaQueryWrapper<TeamMember>()
+                .eq(TeamMember::getTeamId, teamId).eq(TeamMember::getUserId, targetUserId));
+        if (m == null) {
+            throw new BusinessException(404, "该成员不在团队中");
+        }
+        m.setRole(role);
+        memberMapper.updateById(m);
+    }
+
+    /** 转让队长所有权: 原 owner 降为 admin, 新 owner 升为 owner 并更新 team.ownerId */
+    @Transactional
+    public void transferOwnership(Long teamId, Long operatorId, Long newOwnerId) {
+        requireOwner(teamId, operatorId);
+        if (newOwnerId == null) {
+            throw new BusinessException("请选择新队长");
+        }
+        if (newOwnerId.equals(operatorId)) {
+            throw new BusinessException("您已是队长");
+        }
+        if (!isMember(teamId, newOwnerId)) {
+            throw new BusinessException(404, "该成员不在团队中");
+        }
+        TeamMember oldOwner = memberMapper.selectOne(new LambdaQueryWrapper<TeamMember>()
+                .eq(TeamMember::getTeamId, teamId).eq(TeamMember::getUserId, operatorId));
+        if (oldOwner != null) {
+            oldOwner.setRole(Team.ROLE_ADMIN);
+            memberMapper.updateById(oldOwner);
+        }
+        TeamMember newOwner = memberMapper.selectOne(new LambdaQueryWrapper<TeamMember>()
+                .eq(TeamMember::getTeamId, teamId).eq(TeamMember::getUserId, newOwnerId));
+        if (newOwner != null) {
+            newOwner.setRole(Team.ROLE_OWNER);
+            memberMapper.updateById(newOwner);
+        }
+        Team team = teamMapper.selectById(teamId);
+        team.setOwnerId(newOwnerId);
+        teamMapper.updateById(team);
+    }
+
     // ==================== 权限辅助 ====================
 
     /** 我所在的团队 id 列表 */

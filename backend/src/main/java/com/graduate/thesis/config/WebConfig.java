@@ -46,6 +46,7 @@ public class WebConfig implements WebMvcConfigurer {
                         "/user/register",
                         "/user/send-email-code",
                         "/user/reset-password",
+                        "/user/need-captcha",
                         "/captcha/**",
                         "/health",
                         "/file/download/**",
@@ -54,6 +55,7 @@ public class WebConfig implements WebMvcConfigurer {
                         "/template/market/list",
                         "/template/market/categories",
                         "/template/market/*/detail",
+                        "/template/market/*/comments",
                         "/paper/task/*/progress",
                         "/error"
                 );

@@ -19,7 +19,7 @@
           <div class="team-card" v-for="t in teams" :key="t.id" @click="openDetail(t)">
             <div class="team-top">
               <span class="team-icon">{{ t.name.slice(0, 1).toUpperCase() }}</span>
-              <span class="role-tag" :class="t.role === 'owner' ? 'owner' : 'member'">{{ t.role === 'owner' ? '队长' : '成员' }}</span>
+              <span class="role-tag" :class="roleClass(t.role)">{{ roleLabel(t.role) }}</span>
             </div>
             <h4 class="team-name">{{ t.name }}</h4>
             <p class="team-desc">{{ t.description || '暂无简介' }}</p>
@@ -49,14 +49,24 @@
           <el-table-column prop="email" label="邮箱" min-width="170">
             <template #default="{ row }"><span class="muted">{{ row.email || '—' }}</span></template>
           </el-table-column>
-          <el-table-column label="角色" width="80" align="center">
+          <el-table-column label="角色" width="130" align="center">
             <template #default="{ row }">
-              <span class="role-tag" :class="row.role === 'owner' ? 'owner' : 'member'">{{ row.role === 'owner' ? '队长' : '成员' }}</span>
+              <span v-if="row.role === 'owner'" class="role-tag owner">队长</span>
+              <el-select v-else-if="d.ownerId === meId" v-model="row.role" size="small" style="width:100px" @change="setRole(row)">
+                <el-option label="管理员" value="admin" />
+                <el-option label="编辑" value="editor" />
+                <el-option label="查看" value="viewer" />
+                <el-option label="成员" value="member" />
+              </el-select>
+              <span v-else class="role-tag" :class="roleClass(row.role)">{{ roleLabel(row.role) }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="90" align="center">
+          <el-table-column label="操作" width="120" align="center">
             <template #default="{ row }">
-              <el-button v-if="d.ownerId === meId && row.userId !== d.ownerId" link type="danger" size="small" @click="remove(row)">移除</el-button>
+              <template v-if="d.ownerId === meId && row.userId !== d.ownerId">
+                <el-button link type="primary" size="small" @click="transfer(row)">转让</el-button>
+                <el-button link type="danger" size="small" @click="remove(row)">移除</el-button>
+              </template>
               <span v-else class="muted">—</span>
             </template>
           </el-table-column>
@@ -75,7 +85,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import SiteNav from '../components/SiteNav.vue'
-import { createTeam, listTeams, getTeamDetail, inviteMember, removeMember, leaveTeam, deleteTeam } from '../api/team'
+import { createTeam, listTeams, getTeamDetail, inviteMember, removeMember, leaveTeam, deleteTeam, setMemberRole, transferOwnership } from '../api/team'
 import { getProfile } from '../api/user'
 
 const teams = ref([])
@@ -150,6 +160,33 @@ async function remove(row) {
   try {
     await removeMember(d.value.id, row.userId)
     ElMessage.success('已移除')
+    d.value = await getTeamDetail(d.value.id)
+    load()
+  } catch (e) {}
+}
+
+function roleLabel(r) {
+  return { owner: '队长', admin: '管理员', editor: '编辑', viewer: '查看', member: '成员' }[r] || '成员'
+}
+function roleClass(r) {
+  return { owner: 'owner', admin: 'admin', editor: 'editor', viewer: 'viewer' }[r] || 'member'
+}
+async function setRole(row) {
+  try {
+    await setMemberRole(d.value.id, row.userId, row.role)
+    ElMessage.success('角色已更新')
+  } catch (e) {
+    ElMessage.error(e.message || '更新失败')
+    d.value = await getTeamDetail(d.value.id)
+  }
+}
+async function transfer(row) {
+  try {
+    await ElMessageBox.confirm(`确定将队长转让给「${row.nickname || row.username}」？转让后你将变为管理员。`, '转让所有权', { type: 'warning', confirmButtonText: '转让' })
+  } catch (e) { return }
+  try {
+    await transferOwnership(d.value.id, row.userId)
+    ElMessage.success('队长已转让')
     d.value = await getTeamDetail(d.value.id)
     load()
   } catch (e) {}
@@ -288,6 +325,18 @@ onMounted(async () => {
 .role-tag.owner {
   background: #FFF7ED;
   color: #b45309;
+}
+.role-tag.admin {
+  background: #F3E8FF;
+  color: #7c3aed;
+}
+.role-tag.editor {
+  background: #ECFDF5;
+  color: #059669;
+}
+.role-tag.viewer {
+  background: #F1F5F9;
+  color: #64748b;
 }
 .role-tag.member {
   background: #EEF1FF;

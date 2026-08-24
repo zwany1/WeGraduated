@@ -9,19 +9,25 @@
           multiple
           :auto-upload="false"
           :limit="10"
-          accept=".docx,.doc"
+          accept=".docx"
           :on-change="onFileChange"
           :on-remove="onFileRemove"
           :file-list="fileList"
           style="width: 100%"
         >
           <el-icon class="el-icon--upload"><upload-filled /></el-icon>
-          <div class="el-upload__text">将论文拖到此处，或<em>点击上传</em>（.docx / .doc，可一次选择多篇）</div>
+          <div class="el-upload__text">将论文拖到此处，或<em>点击上传</em>（仅支持 .docx，可一次选择多篇）</div>
         </el-upload>
         <div class="format-row">
           <span>选择格式方案：</span>
           <el-select v-model="templateId" placeholder="请选择格式方案" style="width: 260px">
             <el-option v-for="t in templates" :key="t.id" :label="t.name" :value="t.id" />
+            <template #empty>
+              <div style="padding:10px 12px;font-size:13px;color:#909399;line-height:1.6">
+                <div>还没有格式方案</div>
+                <router-link to="/templates" style="color:#409eff;font-weight:600">去创建一个 →</router-link>
+              </div>
+            </template>
           </el-select>
           <el-button type="primary" :loading="submitting" @click="submit">批量排版</el-button>
           <span v-if="selectedFiles.length" class="file-count">已选 {{ selectedFiles.length }} 篇</span>
@@ -29,7 +35,10 @@
       </section>
 
       <section class="task-list">
-        <h3>历史任务</h3>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h3 style="margin:0">历史任务</h3>
+          <el-button size="small" type="success" :disabled="!selectedTasks.length || batchDownloading" @click="downloadBatch">批量下载{{ selectedTasks.length ? `（${selectedTasks.length}）` : '' }}</el-button>
+        </div>
         <div class="task-filter">
           <el-radio-group v-model="statusFilter" size="small">
             <el-radio-button label="">全部</el-radio-button>
@@ -40,7 +49,8 @@
           <el-input v-model="taskKeyword" placeholder="搜索论文文件名" clearable :prefix-icon="Search" style="width: 220px" />
           <span class="task-count">{{ filteredTasks.length }} / {{ tasks.length }}</span>
         </div>
-        <el-table :data="pagedTasks" empty-text="暂无任务">
+        <el-table :data="pagedTasks" empty-text="暂无任务" @selection-change="handleSelectionChange">
+          <el-table-column type="selection" width="44" />
           <el-table-column prop="id" label="ID" width="60" />
           <el-table-column label="论文" min-width="140">
             <template #default="{ row }">{{ fileName(row) }}</template>
@@ -220,7 +230,7 @@ import { ElMessage, ElNotification, ElMessageBox } from 'element-plus'
 import { UploadFilled, Loading, Search } from '@element-plus/icons-vue'
 import { listTemplates } from '../api/template'
 import { listTeams } from '../api/team'
-import { uploadPaper, startFormat, startFormatBatch, listTasks, getTask, downloadPaper, downloadPaperOriginal, getDiff, progressTicket, deleteTask, listFiles, deleteFile } from '../api/paper'
+import { uploadPaper, startFormat, startFormatBatch, listTasks, getTask, downloadPaper, downloadPaperBatch, downloadPaperOriginal, getDiff, progressTicket, deleteTask, listFiles, deleteFile } from '../api/paper'
 import DocxCompare from '../components/DocxCompare.vue'
 import SiteNav from '../components/SiteNav.vue'
 
@@ -389,8 +399,8 @@ onBeforeUnmount(() => {
 })
 
 function onFileChange(file, uploadFiles) {
-  if (file.name && !/\.(docx|doc)$/i.test(file.name)) {
-    ElMessage.error('仅支持 .docx / .doc 文件')
+  if (file.name && !/\.docx$/i.test(file.name)) {
+    ElMessage.error('仅支持 .docx 文件，旧版 .doc 请先用 Word 另存为 .docx 后再上传')
     fileList.value = fileList.value.filter(f => f.uid !== file.uid)
     return
   }
@@ -475,6 +485,31 @@ async function download(row) {
   a.download = `${base}_${tpl}_${ts}.docx`
   a.click()
   URL.revokeObjectURL(url)
+}
+
+const selectedTasks = ref([])
+const batchDownloading = ref(false)
+function handleSelectionChange(rows) {
+  selectedTasks.value = rows
+}
+async function downloadBatch() {
+  if (!selectedTasks.value.length) return
+  const ids = selectedTasks.value.map(t => t.id)
+  batchDownloading.value = true
+  try {
+    const blob = await downloadPaperBatch(ids)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `已排版论文批量_${new Date().toLocaleString('zh-CN', { hour12: false }).replace(/[\/\s:]/g, '')}.zip`
+    a.click()
+    URL.revokeObjectURL(url)
+    ElMessage.success(`已批量下载 ${ids.length} 篇`)
+  } catch (e) {
+    ElMessage.error('批量下载失败')
+  } finally {
+    batchDownloading.value = false
+  }
 }
 
 let previewSeq = 0

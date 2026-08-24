@@ -82,7 +82,9 @@
                 </span>
                 <span class="downloads">下载 {{ t.downloadCount || 0 }}</span>
               </div>
-              <button class="btn-use" @click.stop="useMarket(t)">使用此模板</button>
+              <div class="card-actions">
+                <button class="btn-use" @click.stop="useMarket(t)">使用此模板</button>
+              </div>
             </div>
           </div>
         </template>
@@ -117,7 +119,9 @@
             <div class="card mine" v-for="t in myTemplates" :key="'m'+t.id">
               <h3 class="card-title">{{ t.name }}</h3>
               <div class="card-meta">创建于 {{ formatTime(t.createTime) }}</div>
-              <button class="btn-use" @click="goMy(t.id)">进入配置</button>
+              <div class="card-actions">
+                <button class="btn-use" @click="goMy(t.id)">使用此模板</button>
+              </div>
             </div>
           </div>
           <p v-else class="empty">还没有模板，去创建一个吧</p>
@@ -164,6 +168,32 @@
             {{ favSet.has(detail.id) ? '取消收藏' : '收藏' }}
           </el-button>
           <el-button v-if="isLoggedIn" plain @click="chooseRate(detail)">评分</el-button>
+          <el-button v-if="isLoggedIn" :type="likeState.liked ? 'primary' : 'default'" plain @click="doLike">
+            {{ likeState.liked ? '已赞' : '点赞' }}（{{ likeState.likeCount }}）
+          </el-button>
+        </div>
+
+        <div class="d-comments">
+          <h4 class="d-h">评论（{{ comments.length }}）</h4>
+          <div v-if="comments.length" class="comment-list">
+            <div v-for="c in comments" :key="c.id" class="comment-item">
+              <div class="c-avatar">{{ (c.nickname || c.username || '?').slice(0, 1) }}</div>
+              <div class="c-main">
+                <div class="c-head">
+                  <span class="c-name">{{ c.nickname || c.username }}</span>
+                  <span class="c-time">{{ fmtTime(c.createTime) }}</span>
+                </div>
+                <div class="c-content">{{ c.content }}</div>
+              </div>
+              <el-button v-if="isLoggedIn && (c.userId === meId || detail.userId === meId)" link type="danger" size="small" @click="removeComment(c)">删除</el-button>
+            </div>
+          </div>
+          <el-empty v-else description="暂无评论，来抢沙发" :image-size="50" />
+          <div v-if="isLoggedIn" class="comment-input">
+            <el-input v-model="commentText" type="textarea" :rows="2" maxlength="500" show-word-limit placeholder="写下你的评论..." resize="none" />
+            <el-button type="primary" :loading="commentSubmitting" @click="submitComment">发布</el-button>
+          </div>
+          <el-button v-else plain @click="router.push({ path: '/login', query: { redirect: '/template-market' } })">登录后评论</el-button>
         </div>
       </div>
     </el-dialog>
@@ -191,7 +221,7 @@ import { ElMessage } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import NavBar from '../components/site/NavBar.vue'
 import SiteFooter from '../components/site/SiteFooter.vue'
-import { listTemplates, createTemplate, listMarketTemplates, listMarketCategories, rateMarketTemplate, copyMarketTemplate, getMarketTemplateDetail, toggleFavoriteTemplate, listFavoriteTemplates } from '../api/template'
+import { listTemplates, createTemplate, listMarketTemplates, listMarketCategories, rateMarketTemplate, copyMarketTemplate, getMarketTemplateDetail, toggleFavoriteTemplate, listFavoriteTemplates, listMarketComments, addMarketComment, deleteMarketComment, toggleMarketLike } from '../api/template'
 
 const router = useRouter()
 const isLoggedIn = ref(false)
@@ -205,6 +235,11 @@ const sort = ref('recommended')
 const keyword = ref('')
 const detailVisible = ref(false)
 const detail = ref(null)
+const comments = ref([])
+const commentText = ref('')
+const likeState = ref({ liked: false, likeCount: 0 })
+const commentSubmitting = ref(false)
+const meId = computed(() => Number(localStorage.getItem('userId')) || 0)
 const filteredMarket = computed(() => {
   const kw = keyword.value.trim().toLowerCase()
   if (!kw) return marketTemplates.value
@@ -281,9 +316,22 @@ async function openDetail(t) {
   try {
     detail.value = await getMarketTemplateDetail(t.id)
     detailVisible.value = true
+    comments.value = []
+    commentText.value = ''
+    likeState.value = { liked: false, likeCount: 0 }
+    loadComments(t.id)
   } catch (e) {
     ElMessage.error(e.message || '加载详情失败')
   }
+}
+
+async function loadComments(id) {
+  try { comments.value = (await listMarketComments(id)) || [] } catch (e) { comments.value = [] }
+}
+
+function fmtTime(t) {
+  if (!t) return ''
+  return String(t).replace('T', ' ').substring(0, 16)
 }
 
 const ruleTypeLabel = t => ({
@@ -350,6 +398,50 @@ async function submitRate() {
     ElMessage.error(e.message || '评分失败')
   } finally {
     rateSubmitting.value = false
+  }
+}
+
+async function doLike() {
+  if (!detail.value) return
+  if (!localStorage.getItem('token')) {
+    router.push({ path: '/login', query: { redirect: '/template-market' } })
+    return
+  }
+  try {
+    likeState.value = (await toggleMarketLike(detail.value.id)) || likeState.value
+  } catch (e) {
+    ElMessage.error(e.message || '操作失败')
+  }
+}
+
+async function submitComment() {
+  if (!detail.value) return
+  if (!localStorage.getItem('token')) {
+    router.push({ path: '/login', query: { redirect: '/template-market' } })
+    return
+  }
+  const text = commentText.value.trim()
+  if (!text) { ElMessage.warning('请输入评论内容'); return }
+  commentSubmitting.value = true
+  try {
+    await addMarketComment(detail.value.id, text)
+    commentText.value = ''
+    await loadComments(detail.value.id)
+    ElMessage.success('评论已发布')
+  } catch (e) {
+    ElMessage.error(e.message || '评论失败')
+  } finally {
+    commentSubmitting.value = false
+  }
+}
+
+async function removeComment(c) {
+  try {
+    await deleteMarketComment(c.id)
+    await loadComments(detail.value.id)
+    ElMessage.success('已删除')
+  } catch (e) {
+    ElMessage.error(e.message || '删除失败')
   }
 }
 
@@ -714,5 +806,71 @@ function formatTime(t) {
 }
 @media (max-width: 900px) {
   .grid { grid-template-columns: 1fr 1fr; }
+}
+.d-comments {
+  margin-top: 16px;
+}
+.d-comments .d-h {
+  margin: 0 0 10px;
+  font-size: 14px;
+  color: #1a1a2e;
+}
+.comment-list {
+  max-height: 280px;
+  overflow: auto;
+}
+.comment-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f1f5;
+}
+.c-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #EEF1FF;
+  color: #3B6BFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.c-main {
+  flex: 1;
+  min-width: 0;
+}
+.c-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+.c-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #2c3140;
+}
+.c-time {
+  font-size: 12px;
+  color: #c0c4cc;
+}
+.c-content {
+  font-size: 13px;
+  color: #4a4f5e;
+  line-height: 1.6;
+  word-break: break-word;
+}
+.comment-input {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  margin-top: 12px;
+}
+.comment-input .el-button {
+  flex-shrink: 0;
 }
 </style>

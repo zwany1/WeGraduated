@@ -16,7 +16,6 @@
     "axios": "^1.7.2",
     "docx-preview": "^0.4.0",
     "element-plus": "^2.7.6",
-    "gsap": "^3.15.0",
     "html2canvas": "^1.4.1",
     "pdfjs-dist": "^6.2.108",
     "pinia": "^2.1.7",

@@ -90,6 +90,8 @@ public class DbMigrationRunner implements ApplicationRunner {
         addColumnIfMissing("t_format_task", "team_id", "ALTER TABLE t_format_task ADD COLUMN team_id BIGINT DEFAULT NULL COMMENT '所属团队(空=个人)'");
         addColumnIfMissing("t_paper_file", "team_id", "ALTER TABLE t_paper_file ADD COLUMN team_id BIGINT DEFAULT NULL COMMENT '所属团队(空=个人)'");
         ensureMarketRatingTable();
+        ensureMarketCommentTable();
+        ensureMarketLikeTable();
         ensureLoginSessionTable();
         ensureFavoriteTable();
         ensureTeamTables();
@@ -132,6 +134,53 @@ public class DbMigrationRunner implements ApplicationRunner {
             }
         } catch (Exception e) {
             log.warn("[DbMigration] 创建 t_market_rating 表失败: {}", e.getMessage());
+        }
+    }
+
+    /** 模板市场评论表(幂等建表) */
+    private void ensureMarketCommentTable() {
+        try {
+            Integer count = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 't_market_comment'",
+                    Integer.class);
+            if (count == null || count == 0) {
+                jdbcTemplate.execute("CREATE TABLE t_market_comment (" +
+                        "id BIGINT NOT NULL AUTO_INCREMENT, " +
+                        "template_id BIGINT NOT NULL, " +
+                        "user_id BIGINT NOT NULL, " +
+                        "content VARCHAR(500) NOT NULL, " +
+                        "parent_id BIGINT DEFAULT NULL, " +
+                        "create_time DATETIME DEFAULT CURRENT_TIMESTAMP, " +
+                        "PRIMARY KEY (id), " +
+                        "KEY idx_template (template_id), " +
+                        "KEY idx_user (user_id)" +
+                        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='模板市场评论'");
+                log.info("[DbMigration] 已创建 t_market_comment 表");
+            }
+        } catch (Exception e) {
+            log.warn("[DbMigration] 创建 t_market_comment 表失败: {}", e.getMessage());
+        }
+    }
+
+    /** 模板市场点赞表(幂等建表): 每用户每模板最多一次点赞 */
+    private void ensureMarketLikeTable() {
+        try {
+            Integer count = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 't_market_like'",
+                    Integer.class);
+            if (count == null || count == 0) {
+                jdbcTemplate.execute("CREATE TABLE t_market_like (" +
+                        "id BIGINT NOT NULL AUTO_INCREMENT, " +
+                        "template_id BIGINT NOT NULL, " +
+                        "user_id BIGINT NOT NULL, " +
+                        "create_time DATETIME DEFAULT CURRENT_TIMESTAMP, " +
+                        "PRIMARY KEY (id), " +
+                        "UNIQUE KEY uk_template_user (template_id, user_id)" +
+                        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='模板市场点赞'");
+                log.info("[DbMigration] 已创建 t_market_like 表");
+            }
+        } catch (Exception e) {
+            log.warn("[DbMigration] 创建 t_market_like 表失败: {}", e.getMessage());
         }
     }
 

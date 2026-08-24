@@ -55,7 +55,7 @@
               placeholder="请输入邮箱或用户名"
               autocomplete="off"
               @focus="isTyping = true"
-              @blur="isTyping = false"
+              @blur="isTyping = false; checkCaptcha()"
             />
           </div>
 
@@ -82,7 +82,7 @@
             </div>
           </div>
 
-          <div class="input-block">
+          <div class="input-block" v-if="needCaptcha">
             <label for="captcha" class="input-label">验证码</label>
             <CaptchaWidget
               v-model:captcha-code="form.captchaCode"
@@ -123,7 +123,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { login, getProfile } from '../api/user'
+import { login, getProfile, needCaptcha as needCaptchaApi } from '../api/user'
 import { getMenus } from '../api/admin'
 import AnimatedCharacters from '../components/auth/AnimatedCharacters.vue'
 import CaptchaWidget from '../components/auth/CaptchaWidget.vue'
@@ -133,12 +133,19 @@ const router = useRouter()
 const loading = ref(false)
 const showPassword = ref(false)
 const rememberMe = ref(false)
+const needCaptcha = ref(false)
 const isTyping = ref(false)
 const pwdRef = ref(null)
 const captchaRef = ref(null)
 const form = reactive({ username: '', password: '', captchaCode: '', captchaId: '' })
 const hint = ref('')
 const password = computed(() => form.password)
+
+async function checkCaptcha() {
+  const acc = form.username.trim()
+  if (!acc) { needCaptcha.value = false; return }
+  try { needCaptcha.value = await needCaptchaApi(acc) } catch (e) {}
+}
 
 onMounted(async () => {
   if (localStorage.getItem('token')) {
@@ -150,6 +157,7 @@ onMounted(async () => {
   if (savedUser) {
     form.username = savedUser
     rememberMe.value = true
+    checkCaptcha()
   }
 })
 
@@ -173,7 +181,7 @@ async function submit() {
   if (loading.value) return
   if (!form.username.trim()) { ElMessage.warning('请输入用户名或邮箱'); return }
   if (!form.password) { ElMessage.warning('请输入密码'); return }
-  if (!form.captchaCode.trim()) { ElMessage.warning('请先完成验证码'); return }
+  if (needCaptcha.value && !form.captchaCode.trim()) { ElMessage.warning('请先完成验证码'); return }
   loading.value = true
   hint.value = '请稍候...'
   try {
@@ -211,7 +219,8 @@ async function submit() {
     router.push(router.currentRoute.value.query.redirect || '/home')
   } catch (e) {
     hint.value = e.message || ''
-    captchaRef.value?.refresh()
+    await checkCaptcha()
+    if (needCaptcha.value) captchaRef.value?.refresh()
   } finally {
     loading.value = false
   }

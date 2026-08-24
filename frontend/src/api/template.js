@@ -66,6 +66,22 @@ export function rateMarketTemplate(id, score) {
   return api.post(`/template/market/${id}/rate`, { score })
 }
 
+export function listMarketComments(id) {
+  return api.get(`/template/market/${id}/comments`)
+}
+
+export function addMarketComment(id, content, parentId) {
+  return api.post(`/template/market/${id}/comment`, { content, parentId })
+}
+
+export function deleteMarketComment(commentId) {
+  return api.delete(`/template/comment/${commentId}`)
+}
+
+export function toggleMarketLike(id) {
+  return api.post(`/template/market/${id}/like`)
+}
+
 export function copyMarketTemplate(id) {
   return api.post(`/template/market/${id}/copy`)
 }

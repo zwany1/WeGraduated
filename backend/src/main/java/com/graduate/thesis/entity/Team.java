@@ -15,6 +15,9 @@ import java.time.LocalDateTime;
 public class Team {
 
     public static final String ROLE_OWNER = "owner";
+    public static final String ROLE_ADMIN = "admin";
+    public static final String ROLE_EDITOR = "editor";
+    public static final String ROLE_VIEWER = "viewer";
     public static final String ROLE_MEMBER = "member";
 
     @TableId(type = IdType.AUTO)

@@ -91,6 +91,12 @@ public class DbMigrationRunner implements ApplicationRunner {
         addColumnIfMissing("t_paper_file", "team_id", "ALTER TABLE t_paper_file ADD COLUMN team_id BIGINT DEFAULT NULL COMMENT '所属团队(空=个人)'");
         ensureMarketRatingTable();
         ensureMarketCommentTable();
+        ensureSiteCaseTable();
+        addColumnIfMissing("t_site_case", "metrics", "ALTER TABLE t_site_case ADD COLUMN metrics VARCHAR(500) DEFAULT NULL COMMENT '成果指标JSON'");
+        addColumnIfMissing("t_site_case", "detail", "ALTER TABLE t_site_case ADD COLUMN detail TEXT COMMENT '详情正文'");
+        addColumnIfMissing("t_site_case", "images", "ALTER TABLE t_site_case ADD COLUMN images LONGTEXT COMMENT '截图base64JSON数组'");
+        addColumnIfMissing("t_site_case", "template_id", "ALTER TABLE t_site_case ADD COLUMN template_id BIGINT DEFAULT NULL COMMENT '关联模板'");
+        addColumnIfMissing("t_site_case", "task_id", "ALTER TABLE t_site_case ADD COLUMN task_id BIGINT DEFAULT NULL COMMENT '关联排版任务(空=手写示范)'");
         ensureMarketLikeTable();
         ensureLoginSessionTable();
         ensureFavoriteTable();
@@ -159,6 +165,42 @@ public class DbMigrationRunner implements ApplicationRunner {
             }
         } catch (Exception e) {
             log.warn("[DbMigration] 创建 t_market_comment 表失败: {}", e.getMessage());
+        }
+    }
+
+    /** 项目案例表(幂等建表) */
+    private void ensureSiteCaseTable() {
+        try {
+            Integer count = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 't_site_case'",
+                    Integer.class);
+            if (count == null || count == 0) {
+                jdbcTemplate.execute("CREATE TABLE t_site_case (" +
+                        "id BIGINT NOT NULL AUTO_INCREMENT, " +
+                        "tag VARCHAR(32) DEFAULT NULL, " +
+                        "title VARCHAR(128) NOT NULL, " +
+                        "description VARCHAR(500) DEFAULT NULL, " +
+                        "color VARCHAR(16) DEFAULT 'blue', " +
+                        "author VARCHAR(64) DEFAULT NULL, " +
+                        "school VARCHAR(128) DEFAULT NULL, " +
+                        "rating DECIMAL(2,1) DEFAULT 0.0, " +
+                        "sort_order INT DEFAULT 0, " +
+                        "visible TINYINT(1) DEFAULT 1, " +
+                        "metrics VARCHAR(500) DEFAULT NULL, " +
+                        "detail TEXT, " +
+                        "images LONGTEXT, " +
+                        "template_id BIGINT DEFAULT NULL, " +
+                        "task_id BIGINT DEFAULT NULL, " +
+                        "create_user BIGINT DEFAULT NULL, " +
+                        "create_time DATETIME DEFAULT CURRENT_TIMESTAMP, " +
+                        "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, " +
+                        "PRIMARY KEY (id), " +
+                        "KEY idx_sort (sort_order)" +
+                        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='项目案例'");
+                log.info("[DbMigration] 已创建 t_site_case 表");
+            }
+        } catch (Exception e) {
+            log.warn("[DbMigration] 创建 t_site_case 表失败: {}", e.getMessage());
         }
     }
 
@@ -513,6 +555,13 @@ public class DbMigrationRunner implements ApplicationRunner {
                 "message", 2, "用户反馈管理"});
         rows.put("1049", new Object[]{1048L, "反馈回复", "F", null, null, "system:feedback:reply", null, 1, "反馈回复"});
         rows.put("1050", new Object[]{1048L, "反馈删除", "F", null, null, "system:feedback:delete", null, 2, "反馈删除"});
+
+        // ---- 项目案例 ----
+        rows.put("1051", new Object[]{1021L, "项目案例", "C", "case", "admin/CaseManage", "system:case:list",
+                "case", 3, "项目案例管理"});
+        rows.put("1052", new Object[]{1051L, "案例新增", "F", null, null, "system:case:add", null, 1, "新增案例"});
+        rows.put("1053", new Object[]{1051L, "案例编辑", "F", null, null, "system:case:edit", null, 2, "编辑案例"});
+        rows.put("1054", new Object[]{1051L, "案例删除", "F", null, null, "system:case:delete", null, 3, "删除案例"});
         return rows;
     }
 

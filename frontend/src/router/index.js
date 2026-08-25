@@ -26,6 +26,7 @@ const viewMap = {
   'admin/NoticeManage': () => import('../views/admin/NoticeManage.vue'),
   'admin/BackupManage': () => import('../views/admin/BackupManage.vue'),
   'admin/FeedbackManage': () => import('../views/admin/FeedbackManage.vue'),
+  'admin/CaseManage': () => import('../views/admin/CaseManage.vue'),
   'admin/ComingSoon': () => import('../views/admin/ComingSoon.vue')
 }
 
@@ -48,6 +49,7 @@ const routes = [
   { path: '/template-market', component: () => import('../views/TemplateMarket.vue'), meta: { title: '模板市场' } },
   { path: '/guide', component: () => import('../views/Guide.vue'), meta: { title: '使用指南' } },
   { path: '/cases', component: () => import('../views/Cases.vue'), meta: { title: '案例' } },
+  { path: '/cases/:id', component: () => import('../views/CasesDetail.vue'), meta: { title: '案例详情' } },
   { path: '/pricing', component: () => import('../views/Pricing.vue'), meta: { title: '价格' } },
   { path: '/privacy', component: () => import('../views/Privacy.vue'), meta: { title: '隐私政策' } },
   { path: '/about', component: () => import('../views/About.vue'), meta: { title: '关于我们' } },
@@ -130,7 +132,8 @@ function firstAdminPath() {
 // 前端权限校验仅用于交互引导, 越权访问由服务端 @RequiresPerms 兜底拦截
 router.beforeEach(async (to, from, next) => {
   const token = getToken()
-  if (!PUBLIC_PAGES.includes(to.path) && !token) {
+  const isPublic = PUBLIC_PAGES.includes(to.path) || to.path.startsWith('/cases/')
+  if (!isPublic && !token) {
     next({ path: '/login', query: { redirect: to.fullPath } })
     return
   }

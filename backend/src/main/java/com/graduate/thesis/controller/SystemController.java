@@ -9,7 +9,12 @@ import com.graduate.thesis.entity.Config;
 import com.graduate.thesis.entity.DictData;
 import com.graduate.thesis.entity.DictType;
 import com.graduate.thesis.entity.Notice;
+import com.graduate.thesis.entity.SiteCase;
 import com.graduate.thesis.service.SystemService;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -216,5 +221,66 @@ public class SystemController {
     @GetMapping("/public/notice/list")
     public Result<List<Notice>> publicNotices(@RequestParam(defaultValue = "5") int limit) {
         return Result.ok(systemService.listPublicNotices(limit));
+    }
+
+    // ==================== 项目案例 ====================
+
+    @GetMapping("/admin/system/case/page")
+    @RequiresPerms("system:case:list")
+    public Result<PageResult<SiteCase>> casePage(@RequestParam(defaultValue = "1") int page,
+                                                 @RequestParam(defaultValue = "10") int size,
+                                                 @RequestParam(required = false) String keyword) {
+        return Result.ok(systemService.listCases(Math.max(page, 1), Math.min(Math.max(size, 1), 100), keyword));
+    }
+
+    @PostMapping("/admin/system/case")
+    @OperLog(module = "项目案例", action = "新增案例")
+    @RequiresPerms("system:case:add")
+    public Result<Void> saveCase(@RequestBody SiteCase dto) {
+        systemService.saveCase(dto, UserContext.get());
+        return Result.ok();
+    }
+
+    @PutMapping("/admin/system/case")
+    @OperLog(module = "项目案例", action = "编辑案例")
+    @RequiresPerms("system:case:edit")
+    public Result<Void> updateCase(@RequestBody SiteCase dto) {
+        systemService.saveCase(dto, UserContext.get());
+        return Result.ok();
+    }
+
+    @DeleteMapping("/admin/system/case/{id}")
+    @OperLog(module = "项目案例", action = "删除案例")
+    @RequiresPerms("system:case:delete")
+    public Result<Void> deleteCase(@PathVariable Long id) {
+        systemService.deleteCase(id);
+        return Result.ok();
+    }
+
+    @GetMapping("/admin/system/case/candidates")
+    @RequiresPerms("system:case:list")
+    public Result<List<java.util.Map<String, Object>>> caseCandidates() {
+        return Result.ok(systemService.listCandidateTasks());
+    }
+
+    // ==================== 前台: 公开案例 ====================
+
+    @GetMapping("/public/case/list")
+    public Result<List<SiteCase>> publicCases(@RequestParam(defaultValue = "50") int limit) {
+        return Result.ok(systemService.listPublicCases(limit));
+    }
+
+    @GetMapping("/public/case/{id}")
+    public Result<SiteCase> publicCase(@PathVariable Long id) {
+        return Result.ok(systemService.getPublicCase(id));
+    }
+
+    @GetMapping("/public/case/{id}/doc")
+    public ResponseEntity<FileSystemResource> publicCaseDoc(@PathVariable Long id) {
+        java.io.File file = systemService.getCaseFile(id);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=case.docx")
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(new FileSystemResource(file));
     }
 }

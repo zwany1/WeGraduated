@@ -266,6 +266,32 @@ export function listPublicNotices(limit = 5) {
   return api.get('/public/notice/list', { params: { limit } })
 }
 
+// ============ 项目案例 ============
+
+export function listCases(params) {
+  return api.get('/admin/system/case/page', { params })
+}
+
+export function saveCase(data) {
+  return data.id ? api.put('/admin/system/case', data) : api.post('/admin/system/case', data)
+}
+
+export function deleteCase(id) {
+  return api.delete(`/admin/system/case/${id}`)
+}
+
+export function listPublicCases(limit = 50) {
+  return api.get('/public/case/list', { params: { limit } })
+}
+
+export function getPublicCase(id) {
+  return api.get(`/public/case/${id}`)
+}
+
+export function listCandidateTasks() {
+  return api.get('/admin/system/case/candidates')
+}
+
 // ============ 数据备份 ============
 
 export function backupNow() {

@@ -334,3 +334,25 @@ CREATE TABLE IF NOT EXISTS t_feedback (
     KEY idx_feedback_user (user_id),
     KEY idx_feedback_status (status)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='用户反馈';
+
+CREATE TABLE IF NOT EXISTS t_site_case (
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    tag         VARCHAR(32)  DEFAULT NULL COMMENT '标签',
+    title       VARCHAR(128) NOT NULL COMMENT '标题',
+    description VARCHAR(500) DEFAULT NULL COMMENT '案例描述',
+    color       VARCHAR(16)  DEFAULT 'blue' COMMENT '预览色 blue/green/purple/orange',
+    author      VARCHAR(64)  DEFAULT NULL COMMENT '案例署名',
+    school      VARCHAR(128) DEFAULT NULL COMMENT '学校',
+    rating      DECIMAL(2,1) DEFAULT 0.0 COMMENT '评分0-5',
+    sort_order  INT          DEFAULT 0 COMMENT '排序小在前',
+    visible     TINYINT(1)   DEFAULT 1 COMMENT '前台是否展示',
+    metrics     VARCHAR(500) DEFAULT NULL COMMENT '成果指标JSON',
+    detail      TEXT         DEFAULT NULL COMMENT '详情正文',
+    images      LONGTEXT     DEFAULT NULL COMMENT '截图base64JSON数组',
+    template_id BIGINT       DEFAULT NULL COMMENT '关联模板',
+    task_id     BIGINT       DEFAULT NULL COMMENT '关联排版任务(空=手写示范)',
+    create_user BIGINT       DEFAULT NULL,
+    create_time DATETIME     DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_case_sort (sort_order)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='项目案例';

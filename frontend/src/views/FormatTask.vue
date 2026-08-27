@@ -37,7 +37,10 @@
       <section class="task-list">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <h3 style="margin:0">历史任务</h3>
-          <el-button size="small" type="success" :disabled="!selectedTasks.length || batchDownloading" @click="downloadBatch">批量下载{{ selectedTasks.length ? `（${selectedTasks.length}）` : '' }}</el-button>
+          <div class="task-batch">
+            <el-button size="small" type="success" :disabled="!selectedTasks.length || batchDownloading" @click="downloadBatch">批量下载{{ selectedTasks.length ? `（${selectedTasks.length}）` : '' }}</el-button>
+            <el-button size="small" type="danger" plain :disabled="!selectedTasks.length || batchDeleting" @click="removeTasks">批量删除{{ selectedTasks.length ? `（${selectedTasks.length}）` : '' }}</el-button>
+          </div>
         </div>
         <div class="task-filter">
           <el-radio-group v-model="statusFilter" size="small">
@@ -230,7 +233,7 @@ import { ElMessage, ElNotification, ElMessageBox } from 'element-plus'
 import { UploadFilled, Loading, Search } from '@element-plus/icons-vue'
 import { listTemplates } from '../api/template'
 import { listTeams } from '../api/team'
-import { uploadPaper, startFormat, startFormatBatch, listTasks, getTask, downloadPaper, downloadPaperBatch, downloadPaperOriginal, getDiff, progressTicket, deleteTask, listFiles, deleteFile } from '../api/paper'
+import { uploadPaper, startFormat, startFormatBatch, listTasks, getTask, downloadPaper, downloadPaperBatch, downloadPaperOriginal, getDiff, progressTicket, deleteTask, deleteTaskBatch, listFiles, deleteFile } from '../api/paper'
 import DocxCompare from '../components/DocxCompare.vue'
 import SiteNav from '../components/SiteNav.vue'
 
@@ -489,6 +492,7 @@ async function download(row) {
 
 const selectedTasks = ref([])
 const batchDownloading = ref(false)
+const batchDeleting = ref(false)
 function handleSelectionChange(rows) {
   selectedTasks.value = rows
 }
@@ -663,6 +667,26 @@ async function removeTask(row) {
   }
 }
 
+async function removeTasks() {
+  if (!selectedTasks.value.length) return
+  const ids = selectedTasks.value.map(t => t.id)
+  try {
+    await ElMessageBox.confirm(`确定批量删除选中的 ${ids.length} 个任务？结果文件将一并删除，若原文档无其他任务引用也会一并删除。`, '批量删除任务', { type: 'warning' })
+  } catch (e) { return }
+  batchDeleting.value = true
+  try {
+    await deleteTaskBatch(ids)
+    ElMessage.success(`已删除 ${ids.length} 个任务`)
+    selectedTasks.value = []
+    await loadTasks(true)
+    await loadFiles()
+  } catch (e) {
+    ElMessage.error('批量删除失败：' + (e.message || ''))
+  } finally {
+    batchDeleting.value = false
+  }
+}
+
 async function removeFile(row) {
   const n = row.taskCount || 0
   try {
@@ -773,6 +797,10 @@ function formatTime(t) {
 .task-list h3 {
   color: #303133;
   margin-bottom: 16px;
+}
+.task-batch {
+  display: flex;
+  gap: 8px;
 }
 .task-filter {
   display: flex;

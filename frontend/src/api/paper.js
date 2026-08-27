@@ -55,6 +55,11 @@ export function deleteTask(id) {
   return api.delete(`/paper/task/${id}`)
 }
 
+// 批量删除任务: 级联清理结果文件
+export function deleteTaskBatch(taskIds) {
+  return api.delete('/paper/tasks', { data: { taskIds } })
+}
+
 export function listFiles() {
   return api.get('/paper/files')
 }

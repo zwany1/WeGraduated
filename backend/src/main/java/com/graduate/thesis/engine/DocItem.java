@@ -14,8 +14,10 @@ public class DocItem {
     private int chapterNo;
     /** 该段是否包含图片 */
     private final boolean containsImage;
-    /** 是否为前置内容(第一个正文一级标题之前, 如封面/声明/摘要/目录) */
+    /** 是否为前置内容(第一个正文一级标题之前, 如封面/声明/目录, 完全不动) */
     private boolean frontMatter;
+    /** 是否为摘要区段(摘要/Abstract/关键词, 需套摘要规则) */
+    private boolean abstractSection;
 
     public DocItem(XWPFParagraph paragraph, ParagraphKind kind, String text, boolean containsImage) {
         this.paragraph = paragraph;
@@ -54,5 +56,13 @@ public class DocItem {
 
     public void setFrontMatter(boolean frontMatter) {
         this.frontMatter = frontMatter;
+    }
+
+    public boolean isAbstractSection() {
+        return abstractSection;
+    }
+
+    public void setAbstractSection(boolean abstractSection) {
+        this.abstractSection = abstractSection;
     }
 }

@@ -1,0 +1,65 @@
+[55] style=- ol=- | 
+[56] style=- ol=- | 摘  要
+[57] style=- ol=- | 
+[58] style=- ol=- | 随着高校图书馆馆藏资源的持续增长与读者对效率要求的不断提高，传统依赖人工记忆查找的图书管理模式已难以满足精准快速的物料定
+[59] style=- ol=- | 本文分析了信科院图书馆在物料管理方面的需求，完成了系统的总体设计，以西门子PLC为核心的控制层及HIM的人机交互层。软件
+[60] style=- ol=- | 本课题研究表明，基于PLC的模块化定位控制方案能够有效解决图书馆场景下的物料快速定位问题。通过仿真方式完成从设计的过程，
+[61] style=- ol=- | 关键词：图书馆自动化；模块化仓库；物料定位；可编程逻辑控制器（PLC）
+[62] style=- ol=- | 
+[63] style=- ol=- | 
+[64] style=- ol=- | Abstract
+[65] style=- ol=- | 
+[66] style=- ol=- | As the collection resources of university libraries continue
+[67] style=- ol=- | This paper analyzes the needs of the library of the School o
+[68] style=- ol=- | This study demonstrates that a modular positioning control s
+[69] style=- ol=- | 
+[70] style=- ol=- | Key words：Library Automation；Modular Warehouse；Material Posi
+[71] style=- ol=- | 
+[72] style=- ol=- | 
+[73] style=- ol=- | 目    录
+[74] style=15 ol=- | 
+[75] style=18 ol=- | 1 绪论1
+[76] style=20 ol=- | 1.1 研究背景及意义1
+[77] style=15 ol=- | 1.1.1智能图书馆的发展与挑战1
+[78] style=15 ol=- | 1.1.2信科院图书馆管理现状与困境1
+[79] style=15 ol=- | 1.1.3本课题的研究价值2
+[80] style=20 ol=- | 1.2 国内外研究现状2
+[81] style=15 ol=- | 1.2.1自动化仓储技术研究进展2
+[82] style=15 ol=- | 1.2.2PLC在图书馆自动化中的应用3
+[83] style=15 ol=- | 1.2.3仿真技术在控制系统设计中的应用3
+[84] style=20 ol=- | 1.3 本课题研究内容4
+[85] style=20 ol=- | 1.4 论文组织结构4
+[86] style=20 ol=- | 1.5 本章小结5
+[87] style=18 ol=- | 2 相关理论基础与技术6
+[88] style=20 ol=- | 2.1 PLC系统基础理论6
+[89] style=15 ol=- | 2.1.1PLC工作原理与扫描周期6
+[90] style=15 ol=- | 2.1.2PLC编程语言标准6
+[91] style=20 ol=- | 2.2 本章小结7
+[92] style=18 ol=- | 3 系统总体设计9
+[93] style=20 ol=- | 3.1 系统需求分析9
+[94] style=15 ol=- | 3.1.1功能性需求9
+[95] style=15 ol=- | 3.1.2非功能性需求9
+[96] style=20 ol=- | 3.2 系统总体设计方案10
+[97] style=15 ol=- | 3.2.1系统设计目标与原则10
+[98] style=15 ol=- | 3.2.2系统工作流程10
+[99] style=20 ol=- | 3.3 硬件选型与配置10
+[100] style=20 ol=- | 3.4 软件平台与开发环境11
+[101] style=20 ol=- | 3.5 本章小结11
+[102] style=18 ol=- | 4 系统硬件与仿真环境设计12
+[103] style=20 ol=- | 4.1 系统硬件选型与配置12
+[104] style=15 ol=- | 4.1.1PLC控制器12
+[105] style=15 ol=- | 4.1.2传感与检测器件选型13
+[106] style=15 ol=- | 4.1.3人机交互界面选型13
+[107] style=20 ol=- | 4.2 仿真环境搭建与虚拟对象建模14
+[108] style=15 ol=- | 4.2.1TIA Portal项目创建与硬件组态14
+[109] style=15 ol=- | 4.2.2虚拟货位指示装置建模15
+[110] style=20 ol=- | 4.3 I/O地址分配与符号表定义15
+[111] style=20 ol=- | 4.4 本章小结16
+[112] style=18 ol=- | 5 系统控制程序设计17
+[113] style=20 ol=- | 5.1 PLC程序总体结构17
+[114] style=20 ol=- | 5.2 主控制逻辑块（FC1）设计18
+[115] style=15 ol=- | 5.2.1寻址请求扫描与解码18
+[116] style=15 ol=- | 5.2.2输出互锁与唯一性保障18
+[117] style=20 ol=- | 5.3 控制功能块设计18
+[118] style=15 ol=- | 5.3.1（FC1）控制逻辑18
+[119] style=15 ol=- | 5.3.2（FC2）控制逻辑19

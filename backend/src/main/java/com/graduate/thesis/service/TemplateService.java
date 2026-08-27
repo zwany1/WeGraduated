@@ -110,7 +110,9 @@ public class TemplateService {
         templateMap.put("pageConfig", template.getPageConfig());
         templateMap.put("headingPatterns", template.getHeadingPatterns());
         templateMap.put("generateToc", template.getGenerateToc());
+        templateMap.put("generateAbstract", template.getGenerateAbstract());
         templateMap.put("referenceConfig", template.getReferenceConfig());
+        templateMap.put("tocConfig", template.getTocConfig());
         templateMap.put("createTime", template.getCreateTime());
         templateMap.put("rules", rules);
         return java.util.Collections.singletonMap("template", templateMap);
@@ -144,9 +146,23 @@ public class TemplateService {
         templateMapper.updateById(template);
     }
 
+    public void saveGenerateAbstract(Long templateId, Long userId, Boolean generateAbstract) {
+        FormatTemplate template = getOwned(templateId, userId);
+        template.setGenerateAbstract(Boolean.TRUE.equals(generateAbstract));
+        template.setUpdateTime(LocalDateTime.now());
+        templateMapper.updateById(template);
+    }
+
     public void saveReferenceConfig(Long templateId, Long userId, String referenceConfig) {
         FormatTemplate template = getOwned(templateId, userId);
         template.setReferenceConfig(referenceConfig);
+        template.setUpdateTime(LocalDateTime.now());
+        templateMapper.updateById(template);
+    }
+
+    public void saveTocConfig(Long templateId, Long userId, String tocConfig) {
+        FormatTemplate template = getOwned(templateId, userId);
+        template.setTocConfig(tocConfig);
         template.setUpdateTime(LocalDateTime.now());
         templateMapper.updateById(template);
     }
@@ -322,7 +338,9 @@ public class TemplateService {
         copy.setPageConfig(source.getPageConfig());
         copy.setHeadingPatterns(source.getHeadingPatterns());
         copy.setGenerateToc(source.getGenerateToc());
+        copy.setGenerateAbstract(source.getGenerateAbstract());
         copy.setReferenceConfig(source.getReferenceConfig());
+        copy.setTocConfig(source.getTocConfig());
         copy.setCategory(source.getCategory());
         copy.setSourceTemplateId(publicTemplateId);
         copy.setCreateTime(LocalDateTime.now());
@@ -574,7 +592,9 @@ public class TemplateService {
         c.setPageConfig(src.getPageConfig());
         c.setHeadingPatterns(src.getHeadingPatterns());
         c.setGenerateToc(src.getGenerateToc());
+        c.setGenerateAbstract(src.getGenerateAbstract());
         c.setReferenceConfig(src.getReferenceConfig());
+        c.setTocConfig(src.getTocConfig());
         c.setCategory(src.getCategory());
         c.setCreateTime(LocalDateTime.now());
         c.setUpdateTime(LocalDateTime.now());
@@ -641,9 +661,11 @@ public class TemplateService {
         m.put("ratingCount", nvl(t.getRatingCount()));
         m.put("ruleCount", rules.size());
         m.put("generateToc", t.getGenerateToc());
+        m.put("generateAbstract", t.getGenerateAbstract());
         m.put("pageConfig", t.getPageConfig());
         m.put("headingPatterns", t.getHeadingPatterns());
         m.put("referenceConfig", t.getReferenceConfig());
+        m.put("tocConfig", t.getTocConfig());
         m.put("rules", rules);
         return m;
     }

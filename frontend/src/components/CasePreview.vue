@@ -1,7 +1,6 @@
 <template>
   <div class="case-preview" :class="[color, { big }]">
     <div class="case-preview-inner">
-      <!-- 论文: 标题 + 段落线 -->
       <svg v-if="type === 'paper'" viewBox="0 0 200 100" preserveAspectRatio="xMidYMid meet">
         <rect x="20" y="18" width="90" height="9" rx="3" fill="#fff" opacity="0.95"/>
         <rect x="20" y="40" width="160" height="6" rx="3" fill="#fff" opacity="0.7"/>
@@ -10,7 +9,6 @@
         <rect x="20" y="80" width="60" height="14" rx="3" fill="#fff" opacity="0.85"/>
         <rect x="100" y="80" width="80" height="14" rx="3" fill="#fff" opacity="0.6"/>
       </svg>
-      <!-- 三线表: 顶/栏目/底 + 竖线 -->
       <svg v-else-if="type === 'table'" viewBox="0 0 200 100" preserveAspectRatio="xMidYMid meet">
         <line x1="20" y1="22" x2="180" y2="22" stroke="#fff" stroke-width="2.5" opacity="0.95"/>
         <line x1="20" y1="42" x2="180" y2="42" stroke="#fff" stroke-width="1.2" opacity="0.75"/>
@@ -21,7 +19,6 @@
         <line x1="60" y1="42" x2="60" y2="82" stroke="#fff" stroke-width="1" opacity="0.5"/>
         <line x1="140" y1="42" x2="140" y2="82" stroke="#fff" stroke-width="1" opacity="0.5"/>
       </svg>
-      <!-- ER 图: 矩形实体 + 菱形关系 + 连线 -->
       <svg v-else-if="type === 'er'" viewBox="0 0 200 100" preserveAspectRatio="xMidYMid meet">
         <rect x="18" y="32" width="52" height="30" rx="4" fill="#fff" opacity="0.92"/>
         <rect x="130" y="32" width="52" height="30" rx="4" fill="#fff" opacity="0.92"/>
@@ -31,13 +28,11 @@
         <line x1="44" y1="62" x2="44" y2="78" stroke="#fff" stroke-width="1" opacity="0.55"/>
         <line x1="156" y1="62" x2="156" y2="78" stroke="#fff" stroke-width="1" opacity="0.55"/>
       </svg>
-      <!-- 系统图: 分层横条 -->
       <svg v-else-if="type === 'arch'" viewBox="0 0 200 100" preserveAspectRatio="xMidYMid meet">
         <rect x="20" y="16" width="160" height="16" rx="4" fill="#fff" opacity="0.95"/>
         <rect x="20" y="42" width="160" height="16" rx="4" fill="#fff" opacity="0.78"/>
         <rect x="20" y="68" width="160" height="16" rx="4" fill="#fff" opacity="0.6"/>
       </svg>
-      <!-- 期刊: 双栏 -->
       <svg v-else viewBox="0 0 200 100" preserveAspectRatio="xMidYMid meet">
         <rect x="20" y="18" width="70" height="7" rx="3" fill="#fff" opacity="0.9"/>
         <rect x="110" y="18" width="70" height="7" rx="3" fill="#fff" opacity="0.9"/>

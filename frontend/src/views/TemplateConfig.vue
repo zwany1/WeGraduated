@@ -21,6 +21,17 @@
       <section class="panel">
         <!-- 页面设置 -->
         <template v-if="active === 'page'">
+          <h3>排版开关</h3>
+          <el-form label-width="120px" style="max-width: 520px">
+            <el-form-item label="目录排版">
+              <el-switch v-model="genToc" />
+              <span class="tip-inline">启用则对已有目录补样式、纯文本目录套字体；未启用则目录原样不动</span>
+            </el-form-item>
+            <el-form-item label="摘要排版">
+              <el-switch v-model="genAbstract" />
+              <span class="tip-inline">启用则对摘要/Abstract/关键词套规范格式；未启用则原样不动</span>
+            </el-form-item>
+          </el-form>
           <h3>纸张类型</h3>
           <el-form label-width="120px" style="max-width: 520px">
             <el-form-item label="纸张">
@@ -290,6 +301,50 @@
           <div class="tip">参考文献另起一页、置于正文后。条目格式：序号 [1] 中括号+空两格，换行第二行对齐序号（悬挂缩进）。作者只写前 3 位，余者"等"/"et al"。</div>
         </template>
 
+        <!-- 目录样式设置: 行距/前导符三级共用, 字体/字号各级独立 -->
+        <template v-else-if="active === 'toc'">
+          <el-form label-width="130px" style="max-width: 620px">
+            <el-form-item label="行距">
+              <el-select v-model="tocConfig.lineSpacing" style="max-width: 220px">
+                <el-option v-for="ls in lineSpacings" :key="ls" :label="ls + ' 倍'" :value="ls" />
+              </el-select>
+              <span class="tip-inline">各级目录条目共用</span>
+            </el-form-item>
+            <el-form-item label="制表位前导符">
+              <el-select v-model="tocConfig.leader" style="max-width: 220px">
+                <el-option label="保留原文" value="" />
+                <el-option label="无" value="none" />
+                <el-option label="点线(……)" value="dot" />
+                <el-option label="短划线(——)" value="hyphen" />
+                <el-option label="下划线(___)" value="underscore" />
+                <el-option label="中点(···)" value="middleDot" />
+              </el-select>
+              <span class="tip-inline">各级共用;选「保留原文」则不改文档已有的制表符</span>
+            </el-form-item>
+          </el-form>
+          <template v-for="lv in tocLevels" :key="lv.key">
+            <h4 style="margin: 16px 0 8px; font-size: 15px; color: #303133;">{{ lv.label }}</h4>
+            <el-form label-width="130px" style="max-width: 620px">
+              <el-form-item label="中文字体">
+                <el-select v-model="tocConfig[lv.key].font" style="max-width: 220px">
+                  <el-option v-for="f in fonts" :key="f" :label="f" :value="f" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="西文字体">
+                <el-select v-model="tocConfig[lv.key].fontLatin" style="max-width: 220px">
+                  <el-option v-for="f in latinFonts" :key="f" :label="f" :value="f" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="字号">
+                <el-select v-model="tocConfig[lv.key].fontSize" style="max-width: 220px">
+                  <el-option v-for="s in sizes" :key="s.v" :label="s.label" :value="s.v" />
+                </el-select>
+              </el-form-item>
+            </el-form>
+          </template>
+          <div class="tip">行距/前导符三级共用,字体/字号各级独立;作用于 Word 自动目录的 toc1/toc2/toc3 样式,不改目录域的自动更新标识——用户在 Word 按 F9 仍可重新生成目录。</div>
+        </template>
+
         <!-- 效果预览: 按当前规则用 CSS 模拟排版样式 -->
         <template v-else-if="active === 'preview'">
           <h3>排版效果预览</h3>
@@ -319,7 +374,7 @@ import { ref, reactive, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import SiteNav from '../components/SiteNav.vue'
 import { ElMessage } from 'element-plus'
-import { getTemplateDetail, savePageConfig, saveHeadingPatterns, saveReferenceConfig, saveRule } from '../api/template'
+import { getTemplateDetail, saveGenerateAbstract, saveGenerateToc, savePageConfig, saveHeadingPatterns, saveReferenceConfig, saveRule, saveTocConfig } from '../api/template'
 
 const route = useRoute()
 const router = useRouter()
@@ -331,11 +386,14 @@ const menus = [
   { key: 'body', label: '正文格式' },
   { key: 'figure', label: '图表格式' },
   { key: 'reference', label: '参考文献' },
+  { key: 'toc', label: '目录样式' },
   { key: 'preview', label: '效果预览' }
 ]
 const active = ref('page')
 const templateName = ref('格式方案')
 const saving = ref(false)
+const genToc = ref(false)
+const genAbstract = ref(false)
 
 const fonts = ['宋体', '黑体', '楷体', '仿宋', '微软雅黑', 'Times New Roman']
 const latinFonts = ['Times New Roman', 'Arial', 'Cambria', 'Calibri', 'Georgia', '宋体', '黑体']
@@ -389,6 +447,19 @@ const refConfig = reactive({
   maxAuthors: 3,
   renumber: true
 })
+
+const tocConfig = reactive({
+  lineSpacing: 1.5,
+  leader: 'dot',
+  toc1: { font: '宋体', fontLatin: 'Times New Roman', fontSize: 14 },
+  toc2: { font: '宋体', fontLatin: 'Times New Roman', fontSize: 12 },
+  toc3: { font: '宋体', fontLatin: 'Times New Roman', fontSize: 12 }
+})
+const tocLevels = [
+  { key: 'toc1', label: '一级标题条目' },
+  { key: 'toc2', label: '二级标题条目' },
+  { key: 'toc3', label: '三级标题条目' }
+]
 
 const presets = {
   chinese: { heading1: '^第[一二三四五六七八九十百]+章', heading2: '^\\d+\\.\\d+', heading3: '^\\d+\\.\\d+\\.\\d+' },
@@ -462,6 +533,11 @@ async function loadConfig() {
   })
   Object.assign(headingPatterns, { heading1: '^第[一二三四五六七八九十百]+章', heading2: '^\\d+\\.\\d+', heading3: '^\\d+\\.\\d+\\.\\d+' })
   Object.assign(refConfig, { enabled: false, title: '参考文献', titleFont: '黑体', titleFontSize: 14, itemFont: '宋体', itemFontLatin: 'Times New Roman', itemFontSize: 10, removeDoi: true, maxAuthors: 3, renumber: true })
+  tocConfig.lineSpacing = 1.5
+  tocConfig.leader = 'dot'
+  Object.assign(tocConfig.toc1, { font: '宋体', fontLatin: 'Times New Roman', fontSize: 14 })
+  Object.assign(tocConfig.toc2, { font: '宋体', fontLatin: 'Times New Roman', fontSize: 12 })
+  Object.assign(tocConfig.toc3, { font: '宋体', fontLatin: 'Times New Roman', fontSize: 12 })
   try {
     const detail = await getTemplateDetail(currentId)
     const t = detail.template
@@ -472,6 +548,16 @@ async function loadConfig() {
     if (hp) Object.assign(headingPatterns, hp)
     const rc = parseJson(t.referenceConfig)
     if (rc) Object.assign(refConfig, rc)
+    const tc = parseJson(t.tocConfig)
+    if (tc) {
+      if (tc.lineSpacing != null) tocConfig.lineSpacing = tc.lineSpacing
+      if (tc.leader != null) tocConfig.leader = tc.leader
+      if (tc.toc1) Object.assign(tocConfig.toc1, tc.toc1)
+      if (tc.toc2) Object.assign(tocConfig.toc2, tc.toc2)
+      if (tc.toc3) Object.assign(tocConfig.toc3, tc.toc3)
+    }
+    genToc.value = !!t.generateToc
+    genAbstract.value = !!t.generateAbstract
     ;(t.rules || []).forEach(r => {
       if (rules[r.ruleType]) {
         const merged = { ...rules[r.ruleType], ...r }
@@ -529,6 +615,15 @@ async function saveAll() {
   try {
     await saveReferenceConfig(currentId, { ...refConfig })
   } catch (e) { failed++; console.error('保存参考文献配置失败', e) }
+  try {
+    await saveTocConfig(currentId, { lineSpacing: tocConfig.lineSpacing, leader: tocConfig.leader, toc1: { ...tocConfig.toc1 }, toc2: { ...tocConfig.toc2 }, toc3: { ...tocConfig.toc3 } })
+  } catch (e) { failed++; console.error('保存目录样式失败', e) }
+  try {
+    await saveGenerateToc(currentId, genToc.value)
+  } catch (e) { failed++; console.error('保存目录开关失败', e) }
+  try {
+    await saveGenerateAbstract(currentId, genAbstract.value)
+  } catch (e) { failed++; console.error('保存摘要开关失败', e) }
   // 格式规则(标题/正文/图表): 逐条保存, 某条失败不影响其余
   for (const key of Object.keys(rules)) {
     try {

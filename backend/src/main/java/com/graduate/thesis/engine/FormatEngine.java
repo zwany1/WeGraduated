@@ -10,6 +10,7 @@ import com.graduate.thesis.engine.formatter.ParagraphFormatter;
 import com.graduate.thesis.engine.formatter.ReferenceFormatter;
 import com.graduate.thesis.engine.formatter.SectionFormatter;
 import com.graduate.thesis.engine.formatter.TextFormatter;
+import com.graduate.thesis.engine.formatter.TocFormatter;
 import com.graduate.thesis.engine.model.RuleSet;
 import com.graduate.thesis.entity.FormatRule;
 import org.apache.poi.openxml4j.util.ZipSecureFile;
@@ -71,6 +72,7 @@ public class FormatEngine {
 
             new CaptionFormatter().apply(doc, items, ruleSet);
             new ReferenceFormatter().apply(doc, ruleSet.getReferenceConfig());
+            new TocFormatter().apply(doc, items, ruleSet);
             progress.accept(85);
 
             HeaderFooterFormatter.apply(doc, ruleSet.getPageConfig());
@@ -120,8 +122,8 @@ public class FormatEngine {
         NumberUnifier.Style style = NumberUnifier.detectStyle(items);
 
         for (DocItem item : items) {
-            if (item.isFrontMatter()) {
-                continue; // 封面/摘要/目录等前置内容不改正文格式
+            if (item.isFrontMatter() || item.isAbstractSection()) {
+                continue; // 封面/目录等纯前置及摘要区段(摘要由 AbstractFormatter 处理)不改正文格式
             }
             if (item.getKind() == ParagraphKind.BODY) {
                 NumberUnifier.apply(item.getParagraph(), style);
@@ -134,7 +136,7 @@ public class FormatEngine {
         List<org.apache.poi.xwpf.usermodel.IBodyElement> bodyElements = doc.getBodyElements();
         for (int i = items.size() - 1; i >= 0; i--) {
             DocItem item = items.get(i);
-            if (item.getKind() == ParagraphKind.EMPTY && !item.isFrontMatter()) {
+            if (item.getKind() == ParagraphKind.EMPTY && !item.isFrontMatter() && !item.isAbstractSection()) {
                 String pXml = item.getParagraph().getCTP().xmlText();
                 if (pXml.contains("<w:br") || pXml.contains("<w:drawing")) continue;
                 int pos = bodyElements.indexOf(item.getParagraph());

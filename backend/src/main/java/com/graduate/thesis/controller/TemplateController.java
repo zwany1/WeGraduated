@@ -2,11 +2,13 @@ package com.graduate.thesis.controller;
 
 import com.graduate.thesis.common.Result;
 import com.graduate.thesis.common.UserContext;
+import com.graduate.thesis.dto.GenerateAbstractSaveDTO;
 import com.graduate.thesis.dto.GenerateTocSaveDTO;
 import com.graduate.thesis.dto.HeadingPatternsSaveDTO;
 import com.graduate.thesis.dto.PageConfigSaveDTO;
 import com.graduate.thesis.dto.ReferenceConfigSaveDTO;
 import com.graduate.thesis.dto.RuleSaveDTO;
+import com.graduate.thesis.dto.TocConfigSaveDTO;
 import com.graduate.thesis.dto.TemplateCreateDTO;
 import com.graduate.thesis.entity.FormatRule;
 import com.graduate.thesis.entity.FormatTemplate;
@@ -168,9 +170,21 @@ public class TemplateController {
         return Result.ok();
     }
 
+    @PutMapping("/{id}/generate-abstract")
+    public Result<Void> saveGenerateAbstract(@PathVariable Long id, @RequestBody GenerateAbstractSaveDTO dto) {
+        templateService.saveGenerateAbstract(id, UserContext.get(), dto.getGenerateAbstract());
+        return Result.ok();
+    }
+
     @PutMapping("/{id}/reference-config")
     public Result<Void> saveReferenceConfig(@PathVariable Long id, @RequestBody ReferenceConfigSaveDTO dto) {
         templateService.saveReferenceConfig(id, UserContext.get(), dto.getReferenceConfig());
+        return Result.ok();
+    }
+
+    @PutMapping("/{id}/toc-config")
+    public Result<Void> saveTocConfig(@PathVariable Long id, @RequestBody TocConfigSaveDTO dto) {
+        templateService.saveTocConfig(id, UserContext.get(), dto.getTocConfig());
         return Result.ok();
     }
 

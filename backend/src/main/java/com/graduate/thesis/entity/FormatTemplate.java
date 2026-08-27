@@ -33,8 +33,14 @@ public class FormatTemplate {
     /** 是否生成目录(默认 false) */
     private Boolean generateToc;
 
+    /** 是否排版摘要区段(默认 false) */
+    private Boolean generateAbstract;
+
     /** 参考文献配置 JSON: {"enabled":true,"title":"参考文献","titleFont":"黑体","titleFontSize":14,"itemFont":"宋体","itemFontLatin":"Times New Roman","itemFontSize":10,"removeDoi":true,"maxAuthors":3,"renumber":true} */
     private String referenceConfig;
+
+    /** 目录样式配置 JSON: {"font":"宋体","fontLatin":"Times New Roman","fontSize":12,"lineSpacing":1.5,"leader":"dot"} */
+    private String tocConfig;
 
     /** 是否上架模板市场 */
     private Boolean isPublic;

@@ -30,11 +30,13 @@ public class RuleSet {
     private final Pattern heading3Pattern;
     private final ReferenceConfig referenceConfig;
     private final boolean generateToc;
+    private final boolean generateAbstract;
+    private final TocConfig tocConfig;
 
     private RuleSet(Long templateId, String templateName, PageConfig pageConfig,
                     Map<String, FormatRule> rules,
                     Pattern heading1Pattern, Pattern heading2Pattern, Pattern heading3Pattern,
-                    ReferenceConfig referenceConfig, boolean generateToc) {
+                    ReferenceConfig referenceConfig, boolean generateToc, boolean generateAbstract, TocConfig tocConfig) {
         this.templateId = templateId;
         this.templateName = templateName;
         this.pageConfig = pageConfig;
@@ -44,6 +46,8 @@ public class RuleSet {
         this.heading3Pattern = heading3Pattern;
         this.referenceConfig = referenceConfig;
         this.generateToc = generateToc;
+        this.generateAbstract = generateAbstract;
+        this.tocConfig = tocConfig;
     }
 
     public static RuleSet from(FormatTemplate template, List<FormatRule> rules) {
@@ -72,11 +76,13 @@ public class RuleSet {
         }
 
         Map<String, FormatRule> ruleMap = rules.stream()
-                .collect(Collectors.toMap(FormatRule::getRuleType, r -> r, (a, b) -> a));
+                .collect(Collectors.toMap(r -> r.getRuleType().toLowerCase(), r -> r, (a, b) -> a));
         return new RuleSet(template.getId(), template.getName(), pageConfig, ruleMap,
                 compileHeading(h1), compileHeading(h2), compileHeading(h3),
                 ReferenceConfig.parse(template.getReferenceConfig()),
-                Boolean.TRUE.equals(template.getGenerateToc()));
+                Boolean.TRUE.equals(template.getGenerateToc()),
+                Boolean.TRUE.equals(template.getGenerateAbstract()),
+                TocConfig.parse(template.getTocConfig()));
     }
 
     private static String patternValue(JsonNode node, String key, String defaultValue) {
@@ -106,7 +112,7 @@ public class RuleSet {
      * 获取规则; 缺失时返回默认规范值, 避免 NPE
      */
     public FormatRule rule(String ruleType) {
-        FormatRule rule = rules.get(ruleType);
+        FormatRule rule = rules.get(ruleType.toLowerCase());
         if (rule != null) {
             return rule;
         }

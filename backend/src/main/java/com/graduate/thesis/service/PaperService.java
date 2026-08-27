@@ -368,6 +368,45 @@ public class PaperService {
         taskMapper.deleteById(taskId);
     }
 
+    /** 批量删除排版任务: 级联清理结果文件; 原文档无其他任务引用时一并删除(单次上限 50) */
+    @Transactional
+    public void deleteTaskBatch(Long userId, List<Long> taskIds) {
+        if (taskIds == null || taskIds.isEmpty()) {
+            throw new BusinessException("请选择要删除的任务");
+        }
+        if (taskIds.size() > 50) {
+            throw new BusinessException("单次批量删除最多 50 个");
+        }
+        List<FormatTask> tasks = taskMapper.selectBatchIds(taskIds);
+        if (tasks.size() != taskIds.size()) {
+            throw new BusinessException(404, "部分任务不存在");
+        }
+        for (FormatTask t : tasks) {
+            if (!t.getUserId().equals(userId)) {
+                throw new BusinessException(403, "无权删除任务 #" + t.getId());
+            }
+        }
+        for (FormatTask t : tasks) {
+            storageService.delete(t.getResultPath());
+        }
+        java.util.Set<Long> batchIds = tasks.stream().map(FormatTask::getId).collect(java.util.stream.Collectors.toSet());
+        java.util.Set<Long> fileIds = tasks.stream().map(FormatTask::getFileId)
+                .filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet());
+        for (Long fileId : fileIds) {
+            Long rest = taskMapper.selectCount(new LambdaQueryWrapper<FormatTask>()
+                    .eq(FormatTask::getFileId, fileId)
+                    .notIn(FormatTask::getId, batchIds));
+            if (rest == null || rest == 0L) {
+                PaperFile pf = paperFileMapper.selectById(fileId);
+                if (pf != null) {
+                    storageService.delete(pf.getStoredPath());
+                    paperFileMapper.deleteById(fileId);
+                }
+            }
+        }
+        taskMapper.deleteBatchIds(batchIds);
+    }
+
     /** 我的上传文档列表(含关联任务数) */
     public List<PaperFile> listFiles(Long userId) {
         List<PaperFile> files = paperFileMapper.selectList(new LambdaQueryWrapper<PaperFile>()

@@ -172,6 +172,13 @@ public class PaperController {
         return Result.ok();
     }
 
+    /** 批量删除排版任务: 级联清理结果文件, 原文档无其他任务引用时一并删除 */
+    @DeleteMapping("/tasks")
+    public Result<Void> deleteTaskBatch(@RequestBody java.util.Map<String, java.util.List<Long>> body) {
+        paperService.deleteTaskBatch(UserContext.get(), body.get("taskIds"));
+        return Result.ok();
+    }
+
     /** 我的上传文档列表(含关联任务数) */
     @GetMapping("/files")
     public Result<List<PaperFile>> files() {

@@ -68,6 +68,17 @@ public final class ParagraphFormatter {
         pPr.addNewPageBreakBefore();
     }
 
+    /**
+     * 段落大纲级别(0=一级,1=二级,2=三级): 供 Word 自动目录据此收录条目; 已设则保留原值
+     */
+    public static void setOutlineLevel(XWPFParagraph paragraph, int level) {
+        CTPPr pPr = paragraph.getCTP().isSetPPr() ? paragraph.getCTP().getPPr() : paragraph.getCTP().addNewPPr();
+        if (pPr.isSetOutlineLvl()) {
+            return;
+        }
+        pPr.addNewOutlineLvl().setVal(BigInteger.valueOf(level));
+    }
+
     private static ParagraphAlignment parseAlign(String align) {
         if ("center".equals(align)) {
             return ParagraphAlignment.CENTER;

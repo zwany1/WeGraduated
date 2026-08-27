@@ -52,5 +52,6 @@ public class SectionFormatter {
         p.setSpacingBefore(0);
         p.setSpacingAfter(0);
         ParagraphFormatter.setPageBreakBefore(p);
+        ParagraphFormatter.setOutlineLevel(p, 0);
     }
 }

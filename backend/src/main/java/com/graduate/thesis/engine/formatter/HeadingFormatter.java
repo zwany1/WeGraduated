@@ -29,6 +29,10 @@ public final class HeadingFormatter {
                     ParagraphFormatter.setPageBreakBefore(item.getParagraph());
                 }
             }
+            int outlineLvl = outlineLevelOf(item.getKind());
+            if (outlineLvl >= 0) {
+                ParagraphFormatter.setOutlineLevel(item.getParagraph(), outlineLvl);
+            }
         }
     }
 
@@ -42,6 +46,19 @@ public final class HeadingFormatter {
                 return ruleSet.rule("heading3");
             default:
                 return null;
+        }
+    }
+
+    private static int outlineLevelOf(ParagraphKind kind) {
+        switch (kind) {
+            case HEADING1:
+                return 0;
+            case HEADING2:
+                return 1;
+            case HEADING3:
+                return 2;
+            default:
+                return -1;
         }
     }
 }

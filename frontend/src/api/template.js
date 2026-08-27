@@ -28,8 +28,16 @@ export function saveGenerateToc(id, generateToc) {
   return api.put(`/template/${id}/generate-toc`, { generateToc })
 }
 
+export function saveGenerateAbstract(id, generateAbstract) {
+  return api.put(`/template/${id}/generate-abstract`, { generateAbstract })
+}
+
 export function saveReferenceConfig(id, referenceConfig) {
   return api.put(`/template/${id}/reference-config`, { referenceConfig: JSON.stringify(referenceConfig) })
+}
+
+export function saveTocConfig(id, tocConfig) {
+  return api.put(`/template/${id}/toc-config`, { tocConfig: JSON.stringify(tocConfig) })
 }
 
 export function saveRule(rule) {

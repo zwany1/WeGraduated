@@ -2,186 +2,268 @@ package com.graduate.thesis.engine.formatter;
 
 import com.graduate.thesis.engine.DocItem;
 import com.graduate.thesis.engine.ParagraphKind;
+import com.graduate.thesis.engine.StructureDetector;
 import com.graduate.thesis.engine.model.RuleSet;
+import com.graduate.thesis.engine.model.TocConfig;
+import org.apache.poi.xwpf.usermodel.ParagraphAlignment;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
-import org.apache.poi.xwpf.usermodel.XWPFStyle;
-import org.apache.poi.xwpf.usermodel.XWPFStyles;
-import org.apache.xmlbeans.XmlException;
-import org.apache.xmlbeans.XmlObject;
+import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTFonts;
-import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPPrGeneral;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTHyperlink;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTP;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPPr;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTR;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTRPr;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTSpacing;
-import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTStyle;
-import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTStyles;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.STLineSpacingRule;
-import org.openxmlformats.schemas.wordprocessingml.x2006.main.STStyleType;
 
 import java.math.BigInteger;
 import java.util.List;
 
 /**
- * 目录生成(按桂林信息科技学院规范):
- * 在第一个一级标题前插入"目  录"标题(三号黑体居中) + TOC 域(Word 中 F9 更新),
- * 目录行距1.5倍, 目录文字西文用 Times New Roman; 目录另起一页, 正文另起一页.
+ * 目录格式化:
+ * 自动目录(含 TOC 域/PAGEREF/toc 样式)按 tocConfig 改 hyperlink 内条目 run 的字体字号;
+ * 纯文本目录按 tocConfig 套各级字体/字号/行距; 无目录时不自动插入, 保持原文档.
  */
 public class TocFormatter {
 
-    private static final String NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
-
     public void apply(XWPFDocument doc, List<DocItem> items, RuleSet ruleSet) {
-        XWPFParagraph firstH1 = null;
-        for (DocItem item : items) {
-            if (item.getKind() == ParagraphKind.HEADING1) {
-                firstH1 = item.getParagraph();
+        TocConfig tc = ruleSet.getTocConfig();
+        boolean hasAutoToc = false;
+        for (XWPFParagraph p : doc.getParagraphs()) {
+            if (StructureDetector.isTocStructure(p, doc)) {
+                hasAutoToc = true;
                 break;
             }
         }
-        if (firstH1 == null) {
-            return;
-        }
-        addTocStyles(doc);
-        insertToc(doc, firstH1);
-    }
+        // 处理纯文本目录条目
+        formatManualToc(items, tc);
 
-    private void insertToc(XWPFDocument doc, XWPFParagraph anchor) {
-        XmlObject title = parseXml(
-                "<w:p xmlns:w=\"" + NS + "\"><w:pPr><w:pageBreakBefore/>"
-                        + "<w:spacing w:line=\"360\" w:lineRule=\"auto\"/><w:jc w:val=\"center\"/></w:pPr>"
-                        + "<w:r><w:rPr><w:rFonts w:ascii=\"黑体\" w:hAnsi=\"黑体\" w:eastAsia=\"黑体\"/>"
-                        + "<w:b/><w:sz w:val=\"32\"/><w:szCs w:val=\"32\"/></w:rPr>"
-                        + "<w:t>目    录</w:t></w:r></w:p>");
-        XmlObject field = parseXml(
-                "<w:p xmlns:w=\"" + NS + "\"><w:pPr><w:spacing w:line=\"360\" w:lineRule=\"auto\"/></w:pPr>"
-                        + "<w:fldSimple w:instr=\" TOC \\o &quot;1-3&quot; \\h \\z \\u \">"
-                        + "<w:r><w:rPr><w:rFonts w:ascii=\"Times New Roman\" w:hAnsi=\"Times New Roman\""
-                        + " w:eastAsia=\"宋体\"/><w:sz w:val=\"24\"/></w:rPr>"
-                        + "<w:t>【目录】请在 Word 中 Ctrl+A 后按 F9 更新域生成目录</w:t></w:r></w:fldSimple></w:p>");
-        insertBeforeNode(anchor.getCTP().getDomNode(), title);
-        insertBeforeNode(anchor.getCTP().getDomNode(), field);
-        ParagraphFormatter.setPageBreakBefore(anchor);
-    }
-
-    private static void insertBeforeNode(org.w3c.dom.Node target, XmlObject newPara) {
-        org.w3c.dom.Node parent = target.getParentNode();
-        org.w3c.dom.Node imported = parent.getOwnerDocument().importNode(toElementNode(newPara), true);
-        parent.insertBefore(imported, target);
-    }
-
-    private static org.w3c.dom.Node toElementNode(XmlObject obj) {
-        org.w3c.dom.Node node = obj.getDomNode();
-        if (node.getNodeType() == org.w3c.dom.Node.DOCUMENT_NODE) {
-            return ((org.w3c.dom.Document) node).getDocumentElement();
-        }
-        return node;
-    }
-
-    private static XmlObject parseXml(String xml) {
-        try {
-            return XmlObject.Factory.parse(xml);
-        } catch (XmlException e) {
-            throw new IllegalStateException("目录XML构造失败", e);
+        // 自动目录: 按条目级别改 run 字体字号
+        if (hasAutoToc) {
+            formatAutoTocEntries(doc, tc);
         }
     }
 
     /**
-     * 为目录定义 toc1-3 样式: 西文 Times New Roman, 目录行距1.5倍
+     * 自动目录条目: 按段落 toc 样式级别取对应级配置, 改 run 字体字号.
+     * Word 自动目录的条目文本嵌在段落 hyperlink 内, POI getRuns 不含,
+     * 需走 CTP 取 hyperlink 的 CTR 才能改到实际显示的 run.
      */
-    private void addTocStyles(XWPFDocument doc) {
-        XWPFStyles styles = resolveStyles(doc);
-        if (styles == null) {
+    private void formatAutoTocEntries(XWPFDocument doc, TocConfig tc) {
+        if (tc == null) {
             return;
         }
-        CTStyles cts = readCtStyles(styles);
-        if (cts == null) {
+        for (XWPFParagraph p : doc.getParagraphs()) {
+            if (!StructureDetector.isTocStructure(p, doc)) {
+                continue;
+            }
+            TocConfig.Level lvl = levelForTocParagraph(p, tc, doc);
+            if (lvl == null) {
+                continue;
+            }
+            CTP ctp = p.getCTP();
+            for (CTR ctr : ctp.getRList()) {
+                applyTocCtr(ctr, lvl);
+            }
+            for (CTHyperlink hl : ctp.getHyperlinkList()) {
+                for (CTR ctr : hl.getRList()) {
+                    applyTocCtr(ctr, lvl);
+                }
+            }
+            applyTocParagraphProps(p, tc);
+        }
+    }
+
+    /** 直写 CTR 字体/字号(中西文分离), 覆盖 hyperlink 内嵌的目录条目 run */
+    private static void applyTocCtr(CTR ctr, TocConfig.Level lvl) {
+        if (lvl == null || ctr == null) {
             return;
         }
-        addTocStyle(cts, "toc1", 28, "宋体");
-        addTocStyle(cts, "toc2", 24, "宋体");
-        addTocStyle(cts, "toc3", 24, "宋体");
-    }
-
-    private XWPFStyles resolveStyles(XWPFDocument doc) {
-        XWPFStyles styles = doc.getStyles();
-        if (styles != null) {
-            return styles;
-        }
-        try {
-            org.apache.poi.openxml4j.opc.OPCPackage pkg = doc.getPackage();
-            org.apache.poi.openxml4j.opc.PackagePartName pn =
-                    org.apache.poi.openxml4j.opc.PackagingURIHelper.createPartName("/word/styles.xml");
-            if (pkg.containPart(pn)) {
-                org.apache.poi.openxml4j.opc.PackagePart part = pkg.getPart(pn);
-                CTStyles cts = CTStyles.Factory.parse(part.getInputStream());
-                XWPFStyles stylesByPart = new XWPFStyles(part);
-                setCtStylesField(stylesByPart, cts);
-                return stylesByPart;
-            }
-        } catch (Exception e) {
-            return null;
-        }
-        try {
-            return doc.createStyles();
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private void setCtStylesField(XWPFStyles styles, CTStyles cts) {
-        try {
-            java.lang.reflect.Field field = XWPFStyles.class.getDeclaredField("ctStyles");
-            field.setAccessible(true);
-            field.set(styles, cts);
-        } catch (Exception ignore) {
-            // 反射设置失败, 延迟兜底也兼容.
-        }
-    }
-
-    private CTStyles readCtStyles(XWPFStyles styles) {
-        try {
-            java.lang.reflect.Field field = XWPFStyles.class.getDeclaredField("ctStyles");
-            field.setAccessible(true);
-            return (CTStyles) field.get(styles);
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private void addTocStyle(CTStyles cts, String styleId, int sizeHalfPoints, String cnFont) {
-        for (CTStyle existing : cts.getStyleArray()) {
-            if (styleId.equals(existing.getStyleId())) {
-                fillTocStyle(existing, sizeHalfPoints, cnFont);
-                return;
-            }
-        }
-        CTStyle ct = cts.addNewStyle();
-        ct.setStyleId(styleId);
-        ct.setType(STStyleType.PARAGRAPH);
-        fillTocStyle(ct, sizeHalfPoints, cnFont);
-    }
-
-    private void fillTocStyle(CTStyle ct, int sizeHalfPoints, String cnFont) {
-        if (!ct.isSetName()) {
-            ct.addNewName().setVal("toc " + ct.getStyleId().substring(3));
-        }
-        CTRPr rPr = ct.isSetRPr() ? ct.getRPr() : ct.addNewRPr();
+        CTRPr rPr = ctr.isSetRPr() ? ctr.getRPr() : ctr.addNewRPr();
         CTFonts fonts = rPr.sizeOfRFontsArray() > 0 ? rPr.getRFontsArray(0) : rPr.addNewRFonts();
-        fonts.setAscii("Times New Roman");
-        fonts.setHAnsi("Times New Roman");
-        fonts.setCs("Times New Roman");
-        fonts.setEastAsia(cnFont);
+        fonts.setEastAsia(lvl.getFont());
+        fonts.setAscii(lvl.getFontLatin());
+        fonts.setHAnsi(lvl.getFontLatin());
+        fonts.setCs(lvl.getFontLatin());
+        int sz = Math.max(lvl.getFontSize(), 1) * 2;
         if (rPr.sizeOfSzArray() == 0) {
-            rPr.addNewSz().setVal(BigInteger.valueOf(sizeHalfPoints));
+            rPr.addNewSz();
         }
+        rPr.getSzArray(0).setVal(BigInteger.valueOf(sz));
         if (rPr.sizeOfSzCsArray() == 0) {
-            rPr.addNewSzCs().setVal(BigInteger.valueOf(sizeHalfPoints));
+            rPr.addNewSzCs();
         }
-        CTPPrGeneral pPr = ct.isSetPPr() ? ct.getPPr() : ct.addNewPPr();
-        if (!pPr.isSetSpacing()) {
-            CTSpacing spacing = pPr.addNewSpacing();
-            spacing.setLine(BigInteger.valueOf(360));
-            spacing.setLineRule(STLineSpacingRule.AUTO);
+        rPr.getSzCsArray(0).setVal(BigInteger.valueOf(sz));
+    }
+
+    /** 自动目录条目段落: 直写行距与制表位前导符到 pPr(排版后即终态, 不依赖样式定义与域刷新) */
+    private static void applyTocParagraphProps(XWPFParagraph p, TocConfig tc) {
+        CTPPr pPr = p.getCTP().isSetPPr() ? p.getCTP().getPPr() : p.getCTP().addNewPPr();
+        int line = Math.round(tc.getLineSpacing() * 240);
+        CTSpacing spacing = pPr.isSetSpacing() ? pPr.getSpacing() : pPr.addNewSpacing();
+        spacing.setLine(BigInteger.valueOf(line));
+        spacing.setLineRule(STLineSpacingRule.AUTO);
+        String leader = tc.getLeader();
+        if (leader != null && !leader.isEmpty()) {
+            if (pPr.isSetTabs()) {
+                pPr.unsetTabs();
+            }
+            org.openxmlformats.schemas.wordprocessingml.x2006.main.CTTabs tabs = pPr.addNewTabs();
+            org.openxmlformats.schemas.wordprocessingml.x2006.main.CTTabStop tab = tabs.addNewTab();
+            tab.setVal(org.openxmlformats.schemas.wordprocessingml.x2006.main.STTabJc.RIGHT);
+            tab.setLeader(org.openxmlformats.schemas.wordprocessingml.x2006.main.STTabTlc.Enum.forString(leader));
+            tab.setPos(BigInteger.valueOf(8296));
         }
+    }
+
+    /** 段落目录级别 -> 对应级配置; 级别不明按一级 */
+    private static TocConfig.Level levelForTocParagraph(XWPFParagraph p, TocConfig tc, XWPFDocument doc) {
+        int level = tocLevelOf(p, doc);
+        if (level == 2) {
+            return tc.getToc2();
+        }
+        if (level == 3) {
+            return tc.getToc3();
+        }
+        return tc.getToc1();
+    }
+
+    /** 目录条目级别: 样式 name "toc N" 取 N 优先, styleId 末位数字兜底, 大纲级别再兜底 */
+    private static int tocLevelOf(XWPFParagraph p, XWPFDocument doc) {
+        try {
+            CTPPr pPr = p.getCTP().isSetPPr() ? p.getCTP().getPPr() : null;
+            if (pPr != null && pPr.isSetPStyle() && pPr.getPStyle().getVal() != null) {
+                String sid = pPr.getPStyle().getVal();
+                int n = tocLevelByName(doc, sid);
+                if (n >= 1 && n <= 3) {
+                    return n;
+                }
+                n = trailingDigits(sid);
+                if (n >= 1 && n <= 3) {
+                    return n;
+                }
+            }
+            if (pPr != null && pPr.isSetOutlineLvl()) {
+                int lvl = pPr.getOutlineLvl().getVal().intValue();
+                if (lvl >= 0 && lvl <= 2) {
+                    return lvl + 1;
+                }
+            }
+        } catch (Exception ignore) {
+        }
+        return 0;
+    }
+
+    /** 查样式 name "toc N" 取级别 N; WPS 数字 styleId 仅 name 标识 toc 级别 */
+    private static int tocLevelByName(XWPFDocument doc, String styleId) {
+        if (doc == null || styleId == null) {
+            return 0;
+        }
+        try {
+            org.apache.poi.xwpf.usermodel.XWPFStyles styles = doc.getStyles();
+            if (styles == null) {
+                return 0;
+            }
+            org.apache.poi.xwpf.usermodel.XWPFStyle st = styles.getStyle(styleId);
+            if (st == null) {
+                return 0;
+            }
+            String name = st.getName();
+            if (name == null) {
+                return 0;
+            }
+            java.util.regex.Matcher m = java.util.regex.Pattern
+                    .compile("toc\\s*(\\d)", java.util.regex.Pattern.CASE_INSENSITIVE).matcher(name);
+            if (m.find()) {
+                return Integer.parseInt(m.group(1));
+            }
+        } catch (Exception e) {
+        }
+        return 0;
+    }
+
+    private static int trailingDigits(String s) {
+        if (s == null || s.isEmpty()) {
+            return 0;
+        }
+        int end = s.length();
+        while (end > 0 && Character.isDigit(s.charAt(end - 1))) {
+            end--;
+        }
+        if (end == s.length()) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(s.substring(end));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    /** 目录标题: 三号黑体居中, 另起一页 */
+    private static void formatTocTitle(XWPFParagraph p) {
+        for (int i = p.getRuns().size() - 1; i >= 0; i--) {
+            p.removeRun(i);
+        }
+        XWPFRun run = p.createRun();
+        run.setText("目    录");
+        TextFormatter.setFont(run, "黑体", TextFormatter.DEFAULT_LATIN);
+        run.setFontSize(16);
+        run.setBold(true);
+        p.setAlignment(ParagraphAlignment.CENTER);
+        p.setSpacingBefore(0);
+        p.setSpacingAfter(0);
+        ParagraphFormatter.setPageBreakBefore(p);
+    }
+
+    /** 纯文本目录: 标题三号黑体居中, 条目按各级配置字体/字号/行距 */
+    private static void formatManualToc(List<DocItem> items, TocConfig tc) {
+        boolean inToc = false;
+        for (DocItem item : items) {
+            String text = item.getText() == null ? "" : item.getText().trim();
+            if (item.getKind() == ParagraphKind.SECTION_TITLE && StructureDetector.isTocTitle(text)) {
+                inToc = true;
+                formatTocTitle(item.getParagraph());
+                continue;
+            }
+            if (inToc) {
+                if (item.getKind() == ParagraphKind.HEADING1) {
+                    inToc = false;
+                    continue;
+                }
+                if (!text.isEmpty() && StructureDetector.isTocEntry(text)) {
+                    formatTocEntry(item.getParagraph(), levelForTocText(text, tc), tc);
+                }
+            }
+        }
+    }
+
+    /** 纯文本目录条目级别: 按编号点数判断(1.1.1=三级, 1.1=二级, 其余=一级) */
+    private static TocConfig.Level levelForTocText(String text, TocConfig tc) {
+        String t = text.replaceFirst("[\\s\\d０-９]+$", "").trim();
+        if (t.matches(".*\\d+\\.\\d+\\.\\d+.*")) {
+            return tc.getToc3();
+        }
+        if (t.matches(".*\\d+\\.\\d+.*")) {
+            return tc.getToc2();
+        }
+        return tc.getToc1();
+    }
+
+    private static void formatTocEntry(XWPFParagraph p, TocConfig.Level lvl, TocConfig tc) {
+        if (lvl == null) {
+            return;
+        }
+        for (XWPFRun run : p.getRuns()) {
+            TextFormatter.setFont(run, lvl.getFont(), lvl.getFontLatin());
+            run.setFontSize(lvl.getFontSize());
+            run.setBold(false);
+        }
+        p.setAlignment(ParagraphAlignment.LEFT);
+        p.setSpacingBefore(0);
+        p.setSpacingAfter(0);
+        applyTocParagraphProps(p, tc);
     }
 }

@@ -28,20 +28,15 @@ public class AbstractFormatter {
     private static final String TIMES = "Times New Roman";
 
     public void apply(XWPFDocument doc, RuleSet ruleSet, java.util.List<com.graduate.thesis.engine.DocItem> items) {
-        java.util.Set<org.apache.poi.xwpf.usermodel.XWPFParagraph> frontMatter = new java.util.HashSet<>();
-        for (com.graduate.thesis.engine.DocItem item : items) {
-            if (item.isFrontMatter()) {
-                frontMatter.add(item.getParagraph());
-            }
-        }
         FormatRule bodyRule = ruleSet.rule("body");
         boolean inZh = false;
         boolean inEn = false;
-        for (XWPFParagraph p : doc.getParagraphs()) {
-            if (frontMatter.contains(p)) {
-                continue; // 前置内容(封面/摘要/目录)不改格式
+        for (com.graduate.thesis.engine.DocItem item : items) {
+            if (item.isFrontMatter()) {
+                continue; // 封面/声明/目录等纯前置不动
             }
-            String text = p.getText() == null ? "" : p.getText().trim();
+            XWPFParagraph p = item.getParagraph();
+            String text = item.getText() == null ? "" : item.getText().trim();
             if (ABSTRACT_TITLE.matcher(text).matches()) {
                 setTitle(p, "摘  要", HEI, 16, true, SONG, true);
                 inZh = true;
@@ -66,9 +61,10 @@ public class AbstractFormatter {
                 inZh = false;
                 continue;
             }
-            if (inZh && !text.isEmpty()) {
+            // 摘要正文: 仅摘要区段, 避免正文段被误套(正文交 applyBody)
+            if (item.isAbstractSection() && inZh && !text.isEmpty()) {
                 setBody(p, SONG, 12, bodyRule);
-            } else if (inEn && !text.isEmpty()) {
+            } else if (item.isAbstractSection() && inEn && !text.isEmpty()) {
                 setBody(p, TIMES, 12, null);
             }
         }
@@ -90,6 +86,7 @@ public class AbstractFormatter {
         p.setAlignment(ParagraphAlignment.CENTER);
         p.setSpacingBefore(0);
         p.setSpacingAfter(0);
+        ParagraphFormatter.setOutlineLevel(p, 0);
     }
 
     private static void setBody(XWPFParagraph p, String font, int sizePt, FormatRule bodyRule) {

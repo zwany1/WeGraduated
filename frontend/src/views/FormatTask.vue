@@ -135,7 +135,7 @@
 
     <el-dialog v-model="previewVisible" title="排版结果预览" width="80%" top="4vh" destroy-on-close @closed="onPreviewClosed">
       <div style="height: 72vh">
-        <DocxCompare v-if="previewData.length" :key="'pv' + previewRenderKey" :data="previewData" />
+        <DocxCompare v-if="previewData.length" :key="'pv' + previewRenderKey" :data="previewData" :headings="previewHeadings" />
         <el-empty v-else description="加载中..." />
       </div>
     </el-dialog>
@@ -209,7 +209,7 @@
             <span class="compare-name">{{ compareName }}</span>
           </div>
           <div class="compare-body">
-            <DocxCompare v-if="compareAfter.length" ref="docxAfterRef" :key="'cp' + compareRenderKey" :data="compareAfter" />
+            <DocxCompare v-if="compareAfter.length" ref="docxAfterRef" :key="'cp' + compareRenderKey" :data="compareAfter" :headings="compareHeadings" :on-heading-jump="onHeadingJump" />
             <el-empty v-else description="加载中..." />
           </div>
         </div>
@@ -235,6 +235,7 @@ import { listTemplates } from '../api/template'
 import { listTeams } from '../api/team'
 import { uploadPaper, startFormat, startFormatBatch, listTasks, getTask, downloadPaper, downloadPaperBatch, downloadPaperOriginal, getDiff, progressTicket, deleteTask, deleteTaskBatch, listFiles, deleteFile } from '../api/paper'
 import DocxCompare from '../components/DocxCompare.vue'
+import { extractHeadings } from '../utils/docxHeadings'
 import SiteNav from '../components/SiteNav.vue'
 
 const route = useRoute()
@@ -270,9 +271,11 @@ const pagedTasks = computed(() => {
 watch([statusFilter, taskKeyword], () => { taskPage.value = 1 })
 const previewVisible = ref(false)
 const previewData = ref([])
+const previewHeadings = ref([])
 const compareVisible = ref(false)
 const compareBefore = ref([])
 const compareAfter = ref([])
+const compareHeadings = ref([])
 const compareName = ref('')
 const diffItems = ref([])
 const diffLoading = ref(false)
@@ -523,12 +526,14 @@ async function preview(row) {
   const mySeq = ++previewSeq
   previewRenderKey.value++
   previewData.value = []
+  previewHeadings.value = []
   previewVisible.value = true
   try {
     const blob = await fetchDocxBlob(row.id)
     if (mySeq !== previewSeq) return // 已被更新的预览请求取代
     const buf = await blob.arrayBuffer()
     previewData.value = Array.from(new Uint8Array(buf))
+    previewHeadings.value = await extractHeadings(buf)
   } catch (e) {
     if (mySeq !== previewSeq) return
     ElMessage.error('预览失败')
@@ -538,6 +543,7 @@ async function preview(row) {
 
 function onPreviewClosed() {
   previewData.value = []
+  previewHeadings.value = []
 }
 
 let compareSeq = 0
@@ -566,6 +572,7 @@ async function compare(row) {
     if (mySeq !== compareSeq) return
     compareBefore.value = Array.from(new Uint8Array(beforeBuf))
     compareAfter.value = Array.from(new Uint8Array(afterBuf))
+    compareHeadings.value = await extractHeadings(afterBuf)
     // 差异分析: 失败不阻塞对比预览, 结果按任务缓存(重复打开不重算)
     fetchDiff(row.id).then(res => {
       if (mySeq !== compareSeq) return
@@ -587,6 +594,12 @@ async function compare(row) {
   }
 }
 
+/** 目录跳转: 同时滚动排版前/排版后两侧到对应标题 */
+function onHeadingJump(text) {
+  if (docxCompareRef.value) docxCompareRef.value.scrollToText(text)
+  if (docxAfterRef.value) docxAfterRef.value.scrollToText(text)
+}
+
 function gotoDiff(d) {
   activeDiff.value = d.index
   // 排版前 + 排版后两侧都定位到对应段落并高亮(文本相同, 用文本前缀匹配)
@@ -597,6 +610,7 @@ function gotoDiff(d) {
 function onCompareClosed() {
   compareBefore.value = []
   compareAfter.value = []
+  compareHeadings.value = []
   diffItems.value = []
   activeDiff.value = -1
 }

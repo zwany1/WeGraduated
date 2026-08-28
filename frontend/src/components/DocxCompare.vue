@@ -8,10 +8,27 @@
         <el-button size="small" @click="zoomIn">+</el-button>
       </div>
       <el-button size="small" plain :disabled="!lastText" @click="refocus">聚焦上次</el-button>
+      <el-button v-if="headings && headings.length" size="small" :type="showToc ? 'primary' : 'plain'" @click="showToc = !showToc">
+        <span style="font-size:14px;line-height:1;">☰</span> 目录
+      </el-button>
     </div>
-    <div class="docx-wrap" ref="wrapRef">
-      <div ref="bodyRef" class="docx-body" :style="bodyStyle"></div>
-      <div v-if="loading" class="loading">渲染中...</div>
+    <div class="docx-main">
+      <!-- 目录侧边栏 -->
+      <transition name="toc-slide">
+        <div v-if="showToc && headings && headings.length" class="toc-sidebar">
+          <div class="toc-title">目录</div>
+          <div class="toc-list">
+            <div v-for="(h, i) in headings" :key="i" class="toc-item" :class="['toc-l' + h.level]" @click="jumpToHeading(h)">
+              {{ h.text }}
+            </div>
+          </div>
+        </div>
+      </transition>
+      <!-- 文档渲染区 -->
+      <div class="docx-wrap" ref="wrapRef">
+        <div ref="bodyRef" class="docx-body" :style="bodyStyle"></div>
+        <div v-if="loading" class="loading">渲染中...</div>
+      </div>
     </div>
   </div>
 </template>
@@ -21,13 +38,16 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { renderAsync } from 'docx-preview'
 
 const props = defineProps({
-  data: { type: Array, required: true }
+  data: { type: Array, required: true },
+  headings: { type: Array, default: () => [] },
+  onHeadingJump: { type: Function, default: null }
 })
 
 const wrapRef = ref(null)
 const bodyRef = ref(null)
 const scale = ref(1)
 const loading = ref(true)
+const showToc = ref(false)
 let currentDoc = null
 let lastText = ref('')
 
@@ -112,6 +132,12 @@ function refocus() {
   if (lastText.value) scrollToText(lastText.value)
 }
 
+/** 目录跳转: 定位到指定标题段落(同时通知父组件同步两侧) */
+function jumpToHeading(h) {
+  scrollToText(h.text)
+  if (props.onHeadingJump) props.onHeadingJump(h.text)
+}
+
 function scrollToText(text) {
   const needle = (text || '').replace(/\s+/g, '')
   if (!needle || !bodyRef.value) return
@@ -148,6 +174,69 @@ defineExpose({ scrollToText })
   display: flex;
   flex-direction: column;
   height: 100%;
+}
+/* 文档主体区域: 目录侧边栏 + 文档渲染 */
+.docx-main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+/* 目录侧边栏 */
+.toc-sidebar {
+  width: 200px;
+  min-width: 200px;
+  background: #fafbfc;
+  border-right: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.toc-title {
+  padding: 10px 14px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #303133;
+  border-bottom: 1px solid #ebeef5;
+}
+.toc-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 0;
+}
+.toc-item {
+  padding: 5px 14px;
+  font-size: 13px;
+  color: #606266;
+  cursor: pointer;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.15s, color 0.15s;
+}
+.toc-item:hover {
+  background: #ecf5ff;
+  color: #409eff;
+}
+.toc-l1 { font-weight: 600; color: #303133; }
+.toc-l2 { padding-left: 26px; }
+.toc-l3 { padding-left: 38px; font-size: 12px; color: #909399; }
+/* 侧边栏进出动画 */
+.toc-slide-enter-active,
+.toc-slide-leave-active {
+  transition: width 0.2s ease, opacity 0.2s ease;
+}
+.toc-slide-enter-from,
+.toc-slide-leave-to {
+  width: 0;
+  min-width: 0;
+  opacity: 0;
+}
+.toc-slide-enter-to,
+.toc-slide-leave-from {
+  width: 200px;
+  min-width: 200px;
+  opacity: 1;
 }
 .toolbar {
   display: flex;

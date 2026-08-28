@@ -82,41 +82,94 @@ public class DiffService {
         XWPFRun rb = firstRun(b);
         if (ra != null && rb != null) {
             if (!Objects.equals(ra.getFontSize(), rb.getFontSize())) {
-                list.add(new String[]{"字号", display(ra.getFontSize()), display(rb.getFontSize())});
+                list.add(new String[]{"字号", displaySize(ra.getFontSize()), displaySize(rb.getFontSize())});
             }
             if (!Objects.equals(fontOf(ra), fontOf(rb))) {
-                list.add(new String[]{"字体", display(fontOf(ra)), display(fontOf(rb))});
+                list.add(new String[]{"字体", displayFont(fontOf(ra)), displayFont(fontOf(rb))});
             }
             if (ra.isBold() != rb.isBold()) {
-                list.add(new String[]{"加粗", ra.isBold() ? "加粗" : "常规", rb.isBold() ? "加粗" : "常规"});
+                list.add(new String[]{"加粗", ra.isBold() ? "是" : "否", rb.isBold() ? "是" : "否"});
             }
         }
         if (!Objects.equals(a.getAlignment(), b.getAlignment())) {
-            list.add(new String[]{"对齐", display(a.getAlignment()), display(b.getAlignment())});
+            list.add(new String[]{"对齐", displayAlign(a.getAlignment()), displayAlign(b.getAlignment())});
         }
         if (lineSpacing(a) != lineSpacing(b)) {
-            list.add(new String[]{"行距", display(lineSpacing(a)), display(lineSpacing(b))});
+            list.add(new String[]{"行距", displayLineSpacing(lineSpacing(a)), displayLineSpacing(lineSpacing(b))});
         }
         if (indentFirst(a) != indentFirst(b)) {
-            list.add(new String[]{"缩进", display(indentFirst(a)), display(indentFirst(b))});
+            list.add(new String[]{"首行缩进", displayIndent(indentFirst(a)), displayIndent(indentFirst(b))});
         }
         if (spaceBefore(a) != spaceBefore(b)) {
-            list.add(new String[]{"段前距", display(spaceBefore(a)), display(spaceBefore(b))});
+            list.add(new String[]{"段前距", displayPt(spaceBefore(a)), displayPt(spaceBefore(b))});
         }
         if (spaceAfter(a) != spaceAfter(b)) {
-            list.add(new String[]{"段后距", display(spaceAfter(a)), display(spaceAfter(b))});
+            list.add(new String[]{"段后距", displayPt(spaceAfter(a)), displayPt(spaceAfter(b))});
         }
         return list;
     }
 
-    /** 生成变更描述: "字号 12→14; 行距 1.5→1.25" */
+    /** 生成变更描述: "【字号】12pt(五号)→12pt(小四); 【对齐】左对齐→两端对齐" */
     private String changeDesc(List<String[]> fields) {
         StringBuilder sb = new StringBuilder();
         for (String[] f : fields) {
-            if (sb.length() > 0) sb.append("; ");
-            sb.append(f[0]).append(' ').append(f[1]).append("→").append(f[2]);
+            if (sb.length() > 0) sb.append("\n");
+            sb.append("【").append(f[0]).append("】").append(f[1]).append(" → ").append(f[2]);
         }
         return sb.toString();
+    }
+
+    private String displaySize(Integer pt) {
+        if (pt == null) return "未设置";
+        String name;
+        switch (pt) {
+            case 9: name = "小五"; break;
+            case 10: name = "五号"; break;
+            case 12: name = "小四"; break;
+            case 14: name = "四号"; break;
+            case 15: name = "小三"; break;
+            case 16: name = "三号"; break;
+            case 18: name = "小二"; break;
+            case 22: name = "二号"; break;
+            case 24: name = "小一"; break;
+            case 26: name = "一号"; break;
+            default: name = ""; break;
+        }
+        return pt + "pt" + (name.isEmpty() ? "" : "(" + name + ")");
+    }
+
+    private String displayFont(String name) {
+        return (name == null || name.trim().isEmpty()) ? "未设置" : name.trim();
+    }
+
+    private String displayAlign(Object align) {
+        if (align == null) return "未设置";
+        String s = String.valueOf(align).trim().toLowerCase();
+        switch (s) {
+            case "left": return "左对齐";
+            case "center": return "居中";
+            case "right": return "右对齐";
+            case "both": return "两端对齐";
+            default: return align.toString();
+        }
+    }
+
+    private String displayLineSpacing(double val) {
+        if (val == 0) return "未设置";
+        if (val == (int) val) return (int) val + "倍";
+        return val + "倍";
+    }
+
+    private String displayIndent(int twips) {
+        if (twips <= 0) return "无";
+        int chars = Math.round(twips / 240f);
+        return chars + "字符(" + twips + "twips)";
+    }
+
+    private String displayPt(int twips) {
+        if (twips <= 0) return "无";
+        int pt = Math.round(twips / 20f);
+        return pt + "pt";
     }
 
     private XWPFRun firstRun(XWPFParagraph p) {
@@ -168,13 +221,6 @@ public class DiffService {
         } catch (Exception e) {
             return 0;
         }
-    }
-
-    /** 空值/0 显示为 "-" */
-    private String display(Object v) {
-        if (v == null) return "-";
-        if (v instanceof Number && ((Number) v).doubleValue() == 0) return "-";
-        return String.valueOf(v).trim();
     }
 
     private String clean(String s) {

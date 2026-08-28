@@ -243,6 +243,33 @@
               </el-form-item>
             </el-form>
           </div>
+          <div class="block">
+            <h3>表格文字（单元格内）</h3>
+            <p class="tip">设置表格单元格内正文的字体、字号、对齐等；区别于表格题注（上方的"表X-X"标注）</p>
+            <el-form label-width="100px" style="max-width: 560px">
+              <el-form-item label="字体">
+                <el-select v-model="rules.tableText.font">
+                  <el-option v-for="f in fonts" :key="f" :label="f" :value="f" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="西文字体">
+                <el-select v-model="rules.tableText.fontLatin">
+                  <el-option v-for="f in latinFonts" :key="f" :label="f" :value="f" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="字号">
+                <el-select v-model="rules.tableText.fontSize">
+                  <el-option v-for="s in sizes" :key="s.v" :label="s.label" :value="s.v" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="加粗"><el-switch v-model="rules.tableText.bold" /></el-form-item>
+              <el-form-item label="对齐">
+                <el-select v-model="rules.tableText.align">
+                  <el-option v-for="a in aligns" :key="a.v" :label="a.label" :value="a.v" />
+                </el-select>
+              </el-form-item>
+            </el-form>
+          </div>
         </template>
 
         <!-- 参考文献设置 -->
@@ -489,7 +516,8 @@ const rules = reactive({
   heading3: { ruleType: 'heading3', font: '楷体', fontLatin: 'Times New Roman', fontSize: 12, align: 'left' },
   body: { ruleType: 'body', font: '宋体', fontLatin: 'Times New Roman', fontSize: 12, lineSpacingType: 'multiple', lineSpacing: 1.5, lineSpacingExact: 20, firstLineIndent: 2, align: 'justify' },
   figure: { ruleType: 'figure', font: '宋体', fontLatin: 'Times New Roman', fontSize: 10, captionPosition: 'below', numberingPattern: '图{chapter}-{no}', captionEnabled: true },
-  table: { ruleType: 'table', font: '宋体', fontLatin: 'Times New Roman', fontSize: 10, captionPosition: 'above', numberingPattern: '表{chapter}-{no}', captionEnabled: true }
+  table: { ruleType: 'table', font: '宋体', fontLatin: 'Times New Roman', fontSize: 10, captionPosition: 'above', numberingPattern: '表{chapter}-{no}', captionEnabled: true },
+  tableText: { ruleType: 'tableText', font: '宋体', fontLatin: 'Times New Roman', fontSize: 10, bold: false, align: 'center', lineSpacing: 1.5 }
 })
 
 const headings = [
@@ -638,22 +666,23 @@ const kwStyle = computed(() => {
 
 /** 表头样式 */
 const thStyle = computed(() => ({
-  fontFamily: `'${rules.table.font || '宋体'}', '${rules.table.fontLatin || 'Times New Roman'}', serif`,
-  fontSize: (rules.table.fontSize || 10) + 'pt',
-  fontWeight: '600',
+  fontFamily: `'${rules.tableText.font || '宋体'}', '${rules.tableText.fontLatin || 'Times New Roman'}', serif`,
+  fontSize: (rules.tableText.fontSize || 10) + 'pt',
+  fontWeight: (rules.tableText.bold ? '700' : '400') || '600',
   border: '1px solid #999',
   padding: '4pt 8pt',
-  textAlign: 'center',
+  textAlign: rules.tableText.align || 'center',
   background: '#f5f7fa'
 }))
 
 /** 表格单元格样式 */
 const tdStyle = computed(() => ({
-  fontFamily: `'${rules.table.font || '宋体'}', '${rules.table.fontLatin || 'Times New Roman'}', serif`,
-  fontSize: (rules.table.fontSize || 10) + 'pt',
+  fontFamily: `'${rules.tableText.font || '宋体'}', '${rules.tableText.fontLatin || 'Times New Roman'}', serif`,
+  fontSize: (rules.tableText.fontSize || 10) + 'pt',
+  fontWeight: rules.tableText.bold ? '700' : '400',
   border: '1px solid #999',
   padding: '4pt 8pt',
-  textAlign: 'center'
+  textAlign: rules.tableText.align || 'center'
 }))
 
 /** 表格示例数据 */
@@ -676,7 +705,8 @@ async function loadConfig() {
     heading3: { ruleType: 'heading3', font: '楷体', fontLatin: 'Times New Roman', fontSize: 12, align: 'left' },
     body: { ruleType: 'body', font: '宋体', fontLatin: 'Times New Roman', fontSize: 12, lineSpacingType: 'multiple', lineSpacing: 1.5, lineSpacingExact: 20, firstLineIndent: 2, align: 'justify' },
     figure: { ruleType: 'figure', font: '宋体', fontLatin: 'Times New Roman', fontSize: 10, captionPosition: 'below', numberingPattern: '图{chapter}-{no}', captionEnabled: true },
-    table: { ruleType: 'table', font: '宋体', fontLatin: 'Times New Roman', fontSize: 10, captionPosition: 'above', numberingPattern: '表{chapter}-{no}', captionEnabled: true }
+    table: { ruleType: 'table', font: '宋体', fontLatin: 'Times New Roman', fontSize: 10, captionPosition: 'above', numberingPattern: '表{chapter}-{no}', captionEnabled: true },
+    tableText: { ruleType: 'tableText', font: '宋体', fontLatin: 'Times New Roman', fontSize: 10, bold: false, align: 'center', lineSpacing: 1.5 }
   })
   Object.assign(headingPatterns, { heading1: '^第[一二三四五六七八九十百]+章', heading2: '^\\d+\\.\\d+', heading3: '^\\d+\\.\\d+\\.\\d+' })
   Object.assign(refConfig, { enabled: false, title: '参考文献', titleFont: '黑体', titleFontSize: 14, itemFont: '宋体', itemFontLatin: 'Times New Roman', itemFontSize: 10, removeDoi: true, maxAuthors: 3, renumber: true })

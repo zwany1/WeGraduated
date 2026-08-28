@@ -78,6 +78,7 @@ public class FormatEngine {
 
             HeadingFormatter.apply(doc, items, ruleSet);
             applyBody(doc, items, ruleSet);
+            applyTableCells(doc, ruleSet); // 表格单元格内文字应用正文样式
             progress.accept(65);
 
             new CaptionFormatter().apply(doc, items, ruleSet);
@@ -160,6 +161,29 @@ public class FormatEngine {
                 int pos = bodyElements.indexOf(item.getParagraph());
                 if (pos >= 0) {
                     doc.removeBodyElement(pos);
+                }
+            }
+        }
+    }
+
+    /**
+     * 表格单元格内文字排版: 遍历所有表格的单元格段落, 对有文字的段落应用"表格文字"规则.
+     * 表格内段落不进入 StructureDetector, 因此需要单独处理.
+     */
+    private void applyTableCells(XWPFDocument doc, RuleSet ruleSet) {
+        FormatRule tableTextRule = ruleSet.rule("tableText");
+        for (org.apache.poi.xwpf.usermodel.IBodyElement el : doc.getBodyElements()) {
+            if (el instanceof XWPFTable) {
+                for (XWPFTableRow row : ((XWPFTable) el).getRows()) {
+                    for (XWPFTableCell cell : row.getTableCells()) {
+                        for (XWPFParagraph p : cell.getParagraphs()) {
+                            String text = p.getText() == null ? "" : p.getText().trim();
+                            if (!text.isEmpty()) {
+                                TextFormatter.apply(p, tableTextRule);
+                                ParagraphFormatter.apply(p, tableTextRule);
+                            }
+                        }
+                    }
                 }
             }
         }

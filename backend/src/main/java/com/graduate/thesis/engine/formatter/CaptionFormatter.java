@@ -110,8 +110,15 @@ public class CaptionFormatter {
                     if (!figureEnabled) {
                         continue;
                     }
-                    // 已有题注: 保留原编号, 只统一格式(位置/字体), 不重写数字
+                    // 已有题注: 保留原编号, 只统一格式; 同时提取编号顺延计数器
                     applyCaptionStyle(p, figureRule);
+                    int[] nums = extractCaptionNumbers(text, true);
+                    if (nums[0] > 0 && nums[0] == item.getChapterNo()) {
+                        figIndex = Math.max(figIndex, nums[1]);
+                    } else if (nums[1] > 0) {
+                        lastFigChapter = item.getChapterNo();
+                        figIndex = nums[1];
+                    }
                 }
             } else if (el instanceof XWPFTable) {
                 if (!tableEnabled || lastChapter < 0) {
@@ -130,11 +137,23 @@ public class CaptionFormatter {
                     lastTableChapter = tableChapter;
                 }
                 if (prevIsCaption) {
-                    // 表前已有题注: 保留原编号, 只统一格式
+                    // 表前已有题注: 保留原编号, 统一格式 + 顺延计数器
                     applyCaptionStyle((XWPFParagraph) prev, tableRule);
+                    String prevText = ((XWPFParagraph) prev).getText() == null ? "" : ((XWPFParagraph) prev).getText().trim();
+                    int[] nums = extractCaptionNumbers(prevText, false);
+                    if (nums[1] > 0) {
+                        lastTableChapter = tableChapter;
+                        tblIndex = Math.max(tblIndex, nums[1]);
+                    }
                 } else if (nextIsCaption) {
-                    // 表后已有题注: 保留原编号, 只统一格式
+                    // 表后已有题注: 保留原编号, 统一格式 + 顺延计数器
                     applyCaptionStyle((XWPFParagraph) next, tableRule);
+                    String nextText = ((XWPFParagraph) next).getText() == null ? "" : ((XWPFParagraph) next).getText().trim();
+                    int[] nums = extractCaptionNumbers(nextText, false);
+                    if (nums[1] > 0) {
+                        lastTableChapter = tableChapter;
+                        tblIndex = Math.max(tblIndex, nums[1]);
+                    }
                 } else {
                     // 无题注: 自动补编号
                     tblIndex++;
@@ -219,6 +238,28 @@ public class CaptionFormatter {
         }
         Matcher m = (figure ? FIGURE_CAPTION : TABLE_CAPTION).matcher(text.trim());
         return m.matches() && m.group(2) != null ? m.group(2).trim() : "";
+    }
+
+    /**从"图1-1 标题" / "表2.3 标题"中提取 [章节号, 序号], 用于顺延计数器 */
+    private static int[] extractCaptionNumbers(String text, boolean figure) {
+        Matcher m = (figure ? FIGURE_CAPTION : TABLE_CAPTION).matcher(text.trim());
+        if (!m.matches()) {
+            return new int[]{0, 0};
+        }
+        // 提取数字部分: 去掉"图"/"表"前缀和后续标题文字
+        String afterPrefix = text.trim().replaceFirst("^图\\s*", "").replaceFirst("^表\\s*", "");
+        // 按 [-．. ] 切分: "1-1 标题" → ["1","1 标题"] / "1 标题" → ["1","标题"]
+        String[] parts = afterPrefix.split("[-．.\\s]+", 3);
+        int chapter = 0;
+        int no = 0;
+        if (parts.length >= 1) {
+            try { chapter = Integer.parseInt(parts[0].trim()); } catch (Exception ignore) {}
+        }
+        if (parts.length >= 2) {
+            String sub = parts[1].trim().split("\\s", 2)[0];
+            try { no = Integer.parseInt(sub); } catch (Exception ignore) {}
+        }
+        return new int[]{chapter, no};
     }
 
     private static String buildCaption(FormatRule rule, int chapter, int no, String title) {

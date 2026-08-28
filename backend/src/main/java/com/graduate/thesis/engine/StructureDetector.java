@@ -233,8 +233,18 @@ public class StructureDetector {
         if (text.isEmpty()) {
             return containsImage ? ParagraphKind.IMAGE : ParagraphKind.EMPTY;
         }
-        if (containsImage && !isCaption(text)) {
-            return ParagraphKind.IMAGE;
+        // 含图片的段落:
+        // - 纯图片(无文字或仅有少量编号) → IMAGE(保持原样不排版)
+        // - 图片 + 多行/较长正文文字(如"说明表格内选中该表格后...") → BODY(文字仍需排版)
+        if (containsImage) {
+            if (!isCaption(text)) {
+                String trimmed = text.replaceAll("\\s+", "");
+                if (trimmed.length() >= 5) {
+                    return ParagraphKind.BODY;
+                }
+                return ParagraphKind.IMAGE;
+            }
+            // 含题注文字 → 走后面的 FIGURE_CAPTION/TABLE_CAPTION 分支
         }
         // 前置/固定章节标题优先于样式判断: 避免"摘 要/Abstract/谢辞/参考文献"等带 Heading 样式的标题
         // 被误判成正文一级标题, 导致第一章之前的封面/摘要/目录被当作正文排版

@@ -17,7 +17,7 @@ public class StructureDetector {
     private static final Pattern H2_CHAPTER = Pattern.compile("^(\\d+)\\.");
     private static final Pattern FIGURE_CAPTION = Pattern.compile("^图\\s*\\d+([-．.]\\d+)?.*");
     private static final Pattern TABLE_CAPTION = Pattern.compile("^表\\s*\\d+([-．.]\\d+)?.*");
-    private static final Pattern ABSTRACT_TITLE = Pattern.compile("^摘\\s*要\\s*$");
+    private static final Pattern ABSTRACT_TITLE = Pattern.compile("^摘\\s*要\\s*[:：]?\\s*$");
     private static final Pattern KEYWORDS = Pattern.compile("^关键词\\s*[:：].*");
     private static final Pattern EN_TITLE = Pattern.compile("^\\s*Abstract\\s*$", Pattern.CASE_INSENSITIVE);
     private static final Pattern EN_KEYWORDS = Pattern.compile("^Key\\s*words\\s*[:：].*", Pattern.CASE_INSENSITIVE);
@@ -27,6 +27,18 @@ public class StructureDetector {
     /** 签名/声明/日期区域: 保持原样, 不做任何格式修改(避免被正文缩进或标题加粗改动) */
     private static final Pattern SIGNATURE = Pattern.compile(
             ".*独创性声明.*|.*学位论文作者签名.*|.*作者签名\\s*[:：]?.*|.*指导教师签名\\s*[:：]?.*|^\\s*日\\s*期\\s*[:：]?.*|.*签名\\s*[:：]\\s*$");
+
+    /** 无编号常见章名(绪论/引言/结论/致谢等) → 一级标题 */
+    private static final Pattern COMMON_CHAPTER = Pattern.compile(
+            "^\\s*(绪论|引言|前言|结论|致谢|致谢与展望|总结与展望|总结|结语|结论与展望)\\s*$");
+
+    /** 无编号标题启发式排除前缀: 这些词开头的短句大概率是正文而非标题 */
+    private static final String[] HEURISTIC_BODY_PREFIXES = {
+            "本", "该", "这", "通过", "根据", "为了", "因此", "所以", "总之", "综上",
+            "由", "在", "对", "为", "从", "使", "将", "被", "能", "会", "已", "可以",
+            "应该", "需要", "实现", "设计", "分析", "本文", "此外", "同时", "另外",
+            "然而", "但是", "并且", "以及", "以下", "如下", "以上", "首先", "其次", "最后"
+    };
 
     // ===== 内置一级章节标题识别(不依赖文档样式与模板正则, 自动匹配"第一章"作为排版起点) =====
     /** 第一章 绪论 / 第二章 … */
@@ -44,7 +56,8 @@ public class StructureDetector {
         // 避免封面标题/签名/日期等被误判为第一章, 导致章节前内容被排版
         boolean hasFrontStructure = hasFrontStructure(doc, ruleSet);
         List<DocItem> items = new ArrayList<>();
-        int currentChapter = 0; 
+        int currentChapter = 0;
+        int lastHeadingLevel = 0; // 最近一个标题的层级, 用于无编号标题启发式
         boolean chapterStarted = false;
         boolean sawFront = false;
         boolean inToc = false;
@@ -113,6 +126,26 @@ public class StructureDetector {
             } else if (kind == ParagraphKind.HEADING3 || kind == ParagraphKind.FIGURE_CAPTION
                     || kind == ParagraphKind.TABLE_CAPTION || kind == ParagraphKind.IMAGE) {
                 item.setChapterNo(currentChapter);
+            }
+            // 跟踪最近标题层级(含启发式判定后的更新)
+            if (kind == ParagraphKind.HEADING1) lastHeadingLevel = 1;
+            else if (kind == ParagraphKind.HEADING2) lastHeadingLevel = 2;
+            else if (kind == ParagraphKind.HEADING3) lastHeadingLevel = 3;
+
+            // 无编号标题启发式: 在已有标题之后, 极短且无标点的正文行 → 可能是下级标题
+            // 例如 "绪论" 下面的 "研究背景" / "研究目的" 这种无编号短行
+            if (kind == ParagraphKind.BODY && chapterStarted && lastHeadingLevel >= 1) {
+                String trimmed = text.replaceAll("\\s+", "");
+                if (isHeuristicSubHeading(trimmed, lastHeadingLevel)) {
+                    int nextLevel = Math.min(lastHeadingLevel + 1, 3);
+                    if (nextLevel == 1) kind = ParagraphKind.HEADING1;
+                    else if (nextLevel == 2) kind = ParagraphKind.HEADING2;
+                    else kind = ParagraphKind.HEADING3;
+                    lastHeadingLevel = nextLevel;
+                    item.setChapterNo(currentChapter);
+                    item = new DocItem(paragraph, kind, text, containsImage);
+                    item.setChapterNo(currentChapter);
+                }
             }
             // 第一个正文一级标题之前的内容: 摘要区段套摘要规则, 其余(封面/声明/目录)不动
             if (inAbstract && !chapterStarted) {
@@ -263,6 +296,10 @@ public class StructureDetector {
         if (SECTION_TITLE.matcher(text).matches()) {
             return ParagraphKind.SECTION_TITLE;
         }
+        // 无编号常见章名(绪论/引言/结论/致谢等) → 一级标题
+        if (COMMON_CHAPTER.matcher(text).matches() && !isDateLike(text)) {
+            return ParagraphKind.HEADING1;
+        }
         // 签名/声明/日期区域保持原样(在样式判断之前拦截, 即使原文档该行带 Heading 样式也不改动)
         if (SIGNATURE.matcher(text).matches()) {
             return ParagraphKind.SECTION_TITLE;
@@ -297,11 +334,35 @@ public class StructureDetector {
         if (TABLE_CAPTION.matcher(text).matches()) {
             return ParagraphKind.TABLE_CAPTION;
         }
+        // 公式段落(含 OMML 公式且无实质文字): 保持原样不套用正文/标题规则, 避免字体/缩进破坏公式
+        if (containsFormula(paragraph) && text.replaceAll("\\s+", "").length() < 3) {
+            return ParagraphKind.FORMULA;
+        }
         return ParagraphKind.BODY;
     }
 
     private boolean isCaption(String text) {
         return FIGURE_CAPTION.matcher(text).matches() || TABLE_CAPTION.matcher(text).matches();
+    }
+
+    /** 段落是否包含 OMML 公式 */
+    private boolean containsFormula(XWPFParagraph paragraph) {
+        try {
+            return paragraph.getCTP().xmlText().contains("<m:oMath");
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /** 无编号标题启发式: 在已有标题之后、极短行、无句中标点 → 疑似下级标题 */
+    private boolean isHeuristicSubHeading(String trimmed, int currentLevel) {
+        if (currentLevel >= 3) return false;           // 已经三级标题，不再降级
+        if (trimmed.length() < 2 || trimmed.length() > 18) return false; // 太短或太长
+        if (trimmed.matches(".*[。；：！？、，）]")) return false; // 有句中/句末标点，是句子不是标题
+        for (String prefix : HEURISTIC_BODY_PREFIXES) {
+            if (trimmed.startsWith(prefix)) return false; // 以正文常见词开头
+        }
+        return true;
     }
 
     private boolean containsImage(XWPFParagraph paragraph) {

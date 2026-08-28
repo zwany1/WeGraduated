@@ -9,6 +9,6 @@ public enum ParagraphKind {
     SECTION_TITLE,
     BODY,
     FIGURE_CAPTION, TABLE_CAPTION,
-    IMAGE,
+    IMAGE, FORMULA,
     EMPTY
 }

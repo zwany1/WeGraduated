@@ -21,6 +21,7 @@ import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.apache.poi.xwpf.usermodel.XWPFTable;
 import org.apache.poi.xwpf.usermodel.XWPFTableCell;
 import org.apache.poi.xwpf.usermodel.XWPFTableRow;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPPr;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTR;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTText;
 import org.springframework.stereotype.Service;
@@ -87,8 +88,12 @@ public class FormatEngine {
             HeaderFooterFormatter.apply(doc, ruleSet.getPageConfig());
             progress.accept(95);
 
-            // 渲染规范化: 让排版结果对浏览器渲染(docx-preview)更友好
-            normalizeForRendering(doc);
+            // 渲染规范化: 让排版结果对浏览器渲染(docx-preview)更友好; 跳过 frontMatter 段落的字号修改
+            normalizeForRendering(doc, items);
+            progress.accept(97);
+
+            // 排版校验: 补充标题大纲级别(供 Word 目录收录)等, 跳过 frontMatter
+            validateResult(doc, items);
             progress.accept(98);
 
             try (FileOutputStream fos = new FileOutputStream(temp)) {
@@ -145,13 +150,13 @@ public class FormatEngine {
             }
         }
 
-        // 第二遍: 移除空段落(含分页符/图片/前置内容的除外, 第一章前保持原样)
+        // 第二遍: 移除空段落(含分页符/图片/公式/前置内容的除外)
         List<org.apache.poi.xwpf.usermodel.IBodyElement> bodyElements = doc.getBodyElements();
         for (int i = items.size() - 1; i >= 0; i--) {
             DocItem item = items.get(i);
             if (item.getKind() == ParagraphKind.EMPTY && !item.isFrontMatter() && !item.isAbstractSection()) {
                 String pXml = item.getParagraph().getCTP().xmlText();
-                if (pXml.contains("<w:br") || pXml.contains("<w:drawing")) continue;
+                if (pXml.contains("<w:br") || pXml.contains("<w:drawing") || pXml.contains("<m:oMath")) continue;
                 int pos = bodyElements.indexOf(item.getParagraph());
                 if (pos >= 0) {
                     doc.removeBodyElement(pos);
@@ -162,14 +167,17 @@ public class FormatEngine {
 
     /**
      * 渲染规范化: 让排版结果对前端 docx-preview(浏览器渲染)更友好, 与 Word 打开效果保持一致:
-     * 1) 相邻且格式完全一致的 run 合并为单个 run —— WPS 等文档常把文字拆成大量短 run,
-     *    docx-preview 将每个 run 渲染为独立 span, 两端对齐时会在 span 之间插入巨大间距
-     *    (表现为"字距被撑开/文字散架"), 合并后彻底消除;
-     * 2) 给没有显式 w:sz 的 run 补充字号 —— docx-preview 只读 w:sz 而忽略 w:szCs,
-     *    缺少 w:sz 的 run 渲染不可控; 字号优先取段落标记 w:sz, 缺省小四(12pt).
-     * 覆盖正文段落与表格单元格内的段落.
+     * 1) 相邻且格式完全一致的 run 合并为单个 run(全段落);
+     * 2) 给没有显式 w:sz 的 run 补充字号 —— 仅正文/表格段落, 前置内容/frontMatter 绝对不动;
+     * 3) 覆盖正文段落与表格单元格内的段落.
      */
-    private void normalizeForRendering(XWPFDocument doc) {
+    private void normalizeForRendering(XWPFDocument doc, List<DocItem> items) {
+        java.util.Set<XWPFParagraph> frontMatterSet = new java.util.HashSet<>();
+        for (DocItem item : items) {
+            if (item.isFrontMatter()) {
+                frontMatterSet.add(item.getParagraph());
+            }
+        }
         List<XWPFParagraph> paras = new ArrayList<>();
         for (IBodyElement el : doc.getBodyElements()) {
             if (el instanceof XWPFParagraph) {
@@ -184,7 +192,9 @@ public class FormatEngine {
         }
         for (XWPFParagraph p : paras) {
             mergeAdjacentRuns(p);
-            ensureRunSize(p);
+            if (!frontMatterSet.contains(p)) {
+                ensureRunSize(p);
+            }
         }
     }
 
@@ -272,6 +282,39 @@ public class FormatEngine {
         for (XWPFRun r : p.getRuns()) {
             if (r.getCTR().xmlText().contains("<w:sz ")) continue; // 已有显式 w:sz
             r.setFontSize(sizePt);
+        }
+    }
+
+    /**
+     * 排版后校验: 对结果做基本一致性检查并自动修补,
+     * 确保排版后的 docx 在 Word / docx-preview 中都能正确表现.
+     * 跳过 frontMatter 段落(封面/声明等前置内容绝对不动).
+     * 目前校验项:
+     * - 标题段落(heading 样式) 若无 w:outlineLvl → 自动补充, 供 Word 目录收录;
+     * - (w:sz 补充已由 normalizeForRendering 处理)
+     */
+    private void validateResult(XWPFDocument doc, List<DocItem> items) {
+        java.util.Set<XWPFParagraph> frontMatterSet = new java.util.HashSet<>();
+        for (DocItem item : items) {
+            if (item.isFrontMatter()) frontMatterSet.add(item.getParagraph());
+        }
+        int fixedOutlineLvl = 0;
+        for (XWPFParagraph p : doc.getParagraphs()) {
+            if (frontMatterSet.contains(p)) continue;
+            CTPPr pPr = p.getCTP().isSetPPr() ? p.getCTP().getPPr() : null;
+            if (pPr == null || !pPr.isSetPStyle() || pPr.getPStyle().getVal() == null) continue;
+            String styleId = pPr.getPStyle().getVal().toLowerCase();
+            int expectedLevel = -1;
+            if (styleId.contains("heading1") || styleId.equals("2") || styleId.contains("heading 1")) expectedLevel = 0;
+            else if (styleId.contains("heading2") || styleId.equals("3") || styleId.contains("heading 2")) expectedLevel = 1;
+            else if (styleId.contains("heading3") || styleId.equals("4") || styleId.contains("heading 3")) expectedLevel = 2;
+            if (expectedLevel >= 0 && !pPr.isSetOutlineLvl()) {
+                pPr.addNewOutlineLvl().setVal(java.math.BigInteger.valueOf(expectedLevel));
+                fixedOutlineLvl++;
+            }
+        }
+        if (fixedOutlineLvl > 0) {
+            System.out.println("[排版校验] 补充了 " + fixedOutlineLvl + " 个标题的大纲级别(供 Word 目录收录)");
         }
     }
 }

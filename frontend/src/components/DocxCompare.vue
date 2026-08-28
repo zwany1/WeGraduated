@@ -47,14 +47,51 @@ onMounted(async () => {
       inWrapper: true,
       ignoreWidth: true,
       ignoreHeight: true,
-      breakPages: false
+      breakPages: false,
+      // 开启 docx-preview 实验性功能: 渲染 OMML 公式(OMML->MathML), 否则公式段落(普通文字段)整段空白
+      experimental: true
     })
+    // 兜底: 某些文档经 docx-preview 渲染会出现"文字在 DOM 中(可复制)但不可见"的情况
+    // (如 字体缺字形、run 无 w:sz 导致字号被算成 0、样式色为白/透明、分页 section overflow:hidden 裁切等)
+    // 渲染完成后做样式归一化; 连跑两次避免 docx-preview 后处理覆盖
+    normalizeVisibility()
+    setTimeout(() => normalizeVisibility(), 300)
     loading.value = false
   } catch (e) {
     window.__docxErr = String(e && e.message ? e.message : e)
     loading.value = false
   }
 })
+
+/** 修正隐形/异常文字:
+ *  - 字号0 => 默认字号
+ *  - 白/透明色 => 黑色
+ *  - display:none => inline
+ *  - 异常大字符间距/词间距 => normal
+ *  - 字体: 直接整体替换为带通用字体族(sans-serif)收尾的栈 ——
+ *    文档显式指定宋体/黑体, 若本机该字体存在但缺 CJK 字形, Chrome 会卡住直接显示空白(不再向后fallback);
+ *    Windows 默认含 Microsoft YaHei, 且必须用 sans-serif 通用族收尾才能触发字形联查。
+ *    这是用户实测有效的做法(控制台替换字体后文字出现)。 */
+function normalizeVisibility() {
+  if (!bodyRef.value) return
+  bodyRef.value.querySelectorAll('p, span').forEach(el => {
+    const text = (el.textContent || '').trim()
+    if (!text) return
+    const st = window.getComputedStyle(el)
+    if (parseFloat(st.fontSize) <= 0) el.style.fontSize = '10.5pt'
+    if (st.display === 'none') el.style.display = 'inline'
+    const c = st.color || ''
+    if (/transparent|rgba\(\s*0,\s*0,\s*0,\s*0\)|rgb\(\s*255,\s*255,\s*255\)/.test(c)) {
+      el.style.color = '#000000'
+    }
+    const ls = parseFloat(st.letterSpacing)
+    const ws = parseFloat(st.wordSpacing)
+    if (ls > 3) el.style.letterSpacing = 'normal'
+    if (ws > 6) el.style.wordSpacing = 'normal'
+    // 统一字体栈(硬覆盖): 必须带 sans-serif 通用族收尾, 否则中文可能仍空白
+    el.style.setProperty('font-family', 'Arial, "Microsoft YaHei", sans-serif', 'important')
+  })
+}
 
 onBeforeUnmount(() => {
   if (currentDoc && typeof currentDoc.close === 'function') {
@@ -149,7 +186,9 @@ defineExpose({ scrollToText })
   min-height: 200px;
   max-width: 900px;
   margin: 0 auto;
-  overflow-x: hidden;
+  /* 必须允许横向溢出: docx-preview 的 span 在两端对齐等场景会被撑到容器宽度之外,
+     overflow-x:hidden 会把超出部分视觉裁掉(文字仍在DOM可复制), 表现为"缺字+散架" */
+  overflow: visible !important;
 }
 .loading {
   position: absolute;
@@ -162,6 +201,29 @@ defineExpose({ scrollToText })
 :deep(.docx-wrapper) {
   padding: 0;
   width: 100%;
+}
+/* 兜底: docx-preview 0.4.0 的分页容器是 flex+overflow:hidden, 内容超界会被视觉裁切(文字仍在DOM可复制)
+   强制解除裁切与 flex 布局, 避免"有文字但显示空白" */
+:deep(.docx section.docx) {
+  overflow: visible !important;
+  display: block !important;
+  min-height: auto !important;
+  height: auto !important;
+}
+:deep(.docx section.docx > article) {
+  width: 100%;
+}
+/* 核心修复: docx-preview 的每个 run 是独立 span, Chrome 对 CJK 文本执行 text-align: justify 时
+   会在 span 边界之间插入巨大间距(字与字之间出现大片空白), Word 用原生引擎不存在此问题。
+   将段落对齐改为 start(左对齐), 消除散架间距。这是预览/对比工具, 不影响实际 docx 排版。 */
+:deep(.docx p) {
+  text-align: start !important;
+}
+/* 根因修复: docx-preview 按文档规则写死宋体/黑体, 若该字体在本机存在但缺 CJK 字形,
+   Chrome 会卡住显示空白(不向后 fallback); 统一替换为带 sans-serif 通用族收尾的字体栈,
+   确保任何环境下 CJK 都能渲染(Windows 默认含 Microsoft YaHei)。 */
+:deep(.docx) {
+  font-family: Arial, "Microsoft YaHei", sans-serif !important;
 }
 :deep(p.diff-target) {
   background: rgba(230, 57, 70, 0.18);

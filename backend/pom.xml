@@ -148,6 +148,15 @@
                 <configuration>
                     <source>11</source>
                     <target>11</target>
+                    <!-- JDK 21+ 下 classpath 注解处理器不再自动发现, 显式声明 Lombok 处理器,
+                         否则 @Data 等生成的 getter/setter 缺失导致 clean 构建失败 -->
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>1.18.30</version>
+                        </path>
+                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
         </plugins>

@@ -372,30 +372,56 @@
           <div class="tip">行距/前导符三级共用,字体/字号各级独立;作用于 Word 自动目录的 toc1/toc2/toc3 样式,不改目录域的自动更新标识——用户在 Word 按 F9 仍可重新生成目录。</div>
         </template>
 
-        <!-- 效果预览: 实时 CSS 模拟 + 上传文档快速试排 -->
+        <!-- 快速试排: 上传文档截取前几段, 用真实排版引擎同步出结果(实时样式预览见右侧 dock) -->
         <template v-else-if="active === 'preview'">
-          <h3>排版效果预览</h3>
-          <p class="tip">下方是按当前规则的实时模拟（字体/字号/行距/缩进/对齐/段距/页眉页脚/图表/参考文献），改配置立即生效。要看真实排版引擎的结果，用"快速试排"上传文档即可，几秒出结果，不产生排版任务。</p>
-          <PreviewPage :page="page" :rules="rules" :ref-config="refConfig" :gen-abstract="genAbstract" />
+          <h3>快速试排</h3>
+          <p class="tip">选一篇 .docx，只取开头部分用真实排版引擎同步排版，几秒即可验证标题正则与格式规则；不会在任务列表产生记录。样式的实时模拟效果见右下角"实时预览"。</p>
 
-          <h3 style="margin-top: 28px;">快速试排（前几页真实排版）</h3>
-          <div class="quick-format">
-            <input ref="quickFileRef" type="file" accept=".docx" class="quick-file" @change="onQuickFile" />
-            <el-button type="primary" size="small" :loading="quickLoading" :disabled="!quickFile" @click="runQuickFormat">试排前 {{ quickParagraphs }} 段</el-button>
-            <el-select v-model="quickParagraphs" size="small" style="width: 120px; margin-left: 8px;">
-              <el-option label="前 60 段" :value="60" />
-              <el-option label="前 150 段" :value="150" />
-              <el-option label="前 300 段" :value="300" />
-            </el-select>
-            <span v-if="quickFile" class="quick-filename">{{ quickFile.name }}</span>
+          <div class="quick-card">
+            <el-upload
+              drag
+              accept=".docx"
+              :auto-upload="false"
+              :show-file-list="false"
+              :on-change="onQuickUpload"
+            >
+              <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
+              <div class="el-upload__text">将 .docx 拖到此处，或<em>点击选择文件</em></div>
+              <template #tip>
+                <div class="el-upload__tip">仅取文档开头部分参与排版，大文件也不会很慢</div>
+              </template>
+            </el-upload>
+
+            <div class="quick-actions">
+              <span v-if="quickFile" class="quick-filename" :title="quickFile.name">
+                <el-icon style="vertical-align: -2px;"><Document /></el-icon>
+                {{ quickFile.name }}
+              </span>
+              <span v-else class="quick-filename placeholder">未选择文件</span>
+              <div class="quick-actions-right">
+                <span class="quick-range-label">试排范围</span>
+                <el-select v-model="quickParagraphs" size="small" style="width: 130px">
+                  <el-option label="前 60 段（最快）" :value="60" />
+                  <el-option label="前 150 段（推荐）" :value="150" />
+                  <el-option label="前 300 段（更完整）" :value="300" />
+                </el-select>
+                <el-button type="primary" :loading="quickLoading" :disabled="!quickFile" @click="runQuickFormat">
+                  {{ quickLoading ? '排版中…' : '开始试排' }}
+                </el-button>
+              </div>
+            </div>
           </div>
-          <p class="tip">试排只取文档开头部分同步排版，与正式排版使用同一引擎，用于快速验证标题正则与格式规则；不会在任务列表产生记录。</p>
+
           <div v-if="quickData.length" class="quick-result">
             <div class="quick-result-bar">
-              <span>试排结果（真实引擎排版）</span>
+              <span class="quick-result-title">
+                <span class="dot-ok"></span>试排完成（真实引擎排版，与正式排版同规则）
+              </span>
               <el-button size="small" @click="downloadQuick">下载 .docx</el-button>
             </div>
-            <DocxCompare :data="quickData" :headings="quickHeadings" />
+            <div class="quick-result-body">
+              <DocxCompare :data="quickData" :headings="quickHeadings" />
+            </div>
           </div>
         </template>
       </section>
@@ -424,6 +450,7 @@ import PreviewPage from '../components/PreviewPage.vue'
 import DocxCompare from '../components/DocxCompare.vue'
 import { extractHeadings } from '../utils/docxHeadings'
 import { ElMessage, ElNotification, ElMessageBox } from 'element-plus'
+import { UploadFilled, Document } from '@element-plus/icons-vue'
 import { getTemplateDetail, saveAllConfig } from '../api/template'
 import { quickFormat } from '../api/paper'
 
@@ -438,7 +465,7 @@ const menus = [
   { key: 'figure', label: '图表格式' },
   { key: 'reference', label: '参考文献' },
   { key: 'toc', label: '目录样式' },
-  { key: 'preview', label: '效果预览' }
+  { key: 'preview', label: '快速试排' }
 ]
 const active = ref('page')
 const templateName = ref('格式方案')
@@ -525,15 +552,15 @@ function applyPreset(name) {
 }
 
 // ===== 快速试排: 上传文档截取前几段, 用真实排版引擎同步出结果 =====
-const quickFileRef = ref(null)
 const quickFile = ref(null)
 const quickParagraphs = ref(150)
 const quickLoading = ref(false)
 const quickData = ref([])
 const quickHeadings = ref([])
 
-function onQuickFile(e) {
-  quickFile.value = e.target.files && e.target.files[0] ? e.target.files[0] : null
+function onQuickUpload(uploadFile) {
+  // auto-upload=false: 只取用户选中的原始文件, 每次选择覆盖上一次
+  quickFile.value = uploadFile && uploadFile.raw ? uploadFile.raw : null
   quickData.value = []
   quickHeadings.value = []
 }
@@ -867,37 +894,88 @@ async function goFormat() {
   margin-left: 8px;
 }
 /* 快速试排 */
-.quick-format {
+.quick-card {
+  margin: 12px 0 4px;
+  padding: 18px 18px 14px;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+.quick-card :deep(.el-upload-dragger) {
+  padding: 24px 0 20px;
+}
+.quick-card :deep(.el-upload__tip) {
+  color: #909399;
+  font-size: 12px;
+}
+.quick-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed #ebeef5;
+}
+.quick-actions-right {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 10px 0;
 }
-.quick-file {
+.quick-range-label {
   font-size: 12px;
+  color: #909399;
 }
 .quick-filename {
-  font-size: 12px;
-  color: #606266;
-  max-width: 260px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: #303133;
+  max-width: 320px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.quick-filename.placeholder {
+  color: #c0c4cc;
+}
 .quick-result {
-  margin-top: 14px;
-  border: 1px solid #d0d7de;
-  border-radius: 6px;
+  margin-top: 18px;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
   background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
 }
 .quick-result-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  padding: 10px 14px;
   border-bottom: 1px solid #ebeef5;
+  background: #fafbfc;
+}
+.quick-result-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-size: 13px;
   color: #303133;
+  font-weight: 600;
+}
+.dot-ok {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #67c23a;
+  display: inline-block;
+}
+.quick-result-body {
+  max-height: 70vh;
+  overflow: auto;
+  padding: 4px;
 }
 /* 右侧实时预览 dock */
 .live-preview-toggle {

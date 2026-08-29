@@ -381,6 +381,13 @@ public class TeamService {
         return c != null && c > 0;
     }
 
+    /** 团队全部成员的用户ID(含创建者), 供团队模板修订通知 */
+    public java.util.List<Long> memberIds(Long teamId) {
+        return memberMapper.selectList(new LambdaQueryWrapper<TeamMember>()
+                        .eq(TeamMember::getTeamId, teamId))
+                .stream().map(TeamMember::getUserId).collect(Collectors.toList());
+    }
+
     private void requireMember(Long teamId, Long userId) {
         if (!isMember(teamId, userId)) {
             throw new BusinessException(403, "您不是该团队成员");

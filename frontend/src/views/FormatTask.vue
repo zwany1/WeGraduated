@@ -3,7 +3,7 @@
     <SiteNav />
 
     <main class="content">
-      <section class="upload-box">
+      <section ref="uploadSectionRef" class="upload-box">
         <el-upload
           drag
           multiple
@@ -50,10 +50,17 @@
             <el-radio-button label="FAILED">失败</el-radio-button>
           </el-radio-group>
           <el-checkbox v-model="groupByPaper" size="small" style="margin-left: 8px">按论文分组(版本历史)</el-checkbox>
+          <el-checkbox :model-value="notifyEnabled" size="small" style="margin-left: 4px" @change="toggleNotify" title="浏览器桌面通知, 排版完成/失败时提醒">桌面通知</el-checkbox>
           <el-input v-model="taskKeyword" placeholder="搜索论文文件名" clearable :prefix-icon="Search" style="width: 220px" />
           <span class="task-count">{{ filteredTasks.length }} / {{ tasks.length }}</span>
         </div>
-        <el-table :data="pagedTasks" empty-text="暂无任务" :span-method="taskSpan" @selection-change="handleSelectionChange">
+        <el-table :data="pagedTasks" :span-method="taskSpan" @selection-change="handleSelectionChange">
+          <template #empty>
+            <el-empty description="还没有排版任务：先在上方上传论文，选一个格式方案开始">
+              <el-button type="primary" @click="scrollToUpload">去上传论文</el-button>
+              <el-button @click="$router.push('/templates')">去配置格式方案</el-button>
+            </el-empty>
+          </template>
           <el-table-column type="selection" width="44" />
           <el-table-column prop="id" label="ID" width="60" />
           <el-table-column label="论文" min-width="140">
@@ -392,8 +399,32 @@ let pollTimer = null
 // SSE 进度推送连接: taskId -> EventSource
 const sseMap = new Map()
 
-async function subscribeSse(taskId) {
-  if (sseMap.has(taskId)) return
+// ===== 浏览器桌面通知: 长任务结束不用盯着页面 =====
+const notifyEnabled = ref(localStorage.getItem('notify-browser') === '1')
+const uploadSectionRef = ref(null)
+
+function scrollToUpload() {
+  if (uploadSectionRef.value) {
+    uploadSectionRef.value.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+}
+
+function toggleNotify(v) {
+  notifyEnabled.value = !!v
+  localStorage.setItem('notify-browser', notifyEnabled.value ? '1' : '0')
+  if (notifyEnabled.value && 'Notification' in window && Notification.permission !== 'granted') {
+    Notification.requestPermission()
+  }
+}
+
+function notifyBrowser(title, body) {
+  if (!notifyEnabled.value || !('Notification' in window) || Notification.permission !== 'granted') return
+  try {
+    new Notification(title, { body })
+  } catch (e) {}
+}
+
+async function subscribeSse(taskId) {  if (sseMap.has(taskId)) return
   let ticket
   try {
     const data = await progressTicket(taskId)
@@ -418,9 +449,12 @@ async function subscribeSse(taskId) {
         loadTasks(true)
         const name = row ? fileName(row) : ('任务 #' + taskId)
         if (d.status === 'SUCCESS') {
+          notifyBrowser('排版完成', `「${name}」已排版完成，可预览或下载`)
           ElNotification({ title: '排版完成', message: `「${name}」已排版完成，可预览或下载`, type: 'success', duration: 6000 })
         } else {
-          ElNotification({ title: '排版失败', message: (d.error || '请重试').slice(0, 120), type: 'error', duration: 8000 })
+          const errText = (d.error || '请重试').slice(0, 120)
+          notifyBrowser('排版失败', errText)
+          ElNotification({ title: '排版失败', message: errText, type: 'error', duration: 8000 })
         }
       }
     } catch (e) {}

@@ -50,6 +50,7 @@ public class TemplateService {
     private final UserMapper userMapper;
     private final DbRetryService dbRetryService;
     private final TeamService teamService;
+    private final NotificationService notificationService;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     public TemplateService(FormatTemplateMapper templateMapper, FormatRuleMapper ruleMapper,
@@ -58,6 +59,7 @@ public class TemplateService {
                            MarketCommentMapper commentMapper, MarketLikeMapper likeMapper,
                            UserMapper userMapper,
                            DbRetryService dbRetryService, TeamService teamService,
+                           NotificationService notificationService,
                            com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
         this.templateMapper = templateMapper;
         this.ruleMapper = ruleMapper;
@@ -69,6 +71,7 @@ public class TemplateService {
         this.userMapper = userMapper;
         this.dbRetryService = dbRetryService;
         this.teamService = teamService;
+        this.notificationService = notificationService;
         this.objectMapper = objectMapper;
     }
 
@@ -208,6 +211,23 @@ public class TemplateService {
         }
         template.setUpdateTime(LocalDateTime.now());
         templateMapper.updateById(template);
+        // 团队模板修订提示: 一人修改, 通知其他成员"配置已变更", 避免按旧印象排版
+        if (template.getTeamId() != null) {
+            try {
+                User modifier = userMapper.selectById(userId);
+                String modifierName = modifier != null && modifier.getUsername() != null ? modifier.getUsername() : ("用户" + userId);
+                for (Long mid : teamService.memberIds(template.getTeamId())) {
+                    if (mid.equals(userId)) {
+                        continue;
+                    }
+                    notificationService.send(mid, "TEMPLATE_UPDATE", "团队模板已更新",
+                            "格式方案「" + template.getName() + "」已被 " + modifierName + " 修改，排版前请注意核对配置",
+                            java.util.Map.of("templateId", templateId));
+                }
+            } catch (Exception ignore) {
+                // 通知失败不影响保存
+            }
+        }
         if (dto.getRules() != null) {
             for (RuleSaveDTO rule : dto.getRules()) {
                 upsertRule(templateId, rule);

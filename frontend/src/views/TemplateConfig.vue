@@ -509,7 +509,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import SiteNav from '../components/SiteNav.vue'
 import PreviewPage from '../components/PreviewPage.vue'
@@ -925,6 +925,15 @@ function decodeHtml(s) {
 }
 
 onMounted(loadConfig)
+// Ctrl/Cmd + S 快捷保存: 覆盖浏览器默认"保存网页"
+function onKeydown(e) {
+  if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+    e.preventDefault()
+    if (!saving.value) saveAll()
+  }
+}
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 // 组件复用时按模板 id 重新加载(解决退出后再次进入显示旧配置/默认配置)
 watch(() => route.params.id, () => {
   loadConfig()

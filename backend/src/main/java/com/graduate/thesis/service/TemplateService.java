@@ -2,6 +2,7 @@ package com.graduate.thesis.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.graduate.thesis.common.BusinessException;
+import com.graduate.thesis.dto.ConfigSaveDTO;
 import com.graduate.thesis.dto.RuleSaveDTO;
 import com.graduate.thesis.entity.FormatRule;
 import com.graduate.thesis.entity.FormatTask;
@@ -49,13 +50,15 @@ public class TemplateService {
     private final UserMapper userMapper;
     private final DbRetryService dbRetryService;
     private final TeamService teamService;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     public TemplateService(FormatTemplateMapper templateMapper, FormatRuleMapper ruleMapper,
                            FormatTaskMapper taskMapper,
                            MarketRatingMapper ratingMapper, TemplateFavoriteMapper favoriteMapper,
                            MarketCommentMapper commentMapper, MarketLikeMapper likeMapper,
                            UserMapper userMapper,
-                           DbRetryService dbRetryService, TeamService teamService) {
+                           DbRetryService dbRetryService, TeamService teamService,
+                           com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
         this.templateMapper = templateMapper;
         this.ruleMapper = ruleMapper;
         this.taskMapper = taskMapper;
@@ -66,6 +69,7 @@ public class TemplateService {
         this.userMapper = userMapper;
         this.dbRetryService = dbRetryService;
         this.teamService = teamService;
+        this.objectMapper = objectMapper;
     }
 
     public FormatTemplate create(Long userId, String name, Long teamId) {
@@ -132,11 +136,24 @@ public class TemplateService {
         templateMapper.updateById(template);
     }
 
-    public void saveHeadingPatterns(Long templateId, Long userId, String headingPatterns) {
+    public void saveHeadingPatterns(Long templateId, Long userId, String heading1, String heading2, String heading3) {
         FormatTemplate template = getOwned(templateId, userId);
-        template.setHeadingPatterns(headingPatterns);
+        template.setHeadingPatterns(buildHeadingPatternsJson(heading1, heading2, heading3));
         template.setUpdateTime(LocalDateTime.now());
         templateMapper.updateById(template);
+    }
+
+    /** 用 ObjectMapper 生成标题正则 JSON, 避免手工拼接转义出错 */
+    private String buildHeadingPatternsJson(String heading1, String heading2, String heading3) {
+        Map<String, String> m = new LinkedHashMap<>();
+        m.put("heading1", heading1 == null ? "" : heading1);
+        m.put("heading2", heading2 == null ? "" : heading2);
+        m.put("heading3", heading3 == null ? "" : heading3);
+        try {
+            return objectMapper.writeValueAsString(m);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new BusinessException(500, "标题规则序列化失败");
+        }
     }
 
     public void saveGenerateToc(Long templateId, Long userId, Boolean generateToc) {
@@ -167,39 +184,90 @@ public class TemplateService {
         templateMapper.updateById(template);
     }
 
+    /** 一次性保存模板全部配置(单事务): 任一项失败整体回滚, 前端不再逐项发十几个请求 */
+    @Transactional
+    public void saveAllConfig(Long templateId, Long userId, ConfigSaveDTO dto) {
+        FormatTemplate template = getOwned(templateId, userId);
+        if (dto.getPageConfig() != null) {
+            template.setPageConfig(dto.getPageConfig());
+        }
+        if (dto.getHeading1() != null || dto.getHeading2() != null || dto.getHeading3() != null) {
+            template.setHeadingPatterns(buildHeadingPatternsJson(dto.getHeading1(), dto.getHeading2(), dto.getHeading3()));
+        }
+        if (dto.getGenerateToc() != null) {
+            template.setGenerateToc(dto.getGenerateToc());
+        }
+        if (dto.getGenerateAbstract() != null) {
+            template.setGenerateAbstract(dto.getGenerateAbstract());
+        }
+        if (dto.getReferenceConfig() != null) {
+            template.setReferenceConfig(dto.getReferenceConfig());
+        }
+        if (dto.getTocConfig() != null) {
+            template.setTocConfig(dto.getTocConfig());
+        }
+        template.setUpdateTime(LocalDateTime.now());
+        templateMapper.updateById(template);
+        if (dto.getRules() != null) {
+            for (RuleSaveDTO rule : dto.getRules()) {
+                upsertRule(templateId, rule);
+            }
+        }
+    }
+
     @Transactional
     public FormatRule saveRule(Long userId, RuleSaveDTO dto) {
         getOwned(dto.getTemplateId(), userId);
+        return upsertRule(dto.getTemplateId(), dto);
+    }
+
+    /**
+     * 幂等保存单条规则: 按 (template_id, rule_type) 先查后写;
+     * 并发插入撞唯一键时回退为更新, 避免 DuplicateKeyException 冒泡成 500
+     */
+    private FormatRule upsertRule(Long templateId, RuleSaveDTO dto) {
         FormatRule existing = ruleMapper.selectOne(new LambdaQueryWrapper<FormatRule>()
-                .eq(FormatRule::getTemplateId, dto.getTemplateId())
+                .eq(FormatRule::getTemplateId, templateId)
                 .eq(FormatRule::getRuleType, dto.getRuleType()));
         if (existing == null) {
             existing = new FormatRule();
-            existing.setTemplateId(dto.getTemplateId());
+            existing.setTemplateId(templateId);
             existing.setRuleType(dto.getRuleType());
             existing.setCreateTime(LocalDateTime.now());
+            applyRuleFields(existing, dto);
+            try {
+                ruleMapper.insert(existing);
+                return existing;
+            } catch (org.springframework.dao.DuplicateKeyException e) {
+                existing = ruleMapper.selectOne(new LambdaQueryWrapper<FormatRule>()
+                        .eq(FormatRule::getTemplateId, templateId)
+                        .eq(FormatRule::getRuleType, dto.getRuleType()));
+                if (existing == null) {
+                    throw e;
+                }
+            }
         }
-        existing.setFont(dto.getFont());
-        existing.setFontLatin(dto.getFontLatin());
-        existing.setFontSize(dto.getFontSize());
-        existing.setBold(dto.getBold());
-        existing.setAlign(dto.getAlign());
-        existing.setLineSpacing(dto.getLineSpacing());
-        existing.setLineSpacingType(dto.getLineSpacingType());
-        existing.setLineSpacingExact(dto.getLineSpacingExact());
-        existing.setFirstLineIndent(dto.getFirstLineIndent());
-        existing.setSpaceBefore(dto.getSpaceBefore());
-        existing.setSpaceAfter(dto.getSpaceAfter());
-        existing.setCaptionPosition(dto.getCaptionPosition());
-        existing.setNumberingPattern(dto.getNumberingPattern());
-        existing.setCaptionEnabled(dto.getCaptionEnabled());
-        existing.setUpdateTime(LocalDateTime.now());
-        if (existing.getId() == null) {
-            ruleMapper.insert(existing);
-        } else {
-            ruleMapper.updateById(existing);
-        }
+        applyRuleFields(existing, dto);
+        ruleMapper.updateById(existing);
         return existing;
+    }
+
+    private void applyRuleFields(FormatRule rule, RuleSaveDTO dto) {
+        rule.setFont(dto.getFont());
+        rule.setFontLatin(dto.getFontLatin());
+        rule.setFontSize(dto.getFontSize());
+        rule.setBold(dto.getBold());
+        rule.setAlign(dto.getAlign());
+        rule.setLineSpacing(dto.getLineSpacing());
+        rule.setLineSpacingType(dto.getLineSpacingType());
+        rule.setLineSpacingExact(dto.getLineSpacingExact());
+        rule.setFirstLineIndent(dto.getFirstLineIndent());
+        rule.setSpaceBefore(dto.getSpaceBefore());
+        rule.setSpaceAfter(dto.getSpaceAfter());
+        rule.setCaptionPosition(dto.getCaptionPosition());
+        rule.setNumberingPattern(dto.getNumberingPattern());
+        rule.setCaptionEnabled(dto.getCaptionEnabled());
+        rule.setUpdateTime(LocalDateTime.now());
     }
 
     public FormatRule getRule(Long templateId, String ruleType) {

@@ -71,17 +71,27 @@ public class TaskScheduler {
         return c == null ? 0 : c;
     }
 
+    /** 并发上限配置缓存: 该配置几乎不变, 不必每 tick 查一次 t_config, 60s 刷新一次 */
+    private volatile int cachedMaxConcurrent = 4;
+    private volatile long configLoadedAt = 0L;
+    private static final long CONFIG_TTL_MILLIS = 60_000L;
+
     private int maxConcurrent() {
-        try {
-            String v = systemService.getConfigValue("task.max.concurrent");
-            if (v != null && v.trim().matches("\\d+")) {
-                int n = Integer.parseInt(v.trim());
-                if (n > 0 && n <= 20) {
-                    return n;
+        long now = System.currentTimeMillis();
+        if (now - configLoadedAt > CONFIG_TTL_MILLIS) {
+            try {
+                String v = systemService.getConfigValue("task.max.concurrent");
+                if (v != null && v.trim().matches("\\d+")) {
+                    int n = Integer.parseInt(v.trim());
+                    if (n > 0 && n <= 20) {
+                        cachedMaxConcurrent = n;
+                    }
                 }
+                configLoadedAt = now;
+            } catch (Exception ignore) {
+                // 查询失败沿用上次缓存值
             }
-        } catch (Exception ignore) {
         }
-        return 4;
+        return cachedMaxConcurrent;
     }
 }

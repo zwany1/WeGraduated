@@ -42,3 +42,4 @@ build-backend.bat
 .DS_Store
 Thumbs.db
 .mimosa/
+backend/logs/

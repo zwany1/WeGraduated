@@ -469,8 +469,8 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import SiteNav from '../components/SiteNav.vue'
-import { ElMessage } from 'element-plus'
-import { getTemplateDetail, saveGenerateAbstract, saveGenerateToc, savePageConfig, saveHeadingPatterns, saveReferenceConfig, saveRule, saveTocConfig } from '../api/template'
+import { ElMessage, ElNotification, ElMessageBox } from 'element-plus'
+import { getTemplateDetail, saveAllConfig } from '../api/template'
 
 const route = useRoute()
 const router = useRouter()
@@ -488,6 +488,7 @@ const menus = [
 const active = ref('page')
 const templateName = ref('格式方案')
 const saving = ref(false)
+const loading = ref(false)
 const genToc = ref(false)
 const genAbstract = ref(false)
 
@@ -697,6 +698,7 @@ const alignMap = { left: '左对齐', center: '居中', right: '右对齐', just
 
 async function loadConfig() {
   const currentId = Number(route.params.id)
+  loading.value = true
   // 重置为默认值, 避免组件复用/切换模板时残留上次配置
   Object.assign(page, { paper: 'A4', margin: { top: 2.5, bottom: 2.5, left: 3, right: 2.5 }, header: { height: 1.5, text: '' }, footer: { pageNumber: 'center' } })
   Object.assign(rules, {
@@ -747,6 +749,83 @@ async function loadConfig() {
     // 具体原因由 api 拦截器提示(如 模板不存在 / 无权访问该模板), 这里不重复覆盖
     console.error('配置加载失败', e)
   }
+  await maybeRestoreDraft(currentId)
+  startDraftAutosave()
+  loading.value = false
+}
+
+// ===== 草稿自动暂存: 编辑内容实时写入 localStorage, 后端不可用/登录过期时避免丢失 =====
+const DRAFT_PREFIX = 'template-config-draft-'
+let draftWatchStarted = false
+
+function draftKey(templateId) {
+  return DRAFT_PREFIX + templateId
+}
+
+function persistDraft(templateId) {
+  try {
+    localStorage.setItem(draftKey(templateId), JSON.stringify({
+      page: JSON.parse(JSON.stringify(page)),
+      rules: JSON.parse(JSON.stringify(rules)),
+      headingPatterns: { ...headingPatterns },
+      refConfig: { ...refConfig },
+      tocConfig: JSON.parse(JSON.stringify(tocConfig)),
+      genToc: genToc.value,
+      genAbstract: genAbstract.value,
+      savedAt: Date.now()
+    }))
+  } catch (e) {
+    // 存储满/序列化失败等异常忽略, 不影响正常编辑
+  }
+}
+
+function clearDraft(templateId) {
+  localStorage.removeItem(draftKey(templateId))
+}
+
+async function maybeRestoreDraft(templateId) {
+  let draft = null
+  try {
+    draft = JSON.parse(localStorage.getItem(draftKey(templateId)) || 'null')
+  } catch (e) {
+    draft = null
+  }
+  if (!draft || !draft.savedAt) return
+  try {
+    await ElMessageBox.confirm(
+      `检测到 ${new Date(draft.savedAt).toLocaleString()} 的未保存编辑（上次保存可能未成功）。是否恢复？`,
+      '恢复未保存的配置',
+      { confirmButtonText: '恢复', cancelButtonText: '丢弃', type: 'info' }
+    )
+    if (draft.page) Object.assign(page, draft.page)
+    if (draft.rules) Object.assign(rules, draft.rules)
+    if (draft.headingPatterns) Object.assign(headingPatterns, draft.headingPatterns)
+    if (draft.refConfig) Object.assign(refConfig, draft.refConfig)
+    const tc = draft.tocConfig
+    if (tc) {
+      if (tc.lineSpacing != null) tocConfig.lineSpacing = tc.lineSpacing
+      if (tc.leader != null) tocConfig.leader = tc.leader
+      if (tc.toc1) Object.assign(tocConfig.toc1, tc.toc1)
+      if (tc.toc2) Object.assign(tocConfig.toc2, tc.toc2)
+      if (tc.toc3) Object.assign(tocConfig.toc3, tc.toc3)
+    }
+    genToc.value = !!draft.genToc
+    genAbstract.value = !!draft.genAbstract
+  } catch (e) {
+    clearDraft(templateId)
+  }
+}
+
+function startDraftAutosave() {
+  if (draftWatchStarted) return
+  draftWatchStarted = true
+  watch(
+    [page, rules, headingPatterns, refConfig, tocConfig, genToc, genAbstract],
+    () => {
+      if (!loading.value) persistDraft(Number(route.params.id))
+    },
+    { deep: true }
+  )
 }
 
 /** 解析可能带 HTML 实体(如 &quot;)的历史 JSON 数据, 失败返回 null */
@@ -781,42 +860,32 @@ watch(() => route.params.id, () => {
 async function saveAll() {
   const currentId = Number(route.params.id)
   saving.value = true
-  let failed = 0
-  // 页面/标题/参考文献: 逐项保存, 单项失败不中断
   try {
-    await savePageConfig(currentId, JSON.stringify(page))
-  } catch (e) { failed++; console.error('保存页面设置失败', e) }
-  try {
-    await saveHeadingPatterns(currentId, { ...headingPatterns })
-  } catch (e) { failed++; console.error('保存标题规则失败', e) }
-  try {
-    await saveReferenceConfig(currentId, { ...refConfig })
-  } catch (e) { failed++; console.error('保存参考文献配置失败', e) }
-  try {
-    await saveTocConfig(currentId, { lineSpacing: tocConfig.lineSpacing, leader: tocConfig.leader, toc1: { ...tocConfig.toc1 }, toc2: { ...tocConfig.toc2 }, toc3: { ...tocConfig.toc3 } })
-  } catch (e) { failed++; console.error('保存目录样式失败', e) }
-  try {
-    await saveGenerateToc(currentId, genToc.value)
-  } catch (e) { failed++; console.error('保存目录开关失败', e) }
-  try {
-    await saveGenerateAbstract(currentId, genAbstract.value)
-  } catch (e) { failed++; console.error('保存摘要开关失败', e) }
-  // 格式规则(标题/正文/图表): 逐条保存, 某条失败不影响其余
-  for (const key of Object.keys(rules)) {
-    try {
-      await saveRule({ ...rules[key], templateId: currentId })
-    } catch (e) {
-      failed++
-      console.error('保存规则失败', key, e)
-    }
-  }
-  saving.value = false
-  if (failed > 0) {
-    ElMessage.error(`有 ${failed} 项配置保存失败，请重试；已成功的配置已保存`)
-    return false
-  } else {
+    await saveAllConfig(currentId, {
+      pageConfig: JSON.stringify(page),
+      heading1: headingPatterns.heading1,
+      heading2: headingPatterns.heading2,
+      heading3: headingPatterns.heading3,
+      generateToc: genToc.value,
+      generateAbstract: genAbstract.value,
+      referenceConfig: JSON.stringify(refConfig),
+      tocConfig: JSON.stringify({ lineSpacing: tocConfig.lineSpacing, leader: tocConfig.leader, toc1: { ...tocConfig.toc1 }, toc2: { ...tocConfig.toc2 }, toc3: { ...tocConfig.toc3 } }),
+      rules: Object.keys(rules).map(key => ({ ...rules[key], templateId: currentId }))
+    })
+    clearDraft(currentId)
     ElMessage.success('配置保存成功')
     return true
+  } catch (e) {
+    // api 拦截器已 toast 具体原因(如 后端未启动/正在重启), 这里再弹出汇总通知
+    ElNotification({
+      title: '保存失败',
+      message: (e && e.message) ? String(e.message) : '请稍后重试；后端可能正在重启',
+      type: 'error',
+      duration: 6000
+    })
+    return false
+  } finally {
+    saving.value = false
   }
 }
 

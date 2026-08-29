@@ -48,4 +48,25 @@ api.interceptors.response.use(
   }
 )
 
+// 登录过期预警: token 剩余有效期不足 2 小时时提醒一次, 避免用户编辑内容因过期丢失
+let expiryWarned = false
+function scheduleExpiryWarning() {
+  const token = localStorage.getItem('token')
+  if (!token) return
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
+    const msLeft = payload.exp * 1000 - Date.now()
+    if (msLeft <= 0) return
+    if (msLeft < 2 * 3600 * 1000 && !expiryWarned) {
+      expiryWarned = true
+      ElMessage.warning('登录即将过期，请尽快保存配置并重新登录')
+    }
+    // 剩余时间很长则半小时后复查, 临近则按剩余时间到期时复查
+    setTimeout(scheduleExpiryWarning, Math.min(msLeft, 30 * 60 * 1000))
+  } catch (e) {
+    // token 格式异常, 忽略
+  }
+}
+scheduleExpiryWarning()
+
 export default api

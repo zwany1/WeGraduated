@@ -2,6 +2,7 @@ package com.graduate.thesis.controller;
 
 import com.graduate.thesis.common.Result;
 import com.graduate.thesis.common.UserContext;
+import com.graduate.thesis.dto.ConfigSaveDTO;
 import com.graduate.thesis.dto.GenerateAbstractSaveDTO;
 import com.graduate.thesis.dto.GenerateTocSaveDTO;
 import com.graduate.thesis.dto.HeadingPatternsSaveDTO;
@@ -158,9 +159,14 @@ public class TemplateController {
     @PutMapping("/{id}/heading-patterns")
     public Result<Void> saveHeadingPatterns(@PathVariable Long id, @Valid @RequestBody HeadingPatternsSaveDTO dto) {
         templateService.saveHeadingPatterns(id, UserContext.get(),
-                "{\"heading1\":\"" + escapeJson(dto.getHeading1())
-                        + "\",\"heading2\":\"" + escapeJson(dto.getHeading2())
-                        + "\",\"heading3\":\"" + escapeJson(dto.getHeading3()) + "\"}");
+                dto.getHeading1(), dto.getHeading2(), dto.getHeading3());
+        return Result.ok();
+    }
+
+    /** 一次性保存模板全部配置(单事务): 页面/标题正则/开关/参考文献/目录样式 + 全部格式规则 */
+    @PutMapping("/{id}/config")
+    public Result<Void> saveAllConfig(@PathVariable Long id, @Valid @RequestBody ConfigSaveDTO dto) {
+        templateService.saveAllConfig(id, UserContext.get(), dto);
         return Result.ok();
     }
 
@@ -186,10 +192,6 @@ public class TemplateController {
     public Result<Void> saveTocConfig(@PathVariable Long id, @RequestBody TocConfigSaveDTO dto) {
         templateService.saveTocConfig(id, UserContext.get(), dto.getTocConfig());
         return Result.ok();
-    }
-
-    private static String escapeJson(String s) {
-        return s == null ? "" : s.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     @PostMapping("/rule/save")

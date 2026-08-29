@@ -20,6 +20,11 @@ export function savePageConfig(id, pageConfig) {
   return api.put(`/template/${id}/page-config`, { pageConfig })
 }
 
+/** 一次性保存模板全部配置(单事务): 替代逐项发多个请求 */
+export function saveAllConfig(id, data) {
+  return api.put(`/template/${id}/config`, data)
+}
+
 export function saveHeadingPatterns(id, headingPatterns) {
   return api.put(`/template/${id}/heading-patterns`, headingPatterns)
 }

@@ -172,3 +172,23 @@ Graduated/
 ## 📄 License
 
 本项目仅供学习交流使用，基于 [MIT License](LICENSE)。
+
+---
+
+## 🛠 本地开发
+
+```bash
+# 1. 启动后端(需先配置环境变量: DB_URL/DB_USERNAME/DB_PASSWORD/JWT_SECRET/THESIS_ADMIN_PASSWORD/MAIL_PASSWORD)
+#    IDEA 运行 ThesisApplication, 等控制台出现 "Started ThesisApplication" 即就绪
+# 2. 启动前端
+cd frontend && npm install && npm run dev   # http://localhost:5173
+```
+
+- 日志同时输出到控制台与 `backend/logs/thesis-format.log`(按天滚动, 保留 7 天), 每行携带 `traceId`;
+  前端收到 "系统繁忙 (traceId: xxxxx)" 时, 可直接在后端日志里检索该 traceId 定位堆栈。
+- 后端未启动/正在重启时, 前端请求会返回明确的 503 提示, 页面右下角会显示"后端服务未连接"状态。
+
+### 已知限制
+
+- JWT 注销/改密的 token 撤销记录保存在内存中, 后端重启后旧 token 仍有效至自然过期(生产部署需落库)。
+- vite 开发服务器在本机只监听 IPv6 `[::1]`, 浏览器通过 `localhost` 访问不受影响; 若需局域网访问请配置 `server.host`。

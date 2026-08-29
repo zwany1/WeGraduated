@@ -44,14 +44,16 @@ public class GlobalExceptionHandler {
     /** 请求体不是合法 JSON(如转义错误/编码错误): 明确 400, 避免落进兜底 500 掩盖真实原因 */
     @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
     public Result<Void> handleNotReadable(org.springframework.http.converter.HttpMessageNotReadableException e) {
-        log.warn("请求体解析失败: {}", e.getMessage());
+        log.warn("请求体解析失败 traceId={}: {}", org.slf4j.MDC.get("traceId"), e.getMessage());
         return Result.fail(400, "请求数据格式错误");
     }
 
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Result<Void> handleUnknown(Exception e) {
-        log.error("系统异常", e);
-        return Result.fail(500, "系统繁忙，请稍后重试");
+        // traceId 同时写进日志行与响应体, 前端报障时可直接凭 traceId 定位后端日志
+        String traceId = org.slf4j.MDC.get("traceId");
+        log.error("系统异常 traceId={}", traceId, e);
+        return Result.fail(500, "系统繁忙，请稍后重试 (traceId: " + traceId + ")");
     }
 }

@@ -50,6 +50,17 @@ public class FormatEngine {
      * @return 排版后的临时文件
      */
     public File format(File source, RuleSet ruleSet, IntConsumer progress) {
+        return format(source, ruleSet, progress, null);
+    }
+
+    /**
+     * 执行排版并收集体检报告
+     *
+     * @param report 非 null 时随排版一并填充报告数据(结构计数与疑似未匹配标题)
+     * @return 排版后的临时文件
+     */
+    public File format(File source, RuleSet ruleSet, IntConsumer progress,
+                       com.graduate.thesis.engine.model.FormatReport report) {
         File temp = null;
         try {
             temp = File.createTempFile("thesis_format_", ".docx");
@@ -64,7 +75,10 @@ public class FormatEngine {
             }
             progress.accept(10);
 
-            List<DocItem> items = structureDetector.detect(doc, ruleSet);
+            List<DocItem> items = structureDetector.detect(doc, ruleSet, report, ruleSet.getHeadingOverrides());
+            if (report != null) {
+                fillReport(report, items);
+            }
             progress.accept(25);
 
             PageFormatter.apply(doc, ruleSet.getPageConfig());
@@ -109,6 +123,48 @@ public class FormatEngine {
         } catch (Exception e) {
             throw new BusinessException(500, friendlyError(e));
         }
+    }
+
+    /** 按结构识别结果填充报告计数 */
+    private void fillReport(com.graduate.thesis.engine.model.FormatReport report, List<DocItem> items) {
+        boolean inRefs = false;
+        int refs = 0;
+        for (DocItem item : items) {
+            switch (item.getKind()) {
+                case HEADING1:
+                    report.setChapterCount(report.getChapterCount() + 1);
+                    inRefs = "参考文献".equals(item.getText().trim());
+                    break;
+                case HEADING2:
+                case HEADING3:
+                    report.setSectionCount(report.getSectionCount() + 1);
+                    inRefs = false;
+                    break;
+                case FIGURE_CAPTION:
+                    report.setFigureCount(report.getFigureCount() + 1);
+                    break;
+                case TABLE_CAPTION:
+                    report.setTableCount(report.getTableCount() + 1);
+                    break;
+                case BODY:
+                    if (!item.getText().isEmpty()) {
+                        report.setBodyParagraphs(report.getBodyParagraphs() + 1);
+                    }
+                    if (item.isAutoPromoted()) {
+                        report.setAutoFixedHeadings(report.getAutoFixedHeadings() + 1);
+                    }
+                    if (inRefs && item.getText().matches("^\\[?\\d+\\]?[、.)]\\s*\\S+.*")) {
+                        refs++;
+                    }
+                    break;
+                case SECTION_TITLE:
+                    inRefs = item.getText().trim().startsWith("参考文献");
+                    break;
+                default:
+                    break;
+            }
+        }
+        report.setReferenceCount(refs);
     }
 
     /** 将排版异常转为用户可读的错误信息 */

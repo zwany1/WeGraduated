@@ -114,6 +114,19 @@ public class PaperController {
         return Result.ok(paperService.listDiffs(UserContext.get(), taskId));
     }
 
+    /** 排版体检报告: 文档结构概况 + 疑似未匹配标题(无报告返回 null) */
+    @GetMapping("/task/{id}/report")
+    public Result<com.graduate.thesis.engine.model.FormatReport> report(@PathVariable Long id) {
+        return Result.ok(paperService.getReport(UserContext.get(), id));
+    }
+
+    /** 引导修复重排: 对报告中的可疑标题行指定级别后, 生成带覆盖的新任务 */
+    @PostMapping("/task/{id}/refine")
+    public Result<FormatTask> refine(@PathVariable Long id,
+                                     @RequestBody java.util.List<java.util.Map<String, Integer>> overrides) {
+        return Result.ok(paperService.refineTask(UserContext.get(), id, overrides));
+    }
+
     @GetMapping("/tasks")
     public Result<List<FormatTask>> tasks() {
         return Result.ok(paperService.listTasks(UserContext.get()));

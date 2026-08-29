@@ -92,6 +92,8 @@ CREATE TABLE IF NOT EXISTS t_format_task (
     create_time DATETIME    DEFAULT NULL,
     finish_time DATETIME    DEFAULT NULL,
     retry_count INT          NOT NULL DEFAULT 0 COMMENT '失败自动重试次数',
+    report      MEDIUMTEXT   DEFAULT NULL COMMENT '排版体检报告JSON',
+    heading_overrides TEXT   DEFAULT NULL COMMENT '标题覆盖JSON(引导修复重排)',
     summary     VARCHAR(500) DEFAULT NULL COMMENT '排版校验摘要',
     team_id     BIGINT       DEFAULT NULL COMMENT '所属团队(空=个人)',
     KEY idx_user (user_id)

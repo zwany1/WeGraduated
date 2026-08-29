@@ -37,6 +37,7 @@ public class PaperService {
     private final DiffService diffService;
     private final TaskProgressService progressService;
     private final TeamService teamService;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     // 自引用代理: 使 @Async runFormat 生效(避免自调用绕过代理)
     private final PaperService self;
 
@@ -48,6 +49,7 @@ public class PaperService {
                         DiffService diffService,
                         TaskProgressService progressService,
                         TeamService teamService,
+                        com.fasterxml.jackson.databind.ObjectMapper objectMapper,
                         @Lazy PaperService self) {
         this.paperFileMapper = paperFileMapper;
         this.taskMapper = taskMapper;
@@ -57,6 +59,7 @@ public class PaperService {
         this.diffService = diffService;
         this.progressService = progressService;
         this.teamService = teamService;
+        this.objectMapper = objectMapper;
         this.self = self;
     }
 
@@ -184,6 +187,9 @@ public class PaperService {
         if (m.contains("图片") && (m.contains("无法") || m.contains("不支持") || m.contains("读取"))) {
             return "文档中存在无法读取的图片，请将图片转为 JPG/PNG 后重试";
         }
+        if (m.toLowerCase().contains("encrypt") || m.contains("密码") || m.contains("加密")) {
+            return "文档已加密，请用 Word/WPS 另存为不带密码的 .docx 后重新上传";
+        }
         if (m.contains("document.xml") || m.contains("XWPF") || m.contains("docx4j") || m.contains("无法解析") || m.contains("不是有效的")) {
             return "文档无法解析，请确认上传的是有效的 Word 文档(.docx)";
         }
@@ -211,6 +217,21 @@ public class PaperService {
             RuleSet ruleSet = RuleSet.from(
                     templateService.getOwned(task.getTemplateId(), task.getUserId()),
                     templateService.listRules(task.getTemplateId()));
+            // 标题覆盖: 报告引导修复重排时, 用户对可疑标题行指定的级别
+            if (task.getHeadingOverrides() != null && !task.getHeadingOverrides().isEmpty()) {
+                try {
+                    Map<Integer, Integer> overrides = new java.util.HashMap<>();
+                    com.fasterxml.jackson.databind.JsonNode arr = objectMapper.readTree(task.getHeadingOverrides());
+                    for (com.fasterxml.jackson.databind.JsonNode n : arr) {
+                        overrides.put(n.get("index").asInt(), n.get("level").asInt());
+                    }
+                    ruleSet.setHeadingOverrides(overrides);
+                } catch (Exception e) {
+                    log.warn("解析标题覆盖失败 taskId={}", task.getId());
+                }
+            }
+            com.graduate.thesis.engine.model.FormatReport report =
+                    new com.graduate.thesis.engine.model.FormatReport();
             File source = storageService.load(paperFile.getStoredPath());
             // 超大文档保护: 超过阈值直接失败, 避免长时间占用内存/CPU
             if (source.length() > 40L * 1024 * 1024) {
@@ -223,12 +244,18 @@ public class PaperService {
                 taskMapper.updateById(task);
                 progressService.publish(taskId, Map.of("type", "progress", "progress", progress, "status", FormatTask.STATUS_PROCESSING,
                         "stage", "formatting", "stageText", "正在应用格式规则"));
-            });
+            }, report);
             String resultPath = storageService.storeResult(task.getUserId(), result);
 
             task.setStatus(FormatTask.STATUS_SUCCESS);
             task.setProgress(100);
             task.setResultPath(resultPath);
+            try {
+                task.setReport(objectMapper.writeValueAsString(report));
+                log.info("排版报告已生成 taskId={}, 疑似标题 {} 处", taskId, report.getSuspects().size());
+            } catch (Exception e) {
+                log.warn("报告序列化失败 taskId={}", taskId, e);
+            }
             task.setFinishTime(LocalDateTime.now());
             task.setErrorMsg(null);
             taskMapper.updateById(task);
@@ -272,6 +299,47 @@ public class PaperService {
             throw new BusinessException(403, "无权访问该任务");
         }
         return task;
+    }
+
+    /**
+     * 引导修复重排: 复制原任务的文件与模板, 带上用户对可疑标题行的级别覆盖, 生成新任务
+     * overrides 元素形如 {"index": 段落序号, "level": 1-5}
+     */
+    public FormatTask refineTask(Long userId, Long taskId, java.util.List<Map<String, Integer>> overrides) {
+        FormatTask origin = getTask(userId, taskId);
+        if (!FormatTask.STATUS_SUCCESS.equals(origin.getStatus()) || origin.getResultPath() == null) {
+            throw new BusinessException(400, "仅排版成功的任务支持引导修复重排");
+        }
+        FormatTask task = new FormatTask();
+        task.setUserId(origin.getUserId());
+        task.setTeamId(origin.getTeamId());
+        task.setFileId(origin.getFileId());
+        task.setTemplateId(origin.getTemplateId());
+        task.setStatus(FormatTask.STATUS_PENDING);
+        task.setProgress(0);
+        task.setCreateTime(LocalDateTime.now());
+        if (overrides != null && !overrides.isEmpty()) {
+            try {
+                task.setHeadingOverrides(objectMapper.writeValueAsString(overrides));
+            } catch (Exception ignore) {
+                // 序列化失败则按无覆盖重排
+            }
+        }
+        taskMapper.insert(task);
+        return task;
+    }
+
+    /** 读取排版体检报告(任务无报告时返回 null) */
+    public com.graduate.thesis.engine.model.FormatReport getReport(Long userId, Long taskId) {
+        FormatTask task = getTask(userId, taskId);
+        if (task.getReport() == null || task.getReport().isEmpty()) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(task.getReport(), com.graduate.thesis.engine.model.FormatReport.class);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     // ==================== 管理员: 任务管理 ====================

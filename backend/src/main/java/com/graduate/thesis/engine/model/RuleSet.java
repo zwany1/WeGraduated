@@ -39,6 +39,17 @@ public class RuleSet {
     private final AbstractConfig abstractConfig;
     private final SectionConfig sectionConfig;
 
+    /** 标题覆盖: 段落序号 -> 强制标题级别(1-5), 来自排版报告的引导修复, 非 Builder 参数 */
+    private Map<Integer, Integer> headingOverrides;
+
+    public Map<Integer, Integer> getHeadingOverrides() {
+        return headingOverrides;
+    }
+
+    public void setHeadingOverrides(Map<Integer, Integer> headingOverrides) {
+        this.headingOverrides = headingOverrides;
+    }
+
     private RuleSet(Long templateId, String templateName, PageConfig pageConfig,
                     Map<String, FormatRule> rules,
                     Pattern heading1Pattern, Pattern heading2Pattern, Pattern heading3Pattern,

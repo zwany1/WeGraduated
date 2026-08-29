@@ -37,6 +37,16 @@ export function listTasks() {
   return api.get('/paper/tasks')
 }
 
+/** 排版体检报告(结构计数 + 疑似未匹配标题, 无报告返回 null) */
+export function getTaskReport(taskId) {
+  return api.get(`/paper/task/${taskId}/report`)
+}
+
+/** 引导修复重排: 对可疑标题行指定级别后生成新任务, overrides 形如 [{index, level}] */
+export function refineTask(taskId, overrides) {
+  return api.post(`/paper/task/${taskId}/refine`, overrides)
+}
+
 // 排版进度 SSE 一次性票据: 登录态签发, 60 秒内用于建立进度推送连接
 export function progressTicket(taskId) {
   return api.post(`/paper/task/${taskId}/progress-ticket`)

@@ -18,6 +18,8 @@ public class DocItem {
     private boolean frontMatter;
     /** 是否为摘要区段(摘要/Abstract/关键词, 需套摘要规则) */
     private boolean abstractSection;
+    /** 是否由无编号启发式自动提升为标题 */
+    private boolean autoPromoted;
 
     public DocItem(XWPFParagraph paragraph, ParagraphKind kind, String text, boolean containsImage) {
         this.paragraph = paragraph;
@@ -64,5 +66,13 @@ public class DocItem {
 
     public void setAbstractSection(boolean abstractSection) {
         this.abstractSection = abstractSection;
+    }
+
+    public boolean isAutoPromoted() {
+        return autoPromoted;
+    }
+
+    public void setAutoPromoted(boolean autoPromoted) {
+        this.autoPromoted = autoPromoted;
     }
 }

@@ -45,6 +45,12 @@ public class FormatTask {
     /** 失败自动重试次数 */
     private Integer retryCount;
 
+    /** 排版体检报告 JSON(结构计数 + 疑似未匹配标题) */
+    private String report;
+
+    /** 标题覆盖 JSON: [{"index":段落序号,"level":1-5}], 来自报告的引导修复重排 */
+    private String headingOverrides;
+
     private LocalDateTime createTime;
 
     private LocalDateTime finishTime;

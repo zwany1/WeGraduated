@@ -90,11 +90,12 @@
               <span v-else style="color:#c0c4cc">—</span>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="360" fixed="right">
+          <el-table-column label="操作" width="420" fixed="right">
             <template #default="{ row }">
               <div class="op-row">
                 <el-button v-if="row.status === 'SUCCESS'" size="small" @click="preview(row)">预览</el-button>
                 <el-button v-if="row.status === 'SUCCESS'" size="small" type="success" @click="compare(row)">对比</el-button>
+                <el-button v-if="row.status === 'SUCCESS'" size="small" type="warning" plain @click="openReport(row)">报告</el-button>
                 <el-button v-if="row.status === 'SUCCESS'" size="small" type="primary" @click="download(row)">下载</el-button>
                 <el-button v-if="row.status === 'FAILED'" size="small" @click="retry(row)">重试</el-button>
                 <el-button v-if="row.status === 'SUCCESS' || row.status === 'FAILED'" size="small" plain @click="openRerun(row)">换模板</el-button>
@@ -215,11 +216,61 @@
       </div>
     </el-dialog>
 
-    <el-dialog v-model="errorVisible" title="排版失败原因" width="520px" top="10vh">
+    <!-- 排版体检报告 + 疑似标题引导修复 -->
+    <el-dialog v-model="reportVisible" title="排版体检报告" width="720px" top="7vh">
+      <div v-loading="reportLoading" style="min-height: 120px">
+        <template v-if="reportData">
+          <div class="report-stats">
+            <div class="stat-chip"><b>{{ reportData.chapterCount }}</b><span>章</span></div>
+            <div class="stat-chip"><b>{{ reportData.sectionCount }}</b><span>节(二三级标题)</span></div>
+            <div class="stat-chip"><b>{{ reportData.figureCount }}</b><span>图</span></div>
+            <div class="stat-chip"><b>{{ reportData.tableCount }}</b><span>表</span></div>
+            <div class="stat-chip"><b>{{ reportData.referenceCount }}</b><span>参考文献</span></div>
+            <div class="stat-chip"><b>{{ reportData.bodyParagraphs }}</b><span>正文段落</span></div>
+          </div>
+          <div v-if="reportData.autoFixedHeadings" class="report-note ok-note">
+            引擎已按无编号标题启发式自动识别 {{ reportData.autoFixedHeadings }} 处下级标题(如"研究背景"等短行)。
+          </div>
+          <template v-if="reportData.suspects && reportData.suspects.length">
+            <div class="report-note warn-note">
+              以下 {{ reportData.suspects.length }} 行形似标题，但未匹配模板的标题正则，已按正文排版。可为它们指定标题级别后一键重排：
+            </div>
+            <el-table :data="reportData.suspects" size="small" max-height="300">
+              <el-table-column prop="text" label="段落内容" min-width="260" show-overflow-tooltip />
+              <el-table-column label="猜测级别" width="90">
+                <template #default="{ row }">
+                  <el-tag size="small" type="info">{{ levelName(row.guessedLevel) }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="处理方式" width="150">
+                <template #default="{ row }">
+                  <el-select v-model="overrideMap[row.index]" size="small" style="width: 130px">
+                    <el-option label="保持正文" :value="0" />
+                    <el-option label="按一级标题" :value="1" />
+                    <el-option label="按二级标题" :value="2" />
+                    <el-option label="按三级标题" :value="3" />
+                  </el-select>
+                </template>
+              </el-table-column>
+            </el-table>
+            <div style="text-align: right; margin-top: 12px">
+              <el-button type="primary" :loading="refineLoading" @click="applyOverrides">按以上设置重新排版(生成新任务)</el-button>
+            </div>
+          </template>
+          <el-empty v-else-if="!reportLoading" description="未发现疑似标题问题，结构识别良好" :image-size="60" />
+        </template>
+        <el-empty v-else-if="!reportLoading" description="该任务没有体检报告（旧任务生成于报告功能上线前，重新排版即可获得）" />
+      </div>
+    </el-dialog>
+
+    <el-dialog v-model="errorVisible" title="排版失败原因与自助处理" width="560px" top="10vh">
       <div class="error-detail">
         <p class="error-label">任务 #{{ errorTaskId }} 排版失败，原因如下：</p>
         <div class="error-box">{{ errorMsg }}</div>
-        <p class="error-tip">提示：可检查模板规则是否配置完整，或确认 Word 文档格式正常后点击「重试」。</p>
+        <p class="error-label" style="margin-top: 12px">下一步建议：</p>
+        <ul class="error-advice">
+          <li v-for="(a, i) in errorAdvice" :key="i">{{ a }}</li>
+        </ul>
       </div>
     </el-dialog>
   </div>
@@ -232,7 +283,7 @@ import { ElMessage, ElNotification, ElMessageBox } from 'element-plus'
 import { UploadFilled, Loading, Search } from '@element-plus/icons-vue'
 import { listTemplates } from '../api/template'
 import { listTeams } from '../api/team'
-import { uploadPaper, startFormat, startFormatBatch, listTasks, getTask, downloadPaper, downloadPaperBatch, downloadPaperOriginal, getDiff, progressTicket, deleteTask, deleteTaskBatch, listFiles, deleteFile } from '../api/paper'
+import { uploadPaper, startFormat, startFormatBatch, listTasks, getTask, downloadPaper, downloadPaperBatch, downloadPaperOriginal, getDiff, progressTicket, deleteTask, deleteTaskBatch, listFiles, deleteFile, getTaskReport, refineTask } from '../api/paper'
 import DocxCompare from '../components/DocxCompare.vue'
 import { extractHeadings } from '../utils/docxHeadings'
 import SiteNav from '../components/SiteNav.vue'
@@ -619,6 +670,84 @@ function showError(row) {
   errorMsg.value = row.errorMsg || '未知错误'
   errorVisible.value = true
 }
+
+// ===== 排版体检报告 + 疑似标题引导修复 =====
+const reportVisible = ref(false)
+const reportLoading = ref(false)
+const reportData = ref(null)
+const reportTaskId = ref(null)
+const overrideMap = ref({})
+const refineLoading = ref(false)
+
+function levelName(lv) {
+  return lv === 1 ? '一级' : lv === 2 ? '二级' : lv === 3 ? '三级' : (lv || '?') + ' 级'
+}
+
+async function openReport(row) {
+  reportVisible.value = true
+  reportLoading.value = true
+  reportData.value = null
+  overrideMap.value = {}
+  reportTaskId.value = row.id
+  try {
+    const r = await getTaskReport(row.id)
+    reportData.value = r
+    if (r && r.suspects) {
+      // 默认按引擎猜测级别预选, 用户可改
+      const m = {}
+      r.suspects.forEach(s => { m[s.index] = s.guessedLevel })
+      overrideMap.value = m
+    }
+  } catch (e) {
+    // 具体原因由 api 拦截器提示
+  }
+  reportLoading.value = false
+}
+
+async function applyOverrides() {
+  const overrides = Object.entries(overrideMap.value)
+    .filter(([, lv]) => Number(lv) > 0)
+    .map(([idx, lv]) => ({ index: Number(idx), level: Number(lv) }))
+  if (!overrides.length) {
+    ElMessage.info('未选择任何要改为标题的行')
+    return
+  }
+  refineLoading.value = true
+  try {
+    await refineTask(reportTaskId.value, overrides)
+    ElMessage.success('已创建新任务，正在按指定标题级别重新排版')
+    reportVisible.value = false
+    loadTasks()
+  } catch (e) {
+    // 具体原因由 api 拦截器提示
+  }
+  refineLoading.value = false
+}
+
+// ===== 失败原因自助指引: 按错误特征给出下一步建议 =====
+const errorAdvice = computed(() => {
+  const m = errorMsg.value || ''
+  const low = m.toLowerCase()
+  const list = []
+  if (low.includes('encrypt') || m.includes('密码') || m.includes('加密')) {
+    list.push('文档受密码保护：用 Word/WPS「另存为」时取消密码，再重新上传排版')
+  }
+  if (m.includes('过大') || m.includes('40MB') || m.includes('拆分')) {
+    list.push('文档过大：删除不需要的高清图片/附录，或按章节拆分成多个文档分别排版')
+  }
+  if (m.includes('图片')) {
+    list.push('文档中存在无法读取的图片：将图片另存为 JPG/PNG 后重新插入文档再试')
+  }
+  if (m.includes('docx') || m.includes('解析') || m.includes('有效') || m.includes('损坏')) {
+    list.push('文件可能损坏或格式不对：用 Word/WPS 打开后「另存为 .docx」再重新上传')
+  }
+  if (m.includes('内存') || m.includes('OutOfMemory') || m.includes('超出') || m.includes('过大或过于复杂')) {
+    list.push('文档过于复杂：压缩图片尺寸，或按章节拆分后分批排版')
+  }
+  list.push('可先在模板配置页用「快速试排」上传该文档，秒级定位出问题的段落')
+  list.push('若反复失败，可点任务列表的「重试」(系统失败后会自动重试一次)，或更换其他模板')
+  return list
+})
 
 async function retry(row) {
   try {
@@ -1042,5 +1171,56 @@ function formatTime(t) {
   color: #909399;
   font-size: 13px;
   margin: 12px 0 0;
+}
+/* 排版体检报告 */
+.report-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.stat-chip {
+  flex: 1;
+  min-width: 88px;
+  text-align: center;
+  padding: 10px 6px;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  background: #fafbfc;
+}
+.stat-chip b {
+  display: block;
+  font-size: 22px;
+  color: #409eff;
+}
+.stat-chip span {
+  font-size: 12px;
+  color: #909399;
+}
+.report-note {
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+.ok-note {
+  background: #f0f9eb;
+  color: #67c23a;
+  border: 1px solid #e1f3d8;
+}
+.warn-note {
+  background: #fdf6ec;
+  color: #e6a23c;
+  border: 1px solid #faecd8;
+}
+/* 失败自助指引 */
+.error-advice {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+.error-advice li {
+  font-size: 13px;
+  color: #606266;
+  line-height: 1.9;
 }
 </style>

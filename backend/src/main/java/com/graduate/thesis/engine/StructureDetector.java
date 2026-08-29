@@ -30,6 +30,12 @@ public class StructureDetector {
     private static final Pattern COMMON_CHAPTER = Pattern.compile(
             "^\\s*(绪论|引言|前言|结论|致谢|致谢与展望|总结与展望|总结|结语|结论与展望)\\s*$");
 
+    /** 疑似标题形态(用于报告收集): "第X章/篇"、"、编号"、多级数字编号 */
+    private static final Pattern SUSPECT_H1_CN =
+            Pattern.compile("^第[一二三四五六七八九十百0-9]+[章篇]([\\s、.．:：].*)?$");
+    private static final Pattern SUSPECT_H1_DUN = Pattern.compile("^[一二三四五六七八九十]+[、]\\s*\\S+.*");
+    private static final Pattern SUSPECT_NUM = Pattern.compile("^\\d+((?:\\.\\d+)+)[、.．\\s]");
+
     /** 无编号标题启发式排除前缀: 这些词开头的短句大概率是正文而非标题 */
     private static final String[] HEURISTIC_BODY_PREFIXES = {
             "本", "该", "这", "通过", "根据", "为了", "因此", "所以", "总之", "综上",
@@ -42,6 +48,18 @@ public class StructureDetector {
      * 识别文档结构
      */
     public List<DocItem> detect(XWPFDocument doc, RuleSet ruleSet) {
+        return detect(doc, ruleSet, null, null);
+    }
+
+    /**
+     * 带报告与标题覆盖的识别
+     *
+     * @param report    非 null 时收集排版报告数据(章节/图表计数由引擎按返回项统计, 此处收集疑似未匹配标题)
+     * @param overrides 段落序号 -> 强制标题级别(1-5): 修复重排时用户对可疑行的处理决定, 覆盖自动判定
+     */
+    public List<DocItem> detect(XWPFDocument doc, RuleSet ruleSet,
+                                com.graduate.thesis.engine.model.FormatReport report,
+                                java.util.Map<Integer, Integer> overrides) {
         // 是否存在前置区段(摘要/Abstract/关键词/目录): 若存在, 排版起点(正文第一章)必须出现在它们之后,
         // 避免封面标题/签名/日期等被误判为第一章, 导致章节前内容被排版
         boolean hasFrontStructure = hasFrontStructure(doc, ruleSet);
@@ -52,7 +70,9 @@ public class StructureDetector {
         boolean sawFront = false;
         boolean inToc = false;
         boolean inAbstract = false;
+        int paraIdx = -1;
         for (XWPFParagraph paragraph : doc.getParagraphs()) {
+            paraIdx++;
             String text = paragraph.getText() == null ? "" : paragraph.getText().trim();
             boolean containsImage = containsImage(paragraph);
             ParagraphKind kind = classify(text, containsImage, paragraph, doc, ruleSet); 
@@ -60,6 +80,10 @@ public class StructureDetector {
             boolean tocStructure = isTocStructure(paragraph, doc);
             if (tocStructure) {
                 kind = ParagraphKind.BODY;
+            }
+            // 用户覆盖: 指定段落强制按指定级别作为标题处理(未匹配标题的修复重排)
+            if (overrides != null && overrides.containsKey(paraIdx)) {
+                kind = headingKind(Math.min(Math.max(overrides.get(paraIdx), 1), 5));
             }
             DocItem item = new DocItem(paragraph, kind, text, containsImage);
 
@@ -136,6 +160,7 @@ public class StructureDetector {
                     item.setChapterNo(currentChapter);
                     item = new DocItem(paragraph, kind, text, containsImage);
                     item.setChapterNo(currentChapter);
+                    item.setAutoPromoted(true);
                 }
             }
             // 第一个正文一级标题之前的内容: 摘要区段套摘要规则, 其余(封面/声明/目录)不动
@@ -152,9 +177,41 @@ public class StructureDetector {
             if (SIGNATURE.matcher(text).matches()) {
                 item.setFrontMatter(true);
             }
+            // 报告收集: 形如标题(编号形态)但未匹配任何正则、最终按正文处理的行, 供结果页引导修复
+            if (report != null && kind == ParagraphKind.BODY && !tocStructure
+                    && chapterStarted && !item.isFrontMatter() && !text.isEmpty()) {
+                int guessed = suspectHeadingLevel(text);
+                if (guessed > 0 && report.getSuspects().size() < MAX_SUSPECTS) {
+                    report.getSuspects().add(new com.graduate.thesis.engine.model.FormatReport.Suspect(paraIdx, text, guessed));
+                }
+            }
             items.add(item);
         }
         return items;
+    }
+
+    /** 疑似标题行数上限: 防止异常文档把报告撑爆 */
+    private static final int MAX_SUSPECTS = 80;
+
+    /** 疑似标题级别: 依据通用编号形态猜测(未匹配用户正则但形如标题), 0 表示不像标题 */
+    static int suspectHeadingLevel(String text) {
+        if (text == null) {
+            return 0;
+        }
+        String t = text.trim();
+        // 含句读符号(任意位置)是句子而非标题; 过长同样拒绝
+        if (t.isEmpty() || t.length() > 40 || t.matches(".*[。；！？，].*")) {
+            return 0;
+        }
+        if (SUSPECT_H1_CN.matcher(t).matches() || SUSPECT_H1_DUN.matcher(t).matches()) {
+            return 1;
+        }
+        java.util.regex.Matcher m = SUSPECT_NUM.matcher(t);
+        if (m.find() && t.length() > m.end()) {
+            // "1.1 xxx" → 2 级, "1.1.1 xxx" → 3 级
+            return Math.min(m.group(1).split("\\.").length, 5);
+        }
+        return 0;
     }
 
     /**

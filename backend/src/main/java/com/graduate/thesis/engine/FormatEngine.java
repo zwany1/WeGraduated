@@ -13,7 +13,6 @@ import com.graduate.thesis.engine.formatter.TextFormatter;
 import com.graduate.thesis.engine.formatter.TocFormatter;
 import com.graduate.thesis.engine.model.RuleSet;
 import com.graduate.thesis.entity.FormatRule;
-import org.apache.poi.openxml4j.util.ZipSecureFile;
 import org.apache.poi.xwpf.usermodel.IBodyElement;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
@@ -57,8 +56,7 @@ public class FormatEngine {
         } catch (IOException e) {
             throw new BusinessException(500, "创建临时文件失败");
         }
-        // 放宽 ZIP 压缩比限制: 论文可能内嵌字体(odttf), 压缩率极高被误判为炸弹
-        ZipSecureFile.setMinInflateRatio(0.001);
+        // 放宽 ZIP 压缩比限制已由 PoiSecurityConfig 在启动时统一设置
         try (XWPFDocument doc = new XWPFDocument(new FileInputStream(source))) {
             // 超大文档保护: 段落数过多说明文档极其复杂, 避免排版时间过长/内存溢出
             if (doc.getParagraphs().size() > 20000) {
@@ -72,8 +70,10 @@ public class FormatEngine {
             PageFormatter.apply(doc, ruleSet.getPageConfig());
             progress.accept(40);
 
-            new AbstractFormatter().apply(doc, ruleSet, items);
-            new SectionFormatter().apply(doc, items);
+            if (ruleSet.isGenerateAbstract()) {
+                new AbstractFormatter().apply(doc, ruleSet, items);
+            }
+            new SectionFormatter().apply(doc, items, ruleSet);
             progress.accept(50);
 
             HeadingFormatter.apply(doc, items, ruleSet);
@@ -83,14 +83,16 @@ public class FormatEngine {
 
             new CaptionFormatter().apply(doc, items, ruleSet);
             new ReferenceFormatter().apply(doc, ruleSet.getReferenceConfig());
-            new TocFormatter().apply(doc, items, ruleSet);
+            if (ruleSet.isGenerateToc()) {
+                new TocFormatter().apply(doc, items, ruleSet);
+            }
             progress.accept(85);
 
             HeaderFooterFormatter.apply(doc, ruleSet.getPageConfig());
             progress.accept(95);
 
             // 渲染规范化: 让排版结果对浏览器渲染(docx-preview)更友好; 跳过 frontMatter 段落的字号修改
-            normalizeForRendering(doc, items);
+            normalizeForRendering(doc, items, ruleSet.isGenerateAbstract());
             progress.accept(97);
 
             // 排版校验: 补充标题大纲级别(供 Word 目录收录)等, 跳过 frontMatter
@@ -141,8 +143,12 @@ public class FormatEngine {
         NumberUnifier.Style style = NumberUnifier.detectStyle(items);
 
         for (DocItem item : items) {
-            if (item.isFrontMatter() || item.isAbstractSection()) {
-                continue; // 封面/目录等纯前置及摘要区段(摘要由 AbstractFormatter 处理)不改正文格式
+            if (item.isFrontMatter()) {
+                continue; // 封面/目录等纯前置内容不改正文格式
+            }
+            if (item.isAbstractSection()) {
+                // 摘要区段: 开启时由 AbstractFormatter 专属处理, 关闭时完全不动
+                continue;
             }
             if (item.getKind() == ParagraphKind.BODY) {
                 NumberUnifier.apply(item.getParagraph(), style);
@@ -194,12 +200,16 @@ public class FormatEngine {
      * 1) 相邻且格式完全一致的 run 合并为单个 run(全段落);
      * 2) 给没有显式 w:sz 的 run 补充字号 —— 仅正文/表格段落, 前置内容/frontMatter 绝对不动;
      * 3) 覆盖正文段落与表格单元格内的段落.
+     * 关闭摘要排版(generateAbstract=false)时, 摘要区段视同前置内容, 不做任何改动.
      */
-    private void normalizeForRendering(XWPFDocument doc, List<DocItem> items) {
-        java.util.Set<XWPFParagraph> frontMatterSet = new java.util.HashSet<>();
+    private void normalizeForRendering(XWPFDocument doc, List<DocItem> items, boolean generateAbstract) {
+        java.util.Set<XWPFParagraph> skipSet = new java.util.HashSet<>();
         for (DocItem item : items) {
             if (item.isFrontMatter()) {
-                frontMatterSet.add(item.getParagraph());
+                skipSet.add(item.getParagraph());
+            }
+            if (!generateAbstract && item.isAbstractSection()) {
+                skipSet.add(item.getParagraph());
             }
         }
         List<XWPFParagraph> paras = new ArrayList<>();
@@ -216,7 +226,7 @@ public class FormatEngine {
         }
         for (XWPFParagraph p : paras) {
             mergeAdjacentRuns(p);
-            if (!frontMatterSet.contains(p)) {
+            if (!skipSet.contains(p)) {
                 ensureRunSize(p);
             }
         }
@@ -292,15 +302,15 @@ public class FormatEngine {
         if (p == null) return;
         // 段落标记(ppr/rPr)字号: 半磅换算为 pt; 缺省小四(12pt)
         double markPt = -1;
-        String pXml = p.getCTP().xmlText();
-        int s = pXml.indexOf("<w:pPr>");
-        if (s >= 0) {
-            int e = pXml.indexOf("</w:pPr>", s);
-            if (e > s) {
-                java.util.regex.Matcher m = java.util.regex.Pattern
-                        .compile("<w:sz w:val=\"(\\d+)\"").matcher(pXml.substring(s, e));
-                if (m.find()) markPt = Double.parseDouble(m.group(1)) / 2.0;
+        try {
+            CTPPr pPr = p.getCTP().isSetPPr() ? p.getCTP().getPPr() : null;
+            if (pPr != null && pPr.isSetRPr() && pPr.getRPr().sizeOfSzArray() > 0) {
+                java.math.BigInteger sz = (java.math.BigInteger) pPr.getRPr().getSzArray(0).getVal();
+                if (sz != null) {
+                    markPt = sz.doubleValue() / 2.0;
+                }
             }
+        } catch (Exception ignore) {
         }
         final double sizePt = markPt > 0 ? markPt : 12.0;
         for (XWPFRun r : p.getRuns()) {
@@ -329,9 +339,11 @@ public class FormatEngine {
             if (pPr == null || !pPr.isSetPStyle() || pPr.getPStyle().getVal() == null) continue;
             String styleId = pPr.getPStyle().getVal().toLowerCase();
             int expectedLevel = -1;
-            if (styleId.contains("heading1") || styleId.equals("2") || styleId.contains("heading 1")) expectedLevel = 0;
-            else if (styleId.contains("heading2") || styleId.equals("3") || styleId.contains("heading 2")) expectedLevel = 1;
+            if (styleId.contains("heading5") || styleId.equals("6") || styleId.contains("heading 5")) expectedLevel = 4;
+            else if (styleId.contains("heading4") || styleId.equals("5") || styleId.contains("heading 4")) expectedLevel = 3;
             else if (styleId.contains("heading3") || styleId.equals("4") || styleId.contains("heading 3")) expectedLevel = 2;
+            else if (styleId.contains("heading2") || styleId.equals("3") || styleId.contains("heading 2")) expectedLevel = 1;
+            else if (styleId.contains("heading1") || styleId.equals("2") || styleId.contains("heading 1")) expectedLevel = 0;
             if (expectedLevel >= 0 && !pPr.isSetOutlineLvl()) {
                 pPr.addNewOutlineLvl().setVal(java.math.BigInteger.valueOf(expectedLevel));
                 fixedOutlineLvl++;

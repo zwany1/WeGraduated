@@ -112,7 +112,7 @@ public class TocDiagTest {
         org.openxmlformats.schemas.wordprocessingml.x2006.main.CTRPr rPr = ctr.getRPr();
         if (rPr == null) return "no-rPr";
         int sz = -1;
-        if (rPr.sizeOfSzArray() > 0) sz = rPr.getSzArray(0).getVal().intValue();
+        if (rPr.sizeOfSzArray() > 0) sz = ((java.math.BigInteger) rPr.getSzArray(0).getVal()).intValue();
         String ea = "-", asc = "-";
         if (rPr.sizeOfRFontsArray() > 0) {
             var f = rPr.getRFontsArray(0);

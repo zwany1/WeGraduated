@@ -20,6 +20,8 @@ public class RuleSet {
     public static final String DEFAULT_HEADING1 = "^第[一二三四五六七八九十百]+章.*";
     public static final String DEFAULT_HEADING2 = "^\\d+\\.\\d+.*";
     public static final String DEFAULT_HEADING3 = "^\\d+\\.\\d+\\.\\d+.*";
+    public static final String DEFAULT_HEADING4 = "^\\d+\\.\\d+\\.\\d+\\.\\d+.*";
+    public static final String DEFAULT_HEADING5 = "^\\d+\\.\\d+\\.\\d+\\.\\d+\\.\\d+.*";
 
     private final Long templateId;
     private final String templateName;
@@ -28,15 +30,21 @@ public class RuleSet {
     private final Pattern heading1Pattern;
     private final Pattern heading2Pattern;
     private final Pattern heading3Pattern;
+    private final Pattern heading4Pattern;
+    private final Pattern heading5Pattern;
     private final ReferenceConfig referenceConfig;
     private final boolean generateToc;
     private final boolean generateAbstract;
     private final TocConfig tocConfig;
+    private final AbstractConfig abstractConfig;
+    private final SectionConfig sectionConfig;
 
     private RuleSet(Long templateId, String templateName, PageConfig pageConfig,
                     Map<String, FormatRule> rules,
                     Pattern heading1Pattern, Pattern heading2Pattern, Pattern heading3Pattern,
-                    ReferenceConfig referenceConfig, boolean generateToc, boolean generateAbstract, TocConfig tocConfig) {
+                    Pattern heading4Pattern, Pattern heading5Pattern,
+                    ReferenceConfig referenceConfig, boolean generateToc, boolean generateAbstract, TocConfig tocConfig,
+                    AbstractConfig abstractConfig, SectionConfig sectionConfig) {
         this.templateId = templateId;
         this.templateName = templateName;
         this.pageConfig = pageConfig;
@@ -44,10 +52,14 @@ public class RuleSet {
         this.heading1Pattern = heading1Pattern;
         this.heading2Pattern = heading2Pattern;
         this.heading3Pattern = heading3Pattern;
+        this.heading4Pattern = heading4Pattern;
+        this.heading5Pattern = heading5Pattern;
         this.referenceConfig = referenceConfig;
         this.generateToc = generateToc;
         this.generateAbstract = generateAbstract;
         this.tocConfig = tocConfig;
+        this.abstractConfig = abstractConfig;
+        this.sectionConfig = sectionConfig;
     }
 
     public static RuleSet from(FormatTemplate template, List<FormatRule> rules) {
@@ -64,12 +76,16 @@ public class RuleSet {
         String h1 = DEFAULT_HEADING1;
         String h2 = DEFAULT_HEADING2;
         String h3 = DEFAULT_HEADING3;
+        String h4 = DEFAULT_HEADING4;
+        String h5 = DEFAULT_HEADING5;
         if (template.getHeadingPatterns() != null && !template.getHeadingPatterns().trim().isEmpty()) {
             try {
                 JsonNode node = mapper.readTree(template.getHeadingPatterns());
                 h1 = patternValue(node, "heading1", h1);
                 h2 = patternValue(node, "heading2", h2);
                 h3 = patternValue(node, "heading3", h3);
+                h4 = patternValue(node, "heading4", h4);
+                h5 = patternValue(node, "heading5", h5);
             } catch (Exception ignore) {
                 // 配置损坏时使用默认
             }
@@ -79,10 +95,13 @@ public class RuleSet {
                 .collect(Collectors.toMap(r -> r.getRuleType().toLowerCase(), r -> r, (a, b) -> a));
         return new RuleSet(template.getId(), template.getName(), pageConfig, ruleMap,
                 compileHeading(h1), compileHeading(h2), compileHeading(h3),
+                compileHeading(h4), compileHeading(h5),
                 ReferenceConfig.parse(template.getReferenceConfig()),
                 Boolean.TRUE.equals(template.getGenerateToc()),
                 Boolean.TRUE.equals(template.getGenerateAbstract()),
-                TocConfig.parse(template.getTocConfig()));
+                TocConfig.parse(template.getTocConfig()),
+                AbstractConfig.parse(template.getPageConfig()),
+                SectionConfig.parse(template.getPageConfig()));
     }
 
     private static String patternValue(JsonNode node, String key, String defaultValue) {

@@ -5,6 +5,7 @@ import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.apache.poi.xwpf.usermodel.IBodyElement;
+import org.apache.poi.xwpf.usermodel.ParagraphAlignment;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,21 +15,28 @@ import java.util.regex.Pattern;
 /**
  * 参考文献格式化: 标题另起一页 + 条目重排序号 + 作者截断 + 删除DOI + 悬挂缩进
  *
- * 规则(依据学校规范):
+ * 规则(默认按学校规范, 部分可由 ReferenceConfig 配置):
  *   - 标题: 黑体四号、顶格、另起一页
  *   - 条目: 中文字体(默认宋体)、西文 Times New Roman、五号
- *   - 序号: [1] 中括号, 与文字空两格; 两行时第二行与第一行文字对齐(悬挂缩进)
+ *   - 序号: 兼容 [1] / (1) / 1. / 1、 / 1) 等编号形式, 重排时沿用文档原有编号风格
+ *   - 悬挂缩进与行距: 由 ReferenceConfig.hangingIndentTwips / lineSpacing 配置
  *   - 作者: 最多保留 maxAuthors 人, 超出中文加"等", 英文加" et al"
  *   - DOI 之后的内容删除
  */
 public class ReferenceFormatter {
 
-    // 参考文献条目正则: [1] 或 [1] 开头的段落
-    private static final Pattern REF_ITEM = Pattern.compile("^\\s*\\[\\d+\\]\\s*(.*)$");
-    // 中文作者分隔
-    private static final Pattern CN_AUTHOR_SPLIT = Pattern.compile("[，,、]");
+    // GB/T 7714 文献类型标识(含复合型如 J/OL, DB/OL, EB/OL, M/CD)
+    private static final String TYPE_CODE = "(?:\\[[A-Z]{1,2}(?:/[A-Z]{1,2})?\\])";
+
+    // 参考文献条目编号前缀: [1] / (1) / 1. / 1、 / 1)
+    private static final Pattern REF_NUM = Pattern.compile(
+            "^(?:\\[(\\d+)\\]|\\((\\d+)\\)|(\\d+)[.、)])(.*)$");
+    // 是否为条目行(行首带编号)
+    private static final Pattern REF_ITEM_START = Pattern.compile(
+            "^\\s*(?:\\[\\d+\\]|\\(\\d+\\)|\\d+[.、)])\\s*");
     // DOI 匹配
-    private static final Pattern DOI_PATTERN = Pattern.compile("(doi\\s*[:：]\\s*10\\.\\S+|\\sdoi\\s*[:：].*|10\\.\\d{4,}/\\S+.*)$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern DOI_PATTERN = Pattern.compile(
+            "(doi\\s*[:：]\\s*10\\.\\S+|10\\.\\d{4,}/\\S+.*)$", Pattern.CASE_INSENSITIVE);
 
     public void apply(XWPFDocument doc, ReferenceConfig config) {
         if (config == null || !config.isEnabled()) {
@@ -55,7 +63,20 @@ public class ReferenceFormatter {
         addPageBreakBefore(title);
         formatTitle(title, config);
 
-        // 3. 处理标题后的条目
+        // 3. 探测首个条目的编号风格, 重排时沿用
+        String numberingStyle = "bracket";
+        for (int i = refIdx + 1; i < elements.size(); i++) {
+            if (elements.get(i) instanceof XWPFParagraph) {
+                String t = ((XWPFParagraph) elements.get(i)).getText().trim();
+                String style = detectNumbering(t);
+                if (style != null) {
+                    numberingStyle = style;
+                    break;
+                }
+            }
+        }
+
+        // 4. 处理标题后的条目
         int no = 1;
         for (int i = refIdx + 1; i < elements.size(); i++) {
             IBodyElement el = elements.get(i);
@@ -67,24 +88,50 @@ public class ReferenceFormatter {
             if (text.isEmpty()) {
                 continue;
             }
-            Matcher m = REF_ITEM.matcher(text);
-            if (m.matches()) {
-                String content = m.group(1).trim();
-                // 若后续段落是该条目的续行(无序号), 追加
-                StringBuilder sb = new StringBuilder(content);
-                while (i + 1 < elements.size() && elements.get(i + 1) instanceof XWPFParagraph) {
-                    String next = ((XWPFParagraph) elements.get(i + 1)).getText().trim();
-                    if (next.isEmpty() || REF_ITEM.matcher(next).matches()) {
-                        break;
-                    }
-                    sb.append(next);
-                    i++;
-                }
-                String cleaned = formatItem(sb.toString(), config);
-                setItemText(p, "[" + no + "]  " + cleaned, config);
-                applyHangingIndent(p, config);
-                no++;
+            Matcher m = REF_NUM.matcher(text);
+            if (!m.matches()) {
+                continue;
             }
+            String content = (m.group(4) == null ? "" : m.group(4)).trim();
+            // 若后续段落是该条目的续行(无序号), 追加
+            StringBuilder sb = new StringBuilder(content);
+            while (i + 1 < elements.size() && elements.get(i + 1) instanceof XWPFParagraph) {
+                String next = ((XWPFParagraph) elements.get(i + 1)).getText().trim();
+                if (next.isEmpty() || REF_ITEM_START.matcher(next).matches()) {
+                    break;
+                }
+                sb.append(next);
+                i++;
+            }
+            String cleaned = formatItem(sb.toString(), config);
+            String label = config.isRenumber() ? formatNumber(no, numberingStyle) + "  " : "";
+            setItemText(p, label + cleaned, config);
+            applyHangingIndent(p, config);
+            no++;
+        }
+    }
+
+    /** 识别条目编号风格, 非条目行返回 null */
+    private static String detectNumbering(String text) {
+        if (text == null || text.isEmpty()) {
+            return null;
+        }
+        if (text.matches("^\\s*\\[\\d+\\].*")) return "bracket";
+        if (text.matches("^\\s*\\(\\d+\\).*")) return "paren";
+        if (text.matches("^\\s*\\d+\\..*")) return "dot";
+        if (text.matches("^\\s*\\d+、.*")) return "dun";
+        if (text.matches("^\\s*\\d+\\).*")) return "closeParen";
+        return null;
+    }
+
+    /** 按编号风格格式化序号 */
+    private static String formatNumber(int no, String style) {
+        switch (style) {
+            case "paren": return "(" + no + ")";
+            case "dot": return no + ".";
+            case "dun": return no + "、";
+            case "closeParen": return no + ")";
+            default: return "[" + no + "]";
         }
     }
 
@@ -160,11 +207,11 @@ public class ReferenceFormatter {
 
     /**
      * 找作者部分结束位置:
-     * 1) 遇到文献类型标识 [M]/[J]/[D]/[P]/[S]/[N]/[A]/[C] 之前
+     * 1) 遇到 GB/T 7714 文献类型标识 [M]/[J]/[D]/[R]/[EB/OL] 等 之前(兼容 中文"作者. 标题" 与 英文"Author. Title")
      * 2) 无标识时(英文期刊无类型码): 到 "et al" 或 首个大写字母开头的标题词 之前
      */
     private int findAuthorEnd(String s) {
-        Matcher m = Pattern.compile("\\[[MJDPSNAC]\\s*\\]|\\[[MJDPSNAC]]").matcher(s);
+        Matcher m = Pattern.compile(TYPE_CODE).matcher(s);
         if (m.find()) {
             int start = m.start();
             int dot = s.lastIndexOf('.', start);
@@ -194,7 +241,7 @@ public class ReferenceFormatter {
             run.setBold(true);
         }
         // 顶格: 左对齐、无缩进
-        p.setAlignment(org.apache.poi.xwpf.usermodel.ParagraphAlignment.LEFT);
+        p.setAlignment(ParagraphAlignment.LEFT);
         p.setIndentationLeft(0);
         p.setFirstLineIndent(0);
         p.setSpacingAfter(12);
@@ -213,14 +260,14 @@ public class ReferenceFormatter {
     }
 
     /**
-     * 悬挂缩进: 序号与文字空两格, 换行第二行对齐序号后
+     * 悬挂缩进: 序号与文字空两格, 换行第二行对齐序号后(缩进宽度与行距由配置控制)
      */
     private void applyHangingIndent(XWPFParagraph p, ReferenceConfig config) {
-        p.setAlignment(org.apache.poi.xwpf.usermodel.ParagraphAlignment.LEFT);
-        // 悬挂缩进: 左缩进 = 序号宽度, 首行缩进为负
-        p.setIndentationLeft(640);   // 0.45cm 约两个汉字宽度
-        p.setFirstLineIndent(-640);
-        p.setSpacingBetween(1.5);
+        p.setAlignment(ParagraphAlignment.LEFT);
+        int indent = config.getHangingIndentTwips() > 0 ? config.getHangingIndentTwips() : 640;
+        p.setIndentationLeft(indent);
+        p.setFirstLineIndent(-indent);
+        p.setSpacingBetween(config.getLineSpacing());
     }
 
     private void setParagraphText(XWPFParagraph p, String text) {
@@ -233,7 +280,9 @@ public class ReferenceFormatter {
     private void addPageBreakBefore(XWPFParagraph p) {
         org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPPr pPr =
                 p.getCTP().isSetPPr() ? p.getCTP().getPPr() : p.getCTP().addNewPPr();
-        pPr.addNewPageBreakBefore();
+        if (!pPr.isSetPageBreakBefore()) {
+            pPr.addNewPageBreakBefore();
+        }
     }
 
     private boolean isRefTitle(String text) {

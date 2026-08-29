@@ -1,8 +1,8 @@
 package com.graduate.thesis.engine.formatter;
 
-import com.graduate.thesis.engine.ChineseNumber;
 import com.graduate.thesis.engine.DocItem;
 import com.graduate.thesis.engine.ParagraphKind;
+import com.graduate.thesis.engine.StructureHelper;
 import com.graduate.thesis.engine.model.RuleSet;
 import com.graduate.thesis.entity.FormatRule;
 import org.apache.poi.xwpf.usermodel.IBodyElement;
@@ -28,12 +28,8 @@ import java.util.regex.Pattern;
  */
 public class CaptionFormatter {
 
-    private static final Pattern FIGURE_CAPTION = Pattern.compile("^图\\s*\\d+([-．.]\\d+)?\\s*(.*)");
-    private static final Pattern TABLE_CAPTION = Pattern.compile("^表\\s*\\d+([-．.]\\d+)?\\s*(.*)");
-    // 内置一级章节标题识别(与 StructureDetector 一致, 用于表格题注章节号追踪)
-    private static final Pattern CN_CHAPTER = Pattern.compile("^第[一二三四五六七八九十百千]+章\\s*.*");
-    private static final Pattern NUM_CHAPTER = Pattern.compile("^\\d{1,2}[\\s、．.]\\s*[\\u4e00-\\u9fa5A-Za-z].*");
-    private static final Pattern CN_NUM_CHAPTER = Pattern.compile("^[一二三四五六七八九十]{1,3}[、．.]\\s*[\\u4e00-\\u9fa5].*");
+    private static final Pattern FIGURE_CAPTION = StructureHelper.FIGURE_CAPTION;
+    private static final Pattern TABLE_CAPTION = StructureHelper.TABLE_CAPTION;
 
     public void apply(XWPFDocument doc, List<DocItem> items, RuleSet ruleSet) {
         Map<XWPFParagraph, DocItem> byParagraph = new HashMap<>();
@@ -61,20 +57,21 @@ public class CaptionFormatter {
                 String text = p.getText() == null ? "" : p.getText().trim();
 
                 // 目录区: 跳过目录标题与目录条目的章节追踪
-                if (isTocTitle(text)) {
+                if (StructureHelper.isTocTitle(text)) {
                     inToc = true;
                     continue;
                 }
                 if (inToc) {
-                    if (headingLevel(p) > 0 || (isHeading1(p, text, ruleSet) && !isTocEntry(text))) {
+                    if (StructureHelper.headingLevel(p) > 0
+                            || (StructureHelper.isHeading1(p, text, ruleSet) && !StructureHelper.isTocEntry(text))) {
                         inToc = false;
                     } else {
                         continue;
                     }
                 }
 
-                if (isHeading1(p, text, ruleSet)) {
-                    lastChapter = chapterNo(text, lastChapter);
+                if (StructureHelper.isHeading1(p, text, ruleSet)) {
+                    lastChapter = StructureHelper.chapterNo(text, lastChapter);
                     continue;
                 }
 
@@ -92,10 +89,10 @@ public class CaptionFormatter {
                     }
                     boolean nextIsCaption = i + 1 < elements.size()
                             && elements.get(i + 1) instanceof XWPFParagraph
-                            && isFigureCaptionText(((XWPFParagraph) elements.get(i + 1)).getText());
+                            && StructureHelper.isFigureCaptionText(((XWPFParagraph) elements.get(i + 1)).getText());
                     boolean prevIsCaption = i > 0
                             && elements.get(i - 1) instanceof XWPFParagraph
-                            && isFigureCaptionText(((XWPFParagraph) elements.get(i - 1)).getText());
+                            && StructureHelper.isFigureCaptionText(((XWPFParagraph) elements.get(i - 1)).getText());
                     // 图前或图后已有题注: 不再自动插入(题注段由 FIGURE_CAPTION 分支重编号)
                     if (!nextIsCaption && !prevIsCaption) {
                         if (item.getChapterNo() != lastFigChapter) {
@@ -128,9 +125,9 @@ public class CaptionFormatter {
                 IBodyElement prev = i > 0 ? elements.get(i - 1) : null;
                 IBodyElement next = i + 1 < elements.size() ? elements.get(i + 1) : null;
                 boolean prevIsCaption = prev instanceof XWPFParagraph
-                        && isTableCaptionText(((XWPFParagraph) prev).getText());
+                        && StructureHelper.isTableCaptionText(((XWPFParagraph) prev).getText());
                 boolean nextIsCaption = next instanceof XWPFParagraph
-                        && isTableCaptionText(((XWPFParagraph) next).getText());
+                        && StructureHelper.isTableCaptionText(((XWPFParagraph) next).getText());
                 int tableChapter = lastChapter < 0 ? 0 : lastChapter;
                 if (tableChapter != lastTableChapter) {
                     tblIndex = 0;
@@ -224,14 +221,6 @@ public class CaptionFormatter {
         return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
     }
 
-    private static boolean isFigureCaptionText(String text) {
-        return text != null && FIGURE_CAPTION.matcher(text.trim()).matches();
-    }
-
-    private static boolean isTableCaptionText(String text) {
-        return text != null && TABLE_CAPTION.matcher(text.trim()).matches();
-    }
-
     private static String extractTitle(String text, boolean figure) {
         if (text == null) {
             return "";
@@ -293,124 +282,5 @@ public class CaptionFormatter {
             TextFormatter.setFont(run, font);
             run.setFontSize(sizePt);
         }
-    }
-
-    private static boolean isTocTitle(String text) {
-        String t = text == null ? "" : text.replace(" ", "").replace("\u00A0", "");
-        return t.equals("目录") || t.equals("目録");
-    }
-
-    /** 目录条目特征: 以页码数字结尾(如 "第一章 绪论........5"), 与正文标题区分 */
-    private static boolean isTocEntry(String text) {
-        if (text == null || text.isEmpty()) {
-            return false;
-        }
-        String t = text.trim();
-        return t.matches(".*\\.{2,}\\s*\\d{1,4}\\s*$")
-                || t.matches(".*[\\s\\u00A0，,．.、]\\d{1,4}\\s*$");
-    }
-
-    /**
-     * 标题级别: 优先大纲级别/样式, 返回 0=非标题 1=一级 2=二级 3=三级
-     */
-    private static int headingLevel(XWPFParagraph p) {
-        try {
-            org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPPr pPr = p.getCTP().getPPr();
-            if (pPr != null) {
-                if (pPr.isSetOutlineLvl()) {
-                    int lvl = pPr.getOutlineLvl().getVal().intValue();
-                    if (lvl >= 0 && lvl <= 3) {
-                        return lvl + 1;
-                    }
-                }
-                if (pPr.isSetPStyle() && pPr.getPStyle().getVal() != null) {
-                    String style = pPr.getPStyle().getVal().toLowerCase();
-                    if (style.contains("heading1") || style.equals("2") || style.contains("heading 1")) return 1;
-                    if (style.contains("heading2") || style.equals("3") || style.contains("heading 2")) return 2;
-                    if (style.contains("heading3") || style.equals("4") || style.contains("heading 3")) return 3;
-                }
-            }
-        } catch (Exception ignore) {
-        }
-        return 0;
-    }
-
-    /**
-     * 是否一级标题: 样式一级, 或文本匹配一级标题正则/内置章节识别(排除日期/年份等非标题)
-     */
-    private static boolean isHeading1(XWPFParagraph p, String text, RuleSet ruleSet) {
-        if (headingLevel(p) == 1) {
-            return true;
-        }
-        if (headingLevel(p) > 1) {
-            return false;
-        }
-        // 排除日期/年份/纯数字页眉等(如 "2026 年 5 月 23 日")
-        if (isDateLike(text)) {
-            return false;
-        }
-        if (ruleSet.getHeading1Pattern().matcher(text).matches()) {
-            return true;
-        }
-        return isLikelyChapterTitle(text);
-    }
-
-    /** 内置自动识别一级章节标题(第一章/1 绪论/一、绪论) */
-    private static boolean isLikelyChapterTitle(String text) {
-        if (text == null || text.isEmpty()) {
-            return false;
-        }
-        String t = text.trim();
-        if (t.length() > 40) {
-            return false;
-        }
-        return CN_CHAPTER.matcher(t).matches()
-                || NUM_CHAPTER.matcher(t).matches()
-                || CN_NUM_CHAPTER.matcher(t).matches();
-    }
-
-    /**
-     * 是否日期/年份类文本(避免被误当章节标题)
-     */
-    private static boolean isDateLike(String text) {
-        if (text == null || text.isEmpty()) {
-            return false;
-        }
-        String t = text.trim();
-        // 含 年/月/日 且 数字在前
-        if (java.util.regex.Pattern.matches("\\d+\\s*[年月日].*", t)) {
-            return true;
-        }
-        // 纯数字(可能是页码)
-        if (java.util.regex.Pattern.matches("\\d{3,}", t)) {
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * 章节号: 有编号取编号(排除年月日), 无编号递增
-     */
-    private static int chapterNo(String text, int prev) {
-        int n = extractChapter(text);
-        if (n > 0) {
-            return n;
-        }
-        return prev + 1;
-    }
-
-    /**
-     * 提取章节号, 排除日期/年份文本(如 "2026 年 5 月 23 日" -> 0)
-     */
-    private static int extractChapter(String text) {
-        if (text == null || text.isEmpty()) {
-            return 0;
-        }
-        String t = text.trim();
-        // 日期/年份: 数字紧邻 年月日 不视为章节
-        if (java.util.regex.Pattern.matches("\\d+\\s*[年月日].*", t)) {
-            return 0;
-        }
-        return ChineseNumber.extract(text);
     }
 }

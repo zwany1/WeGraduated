@@ -181,7 +181,6 @@
                   <div v-for="d in g.items" :key="d.index" class="diff-item" :class="{ active: activeDiff === d.index }" @click="gotoDiff(d)">
                     <div class="diff-item-top">
                       <span class="diff-index">#{{ d.index }}</span>
-                      <span class="diff-page" v-if="d.page">P{{ d.page }}</span>
                     </div>
                     <div class="diff-change" v-if="d.change">{{ d.change }}</div>
                     <div class="diff-text">{{ d.text }}</div>
@@ -950,10 +949,6 @@ function formatTime(t) {
   background: #f0f2f5;
   padding: 1px 6px;
   border-radius: 4px;
-}
-.diff-page {
-  font-size: 11px;
-  color: #909399;
 }
 .diff-change {
   font-size: 12px;

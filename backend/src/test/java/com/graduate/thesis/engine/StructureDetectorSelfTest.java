@@ -98,6 +98,38 @@ public class StructureDetectorSelfTest {
         System.out.println("==== format 断言全部通过: 目录/签名格式未被改动 ====");
     }
 
+    /** 自测3: 以"第一章是…/第一章作为…"开头的正文长句不得误判为标题, 真标题"第一章 绪论"正常识别. */
+    @Test
+    void detect_chapterBodySentence_notHeading() {
+        RuleSet rs = buildRuleSet();
+        XWPFDocument doc = new XWPFDocument();
+        addPara(doc, "第一章 绪论");
+        addPara(doc, "第一章是绪论，主要说明智能图书馆是怎么发展起来的，具体分析信科院图书馆在管理图书资料时遇到的实际困难。");
+        addPara(doc, "第一章作为整篇论文的开头，介绍了智能图书馆这个发展趋势是怎么来的。");
+        addPara(doc, "第二章 相关理论与技术基础");
+        addPara(doc, "第二章是相关理论与技术基础，会详细介绍设计过程中需要用到的主要技术。");
+
+        List<DocItem> items = new StructureDetector().detect(doc, rs);
+        System.out.println("==== 章节正文句子识别自测 ====");
+        for (DocItem it : items) {
+            System.out.println("kind=" + pad(it.getKind()) + " fm=" + it.isFrontMatter() + " | " + it.getText());
+        }
+        org.junit.jupiter.api.Assertions.assertEquals(ParagraphKind.HEADING1,
+                find(items, "第一章 绪论").getKind(), "真标题'第一章 绪论'应为 HEADING1");
+        org.junit.jupiter.api.Assertions.assertEquals(ParagraphKind.BODY,
+                find(items, "第一章是绪论，主要说明智能图书馆是怎么发展起来的，具体分析信科院图书馆在管理图书资料时遇到的实际困难。").getKind(),
+                "正文长句'第一章是绪论…'应识别为 BODY 而非标题");
+        org.junit.jupiter.api.Assertions.assertEquals(ParagraphKind.BODY,
+                find(items, "第一章作为整篇论文的开头，介绍了智能图书馆这个发展趋势是怎么来的。").getKind(),
+                "正文长句'第一章作为…'应识别为 BODY 而非标题");
+        org.junit.jupiter.api.Assertions.assertEquals(ParagraphKind.HEADING1,
+                find(items, "第二章 相关理论与技术基础").getKind(), "真标题'第二章 相关理论与技术基础'应为 HEADING1");
+        org.junit.jupiter.api.Assertions.assertEquals(ParagraphKind.BODY,
+                find(items, "第二章是相关理论与技术基础，会详细介绍设计过程中需要用到的主要技术。").getKind(),
+                "正文长句'第二章是…'应识别为 BODY 而非标题");
+        System.out.println("==== 章节正文句子识别断言全部通过 ====");
+    }
+
     private String fmtOf(File f, String text) throws Exception {
         try (XWPFDocument doc = new XWPFDocument(new FileInputStream(f))) {
             for (XWPFParagraph p : doc.getParagraphs()) {

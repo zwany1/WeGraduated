@@ -88,7 +88,6 @@ CREATE TABLE IF NOT EXISTS t_format_task (
     status      VARCHAR(16) NOT NULL,
     progress    INT         DEFAULT 0,
     result_path VARCHAR(255) DEFAULT NULL,
-    pdf_path    VARCHAR(255) DEFAULT NULL,
     error_msg   TEXT         DEFAULT NULL,
     create_time DATETIME    DEFAULT NULL,
     finish_time DATETIME    DEFAULT NULL,

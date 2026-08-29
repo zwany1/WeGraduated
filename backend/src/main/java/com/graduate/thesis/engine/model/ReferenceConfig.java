@@ -39,6 +39,12 @@ public class ReferenceConfig {
     /** 条目序号是否重排(默认 true) */
     private boolean renumber = true;
 
+    /** 悬挂缩进宽度(twips, 默认640 ≈ 两个汉字) */
+    private int hangingIndentTwips = 640;
+
+    /** 条目行距倍(默认 1.5) */
+    private float lineSpacing = 1.5f;
+
     public static ReferenceConfig parse(String json) {
         if (json == null || json.trim().isEmpty()) {
             return new ReferenceConfig();

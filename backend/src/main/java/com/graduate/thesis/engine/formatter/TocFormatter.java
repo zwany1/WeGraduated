@@ -3,6 +3,7 @@ package com.graduate.thesis.engine.formatter;
 import com.graduate.thesis.engine.DocItem;
 import com.graduate.thesis.engine.ParagraphKind;
 import com.graduate.thesis.engine.StructureDetector;
+import com.graduate.thesis.engine.StructureHelper;
 import com.graduate.thesis.engine.model.RuleSet;
 import com.graduate.thesis.engine.model.TocConfig;
 import org.apache.poi.xwpf.usermodel.ParagraphAlignment;
@@ -42,6 +43,8 @@ public class TocFormatter {
 
     public void apply(XWPFDocument doc, List<DocItem> items, RuleSet ruleSet) {
         TocConfig tc = ruleSet.getTocConfig();
+        // 制表位位置: 文本区右边界(页宽 - 左右页边距), 兼容 A4/A3/B5 等不同版心
+        long tabPos = Math.max(ruleSet.getPageConfig().textWidthTwips(), 4000L);
         boolean hasAutoToc = false;
         for (XWPFParagraph p : doc.getParagraphs()) {
             if (StructureDetector.isTocStructure(p, doc)) {
@@ -50,17 +53,17 @@ public class TocFormatter {
             }
         }
         // 处理纯文本目录条目
-        formatManualToc(items, tc);
+        formatManualToc(items, tc, tabPos);
 
-        log.info("[TocFormatter] apply: hasAutoToc={}, toc1.fontSize={}, toc2.fontSize={}, toc3.fontSize={}, lineSpacing={}, leader={}",
-                hasAutoToc, tc.getToc1().getFontSize(), tc.getToc2().getFontSize(), tc.getToc3().getFontSize(), tc.getLineSpacing(), tc.getLeader());
+        log.info("[TocFormatter] apply: hasAutoToc={}, toc1.fontSize={}, toc2.fontSize={}, toc3.fontSize={}, lineSpacing={}, leader={}, tabPos={}",
+                hasAutoToc, tc.getToc1().getFontSize(), tc.getToc2().getFontSize(), tc.getToc3().getFontSize(), tc.getLineSpacing(), tc.getLeader(), tabPos);
 
         // 改 toc1-3 样式定义, 让 Word 渲染目录条目时用配置样式
-        addTocStyles(doc, tc);
+        addTocStyles(doc, tc, tabPos);
 
         // 自动目录: 按条目级别改 run 字体字号
         if (hasAutoToc) {
-            formatAutoTocEntries(doc, tc);
+            formatAutoTocEntries(doc, tc, tabPos);
         }
     }
 
@@ -69,7 +72,7 @@ public class TocFormatter {
      * Word 自动目录的条目文本嵌在段落 hyperlink 内, POI getRuns 不含,
      * 需走 CTP 取 hyperlink 的 CTR 才能改到实际显示的 run.
      */
-    private void formatAutoTocEntries(XWPFDocument doc, TocConfig tc) {
+    private void formatAutoTocEntries(XWPFDocument doc, TocConfig tc, long tabPos) {
         if (tc == null) {
             return;
         }
@@ -99,7 +102,7 @@ public class TocFormatter {
                     firstSz = readSz(ctr, firstSz);
                 }
             }
-            applyTocParagraphProps(p, tc);
+            applyTocParagraphProps(p, tc, tabPos);
             changed++;
         }
         log.info("[TocFormatter] formatAutoTocEntries: changed={} paragraphs, runs={}, firstSz={}", changed, totalRuns, firstSz);
@@ -142,7 +145,7 @@ public class TocFormatter {
     }
 
     /** 自动目录条目段落: 直写行距与制表位前导符到 pPr(排版后即终态, 不依赖样式定义与域刷新) */
-    private static void applyTocParagraphProps(XWPFParagraph p, TocConfig tc) {
+    private static void applyTocParagraphProps(XWPFParagraph p, TocConfig tc, long tabPos) {
         CTPPr pPr = p.getCTP().isSetPPr() ? p.getCTP().getPPr() : p.getCTP().addNewPPr();
         int line = Math.round(tc.getLineSpacing() * 240);
         CTSpacing spacing = pPr.isSetSpacing() ? pPr.getSpacing() : pPr.addNewSpacing();
@@ -157,7 +160,7 @@ public class TocFormatter {
             org.openxmlformats.schemas.wordprocessingml.x2006.main.CTTabStop tab = tabs.addNewTab();
             tab.setVal(org.openxmlformats.schemas.wordprocessingml.x2006.main.STTabJc.RIGHT);
             tab.setLeader(org.openxmlformats.schemas.wordprocessingml.x2006.main.STTabTlc.Enum.forString(leader));
-            tab.setPos(BigInteger.valueOf(8296));
+            tab.setPos(BigInteger.valueOf(tabPos));
         }
     }
 
@@ -174,7 +177,7 @@ public class TocFormatter {
     }
 
     /** 改 toc 样式定义: 按 name "toc N" 找各级(WPS 的 styleId 是数字, 只能按 name 匹配) */
-    private void addTocStyles(XWPFDocument doc, TocConfig tc) {
+    private void addTocStyles(XWPFDocument doc, TocConfig tc, long tabPos) {
         XWPFStyles styles = resolveStyles(doc);
         if (styles == null) {
             return;
@@ -195,47 +198,21 @@ public class TocFormatter {
             }
             int n = Integer.parseInt(m.group(1));
             if (n == 1) {
-                fillTocStyle(st, tc.getToc1(), tc);
+                fillTocStyle(st, tc.getToc1(), tc, tabPos);
             } else if (n == 2) {
-                fillTocStyle(st, tc.getToc2(), tc);
+                fillTocStyle(st, tc.getToc2(), tc, tabPos);
             } else if (n == 3) {
-                fillTocStyle(st, tc.getToc3(), tc);
+                fillTocStyle(st, tc.getToc3(), tc, tabPos);
             }
         }
     }
 
     private XWPFStyles resolveStyles(XWPFDocument doc) {
-        XWPFStyles styles = doc.getStyles();
-        if (styles != null) {
-            return styles;
-        }
+        // 直接用 POI 已加载的样式表; 取不到时返回 null(仅不修改样式定义, 条目 run 直写仍生效)
         try {
-            org.apache.poi.openxml4j.opc.OPCPackage pkg = doc.getPackage();
-            org.apache.poi.openxml4j.opc.PackagePartName pn =
-                    org.apache.poi.openxml4j.opc.PackagingURIHelper.createPartName("/word/styles.xml");
-            if (pkg.containPart(pn)) {
-                org.apache.poi.openxml4j.opc.PackagePart part = pkg.getPart(pn);
-                CTStyles cts = CTStyles.Factory.parse(part.getInputStream());
-                XWPFStyles stylesByPart = new XWPFStyles(part);
-                setCtStylesField(stylesByPart, cts);
-                return stylesByPart;
-            }
+            return doc.getStyles();
         } catch (Exception e) {
             return null;
-        }
-        try {
-            return doc.createStyles();
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private void setCtStylesField(XWPFStyles styles, CTStyles cts) {
-        try {
-            java.lang.reflect.Field field = XWPFStyles.class.getDeclaredField("ctStyles");
-            field.setAccessible(true);
-            field.set(styles, cts);
-        } catch (Exception ignore) {
         }
     }
 
@@ -249,7 +226,7 @@ public class TocFormatter {
         }
     }
 
-    private void fillTocStyle(CTStyle ct, TocConfig.Level lvl, TocConfig tc) {
+    private void fillTocStyle(CTStyle ct, TocConfig.Level lvl, TocConfig tc, long tabPos) {
         if (lvl == null || ct == null) {
             return;
         }
@@ -282,7 +259,7 @@ public class TocFormatter {
             CTTabStop tab = tabs.addNewTab();
             tab.setVal(STTabJc.RIGHT);
             tab.setLeader(STTabTlc.Enum.forString(leader));
-            tab.setPos(BigInteger.valueOf(8296));
+            tab.setPos(BigInteger.valueOf(tabPos));
         }
     }
 
@@ -375,11 +352,11 @@ public class TocFormatter {
     }
 
     /** 纯文本目录: 标题三号黑体居中, 条目按各级配置字体/字号/行距 */
-    private static void formatManualToc(List<DocItem> items, TocConfig tc) {
+    private static void formatManualToc(List<DocItem> items, TocConfig tc, long tabPos) {
         boolean inToc = false;
         for (DocItem item : items) {
             String text = item.getText() == null ? "" : item.getText().trim();
-            if (item.getKind() == ParagraphKind.SECTION_TITLE && StructureDetector.isTocTitle(text)) {
+            if (item.getKind() == ParagraphKind.SECTION_TITLE && StructureHelper.isTocTitle(text)) {
                 inToc = true;
                 formatTocTitle(item.getParagraph());
                 continue;
@@ -389,8 +366,8 @@ public class TocFormatter {
                     inToc = false;
                     continue;
                 }
-                if (!text.isEmpty() && StructureDetector.isTocEntry(text)) {
-                    formatTocEntry(item.getParagraph(), levelForTocText(text, tc), tc);
+                if (!text.isEmpty() && StructureHelper.isTocEntry(text)) {
+                    formatTocEntry(item.getParagraph(), levelForTocText(text, tc), tc, tabPos);
                 }
             }
         }
@@ -408,7 +385,7 @@ public class TocFormatter {
         return tc.getToc1();
     }
 
-    private static void formatTocEntry(XWPFParagraph p, TocConfig.Level lvl, TocConfig tc) {
+    private static void formatTocEntry(XWPFParagraph p, TocConfig.Level lvl, TocConfig tc, long tabPos) {
         if (lvl == null) {
             return;
         }
@@ -420,6 +397,6 @@ public class TocFormatter {
         p.setAlignment(ParagraphAlignment.LEFT);
         p.setSpacingBefore(0);
         p.setSpacingAfter(0);
-        applyTocParagraphProps(p, tc);
+        applyTocParagraphProps(p, tc, tabPos);
     }
 }

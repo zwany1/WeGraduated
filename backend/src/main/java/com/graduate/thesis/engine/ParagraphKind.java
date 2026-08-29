@@ -4,7 +4,7 @@ package com.graduate.thesis.engine;
  * 段落类型
  */
 public enum ParagraphKind {
-    HEADING1, HEADING2, HEADING3,
+    HEADING1, HEADING2, HEADING3, HEADING4, HEADING5,
     ABSTRACT_TITLE, KEYWORDS, EN_TITLE, EN_KEYWORDS,
     SECTION_TITLE,
     BODY,

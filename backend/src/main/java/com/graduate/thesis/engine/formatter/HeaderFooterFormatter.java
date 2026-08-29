@@ -18,7 +18,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 页眉页脚: 页脚页码(底部居中) + 页眉内容
+ * 页眉页脚: 页脚页码(按位置/字体/格式) + 页眉内容.
+ * 支持: 首页不显示页码(封面去页码)、页码字体字号可配、罗马数字/阿拉伯数字页码.
  */
 public final class HeaderFooterFormatter {
 
@@ -26,22 +27,35 @@ public final class HeaderFooterFormatter {
     }
 
     public static void apply(XWPFDocument doc, PageConfig page) {
-        String type = page.getFooter().getPageNumber();
+        PageConfig.Footer footer = page.getFooter();
+        String type = footer.getPageNumber();
         if (type == null || "none".equals(type)) {
             return;
         }
-        XWPFFooter footer = doc.createFooter(HeaderFooterType.DEFAULT);
-        clearParagraphs(footer);
-        XWPFParagraph p = footer.createParagraph();
-        if ("center".equals(type)) {
-            p.setAlignment(ParagraphAlignment.CENTER);
-        } else if ("right".equals(type)) {
-            p.setAlignment(ParagraphAlignment.RIGHT);
-        } else {
-            p.setAlignment(ParagraphAlignment.LEFT);
+
+        // 首页不同: 开启 titlePg, 首页页脚留空(封面/目录前置部分无页码)
+        if (footer.isSkipFirst()) {
+            try {
+                org.openxmlformats.schemas.wordprocessingml.x2006.main.CTSectPr sectPr =
+                        doc.getDocument().getBody().isSetSectPr()
+                                ? doc.getDocument().getBody().getSectPr()
+                                : doc.getDocument().getBody().addNewSectPr();
+                if (!sectPr.isSetTitlePg()) {
+                    sectPr.addNewTitlePg();
+                }
+            } catch (Exception ignore) {
+            }
+            XWPFFooter first = doc.createFooter(HeaderFooterType.FIRST);
+            clearParagraphs(first);
+            first.createParagraph();
         }
-        addPageNumberField(p);
-        applyPageNumberFont(p);
+
+        XWPFFooter footerP = doc.createFooter(HeaderFooterType.DEFAULT);
+        clearParagraphs(footerP);
+        XWPFParagraph p = footerP.createParagraph();
+        setAlign(p, type);
+        addPageNumberField(p, footer.getFormat());
+        applyPageNumberFont(p, footer);
 
         if (page.getHeader().getText() != null && !page.getHeader().getText().trim().isEmpty()) {
             XWPFHeader header = doc.createHeader(HeaderFooterType.DEFAULT);
@@ -53,27 +67,41 @@ public final class HeaderFooterFormatter {
         }
     }
 
-    private static void addPageNumberField(XWPFParagraph paragraph) {
+    private static void setAlign(XWPFParagraph p, String type) {
+        if ("center".equals(type)) {
+            p.setAlignment(ParagraphAlignment.CENTER);
+        } else if ("right".equals(type)) {
+            p.setAlignment(ParagraphAlignment.RIGHT);
+        } else {
+            p.setAlignment(ParagraphAlignment.LEFT);
+        }
+    }
+
+    private static void addPageNumberField(XWPFParagraph paragraph, String format) {
         XWPFRun run = paragraph.createRun();
         CTR ctr = run.getCTR();
         CTFldChar begin = ctr.addNewFldChar();
         begin.setFldCharType(STFldCharType.BEGIN);
         CTText instr = ctr.addNewInstrText();
-        instr.setStringValue(" PAGE ");
+        // 罗马数字: PAGE \* roman(小写), 阿拉伯: PAGE
+        String instruction = "roman".equalsIgnoreCase(format) ? " PAGE \\* roman " : " PAGE ";
+        instr.setStringValue(instruction);
         CTFldChar separate = ctr.addNewFldChar();
         separate.setFldCharType(STFldCharType.SEPARATE);
-        ctr.addNewT().setStringValue("1");
+        ctr.addNewT().setStringValue("roman".equalsIgnoreCase(format) ? "i" : "1");
         CTFldChar end = ctr.addNewFldChar();
         end.setFldCharType(STFldCharType.END);
     }
 
     /**
-     * 页脚页码默认宋体五号
+     * 页脚页码字体(默认宋体五号, 可配)
      */
-    private static void applyPageNumberFont(XWPFParagraph paragraph) {
+    private static void applyPageNumberFont(XWPFParagraph paragraph, PageConfig.Footer footer) {
+        String font = footer.getFont() == null || footer.getFont().isEmpty() ? "宋体" : footer.getFont();
+        double size = footer.getFontSize() > 0 ? footer.getFontSize() : 10.5;
         for (XWPFRun run : paragraph.getRuns()) {
-            TextFormatter.setFont(run, "宋体");
-            run.setFontSize(10.5);
+            TextFormatter.setFont(run, font);
+            run.setFontSize(size);
         }
     }
 

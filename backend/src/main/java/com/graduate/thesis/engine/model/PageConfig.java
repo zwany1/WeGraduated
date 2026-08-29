@@ -42,9 +42,34 @@ public class PageConfig {
     public static class Footer {
         /** none / left / center / right */
         private String pageNumber = "center";
+        /** 页码字体(默认 宋体) */
+        private String font = "宋体";
+        /** 页码字号pt(默认 五号10.5) */
+        private double fontSize = 10.5;
+        /** 首页是否不显示页码(封面无页码), 启用 w:titlePg + 空首页页脚 */
+        private boolean skipFirst = false;
+        /** 页码数字格式: decimal(默认) / roman(小写罗马数字, 前置部分常用) */
+        private String format = "decimal";
     }
 
     public static double cmToTwips(double cm) {
         return Math.round(cm * 567.0);
+    }
+
+    /** 纸张宽度(twips), 未识别的纸张按 A4 */
+    public long pageWidthTwips() {
+        switch (paper == null ? "" : paper.toUpperCase()) {
+            case "A3": return 16838L;
+            case "A5": return 8391L;
+            case "B5": return 8293L;
+            case "LETTER": return 12240L;
+            case "A4":
+            default: return 11906L;
+        }
+    }
+
+    /** 文本区宽度 = 页宽 - 左右页边距(twips), 用于目录制表位等按版心定位 */
+    public long textWidthTwips() {
+        return pageWidthTwips() - (long) cmToTwips(margin.getLeft()) - (long) cmToTwips(margin.getRight());
     }
 }

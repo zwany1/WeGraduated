@@ -9,7 +9,7 @@ import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import java.util.List;
 
 /**
- * 标题格式化: 应用一级/二级/三级标题规则
+ * 标题格式化: 应用一至五级标题规则
  */
 public final class HeadingFormatter {
 
@@ -44,6 +44,10 @@ public final class HeadingFormatter {
                 return ruleSet.rule("heading2");
             case HEADING3:
                 return ruleSet.rule("heading3");
+            case HEADING4:
+                return ruleSet.rule("heading4");
+            case HEADING5:
+                return ruleSet.rule("heading5");
             default:
                 return null;
         }
@@ -57,6 +61,10 @@ public final class HeadingFormatter {
                 return 1;
             case HEADING3:
                 return 2;
+            case HEADING4:
+                return 3;
+            case HEADING5:
+                return 4;
             default:
                 return -1;
         }

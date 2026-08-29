@@ -95,7 +95,7 @@ public class PaperController {
     }
 
     /**
-     * 排版差异分析: 返回差异段落列表(含 PDF 页码与坐标)
+     * 排版差异分析: 返回差异段落列表(字段级变更前/后)
      */
     @GetMapping("/diff/{taskId}")
     public Result<List<com.graduate.thesis.dto.DiffItem>> diff(@PathVariable Long taskId) {

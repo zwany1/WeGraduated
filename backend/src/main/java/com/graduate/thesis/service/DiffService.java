@@ -1,7 +1,6 @@
 package com.graduate.thesis.service;
 
 import com.graduate.thesis.dto.DiffItem;
-import org.apache.poi.openxml4j.util.ZipSecureFile;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
@@ -27,8 +26,6 @@ public class DiffService {
 
     /** 对比排版前/后 docx 段落格式差异, 输出结构化变更(字段/变更前/变更后) */
     public List<DiffItem> diff(File original, File formatted) {
-        // 放宽 ZIP 压缩比限制: 论文 docx 可能高压缩(内嵌字体), 被误判为炸弹导致读取失败(diff 全空)
-        ZipSecureFile.setMinInflateRatio(0.001);
         List<DiffItem> items = new ArrayList<>();
         List<XWPFParagraph> origParas = readParas(original);
         List<XWPFParagraph> fmtParas = readParas(formatted);
@@ -60,7 +57,7 @@ public class DiffService {
         for (RawDiff rd : raw) {
             idx++;
             String type = rd.fields.get(0)[0];
-            items.add(new DiffItem(truncate(rd.text), type, changeDesc(rd.fields), idx, 0, 0.0, 0.05));
+            items.add(new DiffItem(truncate(rd.text), type, changeDesc(rd.fields), idx));
         }
         return items;
     }

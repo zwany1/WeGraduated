@@ -88,7 +88,7 @@ public class XssFilter extends OncePerRequestFilter {
     /** 不转义字段: 密码/验证码等敏感字段, 以及内部 JSON 配置字段(其引号是 JSON 语法, 转义会破坏结构) */
     private static final java.util.Set<String> NO_ESCAPE_KEYS = new java.util.HashSet<>(java.util.Arrays.asList(
             "password", "newPassword", "confirmPassword", "emailCode", "captchaCode", "securityAnswer",
-            "pageConfig", "headingPatterns", "referenceConfig", "images"
+            "pageConfig", "headingPatterns", "referenceConfig", "tocConfig", "images"
     ));
 
     @SuppressWarnings("unchecked")

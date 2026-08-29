@@ -427,9 +427,10 @@
       </section>
     </main>
 
-    <!-- 右侧实时预览 dock: 在任意配置 tab 调参数即时看效果 -->
+    <!-- 左下角实时预览入口: 在任意配置 tab 调参数即时看效果 -->
     <button class="live-preview-toggle" :class="{ on: livePreview }" @click="toggleLivePreview">
-      {{ livePreview ? '收起预览' : '实时预览' }}
+      <el-icon><View /></el-icon>
+      {{ livePreview ? '收起实时预览' : '实时预览' }}
     </button>
     <div v-if="livePreview" class="live-preview-dock">
       <div class="live-preview-tip">实时预览（跟随当前配置）</div>
@@ -450,7 +451,7 @@ import PreviewPage from '../components/PreviewPage.vue'
 import DocxCompare from '../components/DocxCompare.vue'
 import { extractHeadings } from '../utils/docxHeadings'
 import { ElMessage, ElNotification, ElMessageBox } from 'element-plus'
-import { UploadFilled, Document } from '@element-plus/icons-vue'
+import { UploadFilled, Document, View } from '@element-plus/icons-vue'
 import { getTemplateDetail, saveAllConfig } from '../api/template'
 import { quickFormat } from '../api/paper'
 
@@ -977,25 +978,33 @@ async function goFormat() {
   overflow: auto;
   padding: 4px;
 }
-/* 右侧实时预览 dock */
+/* 左下角实时预览入口 */
 .live-preview-toggle {
   position: fixed;
-  right: 14px;
-  bottom: 56px;
+  left: 20px;
+  bottom: 24px;
   z-index: 1500;
-  padding: 7px 14px;
-  border: 1px solid #d0d7de;
-  border-radius: 16px;
-  background: #fff;
-  color: #409eff;
-  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 11px 22px;
+  border: none;
+  border-radius: 24px;
+  background: #409eff;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 14px rgba(64, 158, 255, 0.45);
+  transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.live-preview-toggle:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(64, 158, 255, 0.55);
 }
 .live-preview-toggle.on {
-  background: #409eff;
-  border-color: #409eff;
-  color: #fff;
+  background: #67c23a;
+  box-shadow: 0 4px 14px rgba(103, 194, 58, 0.45);
 }
 .live-preview-dock {
   position: fixed;

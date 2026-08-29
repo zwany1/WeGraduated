@@ -82,6 +82,57 @@ public class PaperService {
         return paperFile;
     }
 
+    /**
+     * 快速试排: 只截取文档前 maxParagraphs 个块级元素(段落+表格), 同步排版后直接返回 .docx 字节。
+     * 不创建任务/不落库, 用于配置页秒级预览真实排版效果; 排版引擎与整篇排版完全一致, 差异只是内容变短。
+     */
+    public byte[] quickFormat(Long userId, MultipartFile file, Long templateId, int maxParagraphs) {
+        templateService.getOwned(templateId, userId);
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException("请选择要试排的文档");
+        }
+        String original = file.getOriginalFilename();
+        if (original == null || !original.toLowerCase().endsWith(".docx")) {
+            throw new BusinessException("仅支持 .docx 文件，旧版 .doc 请先用 Word 另存为 .docx 后再试排");
+        }
+        if (file.getSize() > 40L * 1024 * 1024) {
+            throw new BusinessException("文件过大(超过 40MB)，请拆分后重新上传");
+        }
+        int limit = Math.min(Math.max(maxParagraphs, 10), 400);
+        RuleSet ruleSet = RuleSet.from(templateService.getOwned(templateId, userId),
+                templateService.listRules(templateId));
+        File truncated = null;
+        File result = null;
+        try (org.apache.poi.xwpf.usermodel.XWPFDocument doc = new org.apache.poi.xwpf.usermodel.XWPFDocument(file.getInputStream())) {
+            int total = doc.getBodyElements().size();
+            if (total <= 1) {
+                throw new BusinessException("文档内容为空，无法试排");
+            }
+            for (int i = total - 1; i >= limit; i--) {
+                doc.removeBodyElement(i);
+            }
+            truncated = File.createTempFile("thesis_quick_", ".docx");
+            try (java.io.FileOutputStream out = new java.io.FileOutputStream(truncated)) {
+                doc.write(out);
+            }
+            result = formatEngine.format(truncated, ruleSet, p -> { });
+            return java.nio.file.Files.readAllBytes(result.toPath());
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("快速试排失败 userId={} templateId={}", userId, templateId, e);
+            String msg = e.getMessage() == null ? "文档无法解析" : e.getMessage();
+            throw new BusinessException("试排失败：" + msg);
+        } finally {
+            if (truncated != null) {
+                truncated.delete();
+            }
+            if (result != null) {
+                result.delete();
+            }
+        }
+    }
+
     public FormatTask startFormat(Long userId, PaperFormatDTO dto) {
         PaperFile paperFile = paperFileMapper.selectById(dto.getFileId());
         if (paperFile == null || !paperFile.getUserId().equals(userId)) {

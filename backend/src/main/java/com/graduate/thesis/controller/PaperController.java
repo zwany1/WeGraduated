@@ -55,6 +55,18 @@ public class PaperController {
         return Result.ok(paperService.upload(UserContext.get(), file));
     }
 
+    /** 快速试排: 截取文档前若干段同步排版, 直接回传 .docx(配置页实时看真实排版效果, 不创建任务) */
+    @PostMapping("/format-quick")
+    public ResponseEntity<byte[]> quickFormat(@RequestParam("file") MultipartFile file,
+                                              @RequestParam("templateId") Long templateId,
+                                              @RequestParam(value = "maxParagraphs", defaultValue = "150") int maxParagraphs) {
+        byte[] docx = paperService.quickFormat(UserContext.get(), file, templateId, maxParagraphs);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=quick-preview.docx")
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(docx);
+    }
+
     @PostMapping("/format")
     public Result<FormatTask> format(@Valid @RequestBody PaperFormatDTO dto) {
         return Result.ok(paperService.startFormat(UserContext.get(), dto));

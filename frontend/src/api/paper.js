@@ -12,6 +12,19 @@ export function startFormat(fileId, templateId) {
   return api.post('/paper/format', { fileId, templateId })
 }
 
+/** 快速试排: 截取文档前若干段同步排版, 返回 .docx blob(配置页实时看真实效果) */
+export function quickFormat(templateId, file, maxParagraphs = 150) {
+  const form = new FormData()
+  form.append('file', file)
+  form.append('templateId', templateId)
+  form.append('maxParagraphs', maxParagraphs)
+  return api.post('/paper/format-quick', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    responseType: 'blob',
+    timeout: 300000
+  })
+}
+
 export function startFormatBatch(templateId, fileIds) {
   return api.post('/paper/format-batch', { templateId, fileIds })
 }

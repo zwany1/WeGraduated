@@ -372,96 +372,47 @@
           <div class="tip">行距/前导符三级共用,字体/字号各级独立;作用于 Word 自动目录的 toc1/toc2/toc3 样式,不改目录域的自动更新标识——用户在 Word 按 F9 仍可重新生成目录。</div>
         </template>
 
-        <!-- 效果预览: 按当前规则用 CSS 模拟排版样式 -->
+        <!-- 效果预览: 实时 CSS 模拟 + 上传文档快速试排 -->
         <template v-else-if="active === 'preview'">
           <h3>排版效果预览</h3>
-          <p class="tip">按当前规则的格式样式实时预览（字体/字号/行距/缩进/对齐/段距/页眉页脚/图表/参考文献）。标题识别正则、题注自动编号、参考文献序号重排等结构处理需实际排版后体现。</p>
+          <p class="tip">下方是按当前规则的实时模拟（字体/字号/行距/缩进/对齐/段距/页眉页脚/图表/参考文献），改配置立即生效。要看真实排版引擎的结果，用"快速试排"上传文档即可，几秒出结果，不产生排版任务。</p>
+          <PreviewPage :page="page" :rules="rules" :ref-config="refConfig" :gen-abstract="genAbstract" />
 
-          <!-- 模拟论文纸张 -->
-          <div class="preview-page">
-            <!-- 页眉 -->
-            <div v-if="page.header.text" class="preview-header" :style="headerBarStyle">
-              {{ page.header.text }}
+          <h3 style="margin-top: 28px;">快速试排（前几页真实排版）</h3>
+          <div class="quick-format">
+            <input ref="quickFileRef" type="file" accept=".docx" class="quick-file" @change="onQuickFile" />
+            <el-button type="primary" size="small" :loading="quickLoading" :disabled="!quickFile" @click="runQuickFormat">试排前 {{ quickParagraphs }} 段</el-button>
+            <el-select v-model="quickParagraphs" size="small" style="width: 120px; margin-left: 8px;">
+              <el-option label="前 60 段" :value="60" />
+              <el-option label="前 150 段" :value="150" />
+              <el-option label="前 300 段" :value="300" />
+            </el-select>
+            <span v-if="quickFile" class="quick-filename">{{ quickFile.name }}</span>
+          </div>
+          <p class="tip">试排只取文档开头部分同步排版，与正式排版使用同一引擎，用于快速验证标题正则与格式规则；不会在任务列表产生记录。</p>
+          <div v-if="quickData.length" class="quick-result">
+            <div class="quick-result-bar">
+              <span>试排结果（真实引擎排版）</span>
+              <el-button size="small" @click="downloadQuick">下载 .docx</el-button>
             </div>
-
-            <div class="preview-content">
-              <!-- ===== 摘要区（启用时展示） ===== -->
-              <template v-if="genAbstract">
-                <div :style="abstractTitleStyle">摘  要</div>
-                <div :style="bodyStyle">随着人工智能技术的快速发展，PLC（Programmable Logic Controller）在工业自动化控制领域的应用日益广泛。本设计针对图书馆模块化仓库物料定位系统，采用分层控制架构，实现了从物料入库、定位到出库的全流程自动化管理，具有高可靠性与易维护性的特点。</div>
-                <div :style="kwStyle"><b style="font-family: 黑体, sans-serif;">关键词：</b>PLC控制系统；模块化设计；物料定位；梯形图编程</div>
-                <div style="height: 16px;"></div>
-              </template>
-
-              <!-- ===== 正文 ===== -->
-              <div :style="ruleStyle('heading1')">第一章 绪论</div>
-              <div :style="ruleStyle('heading2')">1.1 研究背景与意义</div>
-              <div :style="ruleStyle('body')">随着信息技术的快速发展，学术论文的排版规范日益重要。本研究针对毕业论文排版中的标题层级、正文格式、图表题注与参考文献等关键要素，提出一套自动化排版方案。系统基于文档结构识别技术，自动应用格式规则，减少人工排版工作量。</div>
-              <div :style="ruleStyle('body')">本设计面向桂林信息科技学院（Guilin University of Information Technology）图书馆模块化仓库，采用 PLC（可编程逻辑控制器）技术，实现物料精准定位与高效管理。系统硬件选用三菱 FX3U 系列，编程语言为梯形图（Ladder Diagram），通信协议支持 Modbus TCP。</div>
-
-              <div :style="ruleStyle('heading3')">1.1.1 国内外研究现状</div>
-              <div :style="ruleStyle('body')">国外在智能仓储领域的研究起步较早，德国西门子（Siemens）和日本欧姆龙（OMRON）等企业在 PLC 仓储系统方面已有成熟方案。国内近年来在 GB/T 7714-2015 等论文格式规范的推广下，自动化排版需求显著增长。</div>
-
-              <div :style="ruleStyle('heading2')">1.2 研究目的</div>
-              <div :style="ruleStyle('body')">本研究旨在设计一套符合 GBT 1.1-2020 标准的论文自动排版系统，支持标题自动识别、格式一键应用、图表智能编号及参考文献规范排版，为高校毕业生提供高效的论文格式化工具。</div>
-
-              <!-- ===== 图表 ===== -->
-              <div :style="captionStyle('figure')">图1-1 系统架构设计图</div>
-              <div class="mock-image">
-                <span style="color:#909399;font-size:11px;">[图片占位]</span>
-              </div>
-
-              <div :style="captionStyle('table')">表1-1 排版规则配置示例</div>
-              <table class="mock-table">
-                <thead>
-                  <tr>
-                    <th :style="thStyle">规则类型</th>
-                    <th :style="thStyle">中文字体</th>
-                    <th :style="thStyle">西文字体</th>
-                    <th :style="thStyle">字号</th>
-                    <th :style="thStyle">对齐</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="(row, i) in tableRows" :key="i">
-                    <td :style="tdStyle">{{ row.type }}</td>
-                    <td :style="tdStyle">{{ row.font }}</td>
-                    <td :style="tdStyle">{{ row.fontLatin }}</td>
-                    <td :style="tdStyle">{{ row.size }}</td>
-                    <td :style="tdStyle">{{ row.align }}</td>
-                  </tr>
-                </tbody>
-              </table>
-
-              <!-- ===== 参考文献（启用时展示） ===== -->
-              <template v-if="refConfig.enabled">
-                <div style="height: 12px;"></div>
-                <div :style="refTitleStyle()">{{ refConfig.title || '参考文献' }}</div>
-                <div class="ref-hanging" :style="refItemStyle()">
-                  <span class="ref-num">[1]</span>
-                  <span>张三, 李四, 王五. 基于 Apache POI 的论文自动排版系统研究与实现[J]. 计算机工程与应用, 2024, 60(3): 120-128.</span>
-                </div>
-                <div class="ref-hanging" :style="refItemStyle()">
-                  <span class="ref-num">[2]</span>
-                  <span>Smith J, Brown A, Lee C. Automated document formatting using rule-based systems[C]//Proc. of ICDM. 2023: 45-52.</span>
-                </div>
-                <div class="ref-hanging" :style="refItemStyle()">
-                  <span class="ref-num">[3]</span>
-                  <span>王六. 基于 Word 文档解析技术的排版引擎设计[D]. 北京: 清华大学, 2023.</span>
-                </div>
-              </template>
-            </div>
-
-            <!-- 页脚/页码 -->
-            <div class="preview-footer">
-              <span v-if="page.footer.pageNumber === 'center'" style="text-align:center;display:block;">— 1 —</span>
-              <span v-else-if="page.footer.pageNumber === 'left'" style="text-align:left;display:block;">— 1 —</span>
-              <span v-else-if="page.footer.pageNumber === 'right'" style="text-align:right;display:block;">— 1 —</span>
-            </div>
+            <DocxCompare :data="quickData" :headings="quickHeadings" />
           </div>
         </template>
       </section>
     </main>
+
+    <!-- 右侧实时预览 dock: 在任意配置 tab 调参数即时看效果 -->
+    <button class="live-preview-toggle" :class="{ on: livePreview }" @click="toggleLivePreview">
+      {{ livePreview ? '收起预览' : '实时预览' }}
+    </button>
+    <div v-if="livePreview" class="live-preview-dock">
+      <div class="live-preview-tip">实时预览（跟随当前配置）</div>
+      <div class="live-preview-scroll">
+        <div class="live-preview-scale">
+          <PreviewPage :page="page" :rules="rules" :ref-config="refConfig" :gen-abstract="genAbstract" />
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -469,8 +420,12 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import SiteNav from '../components/SiteNav.vue'
+import PreviewPage from '../components/PreviewPage.vue'
+import DocxCompare from '../components/DocxCompare.vue'
+import { extractHeadings } from '../utils/docxHeadings'
 import { ElMessage, ElNotification, ElMessageBox } from 'element-plus'
 import { getTemplateDetail, saveAllConfig } from '../api/template'
+import { quickFormat } from '../api/paper'
 
 const route = useRoute()
 const router = useRouter()
@@ -569,130 +524,56 @@ function applyPreset(name) {
   Object.assign(headingPatterns, presets[name])
 }
 
-/** 按规则生成内联样式对象, 供预览区实时反映当前配置 */
-function ruleStyle(key) {
-  const r = rules[key]
-  if (!r) return {}
-  return {
-    fontFamily: `'${r.font || '宋体'}', '${r.fontLatin || 'Times New Roman'}', serif`,
-    fontSize: (r.fontSize || 12) + 'pt',
-    fontWeight: r.bold ? '700' : '400',
-    textAlign: r.align || 'left',
-    lineHeight: r.lineSpacingType === 'exact' ? (r.lineSpacingExact || 20) + 'pt' : (r.lineSpacing || 1.5),
-    textIndent: r.firstLineIndent ? r.firstLineIndent + 'em' : '0',
-    marginTop: (r.spaceBefore || 0) + 'pt',
-    marginBottom: (r.spaceAfter || 0) + 'pt'
+// ===== 快速试排: 上传文档截取前几段, 用真实排版引擎同步出结果 =====
+const quickFileRef = ref(null)
+const quickFile = ref(null)
+const quickParagraphs = ref(150)
+const quickLoading = ref(false)
+const quickData = ref([])
+const quickHeadings = ref([])
+
+function onQuickFile(e) {
+  quickFile.value = e.target.files && e.target.files[0] ? e.target.files[0] : null
+  quickData.value = []
+  quickHeadings.value = []
+}
+
+async function runQuickFormat() {
+  if (!quickFile.value) return
+  quickLoading.value = true
+  try {
+    const blob = await quickFormat(id, quickFile.value, quickParagraphs.value)
+    const buf = await blob.arrayBuffer()
+    quickData.value = Array.from(new Uint8Array(buf))
+    quickHeadings.value = await extractHeadings(buf)
+    ElMessage.success('试排完成')
+  } catch (e) {
+    // 具体原因由 api 拦截器提示
+  } finally {
+    quickLoading.value = false
   }
 }
 
-function captionStyle(key) {
-  const r = rules[key]
-  if (!r) return {}
-  return {
-    fontFamily: `'${r.font || '宋体'}', '${r.fontLatin || 'Times New Roman'}', serif`,
-    fontSize: (r.fontSize || 10) + 'pt',
-    textAlign: 'center',
-    margin: '6pt 0'
-  }
+function downloadQuick() {
+  if (!quickData.value.length) return
+  const blob = new Blob([new Uint8Array(quickData.value)], {
+    type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = '试排预览.docx'
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
-function refTitleStyle() {
-  return {
-    fontFamily: `'${refConfig.titleFont || '黑体'}', serif`,
-    fontSize: (refConfig.titleFontSize || 14) + 'pt',
-    fontWeight: '700',
-    textAlign: 'left',
-    marginTop: '12pt',
-    marginBottom: '6pt'
-  }
+// ===== 右侧实时预览 dock =====
+const livePreview = ref(localStorage.getItem('tc-live-preview') === '1')
+
+function toggleLivePreview() {
+  livePreview.value = !livePreview.value
+  localStorage.setItem('tc-live-preview', livePreview.value ? '1' : '0')
 }
-
-function refItemStyle() {
-  return {
-    fontFamily: `'${refConfig.itemFont || '宋体'}', '${refConfig.itemFontLatin || 'Times New Roman'}', serif`,
-    fontSize: (refConfig.itemFontSize || 10) + 'pt',
-    textAlign: 'left',
-    lineHeight: 1.5,
-    marginBottom: '2pt'
-  }
-}
-
-// ===== 预览区新增样式 =====
-
-/** 页眉样式 */
-const headerBarStyle = computed(() => ({
-  fontFamily: `'${rules.body.font || '宋体'}', '${rules.body.fontLatin || 'Times New Roman'}', serif`,
-  fontSize: (rules.body.fontSize || 12) + 'pt',
-  textAlign: 'center',
-  borderBottom: '1px solid #333',
-  paddingBottom: '4pt',
-  marginBottom: '16pt'
-}))
-
-/** 摘要标题样式（黑体三号居中加粗） */
-const abstractTitleStyle = computed(() => ({
-  fontFamily: "'黑体', 'SimHei', sans-serif",
-  fontSize: '16pt',
-  fontWeight: '700',
-  textAlign: 'center',
-  marginTop: '0',
-  marginBottom: '12pt'
-}))
-
-/** 正文段落样式（从 body 规则提取，简化版） */
-const bodyStyle = computed(() => {
-  const r = rules.body
-  return {
-    fontFamily: `'${r.font || '宋体'}', '${r.fontLatin || 'Times New Roman'}', serif`,
-    fontSize: (r.fontSize || 12) + 'pt',
-    fontWeight: '400',
-    textAlign: r.align || 'justify',
-    lineHeight: r.lineSpacingType === 'exact' ? (r.lineSpacingExact || 20) + 'pt' : (r.lineSpacing || 1.5),
-    textIndent: r.firstLineIndent ? r.firstLineIndent + 'em' : '0',
-    marginBottom: '6pt'
-  }
-})
-
-/** 关键词样式 */
-const kwStyle = computed(() => {
-  const r = rules.body
-  return {
-    fontFamily: `'${r.font || '宋体'}', '${r.fontLatin || 'Times New Roman'}', serif`,
-    fontSize: (r.fontSize || 12) + 'pt',
-    textAlign: 'left',
-    marginTop: '4pt',
-    marginBottom: '12pt'
-  }
-})
-
-/** 表头样式 */
-const thStyle = computed(() => ({
-  fontFamily: `'${rules.tableText.font || '宋体'}', '${rules.tableText.fontLatin || 'Times New Roman'}', serif`,
-  fontSize: (rules.tableText.fontSize || 10) + 'pt',
-  fontWeight: (rules.tableText.bold ? '700' : '400') || '600',
-  border: '1px solid #999',
-  padding: '4pt 8pt',
-  textAlign: rules.tableText.align || 'center',
-  background: '#f5f7fa'
-}))
-
-/** 表格单元格样式 */
-const tdStyle = computed(() => ({
-  fontFamily: `'${rules.tableText.font || '宋体'}', '${rules.tableText.fontLatin || 'Times New Roman'}', serif`,
-  fontSize: (rules.tableText.fontSize || 10) + 'pt',
-  fontWeight: rules.tableText.bold ? '700' : '400',
-  border: '1px solid #999',
-  padding: '4pt 8pt',
-  textAlign: rules.tableText.align || 'center'
-}))
-
-/** 表格示例数据 */
-const tableRows = computed(() => [
-  { type: '一级标题', font: rules.heading1.font, fontLatin: rules.heading1.fontLatin, size: sizeMap[rules.heading1.fontSize] + '(' + rules.heading1.fontSize + 'pt)', align: alignMap[rules.heading1.align] },
-  { type: '二级标题', font: rules.heading2.font, fontLatin: rules.heading2.fontLatin, size: sizeMap[rules.heading2.fontSize] + '(' + rules.heading2.fontSize + 'pt)', align: alignMap[rules.heading2.align] },
-  { type: '正文', font: rules.body.font, fontLatin: rules.body.fontLatin, size: sizeMap[rules.body.fontSize] + '(' + rules.body.fontSize + 'pt)', align: alignMap[rules.body.align] },
-  { type: '图表题注', font: rules.figure.font, fontLatin: rules.figure.fontLatin, size: sizeMap[rules.figure.fontSize] + '(' + rules.figure.fontSize + 'pt)', align: '居中' }
-])
 
 const alignMap = { left: '左对齐', center: '居中', right: '右对齐', justify: '两端对齐' }
 
@@ -985,49 +866,87 @@ async function goFormat() {
   font-size: 12px;
   margin-left: 8px;
 }
-/* 预览区纸张模拟 */
-.preview-page {
-  background: #fff;
-  border: 1px solid #d0d7de;
-  border-radius: 6px;
-  max-width: 720px;
-  margin-top: 10px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  overflow: hidden;
-}
-.preview-header {
-  padding: 6pt 0 4pt;
-  font-size: 10.5pt;
-  color: #333;
-}
-.preview-content {
-  padding: 24pt 48pt;
-}
-.preview-footer {
-  border-top: 1px solid #d0d7de;
-  padding: 6pt 48pt;
-  font-size: 10.5pt;
-  color: #606266;
-}
-.mock-image {
-  width: 100%;
-  height: 80px;
-  background: #f5f5f5;
-  border: 1px dashed #ccc;
-  border-radius: 4px;
+/* 快速试排 */
+.quick-format {
   display: flex;
   align-items: center;
-  justify-content: center;
-  margin-bottom: 4pt;
+  gap: 10px;
+  margin: 10px 0;
 }
-.mock-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 4pt 0 8pt;
+.quick-file {
+  font-size: 12px;
 }
-.ref-hanging {
-  padding-left: 0;
-  text-indent: -2.5em;
-  margin-left: 2.5em;
+.quick-filename {
+  font-size: 12px;
+  color: #606266;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.quick-result {
+  margin-top: 14px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: #fff;
+}
+.quick-result-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid #ebeef5;
+  font-size: 13px;
+  color: #303133;
+}
+/* 右侧实时预览 dock */
+.live-preview-toggle {
+  position: fixed;
+  right: 14px;
+  bottom: 56px;
+  z-index: 1500;
+  padding: 7px 14px;
+  border: 1px solid #d0d7de;
+  border-radius: 16px;
+  background: #fff;
+  color: #409eff;
+  font-size: 12px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+.live-preview-toggle.on {
+  background: #409eff;
+  border-color: #409eff;
+  color: #fff;
+}
+.live-preview-dock {
+  position: fixed;
+  right: 0;
+  top: 70px;
+  bottom: 0;
+  width: 480px;
+  z-index: 1400;
+  background: #f5f7fa;
+  border-left: 1px solid #d0d7de;
+  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+}
+.live-preview-tip {
+  padding: 8px 14px;
+  font-size: 12px;
+  color: #909399;
+  border-bottom: 1px solid #ebeef5;
+  background: #fff;
+}
+.live-preview-scroll {
+  flex: 1;
+  overflow: auto;
+  padding: 14px;
+}
+.live-preview-scale {
+  transform: scale(0.62);
+  transform-origin: top left;
+  width: 760px;
 }
 </style>

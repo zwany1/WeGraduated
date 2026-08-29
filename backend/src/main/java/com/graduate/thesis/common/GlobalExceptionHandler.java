@@ -41,6 +41,13 @@ public class GlobalExceptionHandler {
         return Result.fail(400, "文件大小超过限制");
     }
 
+    /** 请求体不是合法 JSON(如转义错误/编码错误): 明确 400, 避免落进兜底 500 掩盖真实原因 */
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public Result<Void> handleNotReadable(org.springframework.http.converter.HttpMessageNotReadableException e) {
+        log.warn("请求体解析失败: {}", e.getMessage());
+        return Result.fail(400, "请求数据格式错误");
+    }
+
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Result<Void> handleUnknown(Exception e) {

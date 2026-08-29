@@ -10,10 +10,21 @@ export default defineConfig({
     headers: {
       'Cache-Control': 'no-store'
     },
-    proxy: {
+      proxy: {
       '/api': {
         target: 'http://localhost:13355',
-        changeOrigin: true
+        changeOrigin: true,
+        // 后端未启动/重启窗口: 返回明确的 503, 避免前端看到无意义的 500
+        configure: (proxy) => {
+          proxy.on('error', (err, req, res) => {
+            if (res && !res.headersSent) {
+              res.writeHead(503, { 'Content-Type': 'application/json; charset=utf-8' })
+            }
+            if (res && res.end) {
+              res.end(JSON.stringify({ code: 503, message: '后端服务未启动或正在重启，请稍后重试 (' + err.code + ')' }))
+            }
+          })
+        }
       }
     }
   },

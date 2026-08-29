@@ -38,6 +38,8 @@ api.interceptors.response.use(
       localStorage.removeItem('perms')
       localStorage.removeItem('menus')
       router.push({ path: '/login', query: { redirect: router.currentRoute.value.fullPath } })
+    } else if ([502, 503, 504].includes(err.response?.status)) {
+      ElMessage.error('后端服务未启动或正在重启，请稍后重试')
     } else {
       const msg = err.response?.data?.message || err.message || '网络错误'
       ElMessage.error(msg)

@@ -38,7 +38,16 @@ const server = http.createServer((req, res) => {
     return;
   }
   // Static files from dist
-  let filePath = path.join(DIST, req.url === '/' ? 'index.html' : req.url);
+  let urlPath = decodeURIComponent(req.url.split('?')[0]);
+  let filePath = path.join(DIST, urlPath === '/' ? 'index.html' : urlPath);
+  // 防路径穿越: 解析后的真实路径必须仍位于 DIST 内
+  const resolvedRoot = path.resolve(DIST);
+  const resolved = path.resolve(filePath);
+  if (resolved !== resolvedRoot && !resolved.startsWith(resolvedRoot + path.sep)) {
+    res.writeHead(403);
+    res.end('Forbidden');
+    return;
+  }
   if (!fs.existsSync(filePath)) {
     // SPA fallback: return index.html for any non-file route
     filePath = path.join(DIST, 'index.html');

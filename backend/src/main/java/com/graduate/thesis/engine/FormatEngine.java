@@ -78,6 +78,7 @@ public class FormatEngine {
             List<DocItem> items = structureDetector.detect(doc, ruleSet, report, ruleSet.getHeadingOverrides());
             if (report != null) {
                 fillReport(report, items);
+                report.setUsedConfig(buildUsedConfig(ruleSet));
             }
             progress.accept(25);
 
@@ -123,6 +124,30 @@ public class FormatEngine {
         } catch (Exception e) {
             throw new BusinessException(500, friendlyError(e));
         }
+    }
+
+    /** 记录本次排版实际使用的关键格式参数(供版本历史展示) */
+    private java.util.Map<String, Object> buildUsedConfig(RuleSet ruleSet) {
+        java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("heading1Pattern", ruleSet.getHeading1Pattern().pattern());
+        m.put("heading2Pattern", ruleSet.getHeading2Pattern().pattern());
+        m.put("heading3Pattern", ruleSet.getHeading3Pattern().pattern());
+        java.util.Map<String, Object> rules = new java.util.LinkedHashMap<>();
+        for (String type : java.util.List.of("heading1", "heading2", "heading3", "body", "figure", "table")) {
+            com.graduate.thesis.entity.FormatRule r = ruleSet.getRules() == null ? null : ruleSet.getRules().get(type);
+            if (r == null) {
+                continue;
+            }
+            java.util.Map<String, Object> one = new java.util.LinkedHashMap<>();
+            one.put("font", r.getFont());
+            one.put("fontLatin", r.getFontLatin());
+            one.put("fontSize", r.getFontSize());
+            one.put("bold", r.getBold());
+            one.put("align", r.getAlign());
+            rules.put(type, one);
+        }
+        m.put("rules", rules);
+        return m;
     }
 
     /** 按结构识别结果填充报告计数 */

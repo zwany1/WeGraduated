@@ -36,6 +36,9 @@ public class FormatReport {
     /** 未匹配标题正则、已按正文处理的疑似标题行 */
     private List<Suspect> suspects = new ArrayList<>();
 
+    /** 本次排版实际使用的关键格式参数快照(标题正则与各级字体字号), 供版本历史展示 */
+    private java.util.Map<String, Object> usedConfig;
+
     /**
      * 疑似标题行: index 为原文档段落序号, 修复重排时用作覆盖键
      */

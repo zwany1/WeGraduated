@@ -21,7 +21,15 @@
       <section class="panel">
         <!-- 页面设置 -->
         <template v-if="active === 'page'">
-          <h3>排版开关</h3>
+          <h3>校规一键预设</h3>
+          <p class="tip">选择贴近你学校要求的预设一键填充全部配置（页面/标题/正文/图表/参考文献/目录），套用后再按校规微调即可。</p>
+          <div class="school-presets">
+            <div v-for="(p, key) in schoolPresets" :key="key" class="preset-card" @click="applySchoolPreset(key)">
+              <div class="preset-name">{{ p.label }}</div>
+              <div class="preset-desc">{{ p.desc }}</div>
+            </div>
+          </div>
+          <h3 style="margin-top: 20px">排版开关</h3>
           <el-form label-width="120px" style="max-width: 520px">
             <el-form-item label="目录排版">
               <el-switch v-model="genToc" />
@@ -80,13 +88,49 @@
             </div>
             <el-form label-width="100px" style="max-width: 620px">
               <el-form-item label="一级标题">
-                <el-input v-model="headingPatterns.heading1" placeholder="^第[一二三四五六七八九十百]+章" />
+                <el-input v-model="headingPatterns.heading1" :class="{ 'regex-invalid': !regexValid.heading1 }" placeholder="^第[一二三四五六七八九十百]+章">
+                  <template #append>
+                    <el-dropdown trigger="click" @command="cmd => insertPattern('heading1', cmd)">
+                      <span class="pattern-more">常用<el-icon><ArrowDown /></el-icon></span>
+                      <template #dropdown>
+                        <el-dropdown-menu>
+                          <el-dropdown-item v-for="p in commonPatterns.heading1" :key="p" :command="p">{{ p }}</el-dropdown-item>
+                        </el-dropdown-menu>
+                      </template>
+                    </el-dropdown>
+                  </template>
+                </el-input>
+                <div v-if="!regexValid.heading1" class="regex-error">不是合法的正则表达式</div>
               </el-form-item>
               <el-form-item label="二级标题">
-                <el-input v-model="headingPatterns.heading2" placeholder="^\d+\.\d+" />
+                <el-input v-model="headingPatterns.heading2" :class="{ 'regex-invalid': !regexValid.heading2 }" placeholder="^\d+\.\d+">
+                  <template #append>
+                    <el-dropdown trigger="click" @command="cmd => insertPattern('heading2', cmd)">
+                      <span class="pattern-more">常用<el-icon><ArrowDown /></el-icon></span>
+                      <template #dropdown>
+                        <el-dropdown-menu>
+                          <el-dropdown-item v-for="p in commonPatterns.heading2" :key="p" :command="p">{{ p }}</el-dropdown-item>
+                        </el-dropdown-menu>
+                      </template>
+                    </el-dropdown>
+                  </template>
+                </el-input>
+                <div v-if="!regexValid.heading2" class="regex-error">不是合法的正则表达式</div>
               </el-form-item>
               <el-form-item label="三级标题">
-                <el-input v-model="headingPatterns.heading3" placeholder="^\d+\.\d+\.\d+" />
+                <el-input v-model="headingPatterns.heading3" :class="{ 'regex-invalid': !regexValid.heading3 }" placeholder="^\d+\.\d+\.\d+">
+                  <template #append>
+                    <el-dropdown trigger="click" @command="cmd => insertPattern('heading3', cmd)">
+                      <span class="pattern-more">常用<el-icon><ArrowDown /></el-icon></span>
+                      <template #dropdown>
+                        <el-dropdown-menu>
+                          <el-dropdown-item v-for="p in commonPatterns.heading3" :key="p" :command="p">{{ p }}</el-dropdown-item>
+                        </el-dropdown-menu>
+                      </template>
+                    </el-dropdown>
+                  </template>
+                </el-input>
+                <div v-if="!regexValid.heading3" class="regex-error">不是合法的正则表达式</div>
               </el-form-item>
             </el-form>
           </div>
@@ -134,12 +178,26 @@
                 <el-option v-for="f in latinFonts" :key="f" :label="f" :value="f" />
               </el-select>
             </el-form-item>
-            <el-form-item label="字号">
+            <el-form-item>
+              <template #label>
+                <span>字号
+                  <el-tooltip content="中文字号对应磅值：三号=16、四号=14、小四=12、五号=10；校规一般标注字号名称" placement="top">
+                    <el-icon class="q-mark"><QuestionFilled /></el-icon>
+                  </el-tooltip>
+                </span>
+              </template>
               <el-select v-model="rules.body.fontSize">
                 <el-option v-for="s in sizes" :key="s.v" :label="s.label" :value="s.v" />
               </el-select>
             </el-form-item>
-            <el-form-item label="行距类型">
+            <el-form-item>
+              <template #label>
+                <span>行距类型
+                  <el-tooltip content="多倍行距随字号缩放；固定值以磅为单位精确控制，研究生规范常用固定 20 磅" placement="top">
+                    <el-icon class="q-mark"><QuestionFilled /></el-icon>
+                  </el-tooltip>
+                </span>
+              </template>
               <el-select v-model="rules.body.lineSpacingType">
                 <el-option label="多倍行距" value="multiple" />
                 <el-option label="固定值(磅)" value="exact" />
@@ -154,7 +212,14 @@
               <el-input-number v-model="rules.body.lineSpacingExact" :min="0" :max="100" :step="0.5" />
               <span style="margin-left:8px;color:#909399">磅</span>
             </el-form-item>
-            <el-form-item label="首行缩进">
+            <el-form-item>
+              <template #label>
+                <span>首行缩进
+                  <el-tooltip content="1 字符约一个汉字宽度，本科校规通常要求 2 字符" placement="top">
+                    <el-icon class="q-mark"><QuestionFilled /></el-icon>
+                  </el-tooltip>
+                </span>
+              </template>
               <el-input-number v-model="rules.body.firstLineIndent" :min="0" :max="8" /><span style="margin-left:8px;color:#909399">字符</span>
             </el-form-item>
             <el-form-item label="段后空行">
@@ -451,7 +516,7 @@ import PreviewPage from '../components/PreviewPage.vue'
 import DocxCompare from '../components/DocxCompare.vue'
 import { extractHeadings } from '../utils/docxHeadings'
 import { ElMessage, ElNotification, ElMessageBox } from 'element-plus'
-import { UploadFilled, Document, View } from '@element-plus/icons-vue'
+import { UploadFilled, Document, View, ArrowDown, QuestionFilled } from '@element-plus/icons-vue'
 import { getTemplateDetail, saveAllConfig } from '../api/template'
 import { quickFormat } from '../api/paper'
 
@@ -550,6 +615,105 @@ const presets = {
 
 function applyPreset(name) {
   Object.assign(headingPatterns, presets[name])
+}
+
+// ===== 校规一键预设: 内置常见学校规范, 一键填充全部配置 =====
+function presetRules(bodyFont, bodySize, h1Size, h2Size, h3Size, captionFont) {
+  return {
+    heading1: { ruleType: 'heading1', font: '黑体', fontLatin: 'Times New Roman', fontSize: h1Size, bold: true, align: 'center', spaceBefore: 12, spaceAfter: 12 },
+    heading2: { ruleType: 'heading2', font: '黑体', fontLatin: 'Times New Roman', fontSize: h2Size, align: 'left', spaceBefore: 6, spaceAfter: 6 },
+    heading3: { ruleType: 'heading3', font: '黑体', fontLatin: 'Times New Roman', fontSize: h3Size, align: 'left', spaceBefore: 6, spaceAfter: 6 },
+    body: { ruleType: 'body', font: bodyFont, fontLatin: 'Times New Roman', fontSize: bodySize, lineSpacingType: 'multiple', lineSpacing: 1.5, lineSpacingExact: 20, firstLineIndent: 2, align: 'justify' },
+    figure: { ruleType: 'figure', font: captionFont, fontLatin: 'Times New Roman', fontSize: 10, captionPosition: 'below', numberingPattern: '图{chapter}-{no}', captionEnabled: true },
+    table: { ruleType: 'table', font: captionFont, fontLatin: 'Times New Roman', fontSize: 10, captionPosition: 'above', numberingPattern: '表{chapter}-{no}', captionEnabled: true },
+    tableText: { ruleType: 'tableText', font: '宋体', fontLatin: 'Times New Roman', fontSize: 10, bold: false, align: 'center', lineSpacing: 1.5 }
+  }
+}
+function presetRef() {
+  return { enabled: false, title: '参考文献', titleFont: '黑体', titleFontSize: 14, itemFont: '宋体', itemFontLatin: 'Times New Roman', itemFontSize: 10, removeDoi: true, maxAuthors: 3, renumber: true }
+}
+function presetToc() {
+  return { lineSpacing: 1.5, leader: 'dot', toc1: { font: '宋体', fontLatin: 'Times New Roman', fontSize: 14 }, toc2: { font: '宋体', fontLatin: 'Times New Roman', fontSize: 12 }, toc3: { font: '宋体', fontLatin: 'Times New Roman', fontSize: 12 } }
+}
+
+const schoolPresets = {
+  undergraduate: {
+    label: '通用本科规范',
+    desc: '正文宋体小四 1.5 倍行距，章标题黑体三号居中，节标题黑体四号',
+    page: { paper: 'A4', margin: { top: 2.5, bottom: 2.5, left: 3, right: 2.5 }, header: { height: 1.5, text: '' }, footer: { pageNumber: 'center' } },
+    headingPatterns: { heading1: '^第[一二三四五六七八九十百]+章', heading2: '^\\d+\\.\\d+', heading3: '^\\d+\\.\\d+\\.\\d+' },
+    rules: presetRules('宋体', 12, 16, 14, 12, '宋体'),
+    refConfig: presetRef(),
+    tocConfig: presetToc()
+  },
+  engineering: {
+    label: '理工科规范',
+    desc: '正文仿宋小四，标题黑体体系，图表题注黑体五号，页眉标注校名',
+    page: { paper: 'A4', margin: { top: 2.54, bottom: 2.54, left: 3.17, right: 3.17 }, header: { height: 1.5, text: '' }, footer: { pageNumber: 'center' } },
+    headingPatterns: { heading1: '^第[一二三四五六七八九十百]+章', heading2: '^\\d+\\.\\d+', heading3: '^\\d+\\.\\d+\\.\\d+' },
+    rules: presetRules('仿宋', 12, 16, 14, 12, '黑体'),
+    refConfig: presetRef(),
+    tocConfig: presetToc()
+  },
+  graduate: {
+    label: '研究生规范(GB/T 7713)',
+    desc: '正文宋体小四固定 20 磅行距，章标题黑体三号，页码底部居中',
+    page: { paper: 'A4', margin: { top: 2.6, bottom: 2.6, left: 3, right: 2.6 }, header: { height: 1.5, text: '' }, footer: { pageNumber: 'center' } },
+    headingPatterns: { heading1: '^第[一二三四五六七八九十百]+章', heading2: '^\\d+\\.\\d+', heading3: '^\\d+\\.\\d+\\.\\d+' },
+    rules: presetRules('宋体', 12, 16, 14, 12, '宋体'),
+    refConfig: presetRef(),
+    tocConfig: presetToc()
+  }
+}
+// 研究生规范用固定行距覆盖
+schoolPresets.graduate.rules.body.lineSpacingType = 'exact'
+schoolPresets.graduate.rules.body.lineSpacingExact = 20
+schoolPresets.graduate.rules.body.lineSpacing = 1.5
+
+function applySchoolPreset(key) {
+  const p = schoolPresets[key]
+  if (!p) return
+  ElMessageBox.confirm(
+    `将按「${p.label}」覆盖当前全部配置（页面/标题/正文/图表/参考文献/目录），是否继续？`,
+    '套用校规预设',
+    { type: 'warning', confirmButtonText: '套用', cancelButtonText: '取消' }
+  ).then(() => {
+    Object.assign(page, JSON.parse(JSON.stringify(p.page)))
+    Object.assign(rules, JSON.parse(JSON.stringify(p.rules)))
+    Object.assign(headingPatterns, JSON.parse(JSON.stringify(p.headingPatterns)))
+    Object.assign(refConfig, JSON.parse(JSON.stringify(p.refConfig)))
+    Object.assign(tocConfig, JSON.parse(JSON.stringify(p.tocConfig)))
+    ElMessage.success('已套用预设：' + p.label)
+  }).catch(() => {})
+}
+
+// ===== 防呆: 标题正则合法性实时校验 + 常用模式插入 =====
+const regexValid = computed(() => {
+  const test = p => {
+    try {
+      if (!p || !p.trim()) return false
+      // eslint-disable-next-line no-new
+      new RegExp(p)
+      return true
+    } catch (e) {
+      return false
+    }
+  }
+  return {
+    heading1: test(headingPatterns.heading1),
+    heading2: test(headingPatterns.heading2),
+    heading3: test(headingPatterns.heading3)
+  }
+})
+
+const commonPatterns = {
+  heading1: ['^第[一二三四五六七八九十百]+章', '^第\\d+章', '^\\d+\\s*\\S+', '^[一二三四五六七八九十]+、'],
+  heading2: ['^\\d+\\.\\d+', '^[（(][一二三四五六七八九十]+[）)]', '^\\d+\\.\\d+\\s*\\S+'],
+  heading3: ['^\\d+\\.\\d+\\.\\d+', '^[（(]\\d+[）)]']
+}
+
+function insertPattern(key, pattern) {
+  headingPatterns[key] = pattern
 }
 
 // ===== 快速试排: 上传文档截取前几段, 用真实排版引擎同步出结果 =====
@@ -768,6 +932,11 @@ watch(() => route.params.id, () => {
 
 async function saveAll() {
   const currentId = Number(route.params.id)
+  // 防呆: 标题正则非法时直接拦截, 不等排版失败
+  if (!regexValid.value.heading1 || !regexValid.value.heading2 || !regexValid.value.heading3) {
+    ElMessage.error('标题识别规则不是合法的正则表达式（已红框标注），请修正后再保存')
+    return false
+  }
   saving.value = true
   try {
     await saveAllConfig(currentId, {
@@ -895,6 +1064,67 @@ async function goFormat() {
   margin-left: 8px;
 }
 /* 快速试排 */
+/* 校规一键预设 */
+.school-presets {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 8px 0 4px;
+}
+.preset-card {
+  width: 240px;
+  padding: 12px 14px;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.preset-card:hover {
+  border-color: #409eff;
+  box-shadow: 0 2px 10px rgba(64, 158, 255, 0.15);
+}
+.preset-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 4px;
+}
+.preset-desc {
+  font-size: 12px;
+  color: #909399;
+  line-height: 1.6;
+}
+/* 正则防呆 */
+.regex-invalid .el-input__inner {
+  color: #f56c6c;
+}
+.regex-invalid .el-input__wrapper {
+  box-shadow: 0 0 0 1px #f56c6c inset;
+}
+.regex-error {
+  color: #f56c6c;
+  font-size: 12px;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+.pattern-more {
+  font-size: 12px;
+  color: #909399;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+}
+.q-mark {
+  color: #c0c4cc;
+  font-size: 13px;
+  vertical-align: -2px;
+  cursor: help;
+}
+.q-mark:hover {
+  color: #409eff;
+}
 .quick-card {
   margin: 12px 0 4px;
   padding: 18px 18px 14px;

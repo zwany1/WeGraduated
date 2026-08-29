@@ -49,14 +49,18 @@
             <el-radio-button label="SUCCESS">已完成</el-radio-button>
             <el-radio-button label="FAILED">失败</el-radio-button>
           </el-radio-group>
+          <el-checkbox v-model="groupByPaper" size="small" style="margin-left: 8px">按论文分组(版本历史)</el-checkbox>
           <el-input v-model="taskKeyword" placeholder="搜索论文文件名" clearable :prefix-icon="Search" style="width: 220px" />
           <span class="task-count">{{ filteredTasks.length }} / {{ tasks.length }}</span>
         </div>
-        <el-table :data="pagedTasks" empty-text="暂无任务" @selection-change="handleSelectionChange">
+        <el-table :data="pagedTasks" empty-text="暂无任务" :span-method="taskSpan" @selection-change="handleSelectionChange">
           <el-table-column type="selection" width="44" />
           <el-table-column prop="id" label="ID" width="60" />
           <el-table-column label="论文" min-width="140">
-            <template #default="{ row }">{{ fileName(row) }}</template>
+            <template #default="{ row }">
+              {{ fileName(row) }}
+              <div v-if="groupByPaper" class="version-sub">{{ paperVersionLabel(row) }}</div>
+            </template>
           </el-table-column>
           <el-table-column label="格式方案" min-width="140">
             <template #default="{ row }">{{ templateName(row) }}</template>
@@ -97,6 +101,7 @@
                 <el-button v-if="row.status === 'SUCCESS'" size="small" type="success" @click="compare(row)">对比</el-button>
                 <el-button v-if="row.status === 'SUCCESS'" size="small" type="warning" plain @click="openReport(row)">报告</el-button>
                 <el-button v-if="row.status === 'SUCCESS'" size="small" type="primary" @click="download(row)">下载</el-button>
+                <el-button v-if="row.status === 'SUCCESS'" size="small" plain @click="reformatSame(row)" title="用同一篇论文和同一模板再排一次">再排一次</el-button>
                 <el-button v-if="row.status === 'FAILED'" size="small" @click="retry(row)">重试</el-button>
                 <el-button v-if="row.status === 'SUCCESS' || row.status === 'FAILED'" size="small" plain @click="openRerun(row)">换模板</el-button>
                 <el-button size="small" type="danger" plain @click="removeTask(row)">删除</el-button>
@@ -253,9 +258,23 @@
                 </template>
               </el-table-column>
             </el-table>
-            <div style="text-align: right; margin-top: 12px">
-              <el-button type="primary" :loading="refineLoading" @click="applyOverrides">按以上设置重新排版(生成新任务)</el-button>
-            </div>
+          <el-collapse v-if="reportData.usedConfig" style="margin-top: 10px">
+            <el-collapse-item title="本次排版使用的格式参数(快照)">
+              <div class="snapshot-block">
+                <div class="snapshot-row"><span class="snapshot-key">标题正则</span>
+                  <span>{{ reportData.usedConfig.heading1Pattern }} / {{ reportData.usedConfig.heading2Pattern }} / {{ reportData.usedConfig.heading3Pattern }}</span>
+                </div>
+                <div v-for="(r, type) in reportData.usedConfig.rules" :key="type" class="snapshot-row">
+                  <span class="snapshot-key">{{ ruleTypeName(type) }}</span>
+                  <span>{{ r.font || '—' }} {{ r.fontSize ? r.fontSize + 'pt' : '' }}{{ r.bold ? ' 加粗' : '' }}{{ r.align ? ' · ' + r.align : '' }}</span>
+                </div>
+              </div>
+            </el-collapse-item>
+          </el-collapse>
+          <div style="text-align: right; margin-top: 12px; display: flex; justify-content: flex-end; gap: 8px">
+            <el-button @click="exportReport">导出检查报告(.txt)</el-button>
+            <el-button v-if="reportData.suspects && reportData.suspects.length" type="primary" :loading="refineLoading" @click="applyOverrides">按以上设置重新排版(生成新任务)</el-button>
+          </div>
           </template>
           <el-empty v-else-if="!reportLoading" description="未发现疑似标题问题，结构识别良好" :image-size="60" />
         </template>
@@ -300,6 +319,7 @@ const tasks = ref([])
 const files = ref([])
 const statusFilter = ref('')
 const taskKeyword = ref('')
+const groupByPaper = ref(false)
 const taskPage = ref(1)
 const taskPageSize = 10
 const filteredTasks = computed(() => {
@@ -315,9 +335,26 @@ const filteredTasks = computed(() => {
   })
 })
 const pagedTasks = computed(() => {
+  // 按论文分组查看: 同一篇论文的多次排版(版本历史)聚在一起, 新版本在上
+  let list = filteredTasks.value
+  if (groupByPaper.value) {
+    list = [...list].sort((a, b) => (a.fileId - b.fileId) || ((b.createTime || '').localeCompare(a.createTime || '')))
+  }
   const start = (taskPage.value - 1) * taskPageSize
-  return filteredTasks.value.slice(start, start + taskPageSize)
+  return list.slice(start, start + taskPageSize)
 })
+
+// 按论文分组时合并"论文"列单元格
+function taskSpan({ row, rowIndex, column }) {
+  if (!groupByPaper.value || column.label !== '论文') return
+  const list = pagedTasks.value
+  if (rowIndex > 0 && list[rowIndex - 1].fileId === row.fileId) {
+    return { rowspan: 0, colspan: 0 }
+  }
+  let span = 1
+  for (let i = rowIndex + 1; i < list.length && list[i].fileId === row.fileId; i++) span++
+  return { rowspan: span, colspan: 1 }
+}
 watch([statusFilter, taskKeyword], () => { taskPage.value = 1 })
 const previewVisible = ref(false)
 const previewData = ref([])
@@ -683,6 +720,58 @@ function levelName(lv) {
   return lv === 1 ? '一级' : lv === 2 ? '二级' : lv === 3 ? '三级' : (lv || '?') + ' 级'
 }
 
+function ruleTypeName(type) {
+  const names = { heading1: '一级标题', heading2: '二级标题', heading3: '三级标题', body: '正文', figure: '图题注', table: '表题注', tableText: '表格文字' }
+  return names[type] || type
+}
+
+/** 导出格式检查报告(.txt): 结构概况 + 疑似标题 + 排版参数快照 */
+function exportReport() {
+  const r = reportData.value
+  if (!r) return
+  const task = tasks.value.find(t => t.id === reportTaskId.value)
+  const lines = []
+  lines.push('==== 排版检查报告 ====')
+  lines.push('论文: ' + (task ? (fileName(task) || '') : ''))
+  lines.push('格式方案: ' + (task ? templateName(task) : ''))
+  lines.push('生成时间: ' + new Date().toLocaleString())
+  lines.push('')
+  lines.push('一、结构概况')
+  lines.push(`  章: ${r.chapterCount}    二三级标题: ${r.sectionCount}    图: ${r.figureCount}    表: ${r.tableCount}`)
+  lines.push(`  参考文献条目: ${r.referenceCount}    正文段落: ${r.bodyParagraphs}`)
+  if (r.autoFixedHeadings) {
+    lines.push(`  已按无编号标题启发式自动识别 ${r.autoFixedHeadings} 处下级标题`)
+  }
+  lines.push('')
+  if (r.suspects && r.suspects.length) {
+    lines.push(`二、疑似未匹配标题(${r.suspects.length} 处, 已按正文排版, 建议核对)`)
+    r.suspects.forEach((s, i) => {
+      lines.push(`  ${i + 1}. [建议${levelName(s.guessedLevel)}] ${s.text}`)
+    })
+    lines.push('  处理方式: 在本报告中为这些行指定标题级别后点「重新排版」; 或在模板配置页调整标题正则。')
+  } else {
+    lines.push('二、疑似未匹配标题: 未发现')
+  }
+  if (r.usedConfig) {
+    lines.push('')
+    lines.push('三、本次排版使用的格式参数')
+    lines.push(`  标题正则: ${r.usedConfig.heading1Pattern} / ${r.usedConfig.heading2Pattern} / ${r.usedConfig.heading3Pattern}`)
+    if (r.usedConfig.rules) {
+      Object.keys(r.usedConfig.rules).forEach(type => {
+        const rr = r.usedConfig.rules[type]
+        lines.push(`  ${ruleTypeName(type)}: ${rr.font || '—'} ${rr.fontSize ? rr.fontSize + 'pt' : ''}${rr.bold ? ' 加粗' : ''}${rr.align ? ' ' + rr.align : ''}`)
+      })
+    }
+  }
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = '排版检查报告.txt'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 async function openReport(row) {
   reportVisible.value = true
   reportLoading.value = true
@@ -858,6 +947,29 @@ function fileName(row) {
 function templateName(row) {
   const t = templates.value.find(x => x.id === row.templateId)
   return t ? t.name : `#${row.templateId}`
+}
+
+// ===== 版本历史: 按论文分组的版本序号标注 =====
+function paperVersionLabel(row) {
+  const siblings = tasks.value.filter(t => t.fileId === row.fileId).sort((a, b) => (a.createTime || '').localeCompare(b.createTime || ''))
+  const n = siblings.findIndex(t => t.id === row.id) + 1
+  return `第 ${n} 次排版 · ${templateName(row)}`
+}
+
+/** 用同一篇论文 + 同一模板再排一次 */
+async function reformatSame(row) {
+  try {
+    await ElMessageBox.confirm('将用同一篇论文和同一模板再排一次，生成新任务（原任务保留）。', '再排一次', { type: 'info', confirmButtonText: '开始排版', cancelButtonText: '取消' })
+  } catch (e) {
+    return
+  }
+  try {
+    await startFormat(row.fileId, row.templateId)
+    ElMessage.success('已创建新任务')
+    loadTasks()
+  } catch (e) {
+    // 具体原因由 api 拦截器提示
+  }
 }
 
 function formatTime(t) {
@@ -1222,5 +1334,24 @@ function formatTime(t) {
   font-size: 13px;
   color: #606266;
   line-height: 1.9;
+}
+/* 版本历史: 按论文分组的版本标注 */
+.version-sub {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 2px;
+}
+/* 报告: 排版参数快照 */
+.snapshot-block {
+  font-size: 13px;
+  color: #606266;
+}
+.snapshot-row {
+  line-height: 2;
+}
+.snapshot-key {
+  display: inline-block;
+  width: 80px;
+  color: #909399;
 }
 </style>

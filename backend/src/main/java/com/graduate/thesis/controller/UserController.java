@@ -70,6 +70,13 @@ public class UserController {
     /** 发送邮箱验证码 */
     @PostMapping("/send-email-code")
     public Result<Void> sendEmailCode(@Valid @RequestBody SendEmailCodeDTO dto) {
+        // 场景校验: 提前拦截"邮箱与账号不匹配", 避免验证码发出后重置/注册才失败
+        if ("reset".equals(dto.getScene()) && !userService.existsByEmail(dto.getEmail())) {
+            throw new com.graduate.thesis.common.BusinessException("该邮箱未绑定任何账号，请确认注册时使用的邮箱；未绑定邮箱的账号无法通过邮箱重置密码");
+        }
+        if ("register".equals(dto.getScene()) && userService.existsByEmail(dto.getEmail())) {
+            throw new com.graduate.thesis.common.BusinessException("该邮箱已被注册，请直接登录或更换邮箱");
+        }
         emailCodeService.sendCode(dto.getEmail());
         return Result.ok(null);
     }

@@ -191,7 +191,7 @@ async function sendCode() {
   if (!emailRe.test(form.email.trim())) { ElMessage.warning('邮箱格式不正确'); return }
   sending.value = true
   try {
-    await sendEmailCode({ email: form.email.trim() })
+    await sendEmailCode({ email: form.email.trim(), scene: 'reset' })
     ElMessage.success('验证码已发送，请查收邮箱')
     startCountdown()
   } catch (e) {

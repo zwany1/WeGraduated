@@ -244,7 +244,8 @@ async function sendCode() {
   sending.value = true
   try {
     await sendEmailCode({
-      email: form.email.trim()
+      email: form.email.trim(),
+      scene: 'register'
     })
     ElMessage.success('验证码已发送，请查收邮箱')
     startCountdown()

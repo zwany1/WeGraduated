@@ -97,12 +97,22 @@ public class UserService {
         this.sessionService = sessionService;
     }
 
+    /** 邮箱是否已绑定账号(发码场景校验用) */
+    public boolean existsByEmail(String email) {
+        if (email == null || email.trim().isEmpty()) {
+            return false;
+        }
+        Long c = userMapper.selectCount(new LambdaQueryWrapper<User>()
+                .eq(User::getEmail, email.trim().toLowerCase()));
+        return c != null && c > 0;
+    }
+
     public LoginResponse resetPassword(ResetPasswordDTO dto) {
         String email = dto.getEmail().trim().toLowerCase();
         User user = userMapper.selectOne(new LambdaQueryWrapper<User>()
                 .eq(User::getEmail, email));
         if (user == null) {
-            throw new BusinessException("重置失败，请检查邮箱与验证码");
+            throw new BusinessException("该邮箱未绑定任何账号，无法通过邮箱重置密码；请确认邮箱，或联系管理员处理");
         }
         emailCodeService.verify(email, dto.getEmailCode());
         checkPasswordStrength(dto.getNewPassword());

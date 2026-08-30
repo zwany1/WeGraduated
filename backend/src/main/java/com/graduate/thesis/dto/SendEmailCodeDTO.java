@@ -16,4 +16,7 @@ public class SendEmailCodeDTO {
     @Email(message = "邮箱格式不正确")
     @Size(max = 128, message = "邮箱长度过长")
     private String email;
+
+    /** 场景: register=注册(要求邮箱未被占用), reset=重置密码(要求邮箱已绑定账号); 缺省不校验 */
+    private String scene;
 }

@@ -92,7 +92,7 @@
               <div v-if="row.stageText && (row.status === 'PROCESSING' || row.status === 'PENDING')" class="stage-text">{{ row.stageText }}</div>
             </template>
           </el-table-column>
-          <el-table-column label="失败原因" min-width="200">
+          <el-table-column label="失败原因" min-width="100">
             <template #default="{ row }">
               <el-button v-if="row.status === 'FAILED' && row.errorMsg" text type="danger" size="small" @click="showError(row)">
                 查看原因
@@ -101,7 +101,7 @@
               <span v-else style="color:#c0c4cc">—</span>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="420" fixed="right">
+          <el-table-column label="操作" width="490" fixed="right">
             <template #default="{ row }">
               <div class="op-row">
                 <el-button v-if="row.status === 'SUCCESS'" size="small" @click="preview(row)">预览</el-button>

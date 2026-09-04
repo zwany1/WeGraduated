@@ -644,7 +644,7 @@ const tools = [
   },
   {
     name: '自由绘画',
-    desc: '自由画板 · UML 设计<br/>拖拽节点、连线、导出 PNG。',
+    desc: 'drawio 画板 · 全形状图形设计<br/>拖拽绘制、连线、导出 PNG / Mermaid。',
     color: 'orange',
     route: '/free-draw',
     icon: '<path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5z"/><path d="M15 5l4 4"/>'

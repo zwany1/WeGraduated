@@ -1,5 +1,7 @@
 // 图表 → Mermaid 文本生成器
-// 支持: 架构图/流程图(DSL)/泳道图/活动图/用例图/时序图/类图/ER图/自由绘画
+// 支持: 架构图/流程图(DSL)/泳道图/活动图/用例图/时序图/类图/ER图/自由绘画(drawio XML)
+
+import { drawioXmlToGraph } from './drawioConvert'
 
 const esc = s => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -234,26 +236,21 @@ export function flowToMermaid(dsl) {
   return out.join('\n')
 }
 
-// ===== 自由绘画 → flowchart(节点+连线) =====
-export function freeDrawToMermaid(cells) {
+// ===== 自由绘画 drawio XML → flowchart(节点+连线) =====
+export function drawioToMermaid(xml) {
+  const { nodes, edges } = drawioXmlToGraph(xml)
   const lines = ['flowchart LR']
-  const nodes = (cells || []).filter(c => c.shape && !c.shape.startsWith('edge') && !c.isEdge)
-  const edges = (cells || []).filter(c => c.shape && (c.shape.startsWith('edge') || c.isEdge))
   const idOf = id => 'N_' + String(id).replace(/[^A-Za-z0-9]/g, '_')
   nodes.forEach(n => {
-    const lbl = (n.attrs && n.attrs.label && n.attrs.label.text) || n.label || n.id
-    const shape = n.shape || 'rect'
-    const box = shape.includes('ellipse') || shape.includes('circle') ? '(([' + esc(lbl) + ']))'
-      : shape.includes('rhombus') || shape.includes('diamond') ? '{' + esc(lbl) + '}'
+    const lbl = n.label || n.id
+    const box = n.shape === 'ellipse' || n.shape === 'actor' ? '(([' + esc(lbl) + ']))'
+      : n.shape === 'diamond' ? '{' + esc(lbl) + '}'
       : '[' + esc(lbl) + ']'
     lines.push(`  ${idOf(n.id)}${box}`)
   })
   edges.forEach(e => {
-    const src = typeof e.source === 'object' ? e.source.cell : e.source
-    const tgt = typeof e.target === 'object' ? e.target.cell : e.target
-    if (!src || !tgt) return
-    const lbl = (e.attrs && e.attrs.label && e.attrs.label.text) || ''
-    lines.push(`  ${idOf(src)} -->${lbl ? '|' + esc(lbl) + '|' : ''} ${idOf(tgt)}`)
+    if (!e.source || !e.target) return
+    lines.push(`  ${idOf(e.source)} -->${e.label ? '|' + esc(e.label) + '|' : ''} ${idOf(e.target)}`)
   })
   return lines.join('\n')
 }
@@ -269,7 +266,7 @@ export function toMermaid(type, data, extra) {
     case 'SEQUENCE': return sequenceToMermaid(data)
     case 'CLASS': return classToMermaid(data)
     case 'ER': return erToMermaid(data, extra)
-    case 'FREEDRAW': return freeDrawToMermaid(data)
+    case 'FREEDRAW': return drawioToMermaid(data)
     case 'VO': return voToMermaid(data)
     default: return 'flowchart TD\n  A(["待支持"])'
   }

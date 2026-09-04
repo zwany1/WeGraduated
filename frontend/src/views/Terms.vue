@@ -89,7 +89,7 @@ const sections = [
 <style scoped>
 .page {
   min-height: 100vh;
-  background: #f5f6fa;
+  background: #F6F4EE;
 }
 .bar {
   display: flex;
@@ -104,7 +104,7 @@ const sections = [
   gap: 8px;
   font-size: 17px;
   font-weight: 700;
-  color: #2c3e50;
+  color: #24312A;
 }
 .content {
   max-width: 760px;
@@ -120,11 +120,11 @@ const sections = [
 .title {
   font-size: 26px;
   font-weight: 700;
-  color: #303133;
+  color: #24312A;
   margin: 0 0 4px;
 }
 .updated {
-  color: #909399;
+  color: #8B968D;
   font-size: 13px;
   margin: 0 0 28px;
 }
@@ -133,11 +133,11 @@ const sections = [
 }
 .section h2 {
   font-size: 17px;
-  color: #303133;
+  color: #24312A;
   margin: 0 0 10px;
 }
 .para {
-  color: #606266;
+  color: #5C6B60;
   font-size: 14px;
   line-height: 1.8;
   margin: 0 0 8px;
@@ -145,18 +145,18 @@ const sections = [
 .list {
   margin: 6px 0 0;
   padding-left: 20px;
-  color: #606266;
+  color: #5C6B60;
   font-size: 14px;
   line-height: 1.8;
 }
 .contact {
   margin-top: 30px;
   padding-top: 20px;
-  border-top: 1px solid #ebeef5;
-  color: #909399;
+  border-top: 1px solid #E3E0D5;
+  color: #8B968D;
   font-size: 14px;
 }
 .contact a {
-  color: #3B6BFF;
+  color: #2F5D46;
 }
 </style>

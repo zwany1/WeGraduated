@@ -172,7 +172,7 @@ const sections = [
   gap: 8px;
   font-size: 17px;
   font-weight: 700;
-  color: #2c3e50;
+  color: #24312A;
 }
 .page-title {
   cursor: pointer;
@@ -180,7 +180,7 @@ const sections = [
   transition: color 0.3s;
 }
 .page-title:hover {
-  color: #3B6BFF;
+  color: #2F5D46;
 }
 .page-title::after {
   content: '';
@@ -190,7 +190,7 @@ const sections = [
   width: 0;
   height: 2px;
   border-radius: 2px;
-  background: #3B6BFF;
+  background: #2F5D46;
   transition: width 0.3s ease;
 }
 .page-title:hover::after {
@@ -592,6 +592,6 @@ const sections = [
   max-width: 600px;
 }
 .contact a {
-  color: #3B6BFF;
+  color: #2F5D46;
 }
 </style>

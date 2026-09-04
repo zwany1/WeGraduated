@@ -77,7 +77,7 @@
       <div class="hero-inner">
         <div class="hero-left">
           <div class="hero-badge">
-            <svg viewBox="0 0 16 16" width="14" height="14" fill="none"><path d="M8 1l1.5 4.5L14 7l-4.5 1.5L8 13l-1.5-4.5L2 7l4.5-1.5z" fill="#3B6BFF"/></svg>
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none"><path d="M8 1l1.5 4.5L14 7l-4.5 1.5L8 13l-1.5-4.5L2 7l4.5-1.5z" fill="#2F5D46"/></svg>
             专为论文排版设计，让复杂排版变得简单
           </div>
           <h1 class="hero-title">
@@ -101,19 +101,19 @@
           </div>
           <div class="hero-features">
             <span class="feat-tag">
-              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#3B6BFF" stroke-width="1.8" stroke-linecap="round"><path d="M5 8l2 2 4-4"/></svg>
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#2F5D46" stroke-width="1.8" stroke-linecap="round"><path d="M5 8l2 2 4-4"/></svg>
               无需安装
             </span>
             <span class="feat-tag">
-              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#3B6BFF" stroke-width="1.8" stroke-linecap="round"><path d="M5 8l2 2 4-4"/></svg>
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#2F5D46" stroke-width="1.8" stroke-linecap="round"><path d="M5 8l2 2 4-4"/></svg>
               在线使用
             </span>
             <span class="feat-tag">
-              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#3B6BFF" stroke-width="1.8" stroke-linecap="round"><path d="M5 8l2 2 4-4"/></svg>
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#2F5D46" stroke-width="1.8" stroke-linecap="round"><path d="M5 8l2 2 4-4"/></svg>
               数据安全
             </span>
             <span class="feat-tag">
-              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#3B6BFF" stroke-width="1.8" stroke-linecap="round"><path d="M5 8l2 2 4-4"/></svg>
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#2F5D46" stroke-width="1.8" stroke-linecap="round"><path d="M5 8l2 2 4-4"/></svg>
               多格式导出
             </span>
           </div>
@@ -129,38 +129,38 @@
                 <span class="dot dot-green"></span>
               </div>
               <div class="mock-titlebar-text">
-                <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#6b7280" stroke-width="1.5"><rect x="3" y="2" width="10" height="12" rx="1"/><path d="M6 6h4M6 9h4"/></svg>
+                <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#5C6B60" stroke-width="1.5"><rect x="3" y="2" width="10" height="12" rx="1"/><path d="M6 6h4M6 9h4"/></svg>
                 我的工作台
               </div>
             </div>
             <div class="mock-body">
               <div class="mock-sidebar">
                 <div class="mock-sidebar-item">
-                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#6b7280" stroke-width="1.5"><rect x="3" y="2" width="10" height="12" rx="1"/><path d="M6 6h4M6 9h2"/></svg>
+                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#5C6B60" stroke-width="1.5"><rect x="3" y="2" width="10" height="12" rx="1"/><path d="M6 6h4M6 9h2"/></svg>
                   文档管理
                 </div>
                 <div class="mock-sidebar-item active">
-                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#3B6BFF" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M5 7h6M5 10h4"/></svg>
+                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#2F5D46" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M5 7h6M5 10h4"/></svg>
                   规则配置
                 </div>
                 <div class="mock-sidebar-item">
-                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#6b7280" stroke-width="1.5"><path d="M3 3h10v2H3zM3 7h10v2H3zM3 11h10v2H3z"/></svg>
+                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#5C6B60" stroke-width="1.5"><path d="M3 3h10v2H3zM3 7h10v2H3zM3 11h10v2H3z"/></svg>
                   排版任务
                 </div>
                 <div class="mock-sidebar-item">
-                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#6b7280" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1"/><path d="M5 7h6M5 10h3"/></svg>
+                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#5C6B60" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1"/><path d="M5 7h6M5 10h3"/></svg>
                   模板库
                 </div>
                 <div class="mock-sidebar-item">
-                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#6b7280" stroke-width="1.5"><circle cx="8" cy="8" r="5"/><path d="M8 5v3l2 2"/></svg>
+                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#5C6B60" stroke-width="1.5"><circle cx="8" cy="8" r="5"/><path d="M8 5v3l2 2"/></svg>
                   图表工具
                 </div>
                 <div class="mock-sidebar-item">
-                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#6b7280" stroke-width="1.5"><circle cx="8" cy="8" r="5"/><path d="M8 5v6M5 8h6"/></svg>
+                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#5C6B60" stroke-width="1.5"><circle cx="8" cy="8" r="5"/><path d="M8 5v6M5 8h6"/></svg>
                   历史记录
                 </div>
                 <div class="mock-sidebar-item">
-                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#6b7280" stroke-width="1.5"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#5C6B60" stroke-width="1.5"><path d="M4 4l8 8M12 4l-8 8"/></svg>
                   回收站
                 </div>
               </div>
@@ -228,7 +228,7 @@
           <p class="feat-subtitle">根据学校或个人要求，自定义排版规范</p>
           <ul class="feat-checks">
             <li v-for="(c, i) in featChecks" :key="i">
-              <svg viewBox="0 0 16 16" width="16" height="16" fill="none"><circle cx="8" cy="8" r="7" fill="#3B6BFF"/><path d="M5 8l2 2 4-4" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="none"><circle cx="8" cy="8" r="7" fill="#2F5D46"/><path d="M5 8l2 2 4-4" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
               {{ c }}
             </li>
           </ul>
@@ -251,13 +251,13 @@
             <div class="feat-example-cols">
               <div class="feat-example-col">
                 <div class="ex-item" v-for="(e, i) in featExamplesLeft" :key="i">
-                  <span class="ex-dot" :style="{background: i===0?'#3B6BFF':i===1?'#10b981':'#f59e0b'}"></span>
+                  <span class="ex-dot" :style="{background: i===0?'#2F5D46':i===1?'#10b981':'#f59e0b'}"></span>
                   {{ e }}
                 </div>
               </div>
               <div class="feat-example-col">
                 <div class="ex-item" v-for="(e, i) in featExamplesRight" :key="i">
-                  <span class="ex-dot" :style="{background: i===0?'#3B6BFF':i===1?'#10b981':'#f59e0b'}"></span>
+                  <span class="ex-dot" :style="{background: i===0?'#2F5D46':i===1?'#10b981':'#f59e0b'}"></span>
                   {{ e }}
                 </div>
               </div>
@@ -280,12 +280,12 @@
         </div>
         <template v-if="false">
           <div class="step-arrow" v-for="n in 2" :key="'a'+n">
-            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#c7d2fe" stroke-width="2" stroke-linecap="round"><path d="M4 12h16M14 6l6 6-6 6"/></svg>
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#C9D8CC" stroke-width="2" stroke-linecap="round"><path d="M4 12h16M14 6l6 6-6 6"/></svg>
           </div>
         </template>
         <div class="step-arrows">
-          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#c7d2fe" stroke-width="2" stroke-linecap="round"><path d="M4 12h16M14 6l6 6-6 6"/></svg>
-          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#c7d2fe" stroke-width="2" stroke-linecap="round"><path d="M4 12h16M14 6l6 6-6 6"/></svg>
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#C9D8CC" stroke-width="2" stroke-linecap="round"><path d="M4 12h16M14 6l6 6-6 6"/></svg>
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#C9D8CC" stroke-width="2" stroke-linecap="round"><path d="M4 12h16M14 6l6 6-6 6"/></svg>
         </div>
       </div>
     </section>
@@ -655,19 +655,19 @@ const tools = [
 <style scoped>
 /* ===== Variables ===== */
 .landing {
-  --c-primary: #3B6BFF;
-  --c-primary-light: #EEF1FF;
-  --c-primary-dark: #2D52CC;
-  --c-dark: #1a1a2e;
-  --c-text: #374151;
-  --c-text2: #6b7280;
-  --c-text3: #9ca3af;
-  --c-border: #e5e7eb;
+  --c-primary: #2F5D46;
+  --c-primary-light: #E8EFE6;
+  --c-primary-dark: #264A38;
+  --c-dark: #1F2E26;
+  --c-text: #33413A;
+  --c-text2: #5C6B60;
+  --c-text3: #8B968D;
+  --c-border: #E3E0D5;
   --c-bg: #ffffff;
-  --c-bg2: #f8f9fc;
-  --c-bg3: #f0f4ff;
+  --c-bg2: #F6F4EE;
+  --c-bg3: #F1EEE5;
   --c-green: #10b981;
-  --c-purple: #7c3aed;
+  --c-purple: #8B6F47;
   --c-orange: #f59e0b;
   --radius: 12px;
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
@@ -694,7 +694,7 @@ const tools = [
 }
 .navbar.scrolled {
   background: rgba(255,255,255,0.96);
-  box-shadow: 0 6px 24px rgba(15, 40, 100, 0.08);
+  box-shadow: 0 6px 24px rgba(31, 46, 38, 0.08);
 }
 .nav-inner {
   max-width: 1200px;
@@ -735,7 +735,7 @@ const tools = [
   font-weight: 600;
   color: var(--c-primary);
   background: var(--c-primary-light);
-  border: 1px solid #c7d2fe;
+  border: 1px solid #C9D8CC;
   border-radius: 4px;
   padding: 1px 6px;
 }
@@ -870,7 +870,7 @@ const tools = [
 }
 .btn-primary:hover {
   background: var(--c-primary-dark);
-  box-shadow: 0 4px 12px rgba(59,107,255,0.35);
+  box-shadow: 0 4px 12px rgba(47,93,70,0.35);
 }
 
 /* ===== Hero ===== */
@@ -882,7 +882,7 @@ const tools = [
 .hero-bg {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, #f0f4ff 0%, #ffffff 100%);
+  background: linear-gradient(180deg, #F1EEE5 0%, #ffffff 100%);
   z-index: 0;
 }
 .hero-blob {
@@ -898,7 +898,7 @@ const tools = [
 .blob-1 {
   width: 500px;
   height: 500px;
-  background: #c7d2fe;
+  background: #C9D8CC;
   top: -150px;
   right: -100px;
   animation: floatBlob 14s ease-in-out infinite;
@@ -906,7 +906,7 @@ const tools = [
 .blob-2 {
   width: 400px;
   height: 400px;
-  background: #e0e7ff;
+  background: #DDE7DC;
   bottom: -100px;
   left: -100px;
   animation: floatBlob 18s ease-in-out infinite reverse;
@@ -941,7 +941,7 @@ const tools = [
 }
 .btn-cta-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 24px rgba(59, 107, 255, 0.35);
+  box-shadow: 0 10px 24px rgba(47, 93, 70, 0.35);
 }
 .hero-inner {
   position: relative;
@@ -964,7 +964,7 @@ const tools = [
   font-weight: 500;
   color: var(--c-primary);
   background: var(--c-primary-light);
-  border: 1px solid #c7d2fe;
+  border: 1px solid #C9D8CC;
   border-radius: 20px;
   padding: 6px 16px;
   margin-bottom: 24px;
@@ -988,7 +988,7 @@ const tools = [
   left: 0;
   right: 0;
   height: 8px;
-  background: rgba(59,107,255,0.12);
+  background: rgba(47,93,70,0.12);
   border-radius: 4px;
   z-index: -1;
 }
@@ -1017,11 +1017,11 @@ const tools = [
   font-weight: 600;
   cursor: pointer;
   transition: all 0.25s;
-  box-shadow: 0 4px 16px rgba(59,107,255,0.3);
+  box-shadow: 0 4px 16px rgba(47,93,70,0.3);
 }
 .btn-cta-primary:hover {
   background: var(--c-primary-dark);
-  box-shadow: 0 6px 24px rgba(59,107,255,0.4);
+  box-shadow: 0 6px 24px rgba(47,93,70,0.4);
   transform: translateY(-1px);
 }
 .btn-cta-ghost {
@@ -1071,7 +1071,7 @@ const tools = [
   align-items: center;
   gap: 12px;
   padding: 14px 20px;
-  background: #fafbfc;
+  background: #F6F4EE;
   border-bottom: 1px solid var(--c-border);
 }
 .mock-dots {
@@ -1171,8 +1171,8 @@ const tools = [
   gap: 10px;
   padding: 8px 10px;
   border-radius: 8px;
-  background: #fafbfc;
-  border: 1px solid #f0f0f0;
+  background: #F6F4EE;
+  border: 1px solid #EFEDE4;
 }
 .mock-rule-icon {
   width: 28px;
@@ -1183,7 +1183,7 @@ const tools = [
   justify-content: center;
   flex-shrink: 0;
 }
-.mock-rule-icon.blue { background: #EEF1FF; color: var(--c-primary); }
+.mock-rule-icon.blue { background: #E8EFE6; color: var(--c-primary); }
 .mock-rule-icon.green { background: #ecfdf5; color: var(--c-green); }
 .mock-rule-icon.purple { background: #f5f3ff; color: var(--c-purple); }
 .mock-rule-info {
@@ -1216,7 +1216,7 @@ const tools = [
   border: 1px solid var(--c-border);
   border-radius: 8px;
   padding: 12px;
-  background: #fafbfc;
+  background: #F6F4EE;
 }
 .mock-preview-title {
   font-size: 11px;
@@ -1251,7 +1251,7 @@ const tools = [
 }
 .mp-line {
   height: 4px;
-  background: #e5e7eb;
+  background: #E3E0D5;
   border-radius: 2px;
 }
 .mp-line:nth-child(1) { width: 100%; }
@@ -1504,7 +1504,7 @@ const tools = [
 .tool-card:hover {
   box-shadow: var(--shadow-md);
   transform: translateY(-2px);
-  border-color: #c7d2fe;
+  border-color: #C9D8CC;
 }
 .tool-icon {
   width: 48px;
@@ -1571,7 +1571,7 @@ const tools = [
   gap: 24px;
 }
 .footer-links a {
-  color: #9ca3af;
+  color: #8B968D;
   text-decoration: none;
   font-size: 13px;
   cursor: pointer;
@@ -1581,7 +1581,7 @@ const tools = [
   color: #fff;
 }
 .footer-copy {
-  color: #6b7280;
+  color: #5C6B60;
   font-size: 12px;
 }
 
@@ -1599,8 +1599,8 @@ const tools = [
 
 /* ========== 公告栏 ========== */
 .notice-bar {
-  background: linear-gradient(90deg, #EEF1FF, #F5F0FF);
-  border-bottom: 1px solid #e5e7eb;
+  background: linear-gradient(90deg, #E8EFE6, #F3F0E6);
+  border-bottom: 1px solid #E3E0D5;
 }
 .notice-inner {
   max-width: 1200px;
@@ -1633,28 +1633,28 @@ const tools = [
 }
 .notice-detail-time {
   font-size: 12px;
-  color: #909399;
+  color: #8B968D;
 }
 .notice-detail-content {
   font-size: 14px;
   line-height: 1.8;
-  color: #303133;
+  color: #24312A;
   white-space: pre-wrap;
   word-break: break-word;
 }
 .notice-type {
   font-size: 10px;
   font-weight: 600;
-  color: #3B6BFF;
-  background: rgba(59, 107, 255, 0.1);
-  border: 1px solid rgba(59, 107, 255, 0.3);
+  color: #2F5D46;
+  background: rgba(47, 93, 70, 0.1);
+  border: 1px solid rgba(47, 93, 70, 0.3);
   padding: 1px 7px;
   border-radius: 999px;
   flex-shrink: 0;
 }
 .notice-text {
   font-size: 13px;
-  color: #374151;
+  color: #33413A;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -1688,7 +1688,7 @@ const tools = [
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, #3B6BFF, #7c3aed);
+  background: linear-gradient(90deg, #2F5D46, #8B6F47);
   opacity: 0;
   transition: opacity 0.3s;
 }
@@ -1696,9 +1696,9 @@ const tools = [
   opacity: 1;
 }
 .tool-card:hover {
-  box-shadow: 0 16px 40px rgba(15, 40, 100, 0.12);
+  box-shadow: 0 16px 40px rgba(31, 46, 38, 0.12);
   transform: translateY(-6px);
-  border-color: #c7d2fe;
+  border-color: #C9D8CC;
 }
 .tool-card .tool-icon {
   transition: transform 0.3s ease;
@@ -1716,7 +1716,7 @@ const tools = [
   border-radius: 50%;
   pointer-events: none;
   z-index: 3;
-  background: radial-gradient(circle, rgba(59, 107, 255, 0.10) 0%, rgba(124, 58, 237, 0.06) 40%, transparent 70%);
+  background: radial-gradient(circle, rgba(47, 93, 70, 0.10) 0%, rgba(139, 111, 71, 0.06) 40%, transparent 70%);
   transform: translate(-100px, -100px);
   transition: left 0.12s ease-out, top 0.12s ease-out;
   opacity: 0;
@@ -1732,7 +1732,7 @@ const tools = [
   left: 0;
   height: 3px;
   width: 0;
-  background: linear-gradient(90deg, #3B6BFF, #7c3aed);
+  background: linear-gradient(90deg, #2F5D46, #8B6F47);
   z-index: 200;
   transition: width 0.1s linear;
 }
@@ -1747,18 +1747,18 @@ const tools = [
   border-radius: 50%;
   border: 1px solid var(--c-border);
   background: rgba(255, 255, 255, 0.9);
-  color: #3B6BFF;
+  color: #2F5D46;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 6px 20px rgba(15, 40, 100, 0.15);
+  box-shadow: 0 6px 20px rgba(31, 46, 38, 0.15);
   transition: transform 0.25s ease, box-shadow 0.25s ease, opacity 0.25s;
   z-index: 150;
 }
 .back-top:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 28px rgba(59, 107, 255, 0.3);
+  box-shadow: 0 12px 28px rgba(47, 93, 70, 0.3);
 }
 
 /* ===== 按钮波纹 ===== */
@@ -1794,7 +1794,7 @@ const tools = [
   bottom: 0;
   height: 3px;
   border-radius: 3px;
-  background: linear-gradient(90deg, #3B6BFF, #7c3aed);
+  background: linear-gradient(90deg, #2F5D46, #8B6F47);
   width: 0;
   transition: width 0.7s ease;
 }

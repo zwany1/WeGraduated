@@ -33,7 +33,7 @@ function go(path) {
 
 <style scoped>
 .site-footer {
-  border-top: 1px solid var(--c-border, #e5e7eb);
+  border-top: 1px solid var(--c-border, #E3E0D5);
   background: #fff;
 }
 .footer-inner {
@@ -49,7 +49,7 @@ function go(path) {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--c-dark, #1a1a2e);
+  color: var(--c-dark, #1F2E26);
   font-weight: 700;
   font-size: 15px;
 }
@@ -57,7 +57,7 @@ function go(path) {
   width: 28px;
   height: 28px;
   border-radius: 7px;
-  background: linear-gradient(135deg, #3B6BFF, #7c3aed);
+  background: linear-gradient(135deg, #2F5D46, #8B6F47);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -67,16 +67,16 @@ function go(path) {
   gap: 24px;
 }
 .footer-links a {
-  color: var(--c-text2, #6b7280);
+  color: var(--c-text2, #5C6B60);
   font-size: 14px;
   cursor: pointer;
   text-decoration: none;
 }
 .footer-links a:hover {
-  color: var(--c-primary, #3B6BFF);
+  color: var(--c-primary, #2F5D46);
 }
 .footer-copy {
-  color: var(--c-text3, #9ca3af);
+  color: var(--c-text3, #8B968D);
   font-size: 13px;
 }
 </style>

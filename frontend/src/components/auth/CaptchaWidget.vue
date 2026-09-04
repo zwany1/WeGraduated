@@ -157,7 +157,7 @@ function drawClickMarks() {
     ctx.fill()
     ctx.beginPath()
     ctx.arc(p[0], p[1], 12, 0, Math.PI * 2)
-    ctx.fillStyle = '#409eff'
+    ctx.fillStyle = '#2F5D46'
     ctx.fill()
     ctx.strokeStyle = '#fff'
     ctx.lineWidth = 2
@@ -331,15 +331,15 @@ onBeforeUnmount(() => {
   font-weight: 600;
   letter-spacing: 0.3px;
   color: #fff;
-  background: #909399;
+  background: #8B968D;
 }
-.badge-click { background: #409eff; }
+.badge-click { background: #2F5D46; }
 .badge-reorder { background: #722ed1; }
 .badge-rotate { background: #e6a23c; }
 .captcha-tip {
   flex: 1;
   font-size: 13px;
-  color: #606266;
+  color: #5C6B60;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -351,18 +351,18 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 4px;
   padding: 3px 9px;
-  background: #f5f7fa;
-  border: 1px solid #dcdfe6;
+  background: #F6F4EE;
+  border: 1px solid #E3E0D5;
   border-radius: 6px;
-  color: #606266;
+  color: #5C6B60;
   font-size: 12px;
   cursor: pointer;
   transition: color 0.2s, border-color 0.2s, background 0.2s;
 }
 .refresh-btn:hover {
-  color: #409eff;
-  border-color: #409eff;
-  background: #ecf5ff;
+  color: #2F5D46;
+  border-color: #2F5D46;
+  background: #EAEFED;
 }
 .refresh-btn svg {
   transition: transform 0.4s ease;
@@ -378,14 +378,14 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px dashed #dcdfe6;
+  border: 1px dashed #E3E0D5;
   border-radius: 8px;
-  color: #909399;
+  color: #8B968D;
   font-size: 13px;
   cursor: pointer;
 }
 .captcha-skeleton {
-  background: linear-gradient(90deg, #f5f7fa 25%, #ecf5ff 37%, #f5f7fa 63%);
+  background: linear-gradient(90deg, #F6F4EE 25%, #EAEFED 37%, #F6F4EE 63%);
   background-size: 400% 100%;
   animation: captcha-skeleton 1.4s ease infinite;
 }
@@ -409,10 +409,10 @@ onBeforeUnmount(() => {
 /* 画布容器: 圆角 + 阴影 + 完成态发光 */
 .captcha-canvas-wrap {
   position: relative;
-  border: 1px solid #dcdfe6;
+  border: 1px solid #E3E0D5;
   border-radius: 8px;
   overflow: hidden;
-  background: #f5f7fa;
+  background: #F6F4EE;
   user-select: none;
   box-shadow: 0 2px 8px rgba(64, 158, 255, 0.06);
   transition: border-color 0.3s, box-shadow 0.3s;
@@ -436,7 +436,7 @@ onBeforeUnmount(() => {
 
 .captcha-meta {
   font-size: 12px;
-  color: #909399;
+  color: #8B968D;
   text-align: center;
 }
 .captcha-widget.is-done .captcha-meta {

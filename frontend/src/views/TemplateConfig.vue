@@ -210,7 +210,7 @@
             </el-form-item>
             <el-form-item v-else label="固定值(磅)">
               <el-input-number v-model="rules.body.lineSpacingExact" :min="0" :max="100" :step="0.5" />
-              <span style="margin-left:8px;color:#909399">磅</span>
+              <span style="margin-left:8px;color:#8B968D">磅</span>
             </el-form-item>
             <el-form-item>
               <template #label>
@@ -220,7 +220,7 @@
                   </el-tooltip>
                 </span>
               </template>
-              <el-input-number v-model="rules.body.firstLineIndent" :min="0" :max="8" /><span style="margin-left:8px;color:#909399">字符</span>
+              <el-input-number v-model="rules.body.firstLineIndent" :min="0" :max="8" /><span style="margin-left:8px;color:#8B968D">字符</span>
             </el-form-item>
             <el-form-item label="段后空行">
               <el-select v-model="rules.body.spaceAfter">
@@ -415,7 +415,7 @@
             </el-form-item>
           </el-form>
           <template v-for="lv in tocLevels" :key="lv.key">
-            <h4 style="margin: 16px 0 8px; font-size: 15px; color: #303133;">{{ lv.label }}</h4>
+            <h4 style="margin: 16px 0 8px; font-size: 15px; color: #24312A;">{{ lv.label }}</h4>
             <el-form label-width="130px" style="max-width: 620px">
               <el-form-item label="中文字体">
                 <el-select v-model="tocConfig[lv.key].font" style="max-width: 220px">
@@ -1003,7 +1003,7 @@ async function goFormat() {
   gap: 8px;
   font-size: 17px;
   font-weight: 700;
-  color: #2c3e50;
+  color: #24312A;
 }
 .brand-actions {
   display: flex;
@@ -1026,17 +1026,17 @@ async function goFormat() {
 .menu-item {
   padding: 14px 24px;
   cursor: pointer;
-  color: #606266;
+  color: #5C6B60;
   border-left: 3px solid transparent;
 }
 .menu-item:hover {
-  color: #409eff;
-  background: #f5f7fa;
+  color: #2F5D46;
+  background: #F6F4EE;
 }
 .menu-item.active {
-  color: #409eff;
-  background: #ecf5ff;
-  border-left-color: #409eff;
+  color: #2F5D46;
+  background: #EAEFED;
+  border-left-color: #2F5D46;
   font-weight: 600;
 }
 .panel {
@@ -1047,10 +1047,10 @@ async function goFormat() {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 .panel h3 {
-  color: #303133;
+  color: #24312A;
   margin: 18px 0 12px;
   padding-bottom: 8px;
-  border-bottom: 1px solid #ebeef5;
+  border-bottom: 1px solid #E3E0D5;
 }
 .panel h3:first-child {
   margin-top: 0;
@@ -1062,13 +1062,13 @@ async function goFormat() {
   margin: 10px 0 16px;
 }
 .tip {
-  color: #909399;
+  color: #8B968D;
   font-size: 12px;
   line-height: 1.6;
   margin-top: 4px;
 }
 .tip-inline {
-  color: #909399;
+  color: #8B968D;
   font-size: 12px;
   margin-left: 8px;
 }
@@ -1083,25 +1083,25 @@ async function goFormat() {
 .preset-card {
   width: 240px;
   padding: 12px 14px;
-  border: 1px solid #e4e7ed;
+  border: 1px solid #E3E0D5;
   border-radius: 8px;
   background: #fff;
   cursor: pointer;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .preset-card:hover {
-  border-color: #409eff;
+  border-color: #2F5D46;
   box-shadow: 0 2px 10px rgba(64, 158, 255, 0.15);
 }
 .preset-name {
   font-size: 14px;
   font-weight: 600;
-  color: #303133;
+  color: #24312A;
   margin-bottom: 4px;
 }
 .preset-desc {
   font-size: 12px;
-  color: #909399;
+  color: #8B968D;
   line-height: 1.6;
 }
 /* 正则防呆 */
@@ -1119,25 +1119,25 @@ async function goFormat() {
 }
 .pattern-more {
   font-size: 12px;
-  color: #909399;
+  color: #8B968D;
   display: inline-flex;
   align-items: center;
   gap: 2px;
   cursor: pointer;
 }
 .q-mark {
-  color: #c0c4cc;
+  color: #B3BCB2;
   font-size: 13px;
   vertical-align: -2px;
   cursor: help;
 }
 .q-mark:hover {
-  color: #409eff;
+  color: #2F5D46;
 }
 .quick-card {
   margin: 12px 0 4px;
   padding: 18px 18px 14px;
-  border: 1px solid #e4e7ed;
+  border: 1px solid #E3E0D5;
   border-radius: 8px;
   background: #fff;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
@@ -1146,7 +1146,7 @@ async function goFormat() {
   padding: 24px 0 20px;
 }
 .quick-card :deep(.el-upload__tip) {
-  color: #909399;
+  color: #8B968D;
   font-size: 12px;
 }
 .quick-actions {
@@ -1156,7 +1156,7 @@ async function goFormat() {
   gap: 12px;
   margin-top: 14px;
   padding-top: 12px;
-  border-top: 1px dashed #ebeef5;
+  border-top: 1px dashed #E3E0D5;
 }
 .quick-actions-right {
   display: flex;
@@ -1165,25 +1165,25 @@ async function goFormat() {
 }
 .quick-range-label {
   font-size: 12px;
-  color: #909399;
+  color: #8B968D;
 }
 .quick-filename {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   font-size: 13px;
-  color: #303133;
+  color: #24312A;
   max-width: 320px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .quick-filename.placeholder {
-  color: #c0c4cc;
+  color: #B3BCB2;
 }
 .quick-result {
   margin-top: 18px;
-  border: 1px solid #e4e7ed;
+  border: 1px solid #E3E0D5;
   border-radius: 8px;
   background: #fff;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
@@ -1194,15 +1194,15 @@ async function goFormat() {
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  border-bottom: 1px solid #ebeef5;
-  background: #fafbfc;
+  border-bottom: 1px solid #E3E0D5;
+  background: #F6F4EE;
 }
 .quick-result-title {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: #303133;
+  color: #24312A;
   font-weight: 600;
 }
 .dot-ok {
@@ -1229,7 +1229,7 @@ async function goFormat() {
   padding: 11px 22px;
   border: none;
   border-radius: 24px;
-  background: #409eff;
+  background: #2F5D46;
   color: #fff;
   font-size: 14px;
   font-weight: 600;
@@ -1252,8 +1252,8 @@ async function goFormat() {
   bottom: 0;
   width: 480px;
   z-index: 1400;
-  background: #f5f7fa;
-  border-left: 1px solid #d0d7de;
+  background: #F6F4EE;
+  border-left: 1px solid #D6D1C5;
   box-shadow: -4px 0 12px rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
@@ -1261,8 +1261,8 @@ async function goFormat() {
 .live-preview-tip {
   padding: 8px 14px;
   font-size: 12px;
-  color: #909399;
-  border-bottom: 1px solid #ebeef5;
+  color: #8B968D;
+  border-bottom: 1px solid #E3E0D5;
   background: #fff;
 }
 .live-preview-scroll {

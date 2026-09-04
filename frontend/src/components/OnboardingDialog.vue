@@ -79,7 +79,7 @@ function start() {
   height: 28px;
   border-radius: 50%;
   flex-shrink: 0;
-  background: #3B6BFF;
+  background: #2F5D46;
   color: #fff;
   font-weight: 700;
   font-size: 14px;
@@ -89,11 +89,11 @@ function start() {
 }
 .step b {
   font-size: 15px;
-  color: #303133;
+  color: #24312A;
 }
 .step p {
   font-size: 13px;
-  color: #909399;
+  color: #8B968D;
   margin: 4px 0 0;
   line-height: 1.6;
 }

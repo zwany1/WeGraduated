@@ -120,7 +120,7 @@ function handleUserCommand(cmd) {
   z-index: 100;
   background: rgba(255,255,255,0.92);
   backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--c-border, #e5e7eb);
+  border-bottom: 1px solid var(--c-border, #E3E0D5);
 }
 .nav-inner {
   max-width: 1200px;
@@ -141,22 +141,22 @@ function handleUserCommand(cmd) {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: var(--c-primary, #3B6BFF);
+  background: var(--c-primary, #2F5D46);
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #3B6BFF, #7c3aed);
+  background: linear-gradient(135deg, #2F5D46, #8B6F47);
 }
 .brand-text {
   font-size: 17px;
   font-weight: 700;
-  color: var(--c-dark, #1a1a2e);
+  color: var(--c-dark, #1F2E26);
 }
 .ai-badge {
   font-size: 11px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #3B6BFF, #7c3aed);
+  background: linear-gradient(135deg, #2F5D46, #8B6F47);
   color: #fff;
   font-weight: 700;
 }
@@ -166,7 +166,7 @@ function handleUserCommand(cmd) {
 }
 .nav-link {
   font-size: 14px;
-  color: var(--c-text2, #6b7280);
+  color: var(--c-text2, #5C6B60);
   cursor: pointer;
   position: relative;
   padding: 6px 0;
@@ -174,10 +174,10 @@ function handleUserCommand(cmd) {
   text-decoration: none;
 }
 .nav-link:hover {
-  color: var(--c-primary, #3B6BFF);
+  color: var(--c-primary, #2F5D46);
 }
 .nav-link.active {
-  color: var(--c-primary, #3B6BFF);
+  color: var(--c-primary, #2F5D46);
   font-weight: 600;
 }
 .nav-link.active::after {
@@ -188,7 +188,7 @@ function handleUserCommand(cmd) {
   right: 0;
   height: 2px;
   border-radius: 2px;
-  background: var(--c-primary, #3B6BFF);
+  background: var(--c-primary, #2F5D46);
 }
 .nav-actions {
   display: flex;
@@ -196,9 +196,9 @@ function handleUserCommand(cmd) {
   gap: 12px;
 }
 .btn-ghost {
-  border: 1px solid var(--c-border, #e5e7eb);
+  border: 1px solid var(--c-border, #E3E0D5);
   background: #fff;
-  color: var(--c-text, #374151);
+  color: var(--c-text, #33413A);
   padding: 8px 18px;
   border-radius: 8px;
   font-size: 14px;
@@ -206,11 +206,11 @@ function handleUserCommand(cmd) {
   transition: all 0.2s;
 }
 .btn-ghost:hover {
-  border-color: var(--c-primary, #3B6BFF);
-  color: var(--c-primary, #3B6BFF);
+  border-color: var(--c-primary, #2F5D46);
+  color: var(--c-primary, #2F5D46);
 }
 .btn-primary {
-  background: var(--c-primary, #3B6BFF);
+  background: var(--c-primary, #2F5D46);
   color: #fff;
   padding: 8px 18px;
   border-radius: 8px;
@@ -220,7 +220,7 @@ function handleUserCommand(cmd) {
   transition: background 0.2s;
 }
 .btn-primary:hover {
-  background: var(--c-primary-dark, #2D52CC);
+  background: var(--c-primary-dark, #264A38);
 }
 .user-chip {
   display: flex;
@@ -229,14 +229,14 @@ function handleUserCommand(cmd) {
   cursor: pointer;
   padding: 4px 10px;
   border-radius: 999px;
-  background: var(--c-bg2, #f8f9fc);
-  border: 1px solid var(--c-border, #e5e7eb);
+  background: var(--c-bg2, #F6F4EE);
+  border: 1px solid var(--c-border, #E3E0D5);
 }
 .avatar {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #3B6BFF, #7c3aed);
+  background: linear-gradient(135deg, #2F5D46, #8B6F47);
   color: #fff;
   font-size: 13px;
   font-weight: 700;
@@ -252,7 +252,7 @@ function handleUserCommand(cmd) {
 }
 .username {
   font-size: 14px;
-  color: var(--c-text, #374151);
+  color: var(--c-text, #33413A);
   max-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;

@@ -24,7 +24,7 @@
             <p class="card-desc">{{ f.desc }}</p>
             <ul class="card-list">
               <li v-for="(item, j) in f.points" :key="j">
-                <svg viewBox="0 0 16 16" width="14" height="14" fill="none"><circle cx="8" cy="8" r="7" fill="#3B6BFF"/><path d="M5 8l2 2 4-4" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
+                <svg viewBox="0 0 16 16" width="14" height="14" fill="none"><circle cx="8" cy="8" r="7" fill="#2F5D46"/><path d="M5 8l2 2 4-4" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
                 {{ item }}
               </li>
             </ul>
@@ -125,21 +125,21 @@ function goStart(route) {
 
 <style scoped>
 .page {
-  --c-primary: #3B6BFF;
-  --c-primary-dark: #2D52CC;
-  --c-dark: #1a1a2e;
-  --c-text: #374151;
-  --c-text2: #6b7280;
-  --c-text3: #9ca3af;
-  --c-border: #e5e7eb;
-  --c-bg2: #f8f9fc;
+  --c-primary: #2F5D46;
+  --c-primary-dark: #264A38;
+  --c-dark: #1F2E26;
+  --c-text: #33413A;
+  --c-text2: #5C6B60;
+  --c-text3: #8B968D;
+  --c-border: #E3E0D5;
+  --c-bg2: #F6F4EE;
   font-family: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
   color: var(--c-text);
   background: #fff;
   min-height: 100vh;
 }
 .hero {
-  background: linear-gradient(180deg, #f0f4ff 0%, #fff 100%);
+  background: linear-gradient(180deg, #F1EEE5 0%, #fff 100%);
   padding: 72px 32px;
   text-align: center;
 }
@@ -206,9 +206,9 @@ function goStart(route) {
   justify-content: center;
   margin-bottom: 16px;
 }
-.card-icon.blue { background: #EEF1FF; color: #3B6BFF; }
+.card-icon.blue { background: #E8EFE6; color: #2F5D46; }
 .card-icon.green { background: #ECFDF5; color: #10b981; }
-.card-icon.purple { background: #F5F3FF; color: #7c3aed; }
+.card-icon.purple { background: #F5F3FF; color: #8B6F47; }
 .card-icon.orange { background: #FFF7ED; color: #f59e0b; }
 .card-title {
   font-size: 18px;
@@ -263,9 +263,9 @@ function goStart(route) {
   justify-content: center;
   margin-bottom: 12px;
 }
-.tool-icon.blue { background: #EEF1FF; color: #3B6BFF; }
+.tool-icon.blue { background: #E8EFE6; color: #2F5D46; }
 .tool-icon.green { background: #ECFDF5; color: #10b981; }
-.tool-icon.purple { background: #F5F3FF; color: #7c3aed; }
+.tool-icon.purple { background: #F5F3FF; color: #8B6F47; }
 .tool-icon.orange { background: #FFF7ED; color: #f59e0b; }
 .tool-name {
   font-size: 16px;

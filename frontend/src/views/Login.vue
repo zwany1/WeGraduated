@@ -30,18 +30,18 @@
     </div>
 
     <!-- Right Login Section -->
-    <div class="flex items-center justify-center p-8" style="background:#f0f5fa">
+    <div class="flex items-center justify-center p-8" style="background:#F2EFE7">
       <div class="w-full max-w-[420px] bg-white rounded-2xl shadow-[0_10px_40px_rgba(64,158,255,0.12)] p-10">
         <!-- Mobile Logo -->
         <div class="lg:hidden flex items-center justify-center gap-2 text-lg font-semibold mb-8">
-          <span class="inline-flex items-center justify-center size-8 bg-[#409eff] text-white rounded-lg">📄</span>
+          <span class="inline-flex items-center justify-center size-8 bg-[#2F5D46] text-white rounded-lg">📄</span>
           论文格式助手
         </div>
 
         <!-- Header -->
         <div class="text-center mb-12">
-          <h1 class="text-[26px] font-semibold tracking-tight mb-1" style="color:#303133">欢迎回来！</h1>
-          <p class="text-sm mb-4 text-center" style="color:#909399">登录论文格式助手，继续你的论文排版</p>
+          <h1 class="text-[26px] font-semibold tracking-tight mb-1" style="color:#24312A">欢迎回来！</h1>
+          <p class="text-sm mb-4 text-center" style="color:#8B968D">登录论文格式助手，继续你的论文排版</p>
         </div>
 
         <!-- Login Form -->
@@ -74,7 +74,7 @@
               <button
                 type="button"
                 @click="showPassword = !showPassword"
-                class="absolute right-0 top-1/2 -translate-y-1/2 text-[#a0cfff] hover:text-[#409eff] transition-colors"
+                class="absolute right-0 top-1/2 -translate-y-1/2 text-[#97AEA3] hover:text-[#2F5D46] transition-colors"
               >
                 <svg v-if="showPassword" viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><path d="M1 1l22 22" /></svg>
                 <svg v-else viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
@@ -92,13 +92,13 @@
           </div>
 
           <div class="flex items-center justify-between" style="margin: 10px;">
-            <label class="flex items-center gap-2 cursor-pointer select-none text-sm" style="color:#909399" @click="rememberMe = !rememberMe">
-              <span :class="['size-4 rounded border flex items-center justify-center transition-colors', rememberMe ? 'bg-[#409eff] border-[#409eff]' : 'border-[#dcdfe6]']">
+            <label class="flex items-center gap-2 cursor-pointer select-none text-sm" style="color:#8B968D" @click="rememberMe = !rememberMe">
+              <span :class="['size-4 rounded border flex items-center justify-center transition-colors', rememberMe ? 'bg-[#2F5D46] border-[#2F5D46]' : 'border-[#E3E0D5]']">
                 <svg v-if="rememberMe" viewBox="0 0 24 24" class="size-3 text-white" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
               </span>
               记住我 30 天
             </label>
-            <span class="text-sm cursor-pointer hover:underline" style="color:#409eff" @click="goForgot">忘记密码？</span>
+            <span class="text-sm cursor-pointer hover:underline" style="color:#2F5D46" @click="goForgot">忘记密码？</span>
           </div>
 
           <button
@@ -107,7 +107,7 @@
             class="input-button w-full"
           >{{ loading ? '...' : '登录' }}</button>
 
-          <p class="text-center text-sm min-h-5" style="color:#909399">{{ hint }}</p>
+          <p class="text-center text-sm min-h-5" style="color:#8B968D">{{ hint }}</p>
         </form>
 
         <p class="sign-up">
@@ -233,7 +233,7 @@ async function submit() {
   display: flex;
   flex-direction: column;
   padding: 10px 10px 8px;
-  border: 1px solid #dcdfe6;
+  border: 1px solid #E3E0D5;
   border-radius: 6px;
   margin: 10px;
   background: #fff;
@@ -244,7 +244,7 @@ async function submit() {
   text-transform: uppercase;
   font-weight: 600;
   letter-spacing: 0.7px;
-  color: #909399;
+  color: #8B968D;
   transition: color 0.3s;
 }
 .input-block input {
@@ -253,19 +253,19 @@ async function submit() {
   padding: 4px 0 0;
   font-size: 14px;
   width: 100%;
-  color: #303133;
+  color: #24312A;
   background: transparent;
 }
 .input-block input::placeholder {
-  color: #c0c4cc;
+  color: #B3BCB2;
   opacity: 1;
 }
 .input-block:focus-within {
-  border-color: #409eff;
+  border-color: #2F5D46;
   box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.12);
 }
 .input-block:focus-within .input-label {
-  color: #409eff;
+  color: #2F5D46;
 }
 .input-button {
   padding: 0.9em 1.6em;
@@ -298,8 +298,8 @@ async function submit() {
   content: "";
   background: linear-gradient(
     45deg,
-    #FF0000, #002BFF, #FF00C8, #002BFF,
-      #FF0000, #002BFF, #FF00C8, #002BFF
+    #FF0000, #264A38, #FF00C8, #264A38,
+      #FF0000, #264A38, #FF00C8, #264A38
   );
   position: absolute;
   top: -2px;
@@ -341,13 +341,13 @@ async function submit() {
   margin: 56px 0 0;
   font-size: 14px;
   text-align: center;
-  color: #909399;
+  color: #8B968D;
 }
 .sign-up a {
-  color: #409eff;
+  color: #2F5D46;
   font-weight: 600;
 }
 .sign-up a:hover {
-  color: #66b1ff;
+  color: #6D8E7E;
 }
 </style>

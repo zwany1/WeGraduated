@@ -23,9 +23,9 @@
           <el-select v-model="templateId" placeholder="请选择格式方案" style="width: 260px">
             <el-option v-for="t in templates" :key="t.id" :label="t.name" :value="t.id" />
             <template #empty>
-              <div style="padding:10px 12px;font-size:13px;color:#909399;line-height:1.6">
+              <div style="padding:10px 12px;font-size:13px;color:#8B968D;line-height:1.6">
                 <div>还没有格式方案</div>
-                <router-link to="/templates" style="color:#409eff;font-weight:600">去创建一个 →</router-link>
+                <router-link to="/templates" style="color:#2F5D46;font-weight:600">去创建一个 →</router-link>
               </div>
             </template>
           </el-select>
@@ -97,8 +97,8 @@
               <el-button v-if="row.status === 'FAILED' && row.errorMsg" text type="danger" size="small" @click="showError(row)">
                 查看原因
               </el-button>
-              <span v-else-if="row.status === 'FAILED'" style="color:#c0c4cc">无</span>
-              <span v-else style="color:#c0c4cc">—</span>
+              <span v-else-if="row.status === 'FAILED'" style="color:#B3BCB2">无</span>
+              <span v-else style="color:#B3BCB2">—</span>
             </template>
           </el-table-column>
           <el-table-column label="操作" width="490" fixed="right">
@@ -1028,7 +1028,7 @@ function formatTime(t) {
   gap: 8px;
   font-size: 17px;
   font-weight: 700;
-  color: #2c3e50;
+  color: #24312A;
 }
 .content {
   width: 100%;
@@ -1047,33 +1047,33 @@ function formatTime(t) {
   align-items: center;
   gap: 12px;
   margin-top: 20px;
-  color: #606266;
+  color: #5C6B60;
 }
 .file-count {
   font-size: 13px;
-  color: #409eff;
+  color: #2F5D46;
 }
 .stage-text {
   font-size: 12px;
-  color: #909399;
+  color: #8B968D;
   margin-top: 2px;
 }
 .rerun-tip {
   margin: 0 0 12px;
   font-size: 13px;
-  color: #606266;
+  color: #5C6B60;
 }
 .src-team {
   display: inline-block;
   font-size: 11px;
-  color: #3B6BFF;
-  background: #EEF1FF;
+  color: #2F5D46;
+  background: #E8EFE6;
   border-radius: 999px;
   padding: 2px 9px;
 }
 .src-mine {
   font-size: 12px;
-  color: #c0c4cc;
+  color: #B3BCB2;
 }
 .task-list {
   margin-top: 24px;
@@ -1083,7 +1083,7 @@ function formatTime(t) {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 .task-list h3 {
-  color: #303133;
+  color: #24312A;
   margin-bottom: 16px;
 }
 .task-batch {
@@ -1099,7 +1099,7 @@ function formatTime(t) {
 }
 .task-count {
   font-size: 13px;
-  color: #909399;
+  color: #8B968D;
 }
 .pager {
   margin-top: 16px;
@@ -1114,7 +1114,7 @@ function formatTime(t) {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 .file-list h3 {
-  color: #303133;
+  color: #24312A;
   margin-bottom: 16px;
 }
 .compare-layout {
@@ -1136,7 +1136,7 @@ function formatTime(t) {
 }
 .diff-count {
   font-size: 12px;
-  color: #909399;
+  color: #8B968D;
 }
 .diff-toolbar {
   padding: 8px 10px 4px;
@@ -1172,31 +1172,31 @@ function formatTime(t) {
   padding: 6px 8px;
   cursor: pointer;
   border-radius: 6px;
-  background: #f7f8fa;
+  background: #F6F4EE;
   font-size: 12px;
   font-weight: 600;
-  color: #606266;
+  color: #5C6B60;
   user-select: none;
 }
 .diff-group-title:hover {
-  background: #f0f2f5;
+  background: #EFEDE4;
 }
 .diff-group-name {
   color: #b91c1c;
 }
 .diff-group-count {
-  color: #909399;
+  color: #8B968D;
   font-weight: 400;
 }
 .diff-group-arrow {
   margin-left: auto;
-  color: #909399;
+  color: #8B968D;
 }
 .diff-group-items {
   padding-top: 6px;
 }
 .diff-item {
-  border: 1px solid #ebeef5;
+  border: 1px solid #E3E0D5;
   border-radius: 8px;
   padding: 8px 10px;
   margin-bottom: 8px;
@@ -1220,8 +1220,8 @@ function formatTime(t) {
 }
 .diff-index {
   font-size: 11px;
-  color: #606266;
-  background: #f0f2f5;
+  color: #5C6B60;
+  background: #EFEDE4;
   padding: 1px 6px;
   border-radius: 4px;
 }
@@ -1234,7 +1234,7 @@ function formatTime(t) {
 }
 .diff-text {
   font-size: 12px;
-  color: #303133;
+  color: #24312A;
   line-height: 1.5;
   overflow: hidden;
   display: -webkit-box;
@@ -1252,8 +1252,8 @@ function formatTime(t) {
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
-  background: #fafbfc;
-  border-bottom: 1px solid #ebeef5;
+  background: #F6F4EE;
+  border-bottom: 1px solid #E3E0D5;
 }
 .compare-badge {
   font-size: 12px;
@@ -1272,7 +1272,7 @@ function formatTime(t) {
 }
 .compare-name {
   font-size: 13px;
-  color: #606266;
+  color: #5C6B60;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1284,7 +1284,7 @@ function formatTime(t) {
 }
 .compare-divider {
   width: 2px;
-  background: #ebeef5;
+  background: #E3E0D5;
   flex-shrink: 0;
 }
 .fail-tag {
@@ -1297,7 +1297,7 @@ function formatTime(t) {
   flex-wrap: nowrap;
 }
 .error-label {
-  color: #606266;
+  color: #5C6B60;
   font-size: 14px;
   margin: 0 0 10px;
 }
@@ -1314,7 +1314,7 @@ function formatTime(t) {
   overflow: auto;
 }
 .error-tip {
-  color: #909399;
+  color: #8B968D;
   font-size: 13px;
   margin: 12px 0 0;
 }
@@ -1330,18 +1330,18 @@ function formatTime(t) {
   min-width: 88px;
   text-align: center;
   padding: 10px 6px;
-  border: 1px solid #ebeef5;
+  border: 1px solid #E3E0D5;
   border-radius: 8px;
-  background: #fafbfc;
+  background: #F6F4EE;
 }
 .stat-chip b {
   display: block;
   font-size: 22px;
-  color: #409eff;
+  color: #2F5D46;
 }
 .stat-chip span {
   font-size: 12px;
-  color: #909399;
+  color: #8B968D;
 }
 .report-note {
   padding: 8px 12px;
@@ -1366,19 +1366,19 @@ function formatTime(t) {
 }
 .error-advice li {
   font-size: 13px;
-  color: #606266;
+  color: #5C6B60;
   line-height: 1.9;
 }
 /* 版本历史: 按论文分组的版本标注 */
 .version-sub {
   font-size: 12px;
-  color: #909399;
+  color: #8B968D;
   margin-top: 2px;
 }
 /* 报告: 排版参数快照 */
 .snapshot-block {
   font-size: 13px;
-  color: #606266;
+  color: #5C6B60;
 }
 .snapshot-row {
   line-height: 2;
@@ -1386,6 +1386,6 @@ function formatTime(t) {
 .snapshot-key {
   display: inline-block;
   width: 80px;
-  color: #909399;
+  color: #8B968D;
 }
 </style>

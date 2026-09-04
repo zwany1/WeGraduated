@@ -144,7 +144,7 @@ async function confirmDelete() {
 <style scoped>
 .page {
   min-height: 100vh;
-  background: #f5f6fa;
+  background: #F6F4EE;
 }
 .bar {
   display: flex;
@@ -159,7 +159,7 @@ async function confirmDelete() {
   gap: 8px;
   font-size: 17px;
   font-weight: 700;
-  color: #2c3e50;
+  color: #24312A;
 }
 .content {
   max-width: 560px;
@@ -184,8 +184,8 @@ async function confirmDelete() {
   border-radius: 50%;
   overflow: hidden;
   cursor: pointer;
-  border: 3px solid #ebeef5;
-  background: #f0f2f5;
+  border: 3px solid #E3E0D5;
+  background: #EFEDE4;
 }
 .avatar-img {
   width: 100%;
@@ -200,8 +200,8 @@ async function confirmDelete() {
   justify-content: center;
   font-size: 44px;
   font-weight: 700;
-  color: #909399;
-  background: linear-gradient(135deg, #e8edff, #f5f6fa);
+  color: #8B968D;
+  background: linear-gradient(135deg, #e8edff, #F6F4EE);
 }
 .avatar-mask {
   position: absolute;
@@ -220,7 +220,7 @@ async function confirmDelete() {
 .avatar-tip {
   margin-top: 8px;
   font-size: 12px;
-  color: #909399;
+  color: #8B968D;
 }
 .danger-zone {
   max-width: 420px;
@@ -234,7 +234,7 @@ async function confirmDelete() {
   margin: 0 0 8px;
 }
 .danger-desc {
-  color: #909399;
+  color: #8B968D;
   font-size: 13px;
   line-height: 1.7;
   margin: 0 0 16px;

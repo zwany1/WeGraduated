@@ -149,20 +149,20 @@ onMounted(async () => {
 
 <style scoped>
 .page {
-  --c-primary: #3B6BFF;
-  --c-dark: #1a1a2e;
-  --c-text: #374151;
-  --c-text2: #6b7280;
-  --c-text3: #9ca3af;
-  --c-border: #e5e7eb;
-  --c-bg2: #f8f9fc;
+  --c-primary: #2F5D46;
+  --c-dark: #1F2E26;
+  --c-text: #33413A;
+  --c-text2: #5C6B60;
+  --c-text3: #8B968D;
+  --c-border: #E3E0D5;
+  --c-bg2: #F6F4EE;
   font-family: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
   color: var(--c-text);
   background: #fff;
   min-height: 100vh;
 }
 .hero {
-  background: linear-gradient(180deg, #f0f4ff 0%, #fff 100%);
+  background: linear-gradient(180deg, #F1EEE5 0%, #fff 100%);
   padding: 56px 32px 40px;
   text-align: center;
 }
@@ -173,7 +173,7 @@ onMounted(async () => {
   font-size: 12px;
   font-weight: 700;
   color: var(--c-primary);
-  background: #EEF1FF;
+  background: #E8EFE6;
   padding: 4px 12px;
   border-radius: 999px;
 }
@@ -193,7 +193,7 @@ onMounted(async () => {
 .section { padding: 32px 32px 56px; }
 .section-inner { max-width: 820px; margin: 0 auto; }
 .case-metrics { display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0 8px; }
-.metric { font-size: 13px; font-weight: 600; color: var(--c-primary); background: #EEF1FF; padding: 5px 12px; border-radius: 6px; }
+.metric { font-size: 13px; font-weight: 600; color: var(--c-primary); background: #E8EFE6; padding: 5px 12px; border-radius: 6px; }
 .detail {
   font-size: 15px;
   line-height: 1.85;
@@ -228,15 +228,15 @@ onMounted(async () => {
 }
 .doc-download:hover { text-decoration: underline; }
 .shots { margin: 24px 0; border-radius: 12px; overflow: hidden; }
-.shot { width: 100%; height: 100%; object-fit: contain; background: #f8f9fc; }
+.shot { width: 100%; height: 100%; object-fit: contain; background: #F6F4EE; }
 .ref {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   padding: 18px 24px;
-  background: linear-gradient(135deg, #EEF1FF, #f5f7ff);
-  border: 1px solid #dbe4ff;
+  background: linear-gradient(135deg, #E8EFE6, #F1F4EF);
+  border: 1px solid #D6E3D6;
   border-radius: 14px;
   margin-top: 24px;
 }

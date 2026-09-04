@@ -23,7 +23,7 @@
             <p class="plan-desc">{{ p.desc }}</p>
             <ul class="plan-features">
               <li v-for="(f, j) in p.features" :key="j">
-                <svg viewBox="0 0 16 16" width="14" height="14" fill="none"><circle cx="8" cy="8" r="7" :fill="p.featured ? '#3B6BFF' : '#10b981'"/><path d="M5 8l2 2 4-4" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
+                <svg viewBox="0 0 16 16" width="14" height="14" fill="none"><circle cx="8" cy="8" r="7" :fill="p.featured ? '#2F5D46' : '#10b981'"/><path d="M5 8l2 2 4-4" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
                 {{ f }}
               </li>
             </ul>
@@ -98,21 +98,21 @@ function choose(plan) {
 
 <style scoped>
 .page {
-  --c-primary: #3B6BFF;
-  --c-primary-dark: #2D52CC;
-  --c-dark: #1a1a2e;
-  --c-text: #374151;
-  --c-text2: #6b7280;
-  --c-text3: #9ca3af;
-  --c-border: #e5e7eb;
-  --c-bg2: #f8f9fc;
+  --c-primary: #2F5D46;
+  --c-primary-dark: #264A38;
+  --c-dark: #1F2E26;
+  --c-text: #33413A;
+  --c-text2: #5C6B60;
+  --c-text3: #8B968D;
+  --c-border: #E3E0D5;
+  --c-bg2: #F6F4EE;
   font-family: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
   color: var(--c-text);
   background: #fff;
   min-height: 100vh;
 }
 .hero {
-  background: linear-gradient(180deg, #f0f4ff 0%, #fff 100%);
+  background: linear-gradient(180deg, #F1EEE5 0%, #fff 100%);
   padding: 64px 32px;
   text-align: center;
 }
@@ -141,7 +141,7 @@ function choose(plan) {
 }
 .plan.featured {
   border: 2px solid var(--c-primary);
-  box-shadow: 0 12px 40px rgba(59,107,255,0.15);
+  box-shadow: 0 12px 40px rgba(47,93,70,0.15);
 }
 .plan-badge {
   position: absolute;
@@ -236,7 +236,7 @@ function choose(plan) {
 }
 .notice {
   margin-top: 40px;
-  background: #f0f4ff;
+  background: #F1EEE5;
   border-radius: 12px;
   padding: 16px 20px;
   text-align: center;

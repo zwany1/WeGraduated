@@ -1,3 +1,5 @@
+@import "@fontsource/noto-serif-sc/chinese-simplified-600.css";
+@import "@fontsource/noto-serif-sc/chinese-simplified-700.css";
 @import "tailwindcss";
 
 :root {
@@ -144,4 +146,61 @@ body {
   color: #8a8d99;
   margin-bottom: 12px;
   line-height: 1.6;
+}
+
+/* ============ 学术沉静风（仅前台，body.theme-academic 生效） ============ */
+body.theme-academic {
+  --font-serif: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', serif;
+  --font-sans: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+  --ink-primary: #2F5D46;
+  --ink-primary-dark: #264A38;
+  --ink-deep: #1C3B2E;
+  --ink-heading: #1F2E26;
+  --cream-bg: #F6F4EE;
+  --cream-bg2: #F1EEE5;
+  --cream-hero: #F2EFE7;
+  --sage-tint: #E8EFE6;
+  --bronze: #8B6F47;
+  --ink-border: #E3E0D5;
+  --text-primary: #24312A;
+  --text-secondary: #5C6B60;
+  --text-tertiary: #8B968D;
+
+  background: var(--cream-bg);
+  color: var(--text-primary);
+}
+
+body.theme-academic {
+  --el-color-primary: #2F5D46;
+  --el-color-primary-light-3: #6D8E7E;
+  --el-color-primary-light-5: #97AEA3;
+  --el-color-primary-light-7: #C1CEC8;
+  --el-color-primary-light-8: #D5DFDA;
+  --el-color-primary-light-9: #EAEFED;
+  --el-color-primary-dark-2: #264A38;
+  --el-bg-color-page: #F6F4EE;
+  --el-fill-color-light: #F3F1EA;
+  --el-fill-color-lighter: #F8F6F0;
+  --el-border-color: #E3E0D5;
+  --el-border-color-light: #EAE7DC;
+  --el-border-color-lighter: #F0EDE3;
+  --el-text-color-primary: #24312A;
+  --el-text-color-regular: #3A4A40;
+  --el-text-color-secondary: #5C6B60;
+  --el-text-color-placeholder: #A8B2A9;
+}
+
+body.theme-academic h1,
+body.theme-academic h2,
+body.theme-academic h3,
+body.theme-academic h4,
+body.theme-academic .hero-title,
+body.theme-academic .section-title,
+body.theme-academic .brand-text,
+body.theme-academic .page-title,
+body.theme-academic .tools-title,
+body.theme-academic .steps-title,
+body.theme-academic .feat-title {
+  font-family: var(--font-serif);
+  letter-spacing: 0.02em;
 }

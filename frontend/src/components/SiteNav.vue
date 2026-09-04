@@ -98,7 +98,7 @@ async function onCommand(cmd) {
 .brand {
   font-size: 18px;
   font-weight: 700;
-  color: #2c3e50;
+  color: #24312A;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -111,17 +111,17 @@ async function onCommand(cmd) {
   padding: 6px 14px;
   border-radius: 8px;
   font-size: 14px;
-  color: #606266;
+  color: #5C6B60;
   text-decoration: none;
   transition: all 0.2s;
 }
 .links a:hover {
-  background: #f5f7fa;
-  color: #3B6BFF;
+  background: #F6F4EE;
+  color: #2F5D46;
 }
 .links a.router-link-active {
-  background: #EEF1FF;
-  color: #3B6BFF;
+  background: #E8EFE6;
+  color: #2F5D46;
   font-weight: 600;
 }
 .right {
@@ -137,12 +137,12 @@ async function onCommand(cmd) {
   cursor: pointer;
   padding: 4px 10px;
   border-radius: 20px;
-  border: 1px solid #ebeef5;
+  border: 1px solid #E3E0D5;
   transition: all 0.2s;
 }
 .user-chip:hover {
-  border-color: #3B6BFF;
-  background: #f5f7ff;
+  border-color: #2F5D46;
+  background: #F1F4EF;
 }
 .avatar {
   width: 28px;
@@ -154,7 +154,7 @@ async function onCommand(cmd) {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: #3B6BFF;
+  background: #2F5D46;
   color: #fff;
   font-size: 14px;
   display: flex;
@@ -164,6 +164,6 @@ async function onCommand(cmd) {
 }
 .name {
   font-size: 13px;
-  color: #303133;
+  color: #24312A;
 }
 </style>

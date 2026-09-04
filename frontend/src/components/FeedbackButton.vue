@@ -40,11 +40,11 @@ function open() {
   width: 50px;
   height: 50px;
   border-radius: 50%;
-  border: 1px solid rgba(59, 107, 255, 0.2);
+  border: 1px solid rgba(47, 93, 70, 0.2);
   cursor: pointer;
   color: #fff;
-  background: linear-gradient(135deg, #3b6bff, #7c3aed);
-  box-shadow: 0 6px 20px rgba(59, 107, 255, 0.35);
+  background: linear-gradient(135deg, #2F5D46, #8B6F47);
+  box-shadow: 0 6px 20px rgba(47, 93, 70, 0.35);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -55,7 +55,7 @@ function open() {
 }
 .feedback-fab:hover {
   transform: translateY(-4px) scale(1.06);
-  box-shadow: 0 12px 32px rgba(59, 107, 255, 0.5);
+  box-shadow: 0 12px 32px rgba(47, 93, 70, 0.5);
 }
 .feedback-fab:active {
   transform: translateY(-2px) scale(1.02);
@@ -71,7 +71,7 @@ function open() {
   position: absolute;
   inset: -2px;
   border-radius: 50%;
-  border: 2px solid rgba(59, 107, 255, 0.4);
+  border: 2px solid rgba(47, 93, 70, 0.4);
   animation: fabPulse 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   pointer-events: none;
 }

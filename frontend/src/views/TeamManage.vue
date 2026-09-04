@@ -232,7 +232,7 @@ onMounted(async () => {
 
 <style scoped>
 .page {
-  --c-primary: #3B6BFF;
+  --c-primary: #2F5D46;
   min-height: 100vh;
   background: #f7f8fb;
   font-family: 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
@@ -250,7 +250,7 @@ onMounted(async () => {
   gap: 8px;
   font-size: 17px;
   font-weight: 700;
-  color: #1a1a2e;
+  color: #1F2E26;
 }
 .content {
   max-width: 1000px;
@@ -266,12 +266,12 @@ onMounted(async () => {
 .create-card h3, .team-section h3 {
   margin: 0 0 6px;
   font-size: 16px;
-  color: #1a1a2e;
+  color: #1F2E26;
 }
 .sub {
   margin: 0 0 14px;
   font-size: 13px;
-  color: #909399;
+  color: #8B968D;
 }
 .create-row {
   display: flex;
@@ -309,8 +309,8 @@ onMounted(async () => {
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: #EEF1FF;
-  color: #3B6BFF;
+  background: #E8EFE6;
+  color: #2F5D46;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -327,8 +327,8 @@ onMounted(async () => {
   color: #b45309;
 }
 .role-tag.admin {
-  background: #F3E8FF;
-  color: #7c3aed;
+  background: #F3F0E6;
+  color: #8B6F47;
 }
 .role-tag.editor {
   background: #ECFDF5;
@@ -339,23 +339,23 @@ onMounted(async () => {
   color: #64748b;
 }
 .role-tag.member {
-  background: #EEF1FF;
-  color: #3B6BFF;
+  background: #E8EFE6;
+  color: #2F5D46;
 }
 .team-name {
   margin: 0 0 6px;
   font-size: 16px;
-  color: #1a1a2e;
+  color: #1F2E26;
 }
 .team-desc {
   margin: 0 0 12px;
   font-size: 13px;
-  color: #909399;
+  color: #8B968D;
   min-height: 18px;
 }
 .team-meta {
   font-size: 12px;
-  color: #c0c4cc;
+  color: #B3BCB2;
 }
 .invite-row {
   display: flex;
@@ -383,18 +383,18 @@ onMounted(async () => {
   font-size: 13px;
 }
 .pi-name {
-  color: #2c3140;
+  color: #24312A;
   font-weight: 500;
 }
 .pi-muted {
-  color: #9ca3af;
+  color: #8B968D;
   font-size: 12px;
 }
 .member-table {
   margin-top: 4px;
 }
 .muted {
-  color: #c0c4cc;
+  color: #B3BCB2;
   font-size: 12.5px;
 }
 @media (max-width: 800px) {

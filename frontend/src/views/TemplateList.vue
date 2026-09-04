@@ -369,7 +369,7 @@ function formatTime(t) {
 .brand {
   font-size: 20px;
   font-weight: 700;
-  color: #2c3e50;
+  color: #24312A;
 }
 .actions {
   display: flex;
@@ -383,12 +383,12 @@ function formatTime(t) {
   cursor: pointer;
   padding: 4px 10px;
   border-radius: 20px;
-  border: 1px solid #ebeef5;
+  border: 1px solid #E3E0D5;
   transition: all 0.2s;
 }
 .user-chip:hover {
-  border-color: #3B6BFF;
-  background: #f5f7ff;
+  border-color: #2F5D46;
+  background: #F1F4EF;
 }
 .user-avatar {
   width: 28px;
@@ -400,7 +400,7 @@ function formatTime(t) {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: #3B6BFF;
+  background: #2F5D46;
   color: #fff;
   font-size: 14px;
   display: flex;
@@ -410,7 +410,7 @@ function formatTime(t) {
 }
 .user-name {
   font-size: 13px;
-  color: #303133;
+  color: #24312A;
 }
 .content {
   max-width: 1000px;
@@ -418,7 +418,7 @@ function formatTime(t) {
   padding: 0 20px;
 }
 .content h2 {
-  color: #303133;
+  color: #24312A;
   margin-bottom: 20px;
 }
 .filter-bar {
@@ -430,7 +430,7 @@ function formatTime(t) {
 }
 .filter-bar .count {
   font-size: 13px;
-  color: #909399;
+  color: #8B968D;
 }
 .pager {
   margin-top: 24px;
@@ -439,7 +439,7 @@ function formatTime(t) {
 }
 .empty {
   text-align: center;
-  color: #909399;
+  color: #8B968D;
   padding: 60px 0;
   background: #fff;
   border-radius: 10px;
@@ -456,7 +456,7 @@ function formatTime(t) {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 .tpl-card h3 {
-  color: #303133;
+  color: #24312A;
   margin-bottom: 8px;
   display: flex;
   align-items: center;
@@ -467,8 +467,8 @@ function formatTime(t) {
   display: inline-block;
   font-size: 11px;
   font-weight: 600;
-  color: #3B6BFF;
-  background: #EEF1FF;
+  color: #2F5D46;
+  background: #E8EFE6;
   border-radius: 999px;
   padding: 2px 9px;
 }
@@ -482,7 +482,7 @@ function formatTime(t) {
   padding: 2px 9px;
 }
 .tpl-card .time {
-  color: #909399;
+  color: #8B968D;
   font-size: 12px;
   margin-bottom: 16px;
 }
@@ -492,7 +492,7 @@ function formatTime(t) {
   flex-wrap: wrap;
 }
 .diff-sub {
-  color: #909399;
+  color: #8B968D;
   font-size: 13px;
   margin: 0 0 10px;
 }

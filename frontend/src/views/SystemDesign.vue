@@ -579,7 +579,7 @@ Graph.registerNode('classNode', {
       ? `<div style="padding:4px 10px;font-size:12px;color:#333;line-height:1.6;white-space:pre-wrap">${esc(methods)}</div>`
       : '<div style="padding:4px 10px;font-size:12px;color:#999">(无方法)</div>'
     return `<div style="width:100%;height:100%;display:flex;flex-direction:column;box-sizing:border-box;background:#fff;border:1.5px solid #333;overflow:hidden">
-      <div style="text-align:center;font-weight:bold;font-size:14px;padding:6px 8px;border-bottom:1.5px solid #333;background:#f5f6fa;color:#333">${esc(name)}</div>
+      <div style="text-align:center;font-weight:bold;font-size:14px;padding:6px 8px;border-bottom:1.5px solid #333;background:#F6F4EE;color:#333">${esc(name)}</div>
       ${attrsHtml}
       <div style="border-top:1px solid #999"></div>
       ${methodsHtml}
@@ -1282,9 +1282,9 @@ async function renderGraph(vo) {
         zIndex: 0,
         attrs: {
           body: isActivity
-            ? { fill: '#f7f9fc', stroke: '#909399', strokeWidth: 1.5, rx: 4, ry: 4 }
-            : { fill: '#f0f2f7', stroke: '#c0c4cc', strokeWidth: 1.5, strokeDasharray: '6 3', rx: 8, ry: 8 },
-          label: { text: l.name, fill: '#3B6BFF', fontSize: 14, fontWeight: 700,
+            ? { fill: '#f7f9fc', stroke: '#8B968D', strokeWidth: 1.5, rx: 4, ry: 4 }
+            : { fill: '#f0f2f7', stroke: '#B3BCB2', strokeWidth: 1.5, strokeDasharray: '6 3', rx: 8, ry: 8 },
+          label: { text: l.name, fill: '#2F5D46', fontSize: 14, fontWeight: 700,
                    textAnchor: isActivity ? 'middle' : 'start',
                    textVerticalAnchor: 'top',
                    refX: isActivity ? 0.5 : 12, refY: 8 }
@@ -1305,7 +1305,7 @@ async function renderGraph(vo) {
         height: l.height,
         zIndex: 0,
         attrs: {
-          body: { fill: '#1890ff', stroke: '#1890ff', strokeWidth: 1 }
+          body: { fill: '#264A38', stroke: '#264A38', strokeWidth: 1 }
         }
       })
     })
@@ -1483,7 +1483,7 @@ async function renderGraph(vo) {
           ? `<div style="padding:4px 10px;font-size:12px;color:#333;line-height:1.6;white-space:pre-wrap">${esc(methods)}</div>`
           : '<div style="padding:4px 10px;font-size:12px;color:#999">(无方法)</div>'
         const htmlStr = `<div style="width:100%;height:100%;display:flex;flex-direction:column;box-sizing:border-box;background:#fff;border:1.5px solid #333;overflow:hidden">
-          <div style="text-align:center;font-weight:bold;font-size:14px;padding:6px 8px;border-bottom:1.5px solid #333;background:#f5f6fa;color:#333">${esc(name)}</div>
+          <div style="text-align:center;font-weight:bold;font-size:14px;padding:6px 8px;border-bottom:1.5px solid #333;background:#F6F4EE;color:#333">${esc(name)}</div>
           ${attrsHtml}
           <div style="border-top:1px solid #999"></div>
           ${methodsHtml}
@@ -1642,7 +1642,7 @@ function initGraph() {
     container: container.value,
     width: container.value.clientWidth || 800,
     height: container.value.clientHeight || 600,
-    background: { color: '#fafbfc' },
+    background: { color: '#F6F4EE' },
     grid: { size: 10, visible: true },
     panning: true,
     mousewheel: { enabled: true, modifiers: ['ctrl'] },
@@ -1854,7 +1854,7 @@ async function downloadArchSvg() {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #f5f6fa;
+  background: #F6F4EE;
 }
 .bar {
   display: flex;
@@ -1871,7 +1871,7 @@ async function downloadArchSvg() {
   align-items: center;
   gap: 8px;
   font-weight: 700;
-  color: #2c3e50;
+  color: #24312A;
 }
 .type-tabs {
   flex: 1;
@@ -1891,14 +1891,14 @@ async function downloadArchSvg() {
 }
 .input-panel {
   background: #fff;
-  border-right: 1px solid #ebeef5;
+  border-right: 1px solid #E3E0D5;
   padding: 20px 16px;
   overflow-y: auto;
 }
 .input-title {
   font-size: 14px;
   font-weight: 600;
-  color: #303133;
+  color: #24312A;
   margin-bottom: 10px;
 }
 .section-divider {
@@ -1907,11 +1907,11 @@ async function downloadArchSvg() {
   margin: 16px 0 12px;
 }
 .item-card {
-  border: 1px solid #ebeef5;
+  border: 1px solid #E3E0D5;
   border-radius: 8px;
   padding: 10px 10px 4px;
   margin-bottom: 10px;
-  background: #fafbfc;
+  background: #F6F4EE;
   position: relative;
 }
 .item-card .item-num {
@@ -1919,7 +1919,7 @@ async function downloadArchSvg() {
   top: -7px;
   left: 10px;
   font-size: 11px;
-  color: #3B6BFF;
+  color: #2F5D46;
   background: #fff;
   padding: 0 6px;
   border-radius: 8px;
@@ -1927,11 +1927,11 @@ async function downloadArchSvg() {
 }
 .dsl-tip {
   font-size: 11px;
-  color: #909399;
+  color: #8B968D;
   line-height: 1.5;
   margin-top: 6px;
   background: #f8f9fb;
-  border: 1px dashed #dcdfe6;
+  border: 1px dashed #E3E0D5;
   border-radius: 6px;
   padding: 6px 10px;
 }
@@ -1939,11 +1939,11 @@ async function downloadArchSvg() {
   margin-top: 4px;
 }
 .layer-config-card {
-  border: 1px solid #ebeef5;
+  border: 1px solid #E3E0D5;
   border-radius: 8px;
   padding: 10px;
   margin-bottom: 10px;
-  background: #fafbfc;
+  background: #F6F4EE;
 }
 .layer-config-head {
   display: flex;
@@ -1974,11 +1974,11 @@ async function downloadArchSvg() {
   flex-shrink: 0;
 }
 .cls-card {
-  border: 1px solid #ebeef5;
+  border: 1px solid #E3E0D5;
   border-radius: 8px;
   padding: 10px;
   margin-bottom: 10px;
-  background: #fafbfc;
+  background: #F6F4EE;
 }
 .cls-head {
   display: flex;
@@ -1991,7 +1991,7 @@ async function downloadArchSvg() {
 }
 .cls-sub {
   font-size: 12px;
-  color: #909399;
+  color: #8B968D;
   margin: 6px 0 4px;
   font-weight: 600;
 }
@@ -2019,24 +2019,24 @@ async function downloadArchSvg() {
 }
 .tip {
   font-size: 11px;
-  color: #909399;
+  color: #8B968D;
   line-height: 1.5;
 }
 .examples {
   margin-top: 20px;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid #EFEDE4;
   padding-top: 12px;
 }
 .ex-title {
   font-size: 12px;
-  color: #909399;
+  color: #8B968D;
   margin-bottom: 8px;
 }
 .ex-item {
   font-size: 12px;
-  color: #606266;
+  color: #5C6B60;
   padding: 6px 8px;
-  border: 1px solid #ebeef5;
+  border: 1px solid #E3E0D5;
   border-radius: 6px;
   margin-bottom: 6px;
   cursor: pointer;
@@ -2044,14 +2044,14 @@ async function downloadArchSvg() {
   transition: all 0.15s;
 }
 .ex-item:hover {
-  border-color: #3B6BFF;
-  color: #3B6BFF;
+  border-color: #2F5D46;
+  color: #2F5D46;
 }
 .ex-tag {
   display: inline-block;
   font-size: 11px;
-  color: #3B6BFF;
-  background: #eef1ff;
+  color: #2F5D46;
+  background: #E8EFE6;
   border-radius: 3px;
   padding: 0 5px;
   margin-right: 6px;
@@ -2073,7 +2073,7 @@ async function downloadArchSvg() {
   height: 100%;
   overflow: auto;
   padding: 20px;
-  background: #fafbfc;
+  background: #F6F4EE;
 }
 .arch-outer {
   border: 2px solid #333;
@@ -2139,9 +2139,9 @@ async function downloadArchSvg() {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #909399;
+  color: #8B968D;
   font-size: 14px;
-  background: #fafbfc;
+  background: #F6F4EE;
 }
 .t3-stage {
   height: 100%;
@@ -2180,7 +2180,7 @@ async function downloadArchSvg() {
 .t3-tip {
   margin-top: 8px;
   font-size: 12px;
-  color: #909399;
+  color: #8B968D;
 }
 .t3-actions {
   margin-top: 16px;

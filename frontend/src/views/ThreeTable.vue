@@ -263,7 +263,7 @@ async function generate() {
 <style scoped>
 .page {
   min-height: 100vh;
-  background: #f5f6fa;
+  background: #F6F4EE;
 }
 .bar {
   display: flex;
@@ -282,7 +282,7 @@ async function generate() {
   gap: 8px;
   font-size: 18px;
   font-weight: 700;
-  color: #2c3e50;
+  color: #24312A;
 }
 .content {
   max-width: 1200px;
@@ -300,17 +300,17 @@ async function generate() {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 .panel h3 {
-  color: #303133;
+  color: #24312A;
   margin: 0 0 14px;
   padding-bottom: 10px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid #EFEDE4;
 }
 .panel h3:not(:first-child) {
   margin-top: 22px;
 }
 .tip-inline {
   font-size: 12px;
-  color: #909399;
+  color: #8B968D;
   margin-left: 8px;
 }
 .cols-bar {
@@ -323,7 +323,7 @@ async function generate() {
   margin-bottom: 14px;
   padding: 12px;
   background: #f8f9fb;
-  border: 1px solid #ebeef5;
+  border: 1px solid #E3E0D5;
   border-radius: 8px;
 }
 .sql-bar {
@@ -335,11 +335,11 @@ async function generate() {
 .sql-label {
   font-size: 13px;
   font-weight: 600;
-  color: #303133;
+  color: #24312A;
 }
 .cols-label {
   font-size: 13px;
-  color: #606266;
+  color: #5C6B60;
 }
 .editor-wrap {
   overflow-x: auto;
@@ -350,7 +350,7 @@ async function generate() {
 }
 .editor-table th,
 .editor-table td {
-  border: 1px solid #ebeef5;
+  border: 1px solid #E3E0D5;
   padding: 4px;
   min-width: 100px;
 }
@@ -358,7 +358,7 @@ async function generate() {
 .row-idx {
   width: 36px;
   text-align: center;
-  color: #909399;
+  color: #8B968D;
   font-size: 12px;
   background: #fafafa;
 }
@@ -374,7 +374,7 @@ async function generate() {
   text-align: center;
   font-weight: 700;
   font-size: 14px;
-  color: #303133;
+  color: #24312A;
   margin-bottom: 12px;
 }
 .three-table-wrap {
@@ -390,12 +390,12 @@ async function generate() {
   border-bottom: 1px solid #000;
   padding: 7px 10px;
   font-weight: 700;
-  color: #303133;
+  color: #24312A;
   background: transparent;
 }
 .three-table td {
   padding: 7px 10px;
-  color: #606266;
+  color: #5C6B60;
 }
 .three-table tbody tr:last-child td {
   border-bottom: 2px solid #000;
@@ -403,7 +403,7 @@ async function generate() {
 .preview-tip {
   margin-top: 16px;
   font-size: 12px;
-  color: #909399;
+  color: #8B968D;
   text-align: center;
 }
 @media (max-width: 900px) {

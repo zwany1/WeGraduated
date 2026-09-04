@@ -76,7 +76,7 @@ const type = computed(() => {
   margin-bottom: 16px;
 }
 .case-preview.big { height: 260px; padding: 32px; }
-.case-preview.blue { background: linear-gradient(135deg, #EEF1FF, #dbe4ff); }
+.case-preview.blue { background: linear-gradient(135deg, #E8EFE6, #D6E3D6); }
 .case-preview.green { background: linear-gradient(135deg, #ECFDF5, #d1fae5); }
 .case-preview.purple { background: linear-gradient(135deg, #F5F3FF, #ede9fe); }
 .case-preview.orange { background: linear-gradient(135deg, #FFF7ED, #ffedd5); }

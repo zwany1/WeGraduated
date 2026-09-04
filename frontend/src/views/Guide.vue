@@ -103,20 +103,20 @@ function toggle(i) {
 
 <style scoped>
 .page {
-  --c-primary: #3B6BFF;
-  --c-dark: #1a1a2e;
-  --c-text: #374151;
-  --c-text2: #6b7280;
-  --c-text3: #9ca3af;
-  --c-border: #e5e7eb;
-  --c-bg2: #f8f9fc;
+  --c-primary: #2F5D46;
+  --c-dark: #1F2E26;
+  --c-text: #33413A;
+  --c-text2: #5C6B60;
+  --c-text3: #8B968D;
+  --c-border: #E3E0D5;
+  --c-bg2: #F6F4EE;
   font-family: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
   color: var(--c-text);
   background: #fff;
   min-height: 100vh;
 }
 .hero {
-  background: linear-gradient(180deg, #f0f4ff 0%, #fff 100%);
+  background: linear-gradient(180deg, #F1EEE5 0%, #fff 100%);
   padding: 64px 32px;
   text-align: center;
 }
@@ -165,9 +165,9 @@ function toggle(i) {
   align-items: center;
   justify-content: center;
 }
-.step-icon.blue { background: #EEF1FF; color: #3B6BFF; }
+.step-icon.blue { background: #E8EFE6; color: #2F5D46; }
 .step-icon.green { background: #ECFDF5; color: #10b981; }
-.step-icon.purple { background: #F5F3FF; color: #7c3aed; }
+.step-icon.purple { background: #F5F3FF; color: #8B6F47; }
 .step-icon.orange { background: #FFF7ED; color: #f59e0b; }
 .step-title { font-size: 16px; font-weight: 700; color: var(--c-dark); margin: 0 0 8px; }
 .step-desc { font-size: 13px; color: var(--c-text2); margin: 0 0 12px; line-height: 1.6; }

@@ -185,8 +185,8 @@ defineExpose({ scrollToText })
 .toc-sidebar {
   width: 200px;
   min-width: 200px;
-  background: #fafbfc;
-  border-right: 1px solid #e5e7eb;
+  background: #F6F4EE;
+  border-right: 1px solid #E3E0D5;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -195,8 +195,8 @@ defineExpose({ scrollToText })
   padding: 10px 14px 8px;
   font-size: 13px;
   font-weight: 600;
-  color: #303133;
-  border-bottom: 1px solid #ebeef5;
+  color: #24312A;
+  border-bottom: 1px solid #E3E0D5;
 }
 .toc-list {
   flex: 1;
@@ -206,7 +206,7 @@ defineExpose({ scrollToText })
 .toc-item {
   padding: 5px 14px;
   font-size: 13px;
-  color: #606266;
+  color: #5C6B60;
   cursor: pointer;
   line-height: 1.4;
   white-space: nowrap;
@@ -215,12 +215,12 @@ defineExpose({ scrollToText })
   transition: background 0.15s, color 0.15s;
 }
 .toc-item:hover {
-  background: #ecf5ff;
-  color: #409eff;
+  background: #EAEFED;
+  color: #2F5D46;
 }
-.toc-l1 { font-weight: 600; color: #303133; }
+.toc-l1 { font-weight: 600; color: #24312A; }
 .toc-l2 { padding-left: 26px; }
-.toc-l3 { padding-left: 38px; font-size: 12px; color: #909399; }
+.toc-l3 { padding-left: 38px; font-size: 12px; color: #8B968D; }
 /* 侧边栏进出动画 */
 .toc-slide-enter-active,
 .toc-slide-leave-active {
@@ -243,12 +243,12 @@ defineExpose({ scrollToText })
   align-items: center;
   gap: 10px;
   padding: 8px 12px;
-  border-bottom: 1px solid #ebeef5;
-  background: #fafbfc;
+  border-bottom: 1px solid #E3E0D5;
+  background: #F6F4EE;
 }
 .mode-label {
   font-size: 13px;
-  color: #606266;
+  color: #5C6B60;
 }
 .zoom {
   margin-left: auto;
@@ -258,7 +258,7 @@ defineExpose({ scrollToText })
 }
 .zoom-val {
   font-size: 13px;
-  color: #606266;
+  color: #5C6B60;
   width: 44px;
   text-align: center;
 }

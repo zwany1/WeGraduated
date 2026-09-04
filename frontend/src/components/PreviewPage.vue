@@ -29,7 +29,7 @@
       <!-- ===== 图表 ===== -->
       <div :style="captionStyle('figure')">图1-1 系统架构设计图</div>
       <div class="mock-image">
-        <span style="color:#909399;font-size:11px;">[图片占位]</span>
+        <span style="color:#8B968D;font-size:11px;">[图片占位]</span>
       </div>
 
       <div :style="captionStyle('table')">表1-1 排版规则配置示例</div>
@@ -199,7 +199,7 @@ const thStyle = computed(() => ({
   border: '1px solid #999',
   padding: '4pt 8pt',
   textAlign: props.rules.tableText.align || 'center',
-  background: '#f5f7fa'
+  background: '#F6F4EE'
 }))
 
 /** 表格单元格样式 */
@@ -225,7 +225,7 @@ const tableRows = computed(() => [
 /* 预览区纸张模拟 */
 .preview-page {
   background: #fff;
-  border: 1px solid #d0d7de;
+  border: 1px solid #D6D1C5;
   border-radius: 6px;
   max-width: 720px;
   margin-top: 10px;
@@ -241,10 +241,10 @@ const tableRows = computed(() => [
   padding: 24pt 48pt;
 }
 .preview-footer {
-  border-top: 1px solid #d0d7de;
+  border-top: 1px solid #D6D1C5;
   padding: 6pt 48pt;
   font-size: 10.5pt;
-  color: #606266;
+  color: #5C6B60;
 }
 .mock-image {
   width: 100%;

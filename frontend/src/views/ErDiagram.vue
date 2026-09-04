@@ -460,7 +460,7 @@ function handleResize() {
 <style scoped>
 .page {
   min-height: 100vh;
-  background: #f5f6fa;
+  background: #F6F4EE;
 }
 .bar {
   display: flex;
@@ -479,7 +479,7 @@ function handleResize() {
   gap: 8px;
   font-size: 18px;
   font-weight: 700;
-  color: #2c3e50;
+  color: #24312A;
 }
 .content {
   max-width: 1200px;
@@ -497,20 +497,20 @@ function handleResize() {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 .panel h3 {
-  color: #303133;
+  color: #24312A;
   margin: 0 0 14px;
   padding-bottom: 10px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid #EFEDE4;
 }
 .panel h3:not(:first-child) {
   margin-top: 22px;
 }
 .entity-card {
-  border: 1px solid #ebeef5;
+  border: 1px solid #E3E0D5;
   border-radius: 8px;
   padding: 10px;
   margin-bottom: 10px;
-  background: #fafbfc;
+  background: #F6F4EE;
 }
 .entity-head {
   display: flex;
@@ -531,11 +531,11 @@ function handleResize() {
   margin-top: 4px;
 }
 .rel-card {
-  border: 1px solid #ebeef5;
+  border: 1px solid #E3E0D5;
   border-radius: 8px;
   padding: 10px;
   margin-bottom: 10px;
-  background: #fafbfc;
+  background: #F6F4EE;
 }
 .rel-head {
   display: flex;
@@ -545,7 +545,7 @@ function handleResize() {
   margin-bottom: 8px;
 }
 .rel-diamond {
-  color: #7c3aed;
+  color: #8B6F47;
   font-size: 14px;
   flex-shrink: 0;
 }
@@ -554,16 +554,16 @@ function handleResize() {
 }
 .rel-attrs-header {
   font-size: 11px;
-  color: #909399;
+  color: #8B968D;
   margin-bottom: 4px;
   padding-left: 2px;
 }
 .rel-tip {
   font-size: 12px;
-  color: #909399;
+  color: #8B968D;
   line-height: 1.5;
   background: #f8f9fb;
-  border: 1px dashed #dcdfe6;
+  border: 1px dashed #E3E0D5;
   border-radius: 6px;
   padding: 6px 10px;
   margin-bottom: 10px;
@@ -602,7 +602,7 @@ function handleResize() {
   gap: 8px;
   font-size: 13px;
   font-weight: 600;
-  color: #606266;
+  color: #5C6B60;
   margin-bottom: 8px;
 }
 .validate-count {
@@ -620,7 +620,7 @@ function handleResize() {
   align-items: flex-start;
   gap: 8px;
   font-size: 12px;
-  color: #606266;
+  color: #5C6B60;
   padding: 3px 0;
   line-height: 1.5;
 }
@@ -650,7 +650,7 @@ li.warning .v-badge {
 }
 .preview-box {
   margin-top: 16px;
-  border: 1px solid #ebeef5;
+  border: 1px solid #E3E0D5;
   border-radius: 8px;
   padding: 12px;
   background: #fff;
@@ -667,9 +667,9 @@ li.warning .v-badge {
   margin-top: 16px;
   padding: 80px 20px;
   text-align: center;
-  color: #909399;
+  color: #8B968D;
   font-size: 13px;
-  border: 1px dashed #dcdfe6;
+  border: 1px dashed #E3E0D5;
   border-radius: 8px;
 }
 @media (max-width: 900px) {

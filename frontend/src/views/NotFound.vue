@@ -17,18 +17,18 @@
   align-items: center;
   justify-content: center;
   gap: 16px;
-  background: #f5f7fa;
+  background: #F6F4EE;
   font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 .code {
   font-size: 96px;
   font-weight: 800;
-  color: #3B6BFF;
+  color: #2F5D46;
   line-height: 1;
 }
 .desc {
   font-size: 16px;
-  color: #909399;
+  color: #8B968D;
   margin: 0 0 12px;
 }
 </style>

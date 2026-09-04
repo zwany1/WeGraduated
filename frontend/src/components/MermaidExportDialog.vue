@@ -58,6 +58,6 @@ defineExpose({ open })
   font-family: Consolas, Monaco, monospace;
   font-size: 12px;
   line-height: 1.6;
-  color: #2c3140;
+  color: #24312A;
 }
 </style>

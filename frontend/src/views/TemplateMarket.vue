@@ -485,21 +485,21 @@ function formatTime(t) {
 
 <style scoped>
 .page {
-  --c-primary: #3B6BFF;
-  --c-primary-dark: #2D52CC;
-  --c-dark: #1a1a2e;
-  --c-text: #374151;
-  --c-text2: #6b7280;
-  --c-text3: #9ca3af;
-  --c-border: #e5e7eb;
-  --c-bg2: #f8f9fc;
+  --c-primary: #2F5D46;
+  --c-primary-dark: #264A38;
+  --c-dark: #1F2E26;
+  --c-text: #33413A;
+  --c-text2: #5C6B60;
+  --c-text3: #8B968D;
+  --c-border: #E3E0D5;
+  --c-bg2: #F6F4EE;
   font-family: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
   color: var(--c-text);
   background: #fff;
   min-height: 100vh;
 }
 .hero {
-  background: linear-gradient(180deg, #f0f4ff 0%, #fff 100%);
+  background: linear-gradient(180deg, #F1EEE5 0%, #fff 100%);
   padding: 64px 32px;
   text-align: center;
 }
@@ -566,18 +566,18 @@ function formatTime(t) {
   padding: 3px 10px;
   border-radius: 999px;
 }
-.card-type.本科 { background: #EEF1FF; color: #3B6BFF; }
-.card-type.硕士 { background: #F5F3FF; color: #7c3aed; }
+.card-type.本科 { background: #E8EFE6; color: #2F5D46; }
+.card-type.硕士 { background: #F5F3FF; color: #8B6F47; }
 .card-type.期刊 { background: #ECFDF5; color: #10b981; }
 .card-type.博士 { background: #FFF7ED; color: #f59e0b; }
-.card-type.官方 { background: #EEF1FF; color: #3B6BFF; }
+.card-type.官方 { background: #E8EFE6; color: #2F5D46; }
 .card-type.推荐 { background: linear-gradient(135deg, #FFF7ED, #FEF3C7); color: #b45309; }
 .card-icon {
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: #EEF1FF;
-  color: #3B6BFF;
+  background: #E8EFE6;
+  color: #2F5D46;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -625,7 +625,7 @@ function formatTime(t) {
   border: 1px solid var(--c-border);
   border-radius: 8px;
   background: #fff;
-  color: #c0c4cc;
+  color: #B3BCB2;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -662,7 +662,7 @@ function formatTime(t) {
 }
 .d-tag.gray {
   background: #f3f4f6;
-  color: #6b7280;
+  color: #5C6B60;
 }
 .d-stat {
   font-size: 13px;
@@ -672,7 +672,7 @@ function formatTime(t) {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px 20px;
-  background: #f8f9fc;
+  background: #F6F4EE;
   border-radius: 10px;
   padding: 12px 16px;
 }
@@ -813,7 +813,7 @@ function formatTime(t) {
 .d-comments .d-h {
   margin: 0 0 10px;
   font-size: 14px;
-  color: #1a1a2e;
+  color: #1F2E26;
 }
 .comment-list {
   max-height: 280px;
@@ -824,14 +824,14 @@ function formatTime(t) {
   align-items: flex-start;
   gap: 10px;
   padding: 10px 0;
-  border-bottom: 1px solid #f0f1f5;
+  border-bottom: 1px solid #EFEDE4;
 }
 .c-avatar {
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: #EEF1FF;
-  color: #3B6BFF;
+  background: #E8EFE6;
+  color: #2F5D46;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -852,11 +852,11 @@ function formatTime(t) {
 .c-name {
   font-size: 13px;
   font-weight: 600;
-  color: #2c3140;
+  color: #24312A;
 }
 .c-time {
   font-size: 12px;
-  color: #c0c4cc;
+  color: #B3BCB2;
 }
 .c-content {
   font-size: 13px;

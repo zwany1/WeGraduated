@@ -40,3 +40,11 @@ export function sendEmailCode(data) {
 export function resetPassword(data) {
   return api.post('/user/reset-password', data)
 }
+
+export function changeEmail(data) {
+  return api.post('/user/change-email', data)
+}
+
+export function changePassword(data) {
+  return api.post('/user/change-password', data)
+}

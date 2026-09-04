@@ -36,6 +36,24 @@ public class User {
     /** 头像(data URL base64) */
     private String avatar;
 
+    /** 个人简介(0~200字) */
+    private String bio;
+
+    /** 性别: 0不填 1男 2女 */
+    private Integer gender;
+
+    /** 学校/单位 */
+    private String school;
+
+    /** 学院/专业 */
+    private String major;
+
+    /** 常驻城市 */
+    private String city;
+
+    /** 联系电话 */
+    private String phone;
+
     /** 角色: USER / ADMIN */
     private String role;
 

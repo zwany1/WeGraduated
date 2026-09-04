@@ -386,6 +386,12 @@ public class UserService {
         dto.setEmail(user.getEmail());
         dto.setNickname(user.getNickname());
         dto.setAvatar(user.getAvatar());
+        dto.setBio(user.getBio());
+        dto.setGender(user.getGender());
+        dto.setSchool(user.getSchool());
+        dto.setMajor(user.getMajor());
+        dto.setCity(user.getCity());
+        dto.setPhone(user.getPhone());
         return dto;
     }
 
@@ -425,12 +431,99 @@ public class UserService {
             // 空串视为清除头像
             user.setAvatar(dto.getAvatar().trim().isEmpty() ? null : dto.getAvatar().trim());
         }
+        if (dto.getBio() != null) {
+            String bio = dto.getBio().trim();
+            if (bio.length() > 200) {
+                throw new BusinessException("个人简介不能超过200个字符");
+            }
+            user.setBio(bio.isEmpty() ? null : bio);
+        }
+        if (dto.getGender() != null) {
+            if (dto.getGender() < 0 || dto.getGender() > 2) {
+                throw new BusinessException("性别取值不合法");
+            }
+            user.setGender(dto.getGender() == 0 ? null : dto.getGender());
+        }
+        if (dto.getSchool() != null) {
+            String s = dto.getSchool().trim();
+            if (s.length() > 80) throw new BusinessException("学校名称过长");
+            user.setSchool(s.isEmpty() ? null : s);
+        }
+        if (dto.getMajor() != null) {
+            String s = dto.getMajor().trim();
+            if (s.length() > 80) throw new BusinessException("学院/专业名称过长");
+            user.setMajor(s.isEmpty() ? null : s);
+        }
+        if (dto.getCity() != null) {
+            String s = dto.getCity().trim();
+            if (s.length() > 40) throw new BusinessException("城市名称过长");
+            user.setCity(s.isEmpty() ? null : s);
+        }
+        if (dto.getPhone() != null) {
+            String s = dto.getPhone().trim();
+            if (!s.isEmpty() && !s.matches("^1[3-9]\\d{9}$")) {
+                throw new BusinessException("手机号格式不正确");
+            }
+            user.setPhone(s.isEmpty() ? null : s);
+        }
         userMapper.updateById(user);
         UserProfileDTO result = new UserProfileDTO();
         result.setUsername(user.getUsername());
         result.setEmail(user.getEmail());
         result.setNickname(user.getNickname());
         result.setAvatar(user.getAvatar());
+        result.setBio(user.getBio());
+        result.setGender(user.getGender());
+        result.setSchool(user.getSchool());
+        result.setMajor(user.getMajor());
+        result.setCity(user.getCity());
+        result.setPhone(user.getPhone());
         return result;
+    }
+
+    /** 换绑邮箱: 新邮箱必须未注册、验证码正确、旧密码确认 */
+    public void changeEmail(Long userId, String newEmail, String code, String oldPassword) {
+        User user = userMapper.selectById(userId);
+        if (user == null) throw new BusinessException(404, "用户不存在");
+        String normalized = newEmail == null ? "" : newEmail.trim().toLowerCase();
+        if (normalized.isEmpty() || !normalized.matches("^[\\w.+-]+@[\\w-]+(\\.[\\w-]+)+$")) {
+            throw new BusinessException("新邮箱格式不正确");
+        }
+        if (user.getEmail() != null && normalized.equals(user.getEmail().toLowerCase())) {
+            throw new BusinessException("新邮箱与当前邮箱相同");
+        }
+        Long other = userMapper.selectCount(new LambdaQueryWrapper<User>()
+                .eq(User::getEmail, normalized)
+                .ne(User::getId, userId));
+        if (other != null && other > 0) {
+            throw new BusinessException("该邮箱已被其他账号绑定");
+        }
+        if (!encoder.matches(oldPassword, user.getPassword())) {
+            throw new BusinessException("当前密码不正确");
+        }
+        emailCodeService.verify(newEmail.trim(), code);
+        user.setEmail(normalized);
+        userMapper.updateById(user);
+    }
+
+    /** 修改密码: 验证码(发到当前邮箱) + 旧密码校验 */
+    public void changePassword(Long userId, String oldPassword, String newPassword, String emailCode) {
+        User user = userMapper.selectById(userId);
+        if (user == null) throw new BusinessException(404, "用户不存在");
+        if (user.getEmail() == null || user.getEmail().isEmpty()) {
+            throw new BusinessException("当前账号未绑定邮箱，请联系管理员重置");
+        }
+        if (oldPassword == null || !encoder.matches(oldPassword, user.getPassword())) {
+            throw new BusinessException("当前密码不正确");
+        }
+        if (newPassword == null || newPassword.length() < 6 || newPassword.length() > 32) {
+            throw new BusinessException("新密码长度需在 6~32 位之间");
+        }
+        if (encoder.matches(newPassword, user.getPassword())) {
+            throw new BusinessException("新密码不能与旧密码相同");
+        }
+        emailCodeService.verify(user.getEmail(), emailCode);
+        user.setPassword(encoder.encode(newPassword));
+        userMapper.updateById(user);
     }
 }

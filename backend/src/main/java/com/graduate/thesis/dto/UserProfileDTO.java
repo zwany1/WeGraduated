@@ -12,4 +12,10 @@ public class UserProfileDTO {
     private String email;
     private String nickname;
     private String avatar;
+    private String bio;
+    private Integer gender;
+    private String school;
+    private String major;
+    private String city;
+    private String phone;
 }

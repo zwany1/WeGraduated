@@ -2,6 +2,8 @@ package com.graduate.thesis.controller;
 
 import com.graduate.thesis.common.Result;
 import com.graduate.thesis.common.UserContext;
+import com.graduate.thesis.dto.ChangeEmailDTO;
+import com.graduate.thesis.dto.ChangePasswordDTO;
 import com.graduate.thesis.dto.LoginDTO;
 import com.graduate.thesis.dto.LoginResponse;
 import com.graduate.thesis.dto.ResetPasswordDTO;
@@ -125,10 +127,24 @@ public class UserController {
         return Result.ok(userService.getUserInfo(UserContext.get()));
     }
 
-    /** 更新当前用户资料(昵称/头像/密保) */
+    /** 更新当前用户资料(昵称/头像/简介/性别/学校/学院/城市/电话) */
     @PutMapping("/profile")
     public Result<UserProfileDTO> updateProfile(@RequestBody UserProfileDTO dto) {
         return Result.ok(userService.updateProfile(UserContext.get(), dto));
+    }
+
+    /** 换绑邮箱: 新邮箱 + 新邮箱验证码 + 当前密码 */
+    @PostMapping("/change-email")
+    public Result<Void> changeEmail(@RequestBody ChangeEmailDTO dto) {
+        userService.changeEmail(UserContext.get(), dto.getNewEmail(), dto.getCode(), dto.getCurrentPassword());
+        return Result.ok(null);
+    }
+
+    /** 修改密码: 当前密码 + 当前邮箱验证码 + 新密码 */
+    @PostMapping("/change-password")
+    public Result<Void> changePassword(@RequestBody ChangePasswordDTO dto) {
+        userService.changePassword(UserContext.get(), dto.getCurrentPassword(), dto.getNewPassword(), dto.getEmailCode());
+        return Result.ok(null);
     }
 
     /** 获取客户端 IP */

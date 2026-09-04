@@ -120,6 +120,7 @@
         </el-form-item>
         <el-form-item label="当前密码">
           <el-input v-model="emailForm.currentPassword" type="password" show-password
+            autocomplete="current-password"
             placeholder="需要验证当前密码" />
         </el-form-item>
       </el-form>
@@ -133,14 +134,17 @@
     <el-dialog v-model="pwDlg" title="修改密码" width="460px" destroy-on-close>
       <el-form :model="pwForm" label-width="92px">
         <el-form-item label="当前密码">
-          <el-input v-model="pwForm.currentPassword" type="password" show-password />
+          <el-input v-model="pwForm.currentPassword" type="password" show-password
+            autocomplete="current-password" />
         </el-form-item>
         <el-form-item label="新密码">
           <el-input v-model="pwForm.newPassword" type="password" show-password
+            autocomplete="new-password"
             placeholder="6~32 位" />
         </el-form-item>
         <el-form-item label="确认新密码">
-          <el-input v-model="pwForm.confirmPassword" type="password" show-password />
+          <el-input v-model="pwForm.confirmPassword" type="password" show-password
+            autocomplete="new-password" />
         </el-form-item>
         <el-form-item label="邮箱验证码">
           <div class="code-row">

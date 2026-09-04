@@ -48,6 +48,18 @@ else
 fi
 
 echo "[3/4] 重建后端并更新容器..."
+# 3a: 执行增量迁移(幂等,重复执行安全); 从 thesis-mysql 容器内读取 MYSQL_ROOT_PASSWORD
+if [ -d "$PROJECT_ROOT/deploy/migrations" ]; then
+  MYSQL_PWD=$(docker exec thesis-mysql printenv MYSQL_ROOT_PASSWORD)
+  for sql in $(ls "$PROJECT_ROOT/deploy/migrations/"*.sql 2>/dev/null | sort); do
+    echo "  应用迁移: $(basename "$sql")"
+    docker exec -i -e MYSQL_PWD="$MYSQL_PWD" thesis-mysql \
+      sh -c 'mysql -uroot -p"$MYSQL_PWD" thesis_format' < "$sql" || {
+        echo "  ! 迁移失败: $(basename "$sql"), 终止"; exit 1;
+      }
+  done
+fi
+# 3b: 重建后端镜像并启动新容器
 docker compose -f deploy/docker-compose.yml up -d --build backend
 
 echo "[4/4] 检查状态..."

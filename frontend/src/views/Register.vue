@@ -103,6 +103,7 @@
                 v-model="form.password"
                 :type="showPassword ? 'text' : 'password'"
                 placeholder="6-64位，需含字母和数字"
+                autocomplete="new-password"
                 @focus="isTyping = true"
                 @blur="isTyping = false"
                 class="pr-8"

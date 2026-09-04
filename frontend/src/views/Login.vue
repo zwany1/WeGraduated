@@ -68,6 +68,7 @@
                 v-model="form.password"
                 :type="showPassword ? 'text' : 'password'"
                 placeholder="••••••••"
+                autocomplete="current-password"
                 @keyup.enter="submit"
                 class="pr-8"
               />

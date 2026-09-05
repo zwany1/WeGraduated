@@ -79,7 +79,7 @@ public class SpecExtractService {
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            log.warn("校规抽取失败: {}", e.getMessage());
+            log.warn("校规抽取失败: {}", e.getMessage(), e);
             throw new BusinessException("文档无法解析，请确认是有效的 .docx 格式");
         }
     }
@@ -106,7 +106,7 @@ public class SpecExtractService {
         if (m.find()) {
             String paper = m.group(1);
             // 16开纸张与 A4 尺寸接近, 统一映射为 A4; 其余原样
-            if (paper.equals("16")) {
+            if (paper.equals("16开") || paper.equals("32开")) {
                 paper = "A4";
             }
             vo.getPageConfig().put("paper", paper);

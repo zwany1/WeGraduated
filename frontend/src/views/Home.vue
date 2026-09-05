@@ -478,7 +478,7 @@ const statDisplays = ref(stats.map(() => '0'))
 function animateStat(index, target, decimal = 0, duration = 1600) {
   const fmt = v => (decimal ? v.toFixed(decimal) : Math.round(v).toLocaleString('en-US'))
   // 尊重系统"减少动态效果"偏好: 直接显示最终值
-  if (prefersReducedMotion) {
+  if (prefersReducedMotion.value) {
     statDisplays.value[index] = fmt(target)
     return
   }
@@ -523,8 +523,11 @@ const glowRef = ref(null)
 const showBackTop = ref(false)
 const domCleanup = new AbortController()
 let revealIo = null
-// 尊重系统"减少动态效果"偏好: 装饰性动效让路, 功能性逻辑保留
-const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+// 尊重系统"减少动态效果"偏好: 装饰性动效让路, 功能性逻辑保留; 监听偏好中途切换
+const prefersReducedMotion = ref(window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', e => {
+  prefersReducedMotion.value = e.matches
+})
 
 function initEffects() {
   // 滚动进度条 + 回到顶部按钮(功能性, 不受偏好影响)
@@ -537,7 +540,7 @@ function initEffects() {
   onScroll()
   window.addEventListener('scroll', onScroll, { passive: true, signal: domCleanup.signal })
 
-  if (prefersReducedMotion) {
+  if (prefersReducedMotion.value) {
     return
   }
 

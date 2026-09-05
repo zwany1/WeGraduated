@@ -24,7 +24,7 @@
           <h3>
             {{ t.name }}
             <span v-if="t.teamId && teamMap[t.teamId]" class="team-badge">{{ teamMap[t.teamId].name }}</span>
-            <span v-if="missing[t.id] && missing[t.id].length" class="warn-badge" title="缺少关键规则：{{ missing[t.id].join('、') }}">缺规则</span>
+            <span v-if="missing[t.id] && missing[t.id].length" class="warn-badge" :title="'缺少关键规则：' + missing[t.id].join('、')">缺规则</span>
           </h3>
           <p class="time">创建于 {{ formatTime(t.createTime) }}</p>
           <div class="ops">

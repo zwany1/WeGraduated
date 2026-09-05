@@ -42,7 +42,12 @@ public class XssFilter extends OncePerRequestFilter {
                 response.sendError(HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE, "请求体过大");
                 return;
             }
+            // chunked 请求无 Content-Length: 读取时同步限流, 防止超大 body 打满堆内存
             byte[] body = readBody(request);
+            if (body.length > MAX_JSON_BODY) {
+                response.sendError(HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE, "请求体过大");
+                return;
+            }
             String json = new String(body, StandardCharsets.UTF_8);
             String cleaned = sanitizeJson(json);
             byte[] cleanedBody = cleaned.getBytes(StandardCharsets.UTF_8);

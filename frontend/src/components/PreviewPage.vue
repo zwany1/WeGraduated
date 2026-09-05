@@ -1,11 +1,11 @@
 <template>
-  <div class="preview-page">
+  <div class="preview-page" :style="pageStyle">
     <!-- 页眉 -->
     <div v-if="page.header.text" class="preview-header" :style="headerBarStyle">
       {{ page.header.text }}
     </div>
 
-    <div class="preview-content">
+    <div class="preview-content" :style="contentPaddingStyle">
       <!-- ===== 摘要区（启用时展示） ===== -->
       <template v-if="genAbstract">
         <div :style="abstractTitleStyle">摘  要</div>
@@ -94,6 +94,19 @@ const props = defineProps({
 
 const sizeMap = { 9: '小五', 10: '五号', 12: '小四', 14: '四号', 15: '小三', 16: '三号', 18: '小二', 22: '二号', 24: '小一', 26: '一号' }
 const alignMap = { left: '左对齐', center: '居中', right: '右对齐', justify: '两端对齐' }
+
+// 页面设置实时反映: 纸张宽度与四边距(1cm≈28.35pt)
+const CM_TO_PT = 28.346
+const PAPER_WIDTH_CM = { A4: 21, B5: 17.6 }
+const pageStyle = computed(() => {
+  const widthCm = PAPER_WIDTH_CM[props.page.paper] || 21
+  return { width: widthCm + 'cm', maxWidth: widthCm + 'cm' }
+})
+const contentPaddingStyle = computed(() => {
+  const m = props.page.margin || {}
+  const pt = v => ((Number(v) || 0) * CM_TO_PT).toFixed(1) + 'pt'
+  return { paddingTop: pt(m.top), paddingBottom: pt(m.bottom), paddingLeft: pt(m.left), paddingRight: pt(m.right) }
+})
 
 /** 按规则生成内联样式对象, 供预览区实时反映当前配置 */
 function ruleStyle(key) {

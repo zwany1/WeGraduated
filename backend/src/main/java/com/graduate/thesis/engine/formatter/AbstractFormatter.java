@@ -21,7 +21,8 @@ import java.util.regex.Pattern;
  */
 public class AbstractFormatter {
 
-    private static final Pattern ABSTRACT_TITLE = Pattern.compile("^摘\\s*要\\s*$");
+    // 与 StructureDetector.ABSTRACT_TITLE 保持一致: 允许"摘 要:"带冒号形式
+    private static final Pattern ABSTRACT_TITLE = Pattern.compile("^摘\\s*要\\s*[:：]?\\s*$");
     private static final Pattern KEYWORDS = Pattern.compile("^关键词[:：].*");
     private static final Pattern EN_TITLE = Pattern.compile("^\\s*Abstract\\s*$", Pattern.CASE_INSENSITIVE);
     private static final Pattern EN_KEYWORDS = Pattern.compile("^Key\\s*words\\s*[:：].*", Pattern.CASE_INSENSITIVE);

@@ -1229,7 +1229,8 @@ async function saveAll() {
 /** 保存当前配置后跳转任务页并预选本方案 */
 async function goFormat() {
   const ok = await saveAll()
-  if (ok) router.push({ path: '/tasks', query: { templateId: String(id) } })
+  // 用当前路由 id 而非挂载时常量: 组件复用时 id 可能已变化
+  if (ok) router.push({ path: '/tasks', query: { templateId: String(Number(route.params.id)) } })
 }
 </script>
 

@@ -4,6 +4,7 @@ import com.graduate.thesis.engine.model.RuleSet;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPPr;
 
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -267,13 +268,26 @@ public final class StructureHelper {
         return ChineseNumber.extract(text);
     }
 
-    /** 是否图表题注文本 */
+    /** 是否图表题注文本: 命中编号形态且后继文字短、不含句读(防"图3展示了…"正文误伤) */
     public static boolean isFigureCaptionText(String text) {
-        return text != null && FIGURE_CAPTION.matcher(text.trim()).matches();
+        return text != null && isCaptionShape(FIGURE_CAPTION, text);
     }
 
     /** 是否表格题注文本 */
     public static boolean isTableCaptionText(String text) {
-        return text != null && TABLE_CAPTION.matcher(text.trim()).matches();
+        return text != null && isCaptionShape(TABLE_CAPTION, text);
+    }
+
+    /** 题注形态校验: 编号后的题名应简短且不含句中标点 */
+    private static boolean isCaptionShape(Pattern pattern, String text) {
+        if (text == null) {
+            return false;
+        }
+        Matcher m = pattern.matcher(text.trim());
+        if (!m.matches()) {
+            return false;
+        }
+        String rest = m.groupCount() >= 2 ? m.group(2) : "";
+        return rest.length() <= 40 && !rest.matches(".*[。;；!！?？].*");
     }
 }

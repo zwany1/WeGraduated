@@ -157,7 +157,12 @@ public class UserService {
         user.setRole(User.ROLE_USER);
         user.setStatus(true);
         user.setCreateTime(LocalDateTime.now());
-        userMapper.insert(user);
+        try {
+            userMapper.insert(user);
+        } catch (org.springframework.dao.DuplicateKeyException e) {
+            // check-then-act 竞态兜底: 并发同名/同邮箱注册撞唯一键时给出友好提示而非 500
+            throw new BusinessException("用户名或邮箱已被注册，请更换后重试");
+        }
         assignDefaultUserRole(user.getId());
         logService.recordLogin(user.getId(), username, true, "注册成功");
         LoginResponse resp = buildLoginResponse(user);

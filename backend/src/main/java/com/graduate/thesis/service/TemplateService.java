@@ -483,7 +483,14 @@ public class TemplateService {
         rate.setScore(score);
         if (exist == null) {
             rate.setCreateTime(LocalDateTime.now());
-            ratingMapper.insert(rate);
+            try {
+                ratingMapper.insert(rate);
+            } catch (org.springframework.dao.DuplicateKeyException e) {
+                // 并发双击兜底: 已有评分则转为更新
+                ratingMapper.update(rate, new LambdaQueryWrapper<MarketRating>()
+                        .eq(MarketRating::getUserId, userId)
+                        .eq(MarketRating::getTemplateId, templateId));
+            }
         } else {
             rate.setCreateTime(exist.getCreateTime());
             ratingMapper.update(rate, new LambdaQueryWrapper<MarketRating>()
@@ -590,7 +597,12 @@ public class TemplateService {
             like.setTemplateId(templateId);
             like.setUserId(userId);
             like.setCreateTime(LocalDateTime.now());
-            likeMapper.insert(like);
+            try {
+                likeMapper.insert(like);
+            } catch (org.springframework.dao.DuplicateKeyException e) {
+                // 并发双击兜底: 已点赞则按已赞返回
+                return likeResult(true, templateId);
+            }
             return likeResult(true, templateId);
         } else {
             likeMapper.deleteById(exist.getId());
@@ -628,7 +640,11 @@ public class TemplateService {
         f.setUserId(userId);
         f.setTemplateId(templateId);
         f.setCreateTime(LocalDateTime.now());
-        favoriteMapper.insert(f);
+        try {
+            favoriteMapper.insert(f);
+        } catch (org.springframework.dao.DuplicateKeyException e) {
+            // 并发双击兜底: 已收藏则按已收藏返回
+        }
         return true;
     }
 

@@ -91,7 +91,6 @@ public class PaperService {
      * 不创建任务/不落库, 用于配置页秒级预览真实排版效果; 排版引擎与整篇排版完全一致, 差异只是内容变短。
      */
     public byte[] quickFormat(Long userId, MultipartFile file, Long templateId, int maxParagraphs) {
-        templateService.getOwned(templateId, userId);
         if (file == null || file.isEmpty()) {
             throw new BusinessException("请选择要试排的文档");
         }
@@ -498,7 +497,11 @@ public class PaperService {
         if (!task.getUserId().equals(userId)) {
             throw new BusinessException(403, "无权删除该任务");
         }
-        storageService.delete(task.getResultPath());
+        // 文件删除推迟到事务提交后: DB 回滚时文件不可恢复, 不能先删
+        java.util.List<String> pendingDelete = new java.util.ArrayList<>();
+        if (task.getResultPath() != null) {
+            pendingDelete.add(task.getResultPath());
+        }
         Long fileId = task.getFileId();
         if (fileId != null) {
             Long rest = taskMapper.selectCount(new LambdaQueryWrapper<FormatTask>()
@@ -507,12 +510,31 @@ public class PaperService {
             if (rest == null || rest == 0L) {
                 PaperFile paperFile = paperFileMapper.selectById(fileId);
                 if (paperFile != null) {
-                    storageService.delete(paperFile.getStoredPath());
+                    pendingDelete.add(paperFile.getStoredPath());
                     paperFileMapper.deleteById(fileId);
                 }
             }
         }
         taskMapper.deleteById(taskId);
+        deleteFilesAfterCommit(pendingDelete);
+    }
+
+    /** 事务提交后统一删除物理文件; 无事务时立即删除 */
+    private void deleteFilesAfterCommit(java.util.List<String> relativePaths) {
+        if (relativePaths == null || relativePaths.isEmpty()) {
+            return;
+        }
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                    new org.springframework.transaction.support.TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            relativePaths.forEach(storageService::delete);
+                        }
+                    });
+        } else {
+            relativePaths.forEach(storageService::delete);
+        }
     }
 
     /** 批量删除排版任务: 级联清理结果文件; 原文档无其他任务引用时一并删除(单次上限 50) */
@@ -533,8 +555,11 @@ public class PaperService {
                 throw new BusinessException(403, "无权删除任务 #" + t.getId());
             }
         }
+        java.util.List<String> pendingDelete = new java.util.ArrayList<>();
         for (FormatTask t : tasks) {
-            storageService.delete(t.getResultPath());
+            if (t.getResultPath() != null) {
+                pendingDelete.add(t.getResultPath());
+            }
         }
         java.util.Set<Long> batchIds = tasks.stream().map(FormatTask::getId).collect(java.util.stream.Collectors.toSet());
         java.util.Set<Long> fileIds = tasks.stream().map(FormatTask::getFileId)
@@ -546,12 +571,13 @@ public class PaperService {
             if (rest == null || rest == 0L) {
                 PaperFile pf = paperFileMapper.selectById(fileId);
                 if (pf != null) {
-                    storageService.delete(pf.getStoredPath());
+                    pendingDelete.add(pf.getStoredPath());
                     paperFileMapper.deleteById(fileId);
                 }
             }
         }
         taskMapper.deleteBatchIds(batchIds);
+        deleteFilesAfterCommit(pendingDelete);
     }
 
     /** 我的上传文档列表(含关联任务数) */
@@ -585,12 +611,16 @@ public class PaperService {
         }
         List<FormatTask> tasks = taskMapper.selectList(new LambdaQueryWrapper<FormatTask>()
                 .eq(FormatTask::getFileId, fileId));
+        java.util.List<String> pendingDelete = new java.util.ArrayList<>();
         for (FormatTask t : tasks) {
-            storageService.delete(t.getResultPath());
+            if (t.getResultPath() != null) {
+                pendingDelete.add(t.getResultPath());
+            }
             taskMapper.deleteById(t.getId());
         }
-        storageService.delete(paperFile.getStoredPath());
+        pendingDelete.add(paperFile.getStoredPath());
         paperFileMapper.deleteById(fileId);
+        deleteFilesAfterCommit(pendingDelete);
     }
 
     /** 批量加载已排版结果(校验归属与完成状态), 并补全 originalName 供打包命名 */

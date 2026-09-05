@@ -32,6 +32,7 @@ public class CaptchaService {
 
     /** 生成验证码, 返回 {captchaId, type, render} */
     public CaptchaResult generate() {
+        cleanup(); // 请求级清扫: 免登录接口, 防止两次定时清理之间被刷爆内存
         CaptchaGenerator gen = generators.get(ThreadLocalRandom.current().nextInt(generators.size()));
         CaptchaData data = gen.generate();
         String captchaId = Long.toHexString(ThreadLocalRandom.current().nextLong() & Long.MAX_VALUE);

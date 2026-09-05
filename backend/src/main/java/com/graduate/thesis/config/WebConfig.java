@@ -49,9 +49,7 @@ public class WebConfig implements WebMvcConfigurer {
                         "/user/need-captcha",
                         "/captcha/**",
                         "/health",
-                        "/file/download/**",
                         "/public/**",
-                        "/auth/**",
                         "/template/market/list",
                         "/template/market/categories",
                         "/template/market/*/detail",
@@ -59,6 +57,7 @@ public class WebConfig implements WebMvcConfigurer {
                         "/paper/task/*/progress",
                         "/error"
                 );
+        // 注意: 此清单是安全边界, 新增排除项必须评审——排除即免登录可达
         registry.addInterceptor(adminInterceptor)
                 .addPathPatterns("/admin/**");
         registry.addInterceptor(permInterceptor)

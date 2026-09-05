@@ -90,6 +90,10 @@ public class EmailCodeService {
             mailSender.send(msg);
         } catch (Exception e) {
             log.error("发送邮件失败", e);
+            // 发送失败回补 IP 限流额度, 避免 SMTP 抖动误伤同网络用户
+            if (ip != null) {
+                releaseIpSlot(ip);
+            }
             throw new BusinessException("邮件发送失败，请检查邮箱地址或稍后重试");
         }
         store.put(key, new Entry(code, System.currentTimeMillis() + CODE_EXPIRE_MILLIS,
@@ -139,5 +143,13 @@ public class EmailCodeService {
             return false;
         }
         return true;
+    }
+
+    /** 回补一次 IP 限流额度(发送失败时) */
+    private void releaseIpSlot(String ip) {
+        long[] slot = ipWindow.get(ip);
+        if (slot != null && slot[1] > 0) {
+            slot[1] = slot[1] - 1;
+        }
     }
 }

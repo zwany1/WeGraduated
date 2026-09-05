@@ -476,8 +476,13 @@ const stats = [
 // 统计数字滚动显示
 const statDisplays = ref(stats.map(() => '0'))
 function animateStat(index, target, decimal = 0, duration = 1600) {
-  const start = performance.now()
   const fmt = v => (decimal ? v.toFixed(decimal) : Math.round(v).toLocaleString('en-US'))
+  // 尊重系统"减少动态效果"偏好: 直接显示最终值
+  if (prefersReducedMotion) {
+    statDisplays.value[index] = fmt(target)
+    return
+  }
+  const start = performance.now()
   const step = now => {
     const t = Math.min(1, (now - start) / duration)
     const eased = 1 - Math.pow(1 - t, 3)
@@ -518,9 +523,11 @@ const glowRef = ref(null)
 const showBackTop = ref(false)
 const domCleanup = new AbortController()
 let revealIo = null
+// 尊重系统"减少动态效果"偏好: 装饰性动效让路, 功能性逻辑保留
+const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 function initEffects() {
-  // 滚动进度条 + 回到顶部按钮
+  // 滚动进度条 + 回到顶部按钮(功能性, 不受偏好影响)
   const onScroll = () => {
     const h = document.documentElement
     const p = h.scrollTop / Math.max(1, h.scrollHeight - h.clientHeight) * 100
@@ -529,6 +536,10 @@ function initEffects() {
   }
   onScroll()
   window.addEventListener('scroll', onScroll, { passive: true, signal: domCleanup.signal })
+
+  if (prefersReducedMotion) {
+    return
+  }
 
   // 鼠标跟随光斑(全页, 节流)
   const glow = glowRef.value
@@ -1825,4 +1836,18 @@ const tools = [
 .tools-section.in-view .tool-card:nth-child(2) { animation-delay: 0.1s; }
 .tools-section.in-view .tool-card:nth-child(3) { animation-delay: 0.2s; }
 .tools-section.in-view .tool-card:nth-child(4) { animation-delay: 0.3s; }
+
+/* 无障碍: 系统开启"减少动态效果"时关闭装饰性动画与过渡 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .cursor-glow {
+    display: none;
+  }
+}
 </style>

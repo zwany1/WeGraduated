@@ -19,6 +19,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import java.io.File;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -42,6 +43,8 @@ public class DbMigrationRunner implements ApplicationRunner {
 
     private final String adminUsername;
     private final String adminPassword;
+    @org.springframework.beans.factory.annotation.Value("${thesis.migrations.dir:}")
+    private String migrationDir;
 
     public DbMigrationRunner(JdbcTemplate jdbcTemplate,
                              UserMapper userMapper,
@@ -63,6 +66,7 @@ public class DbMigrationRunner implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
+        runMigrationScripts();
         ensureRoleColumn();
         ensureExtColumns();
         ensureAdminAccount();
@@ -71,6 +75,78 @@ public class DbMigrationRunner implements ApplicationRunner {
         ensureAdminMenus();
         syncUserRoles();
         seedDictsAndConfigs();
+    }
+
+    /** 迁移脚本目录候选: IDE 下工作目录为 backend/, 部署下为项目根 */
+    private static final String[] MIGRATION_DIR_CANDIDATES = {"../deploy/migrations", "deploy/migrations"};
+
+    /**
+     * 扫描执行 deploy/migrations/*.sql:
+     * 已执行的按文件名记录在 t_db_migration 表中跳过, 远程提交的迁移文件因此在本机启动时自动生效,
+     * 不再依赖 update.sh 手工执行(文件约定: 幂等 SQL, 分号分隔, 不使用 DELIMITER).
+     */
+    private void runMigrationScripts() {
+        File dir = null;
+        if (migrationDir != null && !migrationDir.isBlank()) {
+            File configured = new File(migrationDir);
+            if (configured.isDirectory()) {
+                dir = configured;
+            }
+        }
+        if (dir == null) {
+            for (String c : MIGRATION_DIR_CANDIDATES) {
+                File f = new File(c);
+                if (f.isDirectory()) {
+                    dir = f;
+                    break;
+                }
+            }
+        }
+        if (dir == null) {
+            log.info("[DbMigration] 未找到迁移脚本目录(deploy/migrations), 跳过脚本迁移");
+            return;
+        }
+        try {
+            jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS t_db_migration ("
+                    + "id BIGINT AUTO_INCREMENT PRIMARY KEY, "
+                    + "filename VARCHAR(255) NOT NULL UNIQUE, "
+                    + "executed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP"
+                    + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='已执行的迁移脚本'");
+            java.util.Set<String> executed = new java.util.HashSet<>();
+            jdbcTemplate.query("SELECT filename FROM t_db_migration", rs -> {
+                executed.add(rs.getString(1));
+            });
+            File[] files = dir.listFiles((d, n) -> n.toLowerCase().endsWith(".sql"));
+            if (files == null) {
+                return;
+            }
+            java.util.Arrays.sort(files, java.util.Comparator.comparing(File::getName));
+            int applied = 0;
+            for (File f : files) {
+                if (executed.contains(f.getName())) {
+                    continue;
+                }
+                try {
+                    try (java.sql.Connection conn = java.util.Objects.requireNonNull(jdbcTemplate.getDataSource()).getConnection()) {
+                        org.springframework.core.io.support.EncodedResource resource =
+                                new org.springframework.core.io.support.EncodedResource(
+                                        new org.springframework.core.io.FileSystemResource(f),
+                                        java.nio.charset.StandardCharsets.UTF_8);
+                        org.springframework.jdbc.datasource.init.ScriptUtils.executeSqlScript(conn, resource);
+                    }
+                    jdbcTemplate.update("INSERT INTO t_db_migration (filename) VALUES (?)", f.getName());
+                    applied++;
+                    log.info("[DbMigration] 已执行迁移脚本: {}", f.getName());
+                } catch (Exception e) {
+                    log.warn("[DbMigration] 迁移脚本执行失败(不阻断启动, 请人工核查): {} - {}", f.getName(), e.getMessage());
+                }
+            }
+            if (applied > 0) {
+                log.info("[DbMigration] 本次启动共应用 {} 个迁移脚本", applied);
+            }
+        } catch (Exception e) {
+            log.warn("[DbMigration] 迁移脚本扫描失败: {}", e.getMessage());
+        }
     }
 
     /** 幂等补齐扩展列: t_user.status / 模板市场字段(兼容 MySQL 5.7 / 8.0) */

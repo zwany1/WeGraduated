@@ -76,6 +76,13 @@ public class DbMigrationRunner implements ApplicationRunner {
     /** 幂等补齐扩展列: t_user.status / 模板市场字段(兼容 MySQL 5.7 / 8.0) */
     private void ensureExtColumns() {
         addColumnIfMissing("t_user", "status", "ALTER TABLE t_user ADD COLUMN status TINYINT(1) NOT NULL DEFAULT 1 COMMENT '状态 1正常 0禁用'");
+        // 个人资料扩展(与 deploy/migrations/2026-09-04-user-profile-ext.sql 对齐): 本地开发无 update.sh, 由启动迁移补列
+        addColumnIfMissing("t_user", "bio", "ALTER TABLE t_user ADD COLUMN bio VARCHAR(200) DEFAULT NULL COMMENT '个人简介'");
+        addColumnIfMissing("t_user", "gender", "ALTER TABLE t_user ADD COLUMN gender TINYINT DEFAULT NULL COMMENT '性别 0不填 1男 2女'");
+        addColumnIfMissing("t_user", "school", "ALTER TABLE t_user ADD COLUMN school VARCHAR(80) DEFAULT NULL COMMENT '学校/单位'");
+        addColumnIfMissing("t_user", "major", "ALTER TABLE t_user ADD COLUMN major VARCHAR(80) DEFAULT NULL COMMENT '学院/专业'");
+        addColumnIfMissing("t_user", "city", "ALTER TABLE t_user ADD COLUMN city VARCHAR(40) DEFAULT NULL COMMENT '常驻城市'");
+        addColumnIfMissing("t_user", "phone", "ALTER TABLE t_user ADD COLUMN phone VARCHAR(20) DEFAULT NULL COMMENT '联系电话'");
         addColumnIfMissing("t_format_template", "is_public", "ALTER TABLE t_format_template ADD COLUMN is_public TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否上架模板市场'");
         addColumnIfMissing("t_format_template", "recommended", "ALTER TABLE t_format_template ADD COLUMN recommended TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否推荐'");
         addColumnIfMissing("t_format_template", "public_time", "ALTER TABLE t_format_template ADD COLUMN public_time DATETIME DEFAULT NULL COMMENT '上架时间'");

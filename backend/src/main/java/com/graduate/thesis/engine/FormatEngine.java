@@ -120,8 +120,14 @@ public class FormatEngine {
             progress.accept(100);
             return temp;
         } catch (BusinessException e) {
+            if (temp != null) {
+                temp.delete(); // 失败路径清理, 避免临时文件泄漏
+            }
             throw e;
         } catch (Exception e) {
+            if (temp != null) {
+                temp.delete();
+            }
             throw new BusinessException(500, friendlyError(e));
         }
     }
@@ -162,6 +168,12 @@ public class FormatEngine {
                     break;
                 case HEADING2:
                 case HEADING3:
+                case HEADING4:
+                case HEADING5:
+                    // 无编号短行的启发式提升在 detect 阶段已完成, 此处 kind 已是标题
+                    if (item.isAutoPromoted()) {
+                        report.setAutoFixedHeadings(report.getAutoFixedHeadings() + 1);
+                    }
                     report.setSectionCount(report.getSectionCount() + 1);
                     inRefs = false;
                     break;
@@ -175,10 +187,8 @@ public class FormatEngine {
                     if (!item.getText().isEmpty()) {
                         report.setBodyParagraphs(report.getBodyParagraphs() + 1);
                     }
-                    if (item.isAutoPromoted()) {
-                        report.setAutoFixedHeadings(report.getAutoFixedHeadings() + 1);
-                    }
-                    if (inRefs && item.getText().matches("^\\[?\\d+\\]?[、.)]\\s*\\S+.*")) {
+                    // GB/T 7714 常见编号: [1] / (1) / 1. / 1、
+                    if (inRefs && item.getText().matches("^\\[?\\d+\\]?[、.)]?\\s*\\S+.*")) {
                         refs++;
                     }
                     break;

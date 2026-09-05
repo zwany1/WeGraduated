@@ -1,6 +1,7 @@
 package com.graduate.thesis.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.graduate.thesis.common.BusinessException;
 import com.graduate.thesis.dto.DiffItem;
 import com.graduate.thesis.dto.PaperFormatDTO;
@@ -207,9 +208,15 @@ public class PaperService {
         if (task == null) {
             return;
         }
-        task.setStatus(FormatTask.STATUS_PROCESSING);
-        task.setProgress(5);
-        taskMapper.updateById(task);
+        // CAS 抢占: 仅 PENDING→PROCESSING 成功才继续, 防止重复派发/重复执行
+        int claimed = taskMapper.update(null, new LambdaUpdateWrapper<FormatTask>()
+                .eq(FormatTask::getId, taskId)
+                .eq(FormatTask::getStatus, FormatTask.STATUS_PENDING)
+                .set(FormatTask::getStatus, FormatTask.STATUS_PROCESSING)
+                .set(FormatTask::getProgress, 5));
+        if (claimed <= 0) {
+            return;
+        }
         progressService.publish(taskId, Map.of("type", "progress", "progress", 5, "status", FormatTask.STATUS_PROCESSING,
                 "stage", "prepare", "stageText", "正在准备文档"));
         try {
@@ -240,50 +247,69 @@ public class PaperService {
             progressService.publish(taskId, Map.of("type", "progress", "progress", 10, "status", FormatTask.STATUS_PROCESSING,
                     "stage", "formatting", "stageText", "正在识别标题并应用格式规则"));
             File result = formatEngine.format(source, ruleSet, progress -> {
-                task.setProgress(progress);
-                taskMapper.updateById(task);
+                // 进度写入用条件更新: 任务被取消(FAILED)后进度不再回写
+                taskMapper.update(null, new LambdaUpdateWrapper<FormatTask>()
+                        .eq(FormatTask::getId, taskId)
+                        .eq(FormatTask::getStatus, FormatTask.STATUS_PROCESSING)
+                        .set(FormatTask::getProgress, progress));
                 progressService.publish(taskId, Map.of("type", "progress", "progress", progress, "status", FormatTask.STATUS_PROCESSING,
                         "stage", "formatting", "stageText", "正在应用格式规则"));
             }, report);
             String resultPath = storageService.storeResult(task.getUserId(), result);
+            result.delete(); // 排版产物已拷入存储, 引擎临时文件即用即删
 
-            task.setStatus(FormatTask.STATUS_SUCCESS);
-            task.setProgress(100);
-            task.setResultPath(resultPath);
+            // 成功写入同样带 PROCESSING 条件: 被管理员取消的任务不再复活
+            String reportJson = null;
             try {
-                task.setReport(objectMapper.writeValueAsString(report));
+                reportJson = objectMapper.writeValueAsString(report);
                 log.info("排版报告已生成 taskId={}, 疑似标题 {} 处", taskId, report.getSuspects().size());
             } catch (Exception e) {
                 log.warn("报告序列化失败 taskId={}", taskId, e);
             }
-            task.setFinishTime(LocalDateTime.now());
-            task.setErrorMsg(null);
-            taskMapper.updateById(task);
+            int success = taskMapper.update(null, new LambdaUpdateWrapper<FormatTask>()
+                    .eq(FormatTask::getId, taskId)
+                    .eq(FormatTask::getStatus, FormatTask.STATUS_PROCESSING)
+                    .set(FormatTask::getStatus, FormatTask.STATUS_SUCCESS)
+                    .set(FormatTask::getProgress, 100)
+                    .set(FormatTask::getResultPath, resultPath)
+                    .set(FormatTask::getReport, reportJson)
+                    .set(FormatTask::getErrorMsg, null)
+                    .set(FormatTask::getFinishTime, LocalDateTime.now()));
+            if (success <= 0) {
+                log.info("任务已被取消, 放弃排版结果 taskId={}", taskId);
+                return;
+            }
             progressService.publish(taskId, Map.of("type", "progress", "progress", 100, "status", FormatTask.STATUS_SUCCESS,
                     "stage", "done", "stageText", "排版完成"));
         } catch (Exception e) {
             log.error("排版失败 taskId={}", taskId, e);
             // 失败自动重试 1 次(非致命错误, 如临时资源/超时等), 避免用户手动重复提交
-            int retry = task.getRetryCount() == null ? 0 : task.getRetryCount();
+            // 重试/失败状态均用条件更新: 仅当任务仍处于 PROCESSING(未被取消)时生效
+            FormatTask current = taskMapper.selectById(taskId);
+            int retry = (current == null || current.getRetryCount() == null) ? 0 : current.getRetryCount();
             if (retry < 1) {
-                retry++;
-                task.setRetryCount(retry);
-                task.setStatus(FormatTask.STATUS_PENDING);
-                task.setProgress(0);
-                task.setErrorMsg(null);
-                taskMapper.updateById(task);
-                progressService.publish(taskId, Map.of("type", "progress", "progress", 0, "status", FormatTask.STATUS_PENDING, "retry", true));
-                log.warn("排版失败, 第 {} 次自动重试 taskId={}, 已重置为待处理, 等待调度器重新派发", retry, taskId);
-            } else {
-                task.setStatus(FormatTask.STATUS_FAILED);
-                task.setErrorMsg(friendlyFormatError(e.getMessage()));
-                task.setFinishTime(LocalDateTime.now());
-                try {
-                    taskMapper.updateById(task);
-                } catch (Exception ue) {
-                    log.warn("写入任务失败状态失败 taskId={}", taskId, ue);
+                int reset = taskMapper.update(null, new LambdaUpdateWrapper<FormatTask>()
+                        .eq(FormatTask::getId, taskId)
+                        .eq(FormatTask::getStatus, FormatTask.STATUS_PROCESSING)
+                        .set(FormatTask::getStatus, FormatTask.STATUS_PENDING)
+                        .set(FormatTask::getProgress, 0)
+                        .set(FormatTask::getRetryCount, retry + 1)
+                        .set(FormatTask::getErrorMsg, null));
+                if (reset > 0) {
+                    progressService.publish(taskId, Map.of("type", "progress", "progress", 0, "status", FormatTask.STATUS_PENDING, "retry", true));
+                    log.warn("排版失败, 第 {} 次自动重试 taskId={}, 已重置为待处理, 等待调度器重新派发", retry + 1, taskId);
+                } else {
+                    log.info("任务已被取消, 跳过自动重试 taskId={}", taskId);
                 }
-                progressService.publish(taskId, Map.of("type", "progress", "status", FormatTask.STATUS_FAILED, "error", task.getErrorMsg()));
+            } else {
+                taskMapper.update(null, new LambdaUpdateWrapper<FormatTask>()
+                        .eq(FormatTask::getId, taskId)
+                        .eq(FormatTask::getStatus, FormatTask.STATUS_PROCESSING)
+                        .set(FormatTask::getStatus, FormatTask.STATUS_FAILED)
+                        .set(FormatTask::getErrorMsg, friendlyFormatError(e.getMessage()))
+                        .set(FormatTask::getFinishTime, LocalDateTime.now()));
+                progressService.publish(taskId, Map.of("type", "progress", "status", FormatTask.STATUS_FAILED,
+                        "error", friendlyFormatError(e.getMessage())));
             }
         }
     }
@@ -375,11 +401,11 @@ public class PaperService {
         task.setProgress(0);
         task.setCreateTime(LocalDateTime.now());
         taskMapper.insert(task);
-        self.runFormat(task.getId());
+        // 不直接执行: 交给 TaskScheduler 统一 CAS 抢占派发, 避免与 1.5s 轮询并发重复排版
         return task;
     }
 
-    /** 取消任务(仅待处理/处理中) */
+    /** 取消任务(仅待处理/处理中): 条件更新, 防止被执行线程的全量回写复活 */
     public void cancel(Long taskId) {
         FormatTask task = taskMapper.selectById(taskId);
         if (task == null) {
@@ -389,10 +415,12 @@ public class PaperService {
                 && !FormatTask.STATUS_PROCESSING.equals(task.getStatus())) {
             throw new BusinessException(400, "仅待处理/处理中的任务可取消");
         }
-        task.setStatus(FormatTask.STATUS_FAILED);
-        task.setErrorMsg("任务已被管理员取消");
-        task.setFinishTime(LocalDateTime.now());
-        taskMapper.updateById(task);
+        int affected = taskMapper.update(null, new LambdaUpdateWrapper<FormatTask>()
+                .eq(FormatTask::getId, taskId)
+                .in(FormatTask::getStatus, FormatTask.STATUS_PENDING, FormatTask.STATUS_PROCESSING)
+                .set(FormatTask::getStatus, FormatTask.STATUS_FAILED)
+                .set(FormatTask::getErrorMsg, "任务已被管理员取消")
+                .set(FormatTask::getFinishTime, LocalDateTime.now()));
     }
 
     public List<FormatTask> listTasks(Long userId) {

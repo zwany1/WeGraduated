@@ -76,7 +76,7 @@ public class ReferenceFormatter {
             }
         }
 
-        // 4. 处理标题后的条目
+        // 4. 处理标题后的条目(遇到附录/致谢等后续章节标题即停止, 避免误伤其内容)
         int no = 1;
         for (int i = refIdx + 1; i < elements.size(); i++) {
             IBodyElement el = elements.get(i);
@@ -88,20 +88,25 @@ public class ReferenceFormatter {
             if (text.isEmpty()) {
                 continue;
             }
+            if (AFTER_REF_SECTION.matcher(text).matches()) {
+                break;
+            }
             Matcher m = REF_NUM.matcher(text);
             if (!m.matches()) {
                 continue;
             }
             String content = (m.group(4) == null ? "" : m.group(4)).trim();
-            // 若后续段落是该条目的续行(无序号), 追加
+            // 若后续段落是该条目的续行(无序号), 追加并清空续行段, 避免排版后内容重复
             StringBuilder sb = new StringBuilder(content);
             while (i + 1 < elements.size() && elements.get(i + 1) instanceof XWPFParagraph) {
                 String next = ((XWPFParagraph) elements.get(i + 1)).getText().trim();
-                if (next.isEmpty() || REF_ITEM_START.matcher(next).matches()) {
+                if (next.isEmpty() || REF_ITEM_START.matcher(next).matches()
+                        || AFTER_REF_SECTION.matcher(next).matches()) {
                     break;
                 }
                 sb.append(next);
                 i++;
+                setItemText((XWPFParagraph) elements.get(i), "", config);
             }
             String cleaned = formatItem(sb.toString(), config);
             String label = config.isRenumber() ? formatNumber(no, numberingStyle) + "  " : "";
@@ -110,6 +115,10 @@ public class ReferenceFormatter {
             no++;
         }
     }
+
+    /** 参考文献之后的章节标题(附录/致谢/攻读学位期间), 处理到此为止 */
+    private static final Pattern AFTER_REF_SECTION =
+            Pattern.compile("^(附\\s*录|致\\s*谢|攻读(硕士|博士|学位)期间|个人简历|学(术)?论文(发表|完成)情况).*$");
 
     /** 识别条目编号风格, 非条目行返回 null */
     private static String detectNumbering(String text) {

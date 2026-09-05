@@ -114,6 +114,10 @@ public class UserService {
         if (user == null) {
             throw new BusinessException("该邮箱未绑定任何账号，无法通过邮箱重置密码；请确认邮箱，或联系管理员处理");
         }
+        // 封禁账号不得通过免登录的重置流程重新获得登录态
+        if (Boolean.FALSE.equals(user.getStatus())) {
+            throw new BusinessException("该账号已被禁用，无法重置密码，请联系管理员");
+        }
         emailCodeService.verify(email, dto.getEmailCode());
         checkPasswordStrength(dto.getNewPassword());
         user.setPassword(encoder.encode(dto.getNewPassword()));
@@ -516,14 +520,15 @@ public class UserService {
         if (oldPassword == null || !encoder.matches(oldPassword, user.getPassword())) {
             throw new BusinessException("当前密码不正确");
         }
-        if (newPassword == null || newPassword.length() < 6 || newPassword.length() > 32) {
-            throw new BusinessException("新密码长度需在 6~32 位之间");
-        }
+        // 与注册/重置统一的口令强度策略
+        checkPasswordStrength(newPassword);
         if (encoder.matches(newPassword, user.getPassword())) {
             throw new BusinessException("新密码不能与旧密码相同");
         }
         emailCodeService.verify(user.getEmail(), emailCode);
         user.setPassword(encoder.encode(newPassword));
         userMapper.updateById(user);
+        // 改密后吊销该用户全部旧 token, 被泄露的旧会话立即失效
+        jwtUtil.revokeAllForUser(user.getId());
     }
 }

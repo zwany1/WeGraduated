@@ -40,9 +40,12 @@ services:
       mysql:
         condition: service_healthy
     environment:
+      # 显式固定 prod: 防止漏设时回落到 dev profile(仓库内弱密钥上线)
+      SPRING_PROFILES_ACTIVE: prod
       DB_USERNAME: root
       DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       DB_URL: jdbc:mysql://mysql:3306/thesis_format?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      MAIL_USERNAME: ${MAIL_USERNAME}
       MAIL_PASSWORD: ${MAIL_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
       STORAGE_DIR: /app/data/storage

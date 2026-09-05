@@ -30,7 +30,15 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      maxParallelFileOps: 4
+      maxParallelFileOps: 4,
+      output: {
+        // 重组件分包: 改善缓存命中与首屏并行加载
+        manualChunks: {
+          'vendor-element-plus': ['element-plus'],
+          'vendor-vue': ['vue', 'vue-router', 'pinia'],
+          'vendor-docx': ['docx-preview']
+        }
+      }
     }
   }
 })

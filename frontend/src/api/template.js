@@ -25,6 +25,16 @@ export function saveAllConfig(id, data) {
   return api.put(`/template/${id}/config`, data)
 }
 
+/** 校规文档启发式抽取: 上传《格式规范》.docx, 返回模板配置初稿 + 原文摘录 */
+export function extractSpec(file) {
+  const form = new FormData()
+  form.append('file', file)
+  return api.post('/template/extract-spec', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 120000
+  })
+}
+
 export function saveHeadingPatterns(id, headingPatterns) {
   return api.put(`/template/${id}/heading-patterns`, headingPatterns)
 }

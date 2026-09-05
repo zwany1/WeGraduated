@@ -13,6 +13,7 @@ import com.graduate.thesis.dto.TocConfigSaveDTO;
 import com.graduate.thesis.dto.TemplateCreateDTO;
 import com.graduate.thesis.entity.FormatRule;
 import com.graduate.thesis.entity.FormatTemplate;
+import com.graduate.thesis.service.SpecExtractService;
 import com.graduate.thesis.service.TemplateService;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.validation.Valid;
 import java.util.List;
@@ -36,9 +38,17 @@ import java.util.Map;
 public class TemplateController {
 
     private final TemplateService templateService;
+    private final SpecExtractService specExtractService;
 
-    public TemplateController(TemplateService templateService) {
+    public TemplateController(TemplateService templateService, SpecExtractService specExtractService) {
         this.templateService = templateService;
+        this.specExtractService = specExtractService;
+    }
+
+    /** 校规文档启发式抽取: 从《格式规范》docx 生成模板配置初稿(带原文摘录) */
+    @PostMapping("/extract-spec")
+    public Result<com.graduate.thesis.engine.model.SpecExtractVO> extractSpec(@RequestParam("file") MultipartFile file) {
+        return Result.ok(specExtractService.extract(file));
     }
 
     @PostMapping("/create")

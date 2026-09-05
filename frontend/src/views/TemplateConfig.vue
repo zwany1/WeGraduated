@@ -28,6 +28,12 @@
               <div class="preset-name">{{ p.label }}</div>
               <div class="preset-desc">{{ p.desc }}</div>
             </div>
+            <div class="preset-card spec-card" @click="openSpecWizard">
+              <div class="preset-name">从校规文档导入
+                <el-tag size="small" type="success" style="margin-left: 4px">智能</el-tag>
+              </div>
+              <div class="preset-desc">上传学校《格式规范》.docx，自动抽取字体/字号/行距/边距/标题编号生成配置初稿，可逐项修改</div>
+            </div>
           </div>
           <h3 style="margin-top: 20px">排版开关</h3>
           <el-form label-width="120px" style="max-width: 520px">
@@ -492,6 +498,116 @@
       </section>
     </main>
 
+    <!-- 校规文档导入向导 -->
+    <el-dialog v-model="specVisible" title="从校规文档导入" width="760px" top="5vh" :close-on-click-modal="false" destroy-on-close>
+      <div v-if="!specResult">
+        <el-upload drag accept=".docx" :auto-upload="false" :show-file-list="false" :on-change="onSpecFile">
+          <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
+          <div class="el-upload__text">将学校《格式规范》.docx 拖到此处，或<em>点击选择</em></div>
+          <template #tip>
+            <div class="el-upload__tip">自动识别字体/字号/行距/页边距/标题编号等表述，识别结果可逐项修改</div>
+          </template>
+        </el-upload>
+        <div v-if="specLoading" v-loading="true" element-loading-text="正在解析校规文档…" style="height: 70px; margin-top: 12px"></div>
+      </div>
+      <div v-else>
+        <el-alert type="info" :closable="false" style="margin-bottom: 12px"
+          :title="`已解析 ${specResult.paragraphCount} 个段落，命中 ${Object.keys(specQuotes).length} 项；灰色小字为原文依据，未识别项保持当前值`" />
+
+        <h4 class="spec-group">页面</h4>
+        <div class="spec-row">
+          <label>纸张/边距</label>
+          <el-select v-model="specDraft.paper" size="small" style="width: 90px">
+            <el-option label="A4" value="A4" /><el-option label="B5" value="B5" />
+          </el-select>
+          <el-input-number v-model="specDraft.margin.top" size="small" :min="0" :max="10" :step="0.1" />
+          <el-input-number v-model="specDraft.margin.bottom" size="small" :min="0" :max="10" :step="0.1" />
+          <el-input-number v-model="specDraft.margin.left" size="small" :min="0" :max="10" :step="0.1" />
+          <el-input-number v-model="specDraft.margin.right" size="small" :min="0" :max="10" :step="0.1" />
+          <span class="spec-unit">cm（上/下/左/右）</span>
+        </div>
+        <div class="spec-quote" style="margin-left: 80px">{{ quoteFor('page.paper') || quoteFor('page.margintop') || '未识别，保持当前值' }}</div>
+
+        <h4 class="spec-group">标题（正则 + 字体字号）</h4>
+        <div v-for="lv in ['heading1', 'heading2', 'heading3']" :key="lv" class="spec-block">
+          <div class="spec-row">
+            <label>{{ lvName(lv) }}</label>
+            <el-input v-model="specDraft[lv].pattern" size="small" placeholder="识别正则" style="width: 180px" />
+            <el-select v-model="specDraft[lv].font" size="small" style="width: 100px" placeholder="字体">
+              <el-option v-for="f in fonts" :key="f" :label="f" :value="f" />
+            </el-select>
+            <el-select v-model="specDraft[lv].fontSize" size="small" style="width: 120px" placeholder="字号">
+              <el-option v-for="s in sizes" :key="s.v" :label="s.label" :value="s.v" />
+            </el-select>
+            <el-select v-model="specDraft[lv].align" size="small" style="width: 110px" clearable placeholder="对齐">
+              <el-option label="居中" value="center" /><el-option label="左对齐" value="left" />
+            </el-select>
+          </div>
+          <div class="spec-quote" style="margin-left: 80px">{{ quoteFor(lv + '.font') || quoteFor(lv + '.pattern') || '未识别，保持当前值' }}</div>
+        </div>
+
+        <h4 class="spec-group">正文</h4>
+        <div class="spec-row">
+          <label>正文</label>
+          <el-select v-model="specDraft.body.font" size="small" style="width: 100px" placeholder="字体">
+            <el-option v-for="f in fonts" :key="f" :label="f" :value="f" />
+          </el-select>
+          <el-select v-model="specDraft.body.fontSize" size="small" style="width: 120px" placeholder="字号">
+            <el-option v-for="s in sizes" :key="s.v" :label="s.label" :value="s.v" />
+          </el-select>
+          <el-select v-model="specDraft.body.lineSpacingType" size="small" style="width: 120px">
+            <el-option label="多倍行距" value="multiple" /><el-option label="固定值(磅)" value="exact" />
+          </el-select>
+          <el-select v-if="specDraft.body.lineSpacingType === 'multiple'" v-model="specDraft.body.lineSpacing" size="small" style="width: 90px">
+            <el-option v-for="l in lineSpacings" :key="l" :label="l + ' 倍'" :value="l" />
+          </el-select>
+          <el-input-number v-else v-model="specDraft.body.lineSpacingExact" size="small" :min="10" :max="40" />
+          <span class="spec-unit">缩进</span>
+          <el-input-number v-model="specDraft.body.firstLineIndent" size="small" :min="0" :max="4" />
+          <span class="spec-unit">字符</span>
+        </div>
+        <div class="spec-quote" style="margin-left: 80px">{{ quoteFor('body.font') || quoteFor('body.lineSpacing') || '未识别，保持当前值' }}</div>
+
+        <h4 class="spec-group">图表题注</h4>
+        <div class="spec-row">
+          <label>图题注</label>
+          <el-select v-model="specDraft.figure.font" size="small" style="width: 100px" placeholder="字体">
+            <el-option v-for="f in fonts" :key="f" :label="f" :value="f" />
+          </el-select>
+          <el-select v-model="specDraft.figure.fontSize" size="small" style="width: 120px" placeholder="字号">
+            <el-option v-for="s in sizes" :key="s.v" :label="s.label" :value="s.v" />
+          </el-select>
+        </div>
+        <div class="spec-row">
+          <label>表题注</label>
+          <el-select v-model="specDraft.table.font" size="small" style="width: 100px" placeholder="字体">
+            <el-option v-for="f in fonts" :key="f" :label="f" :value="f" />
+          </el-select>
+          <el-select v-model="specDraft.table.fontSize" size="small" style="width: 120px" placeholder="字号">
+            <el-option v-for="s in sizes" :key="s.v" :label="s.label" :value="s.v" />
+          </el-select>
+        </div>
+        <div class="spec-quote" style="margin-left: 80px">{{ quoteFor('figure.font') || quoteFor('table.font') || '未识别，保持当前值' }}</div>
+
+        <h4 class="spec-group">参考文献</h4>
+        <div class="spec-row">
+          <label>条目</label>
+          <el-select v-model="specDraft.refItemFont" size="small" style="width: 100px" placeholder="字体">
+            <el-option v-for="f in fonts" :key="f" :label="f" :value="f" />
+          </el-select>
+          <el-select v-model="specDraft.refItemFontSize" size="small" style="width: 120px" placeholder="字号">
+            <el-option v-for="s in sizes" :key="s.v" :label="s.label" :value="s.v" />
+          </el-select>
+        </div>
+        <div class="spec-quote" style="margin-left: 80px">{{ quoteFor('reference.itemFont') || '未识别，保持当前值' }}</div>
+
+        <div style="text-align: right; margin-top: 16px">
+          <el-button @click="specVisible = false">取消</el-button>
+          <el-button type="primary" @click="applySpec">套用到当前方案</el-button>
+        </div>
+      </div>
+    </el-dialog>
+
     <!-- 左下角实时预览入口: 在任意配置 tab 调参数即时看效果 -->
     <button class="live-preview-toggle" :class="{ on: livePreview }" @click="toggleLivePreview">
       <el-icon><View /></el-icon>
@@ -517,7 +633,7 @@ import DocxCompare from '../components/DocxCompare.vue'
 import { extractHeadings } from '../utils/docxHeadings'
 import { ElMessage, ElNotification, ElMessageBox } from 'element-plus'
 import { UploadFilled, Document, View, ArrowDown, QuestionFilled } from '@element-plus/icons-vue'
-import { getTemplateDetail, saveAllConfig } from '../api/template'
+import { getTemplateDetail, saveAllConfig, extractSpec } from '../api/template'
 import { quickFormat } from '../api/paper'
 
 const route = useRoute()
@@ -685,6 +801,138 @@ function applySchoolPreset(key) {
     Object.assign(tocConfig, JSON.parse(JSON.stringify(p.tocConfig)))
     ElMessage.success('已套用预设：' + p.label)
   }).catch(() => {})
+}
+
+// ===== 校规文档导入向导: 抽取结果预填草稿, 逐项确认后套用 =====
+const specVisible = ref(false)
+const specLoading = ref(false)
+const specResult = ref(null)
+const specQuotes = ref({})
+const specDraft = reactive({
+  paper: 'A4',
+  margin: { top: 2.5, bottom: 2.5, left: 3, right: 2.5 },
+  heading1: { pattern: '', font: '', fontSize: 16, align: '' },
+  heading2: { pattern: '', font: '', fontSize: 14, align: '' },
+  heading3: { pattern: '', font: '', fontSize: 12, align: '' },
+  body: { font: '', fontSize: 12, lineSpacingType: 'multiple', lineSpacing: 1.5, lineSpacingExact: 20, firstLineIndent: 2 },
+  figure: { font: '', fontSize: 10 },
+  table: { font: '', fontSize: 10 },
+  refItemFont: '', refItemFontSize: 10
+})
+
+function lvName(lv) {
+  return { heading1: '一级标题', heading2: '二级标题', heading3: '三级标题' }[lv]
+}
+
+function quoteFor(field) {
+  const q = specQuotes.value[field]
+  return q ? '依据：' + (q.length > 42 ? q.slice(0, 42) + '…' : q) : ''
+}
+
+function openSpecWizard() {
+  specResult.value = null
+  specQuotes.value = {}
+  // 草稿预填当前配置: 未识别的字段套用时保持原值
+  specDraft.paper = page.paper || 'A4'
+  specDraft.margin = { ...page.margin }
+  specDraft.heading1 = { pattern: headingPatterns.heading1, font: rules.heading1.font, fontSize: rules.heading1.fontSize, align: rules.heading1.align || '' }
+  specDraft.heading2 = { pattern: headingPatterns.heading2, font: rules.heading2.font, fontSize: rules.heading2.fontSize, align: rules.heading2.align || '' }
+  specDraft.heading3 = { pattern: headingPatterns.heading3, font: rules.heading3.font, fontSize: rules.heading3.fontSize, align: rules.heading3.align || '' }
+  specDraft.body = {
+    font: rules.body.font, fontSize: rules.body.fontSize,
+    lineSpacingType: rules.body.lineSpacingType || 'multiple',
+    lineSpacing: rules.body.lineSpacing || 1.5,
+    lineSpacingExact: rules.body.lineSpacingExact || 20,
+    firstLineIndent: rules.body.firstLineIndent || 0
+  }
+  specDraft.figure = { font: rules.figure.font, fontSize: rules.figure.fontSize }
+  specDraft.table = { font: rules.table.font, fontSize: rules.table.fontSize }
+  specDraft.refItemFont = refConfig.itemFont
+  specDraft.refItemFontSize = refConfig.itemFontSize
+  specVisible.value = true
+}
+
+async function onSpecFile(f) {
+  const file = f && f.raw ? f.raw : null
+  if (!file) return
+  specLoading.value = true
+  try {
+    const vo = await extractSpec(file)
+    specResult.value = vo
+    const q = {}
+    ;(vo.evidence || []).forEach(ev => { if (!q[ev.field]) q[ev.field] = ev.quote })
+    specQuotes.value = q
+    const pc = vo.pageConfig || {}
+    if (pc.paper) specDraft.paper = pc.paper
+    ;['top', 'bottom', 'left', 'right'].forEach(k => { if (pc[k] != null) specDraft.margin[k] = pc[k] })
+    const hp = vo.headingPatterns || {}
+    ;['heading1', 'heading2', 'heading3'].forEach(k => { if (hp[k]) specDraft[k].pattern = hp[k] })
+    const rulesVo = vo.rules || {}
+    Object.keys(rulesVo).forEach(k => {
+      const r = rulesVo[k]
+      const d = specDraft[k]
+      if (!d) return
+      if (r.font) d.font = r.font
+      if (r.fontSize != null) d.fontSize = r.fontSize
+      if (r.align) d.align = r.align
+    })
+    const bv = rulesVo.body
+    if (bv) {
+      if (bv.lineSpacingType) specDraft.body.lineSpacingType = bv.lineSpacingType
+      if (bv.lineSpacing != null) specDraft.body.lineSpacing = bv.lineSpacing
+      if (bv.lineSpacingExact != null) specDraft.body.lineSpacingExact = bv.lineSpacingExact
+      if (bv.firstLineIndent != null) specDraft.body.firstLineIndent = bv.firstLineIndent
+    }
+    const rc = vo.refConfig || {}
+    if (rc.itemFont) specDraft.refItemFont = rc.itemFont
+    if (rc.itemFontSize != null) specDraft.refItemFontSize = rc.itemFontSize
+    if (!Object.keys(q).length) {
+      ElMessage.warning('未能从文档中识别出格式表述，可手动调整后套用')
+    } else {
+      ElMessage.success(`识别到 ${Object.keys(q).length} 项配置，请核对后套用`)
+    }
+  } catch (e) {
+    // 具体原因由 api 拦截器提示
+  }
+  specLoading.value = false
+}
+
+function applySpec() {
+  const patterns = [specDraft.heading1.pattern, specDraft.heading2.pattern, specDraft.heading3.pattern]
+  for (const p of patterns) {
+    try {
+      if (!p || !p.trim()) throw new Error('empty')
+      // eslint-disable-next-line no-new
+      new RegExp(p)
+    } catch (e) {
+      ElMessage.error('标题正则不合法：' + p)
+      return
+    }
+  }
+  page.paper = specDraft.paper
+  Object.assign(page.margin, specDraft.margin)
+  headingPatterns.heading1 = specDraft.heading1.pattern
+  headingPatterns.heading2 = specDraft.heading2.pattern
+  headingPatterns.heading3 = specDraft.heading3.pattern
+  const applyRule = (target, src) => {
+    if (src.font) target.font = src.font
+    if (src.fontSize != null) target.fontSize = src.fontSize
+    if (src.align) target.align = src.align
+  }
+  applyRule(rules.heading1, specDraft.heading1)
+  applyRule(rules.heading2, specDraft.heading2)
+  applyRule(rules.heading3, specDraft.heading3)
+  applyRule(rules.body, specDraft.body)
+  rules.body.lineSpacingType = specDraft.body.lineSpacingType
+  rules.body.lineSpacing = specDraft.body.lineSpacing
+  rules.body.lineSpacingExact = specDraft.body.lineSpacingExact
+  rules.body.firstLineIndent = specDraft.body.firstLineIndent
+  applyRule(rules.figure, specDraft.figure)
+  applyRule(rules.table, specDraft.table)
+  if (specDraft.refItemFont) refConfig.itemFont = specDraft.refItemFont
+  if (specDraft.refItemFontSize != null) refConfig.itemFontSize = specDraft.refItemFontSize
+  specVisible.value = false
+  ElMessage.success('校规配置已套用，按 Ctrl+S 保存')
 }
 
 // ===== 防呆: 标题正则合法性实时校验 + 常用模式插入 =====
@@ -1133,6 +1381,40 @@ async function goFormat() {
 }
 .q-mark:hover {
   color: #2F5D46;
+}
+/* 校规导入向导 */
+.spec-card {
+  border-style: dashed;
+}
+.spec-group {
+  margin: 14px 0 8px;
+  font-size: 14px;
+  color: #303133;
+  border-left: 3px solid #409eff;
+  padding-left: 8px;
+}
+.spec-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.spec-row > label {
+  display: inline-block;
+  width: 72px;
+  font-size: 13px;
+  color: #606266;
+  flex-shrink: 0;
+}
+.spec-unit {
+  font-size: 12px;
+  color: #909399;
+}
+.spec-quote {
+  font-size: 12px;
+  color: #b0b3b8;
+  line-height: 1.6;
+  margin: 2px 0 6px;
 }
 .quick-card {
   margin: 12px 0 4px;

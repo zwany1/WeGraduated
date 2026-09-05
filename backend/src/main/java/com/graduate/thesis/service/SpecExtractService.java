@@ -42,7 +42,7 @@ public class SpecExtractService {
     private static final Pattern MARGIN_RE = Pattern.compile("(上|下|左|右)(?:边距)?[^0-9。;；上下左右]{0,3}(\\d+(?:\\.\\d+)?)\\s*(?:cm|厘米|公分)");
     /** 成对形式: "上下2.5cm" / "左右3cm" */
     private static final Pattern PAIR_MARGIN_RE = Pattern.compile("(上下|左右)[^0-9。;；]{0,3}(\\d+(?:\\.\\d+)?)\\s*(?:cm|厘米|公分)");
-    private static final Pattern PAPER_RE = Pattern.compile("(A4|B5|[1-9]开)");
+    private static final Pattern PAPER_RE = Pattern.compile("(A4|B5|16开|32开|[1-9]开)");
 
     /** 句子切分 */
     private static final Pattern SENT_SPLIT = Pattern.compile("[。;；\\n]");
@@ -104,7 +104,11 @@ public class SpecExtractService {
         }
         Matcher m = PAPER_RE.matcher(s);
         if (m.find()) {
-            String paper = m.group(1).equals("1") || m.group(1).equals("16") ? "A4" : m.group(1);
+            String paper = m.group(1);
+            // 16开纸张与 A4 尺寸接近, 统一映射为 A4; 其余原样
+            if (paper.equals("16")) {
+                paper = "A4";
+            }
             vo.getPageConfig().put("paper", paper);
             vo.getEvidence().add(new SpecExtractVO.Evidence("page.paper", paper, s, "high"));
         }
@@ -114,6 +118,9 @@ public class SpecExtractService {
         if (!s.contains("边距") && !s.contains("cm") && !s.contains("厘米")) {
             return;
         }
+        // 边距写入 pageConfig.margin 子对象(与前端 page.margin 键结构一致)
+        Map<String, Object> margin = (Map<String, Object>) vo.getPageConfig()
+                .computeIfAbsent("margin", k -> new LinkedHashMap<String, Object>());
         // 成对形式优先: "上下2.5cm" 同时设置上/下, "左右3cm" 同时设置左/右
         Matcher pair = PAIR_MARGIN_RE.matcher(s);
         while (pair.find()) {
@@ -122,12 +129,12 @@ public class SpecExtractService {
                 continue;
             }
             if (pair.group(1).contains("上")) {
-                vo.getPageConfig().put("top", v);
-                vo.getPageConfig().put("bottom", v);
+                margin.put("top", v);
+                margin.put("bottom", v);
                 vo.getEvidence().add(new SpecExtractVO.Evidence("page.margin上下", String.valueOf(v), s, "high"));
             } else {
-                vo.getPageConfig().put("left", v);
-                vo.getPageConfig().put("right", v);
+                margin.put("left", v);
+                margin.put("right", v);
                 vo.getEvidence().add(new SpecExtractVO.Evidence("page.margin左右", String.valueOf(v), s, "high"));
             }
         }
@@ -149,10 +156,10 @@ public class SpecExtractService {
             } else {
                 key = "right";
             }
-            if (vo.getPageConfig().containsKey(key)) {
+            if (margin.containsKey(key)) {
                 continue;
             }
-            vo.getPageConfig().put(key, v);
+            margin.put(key, v);
             vo.getEvidence().add(new SpecExtractVO.Evidence("page.margin" + side, String.valueOf(v), s, "high"));
         }
     }

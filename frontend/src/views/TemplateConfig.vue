@@ -526,7 +526,7 @@
           <el-input-number v-model="specDraft.margin.right" size="small" :min="0" :max="10" :step="0.1" />
           <span class="spec-unit">cm（上/下/左/右）</span>
         </div>
-        <div class="spec-quote" style="margin-left: 80px">{{ quoteFor('page.paper') || quoteFor('page.margintop') || '未识别，保持当前值' }}</div>
+        <div class="spec-quote" style="margin-left: 80px">{{ quoteFor('page.paper') || quoteFor('page.margin上下') || quoteFor('page.margin左右') || '未识别，保持当前值' }}</div>
 
         <h4 class="spec-group">标题（正则 + 字体字号）</h4>
         <div v-for="lv in ['heading1', 'heading2', 'heading3']" :key="lv" class="spec-block">
@@ -864,7 +864,9 @@ async function onSpecFile(f) {
     specQuotes.value = q
     const pc = vo.pageConfig || {}
     if (pc.paper) specDraft.paper = pc.paper
-    ;['top', 'bottom', 'left', 'right'].forEach(k => { if (pc[k] != null) specDraft.margin[k] = pc[k] })
+    // 后端边距为嵌套结构 pageConfig.margin.{top,bottom,left,right}
+    const mg = pc.margin || {}
+    ;['top', 'bottom', 'left', 'right'].forEach(k => { if (mg[k] != null) specDraft.margin[k] = mg[k] })
     const hp = vo.headingPatterns || {}
     ;['heading1', 'heading2', 'heading3'].forEach(k => { if (hp[k]) specDraft[k].pattern = hp[k] })
     const rulesVo = vo.rules || {}

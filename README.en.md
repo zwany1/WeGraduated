@@ -23,7 +23,7 @@
 
 ## ✨ Introduction
 
-**Thesis Format System** is a rule-configuration-driven academic document formatting tool. It combines visual rule configuration with an automatic formatting engine to quickly produce school-standard theses. It also includes practical diagram tools: Three-Line Table, ER Diagram, System Architecture Diagram, and Flow DSL.
+**Thesis Format System** is a rule-configuration-driven academic document formatting tool. It combines visual rule configuration with an automatic formatting engine to quickly produce school-standard theses. It includes practical diagram tools (Three-Line Table, ER Diagram, System Architecture Diagram, Flow DSL, Freehand Drawing) plus team collaboration, a template marketplace, and a full admin console.
 
 Core idea: **configure rules → engine formats automatically → download compliant document**, no manual adjustment of fonts, sizes, line spacing, headers, or footers.
 
@@ -36,13 +36,32 @@ Core idea: **configure rules → engine formats automatically → download compl
 - **Automatic formatting engine**: detects chapter structure, unifies fonts/sizes, auto-generates TOC, abstract/English abstract on separate pages, reference formatting
 - **Figure & table captions**: auto-numbering (`图3-1`, `表3-1`), toggleable
 - **Number unification**: auto-detects and unifies chapter/list numbering styles
+- **Job queue scheduling**: dispatch with concurrency limit, oversized-document protection, auto retry, SSE progress push
+- **Format check report**: structure counts and suspicious headings with one-click re-format at a chosen level; before/after diff comparison (diff index + dual-side text locating)
+- **Regulation import wizard**: heuristically extracts fonts/sizes/line spacing/margins/numbering from school regulation documents with source evidence, confirmed item by item
+- **Live preview**: quick trial formatting and a live preview dock on the config page, preview page follows margins and paper
 
 ### 🔐 Account Security (new in v1.1.0)
 - **Dual captcha**: graphic captcha required for login/register; email verification code also required for registration (sent via QQ SMTP, valid 5 min, 60 s rate limit)
 - **BCrypt password hashing**: salted hash storage, no plaintext
-- **Login rate limiting**: locks account 10 min after 5 consecutive failures
+- **Login rate limiting**: locks account 10 min after 5 consecutive failures (account + IP dimensions)
 - **Forgot password**: reset via email code; all old tokens invalidated after reset
+- **Account self-service**: extended profile fields, email change and password change (dual verification); all old tokens revoked after password change
 - **XSS protection**: global filter escapes JSON request bodies; SQL injection prevented natively by MyBatis-Plus parameterized queries
+
+### 👥 Team Collaboration
+- **Team workspace**: create/invite (requires consent)/member management/leave/dissolve
+- Templates, tasks and theses belong to a team and are shared within it, with permission checks
+- In-site notifications: invitations and outcomes, team template revisions
+
+### 🛒 Template Marketplace
+- Moderated listing, category filter and sorting, downloads and ratings
+- Favorites, config export/import as JSON, side-by-side parameter comparison
+
+### 🧭 Admin Console
+- RBAC permission system: menu/role/button-level access control
+- User management: batch ban/unban and password reset; task rerun and cancel; targeted in-site announcements
+- Automatic database backup (manual/scheduled/download) with retention policy, operation/login audit logs
 
 ### 📊 Three-Line Table Generator
 - One-click standard three-line table Word document (top/bottom 1.5pt, column line 0.75pt, no vertical lines)
@@ -63,6 +82,10 @@ Core idea: **configure rules → engine formats automatically → download compl
 - **Flow DSL parser**: write flow logic with `if(condition)/else` + indentation, auto-generate branch flowcharts
 - Swimlane diagram: auto-lane by roles
 - Dagre auto layout
+
+### 🎨 Freehand Drawing
+- Embedded official drawio editor: drag shapes, magnetic connectors, hover-arrow quick shape creation
+- Save/load drawings, PNG export, Mermaid export for all diagram types
 
 ---
 
@@ -122,13 +145,14 @@ npm run dev
 Graduated/
 ├── backend/                    # Spring Boot backend
 │   └── src/main/java/com/graduate/thesis/
-│       ├── controller/         # APIs: user/template/paper/ER/table3/diagram
+│       ├── controller/         # APIs: user/template/paper/team/ER/table3/diagram
 │       ├── service/            # business + format engine + diagram generators
 │       ├── engine/             # format engine (structure detect/format)
 │       └── dto/                # request/response models
+├── deploy/                     # Docker compose, deploy/update scripts, SQL migrations
 └── frontend/                   # Vue 3 frontend
     └── src/
-        ├── views/              # pages (home/login/template/ER/table3/design)
+        ├── views/              # pages (home/template/task/diagram tools/team/admin)
         ├── api/                # API wrappers
         └── router/             # routes
 ```
@@ -141,8 +165,9 @@ Graduated/
 | --- | --- |
 | `DB_PASSWORD` | Database password via environment variable |
 | `MAIL_PASSWORD` | Email SMTP authorization code (for sending verification codes) |
-| `thesis.jwt.secret` | JWT secret (repo ignores `application.yml`, create yourself) |
-| `thesis.storage.dir` | Storage directory, default `backend/data/storage` |
+| `JWT_SECRET` | JWT secret via environment variable |
+| `THESIS_ADMIN_PASSWORD` | Admin console password via environment variable |
+| `STORAGE_DIR` | Storage directory, default `./data/storage` |
 
 ---
 

@@ -9,7 +9,6 @@
 
 <p align="center">
   <a href="README.md">简体中文</a> |
-  <a href="README.zht.md">繁體中文</a> |
   <a href="README.en.md">English</a>
 </p>
 
@@ -17,7 +16,7 @@
   <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License" />
   <img src="https://img.shields.io/badge/MySQL-8.0-4479a1?style=flat-square" alt="MySQL" />
   <img src="https://img.shields.io/badge/AntV%20X6-3.x-3B6BFF?style=flat-square" alt="AntV X6" />
-  <img src="https://img.shields.io/badge/build-v1.0.1-3B6BFF?style=flat-square" alt="Version" />
+  <img src="https://img.shields.io/badge/build-v1.2.0-3B6BFF?style=flat-square" alt="Version" />
 </p>
 
 ---
@@ -38,7 +37,7 @@ Core idea: **configure rules → engine formats automatically → download compl
 - **Figure & table captions**: auto-numbering (`图3-1`, `表3-1`), toggleable
 - **Number unification**: auto-detects and unifies chapter/list numbering styles
 
-### 🔐 Account Security (new in v1.0.1)
+### 🔐 Account Security (new in v1.1.0)
 - **Dual captcha**: graphic captcha required for login/register; email verification code also required for registration (sent via QQ SMTP, valid 5 min, 60 s rate limit)
 - **BCrypt password hashing**: salted hash storage, no plaintext
 - **Login rate limiting**: locks account 10 min after 5 consecutive failures

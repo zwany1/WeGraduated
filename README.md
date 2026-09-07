@@ -9,7 +9,6 @@
 
 <p align="center">
   <a href="README.md">简体中文</a> |
-  <a href="README.zht.md">繁體中文</a> |
   <a href="README.en.md">English</a>
 </p>
 
@@ -17,7 +16,7 @@
   <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License" />
   <img src="https://img.shields.io/badge/MySQL-8.0-4479a1?style=flat-square" alt="MySQL" />
   <img src="https://img.shields.io/badge/AntV%20X6-3.x-3B6BFF?style=flat-square" alt="AntV X6" />
-  <img src="https://img.shields.io/badge/build-v1.0.1-3B6BFF?style=flat-square" alt="Version" />
+  <img src="https://img.shields.io/badge/build-v1.2.0-3B6BFF?style=flat-square" alt="Version" />
 </p>
 
 ---
@@ -38,7 +37,7 @@
 - **图表题注**：图片/表格自动编号（`图3-1`、`表3-1`），可开关控制
 - **编号统一化**：自动识别并统一章节/列表编号风格
 
-### 🔐 账户安全（v1.0.1 新增）
+### 🔐 账户安全（v1.1.0 新增）
 - **双重验证码**：注册/登录需通过图形验证码，注册还须邮箱验证码（QQ 邮箱 SMTP 发送，5 分钟有效，60 秒限流）
 - **BCrypt 密码加密**：密码加盐哈希存储，不存明文
 - **登录限流**：连续 5 次失败锁定 10 分钟，防暴力破解

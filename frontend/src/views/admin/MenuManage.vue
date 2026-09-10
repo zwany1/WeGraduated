@@ -83,8 +83,14 @@
           <el-form-item label="路由地址" prop="path">
             <el-input v-model="form.path" placeholder="如：users / system/role（相对 /admin）" />
           </el-form-item>
-          <el-form-item label="组件路径">
-            <el-input v-model="form.component" placeholder="如：admin/UserManage" />
+          <el-form-item v-if="form.menuType === 'C'" label="组件路径" prop="component">
+            <el-select v-model="form.component" filterable allow-create placeholder="选择已注册的页面组件"
+              style="width: 100%">
+              <el-option v-for="c in componentOptions" :key="c" :label="c" :value="c" />
+            </el-select>
+          </el-form-item>
+          <el-form-item v-if="form.menuType === 'C'" label="权限标识">
+            <el-input v-model="form.perms" placeholder="如：system:user:list（控制该页面访问）" />
           </el-form-item>
           <el-form-item label="图标">
             <el-input v-model="form.icon" placeholder="图标标识: chart/doc/document/task/setting/user/role/menu" />
@@ -115,6 +121,10 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getMenuTree, createMenu, updateMenu, deleteMenu } from '../../api/admin'
+import { viewMap, refreshAdminRoutes } from '../../router'
+
+// 可选组件 = 路由层已注册的真实页面(ComingSoon 为兜底占位, 不出现在选项中)
+const componentOptions = Object.keys(viewMap).filter(c => c !== 'admin/ComingSoon')
 
 const tree = ref([])
 const loading = ref(false)
@@ -125,7 +135,8 @@ const form = ref({})
 const rules = {
   menuName: [{ required: true, message: '请输入菜单名称', trigger: 'blur' }],
   path: [{ required: true, message: '请输入路由地址', trigger: 'blur' }],
-  perms: [{ required: true, message: '请输入权限标识', trigger: 'blur' }]
+  perms: [{ required: true, message: '请输入权限标识', trigger: 'blur' }],
+  component: [{ required: true, message: '请选择组件路径', trigger: 'change' }]
 }
 
 const parentTree = computed(() => {
@@ -201,10 +212,16 @@ async function save() {
       ElMessage.success('菜单已更新')
     } else {
       await createMenu(form.value)
-      ElMessage.success('菜单已创建')
+      if (form.value.menuType === 'F') {
+        // 按钮不进侧边栏, 需在"角色管理-分配菜单"里授权给角色后才对页面按钮生效
+        ElMessage.success('按钮已创建，请到「角色管理 → 分配菜单」授权给角色后生效')
+      } else {
+        ElMessage.success('菜单已创建')
+      }
     }
     dialogVisible.value = false
     await load()
+    await refreshAdminRoutes()
   } catch (e) {
   } finally {
     saving.value = false
@@ -223,6 +240,7 @@ async function removeMenu(row) {
     await deleteMenu(row.id)
     ElMessage.success('菜单已删除')
     await load()
+    await refreshAdminRoutes()
   } catch (e) {}
 }
 

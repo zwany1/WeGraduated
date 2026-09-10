@@ -39,6 +39,12 @@
         <el-table-column label="时间" width="150">
           <template #default="{ row }"><span class="cell-muted">{{ fmtTime(row.createTime) }}</span></template>
         </el-table-column>
+        <el-table-column v-if="hasUndoRows" label="操作" width="80" fixed="right" align="center">
+          <template #default="{ row }">
+            <el-button v-if="row.undoData && row.status !== false" v-perm="'system:log:oper'"
+              link type="warning" size="small" @click="undo(row)">撤销</el-button>
+          </template>
+        </el-table-column>
       </el-table>
 
       <div class="pager">
@@ -51,9 +57,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { listOperLogs, deleteOperLogs } from '../../api/admin'
+import { listOperLogs, deleteOperLogs, undoOperLog } from '../../api/admin'
 
 const rows = ref([])
 const total = ref(0)
@@ -62,6 +68,9 @@ const size = ref(10)
 const keyword = ref('')
 const status = ref(null)
 const loading = ref(false)
+
+// 仅当本页存在可撤销日志时才显示操作列
+const hasUndoRows = computed(() => rows.value.some(r => r.undoData && r.status !== false))
 
 const fmtTime = t => {
   if (!t) return '—'
@@ -94,6 +103,20 @@ async function clearAll() {
     if (ids.length) await deleteOperLogs(ids)
     ElMessage.success('已清空')
     await load(1)
+  } catch (e) {}
+}
+
+async function undo(row) {
+  try {
+    await ElMessageBox.confirm(
+      `确定撤销「${row.action}」吗？将恢复该操作执行前的状态。`, '撤销操作', { type: 'warning' })
+  } catch (e) {
+    return
+  }
+  try {
+    await undoOperLog(row.id)
+    ElMessage.success('已撤销，数据已恢复')
+    await load()
   } catch (e) {}
 }
 

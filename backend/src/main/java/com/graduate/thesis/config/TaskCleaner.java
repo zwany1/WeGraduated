@@ -6,8 +6,8 @@ import com.graduate.thesis.entity.PaperFile;
 import com.graduate.thesis.mapper.FormatTaskMapper;
 import com.graduate.thesis.mapper.PaperFileMapper;
 import com.graduate.thesis.service.StorageService;
+import com.graduate.thesis.service.SystemService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -28,16 +28,16 @@ public class TaskCleaner {
     private final FormatTaskMapper taskMapper;
     private final PaperFileMapper paperFileMapper;
     private final StorageService storageService;
-    private final int keepDays;
+    private final SystemService systemService;
 
     public TaskCleaner(FormatTaskMapper taskMapper,
                        PaperFileMapper paperFileMapper,
                        StorageService storageService,
-                       @Value("${thesis.storage.keep-days:30}") int keepDays) {
+                       SystemService systemService) {
         this.taskMapper = taskMapper;
         this.paperFileMapper = paperFileMapper;
         this.storageService = storageService;
-        this.keepDays = keepDays;
+        this.systemService = systemService;
     }
 
     /** 每 6 小时回收一次超时任务 */
@@ -74,6 +74,7 @@ public class TaskCleaner {
             for (PaperFile f : paperFileMapper.selectList(null)) {
                 referenced.add(f.getStoredPath());
             }
+            int keepDays = systemService.getIntConfig("storage.keep.days", 30, 1, 3650);
             int deleted = storageService.cleanupOrphans(referenced, keepDays);
             if (deleted > 0) {
                 log.info("[Cleaner] 已清理 {} 个孤儿文件", deleted);

@@ -19,14 +19,15 @@
           暂无后台菜单权限<br /><span class="menu-empty-sub">请联系系统管理员分配角色</span>
         </div>
         <template v-for="m in menus" :key="m.id">
-          <!-- 目录: 可展开 -->
-          <div v-if="m.menuType === 'M' && m.children && m.children.length" class="menu-group">
+          <!-- 目录: 可展开(含空目录, 新建后立即可见, 无子菜单时提示) -->
+          <div v-if="m.menuType === 'M'" class="menu-group">
             <div class="menu-group-title" :class="{ open: opened[m.id], active: groupActive(m) }" @click="toggle(m.id)">
               <span class="menu-icon" v-html="iconOf(m)"></span>
               <span class="menu-label">{{ m.menuName }}</span>
-              <svg class="group-arrow" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              <svg v-if="visibleChildren(m).length" class="group-arrow" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
             </div>
             <div v-show="opened[m.id]" class="menu-children">
+              <div v-if="!visibleChildren(m).length" class="menu-empty-child">暂无子菜单</div>
               <router-link v-for="c in visibleChildren(m)" :key="c.id"
                 :to="childPath(m, c)" class="menu-item sub" :class="{ active: isActive(childPath(m, c)) }">
                 <span class="menu-dot"></span>
@@ -84,7 +85,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import { logout } from '../../api/user'
@@ -139,23 +140,28 @@ const toggle = id => {
   opened.value[id] = !opened.value[id]
 }
 
-async function loadMenus() {
-  // 缓存优先, 后台拉取失败时回退缓存
-  try {
-    menus.value = await getMenus()
-  } catch (e) {
-    try {
-      menus.value = JSON.parse(localStorage.getItem('menus') || '[]')
-    } catch (e2) {
-      menus.value = []
-    }
-  }
+function loadMenus() {
+  menus.value = getMenus()
   // 默认展开第一个目录
   menus.value.forEach(m => {
     if (m.menuType === 'M') {
       opened.value[m.id] = true
     }
   })
+}
+
+// 后台菜单被增删改后, 路由层已拉新并广播, 此处同步侧边栏
+const onMenusChanged = () => {
+  loadMenus()
+  // 当前路由对应的菜单可能已被删除/停用, 回到首个可用菜单
+  if (!route.matched.some(r => r.name === 'Admin') || route.path === '/admin') {
+    const flat = menus.value.flatMap(m =>
+      m.menuType === 'C' && m.path ? [m.path] : (m.children || []).filter(c => c.menuType === 'C' && c.path).map(c => (m.path ? m.path + '/' : '') + c.path)
+    )
+    if (flat.length > 0) {
+      router.replace('/admin/' + flat[0])
+    }
+  }
 }
 
 watch(
@@ -176,6 +182,11 @@ onMounted(() => {
   adminName.value = nick
   avatarText.value = nick.slice(0, 1).toUpperCase()
   loadMenus()
+  window.addEventListener('menus-changed', onMenusChanged)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('menus-changed', onMenusChanged)
 })
 
 async function handleLogout() {

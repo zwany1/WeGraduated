@@ -30,8 +30,9 @@ vim deploy/.env   # 填写真实密钥
 
 `.env` 需配置：
 - `MYSQL_ROOT_PASSWORD`：MySQL root 密码（强密码）
-- `MAIL_PASSWORD`：QQ 邮箱 SMTP 授权码
+- `MAIL_USERNAME` / `MAIL_PASSWORD`：QQ 邮箱地址与 SMTP 授权码
 - `JWT_SECRET`：JWT 密钥，用 `openssl rand -base64 32` 生成
+- `THESIS_ADMIN_PASSWORD`：初始管理员密码（首次建库时创建 admin 账号用）
 
 ### 3. 构建并启动
 

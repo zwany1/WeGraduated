@@ -24,7 +24,6 @@ import com.graduate.thesis.mapper.PaperFileMapper;
 import com.graduate.thesis.mapper.RoleMapper;
 import com.graduate.thesis.mapper.UserMapper;
 import com.graduate.thesis.mapper.UserRoleMapper;
-import com.graduate.thesis.util.JwtUtil;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -53,12 +52,13 @@ public class AdminService {
     private final FormatTaskMapper taskMapper;
     private final PaperFileMapper paperFileMapper;
     private final UserService userService;
-    private final JwtUtil jwtUtil;
     private final RoleMapper roleMapper;
     private final UserRoleMapper userRoleMapper;
     private final PermissionService permissionService;
     private final TemplateService templateService;
     private final DbRetryService dbRetryService;
+    private final LoginSessionService sessionService;
+    private final UndoService undoService;
 
     public AdminService(UserMapper userMapper,
                         FormatTemplateMapper templateMapper,
@@ -66,24 +66,26 @@ public class AdminService {
                         FormatTaskMapper taskMapper,
                         PaperFileMapper paperFileMapper,
                         UserService userService,
-                        JwtUtil jwtUtil,
                         RoleMapper roleMapper,
                         UserRoleMapper userRoleMapper,
                         PermissionService permissionService,
                         TemplateService templateService,
-                        DbRetryService dbRetryService) {
+                        DbRetryService dbRetryService,
+                        LoginSessionService sessionService,
+                        UndoService undoService) {
         this.userMapper = userMapper;
         this.templateMapper = templateMapper;
         this.ruleMapper = ruleMapper;
         this.taskMapper = taskMapper;
         this.paperFileMapper = paperFileMapper;
         this.userService = userService;
-        this.jwtUtil = jwtUtil;
         this.roleMapper = roleMapper;
         this.userRoleMapper = userRoleMapper;
         this.permissionService = permissionService;
         this.templateService = templateService;
         this.dbRetryService = dbRetryService;
+        this.sessionService = sessionService;
+        this.undoService = undoService;
     }
 
     // ==================== 概览统计 ====================
@@ -233,6 +235,7 @@ public class AdminService {
                 throw new BusinessException(400, "至少保留一名管理员");
             }
         }
+        UndoService.stage(undoService.snapshotUserRoles(userId));
         user.setRole(role);
         userMapper.updateById(user);
         // 同步 RBAC 角色: 设为管理员 -> 授予 admin 角色; 取消管理员 -> 移除 admin 角色
@@ -258,7 +261,7 @@ public class AdminService {
             }
         }
         // 权限变化后使其旧 token 全部失效, 需重新登录
-        jwtUtil.revokeAllForUser(userId);
+        sessionService.revokeAllForUser(userId);
     }
 
     /** 给用户分配角色(全量覆盖) */
@@ -280,6 +283,7 @@ public class AdminService {
                 throw new BusinessException(400, "至少保留一名管理员");
             }
         }
+        UndoService.stage(undoService.snapshotUserRoles(userId));
         userRoleMapper.delete(new LambdaQueryWrapper<UserRole>().eq(UserRole::getUserId, userId));
         for (Long roleId : target) {
             if (roleMapper.selectById(roleId) != null) {
@@ -295,7 +299,7 @@ public class AdminService {
             user.setRole(User.ROLE_USER);
         }
         userMapper.updateById(user);
-        jwtUtil.revokeAllForUser(userId);
+        sessionService.revokeAllForUser(userId);
     }
 
     private boolean targetHasAdmin(List<Long> roleIds) {
@@ -329,10 +333,11 @@ public class AdminService {
         }
         boolean enabled = status != null && (Boolean.TRUE.equals(status)
                 || "true".equalsIgnoreCase(String.valueOf(status)) || "1".equals(String.valueOf(status)));
+        UndoService.stage(undoService.snapshotUserStatus(List.of(userId)));
         user.setStatus(enabled);
         userMapper.updateById(user);
         if (!enabled) {
-            jwtUtil.revokeAllForUser(userId);
+            sessionService.revokeAllForUser(userId);
         }
     }
 
@@ -358,6 +363,7 @@ public class AdminService {
         if (userIds.contains(operatorId)) {
             throw new BusinessException(400, "不能封禁当前登录账号");
         }
+        UndoService.stage(undoService.snapshotUserStatus(userIds));
         int n = 0;
         for (Long id : userIds) {
             User user = userMapper.selectById(id);
@@ -367,7 +373,7 @@ public class AdminService {
             user.setStatus(!disabled);
             userMapper.updateById(user);
             if (disabled) {
-                jwtUtil.revokeAllForUser(id);
+                sessionService.revokeAllForUser(id);
             }
             n++;
         }
@@ -391,7 +397,7 @@ public class AdminService {
                 new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder();
         user.setPassword(encoder.encode(newPassword));
         userMapper.updateById(user);
-        jwtUtil.revokeAllForUser(userId);
+        sessionService.revokeAllForUser(userId);
     }
 
     /** 用户详情: 用户 + 模板/任务/文件 */
@@ -605,6 +611,7 @@ public class AdminService {
         if (template == null) {
             throw new BusinessException(404, "模板不存在或已被删除");
         }
+        UndoService.stage(undoService.snapshotMarket(id));
         if (isPublic != null) {
             template.setIsPublic(isPublic);
             if (Boolean.TRUE.equals(isPublic)) {

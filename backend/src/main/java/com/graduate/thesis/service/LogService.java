@@ -33,15 +33,18 @@ public class LogService {
     private final LoginLogMapper loginLogMapper;
     private final UserMapper userMapper;
     private final ObjectMapper objectMapper;
+    private final UndoService undoService;
 
     public LogService(OperLogMapper operLogMapper,
                       LoginLogMapper loginLogMapper,
                       UserMapper userMapper,
-                      ObjectMapper objectMapper) {
+                      ObjectMapper objectMapper,
+                      UndoService undoService) {
         this.operLogMapper = operLogMapper;
         this.loginLogMapper = loginLogMapper;
         this.userMapper = userMapper;
         this.objectMapper = objectMapper;
+        this.undoService = undoService;
     }
 
     // ==================== 操作日志 ====================
@@ -49,7 +52,7 @@ public class LogService {
     /** 操作日志独立事务: 任何日志写入问题都不影响主业务(事务回滚也不会拖累主操作) */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordOper(Long userId, String module, String action, String method,
-                           String params, boolean success, String errorMsg, long costMs) {
+                           String params, String undoData, boolean success, String errorMsg, long costMs) {
         try {
             OperLog log = new OperLog();
             log.setUserId(userId);
@@ -63,6 +66,7 @@ public class LogService {
             log.setAction(truncate(action, 120));
             log.setMethod(truncate(method, 200));
             log.setParams(truncate(params, 4000));
+            log.setUndoData(success ? truncate(undoData, 4000) : null);
             log.setIp(getClientIp());
             log.setStatus(success);
             log.setErrorMsg(truncate(errorMsg, 1000));
@@ -93,6 +97,11 @@ public class LogService {
         if (ids != null && !ids.isEmpty()) {
             operLogMapper.deleteBatchIds(ids);
         }
+    }
+
+    /** 撤销一条可逆操作, 恢复变更前快照 */
+    public void undoOper(Long operLogId) {
+        undoService.undo(operLogId);
     }
 
     // ==================== 登录日志 ====================

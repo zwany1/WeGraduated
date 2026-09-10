@@ -192,6 +192,8 @@ public class DbMigrationRunner implements ApplicationRunner {
         ensureFeedbackTable();
         addColumnIfMissing("t_feedback", "images",
                 "ALTER TABLE t_feedback ADD COLUMN images LONGTEXT DEFAULT NULL COMMENT '图片base64 JSON数组'");
+        addColumnIfMissing("t_oper_log", "undo_data",
+                "ALTER TABLE t_oper_log ADD COLUMN undo_data TEXT DEFAULT NULL COMMENT '可逆操作的变更前快照JSON'");
     }
 
     private void addColumnIfMissing(String table, String column, String alterSql) {
@@ -313,7 +315,7 @@ public class DbMigrationRunner implements ApplicationRunner {
         }
     }
 
-    /** 登录会话表(幂等建表): 记录活跃登录, 支持后台查看在线用户与强制下线 */
+    /** 登录会话表(幂等建表): 会话行是 token 有效性的权威依据(行存在即有效), 支持后台查看在线用户与强制下线 */
     private void ensureLoginSessionTable() {
         try {
             Integer count = jdbcTemplate.queryForObject(
@@ -328,12 +330,31 @@ public class DbMigrationRunner implements ApplicationRunner {
                         "ip VARCHAR(64) DEFAULT NULL, " +
                         "login_time DATETIME DEFAULT NULL, " +
                         "expire_time BIGINT NOT NULL, " +
+                        "UNIQUE KEY uk_token (token), " +
                         "KEY idx_login_user (user_id)" +
                         ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='登录会话'");
                 log.info("[DbMigration] 已创建 t_login_session 表");
             }
+            addIndexIfMissing("t_login_session", "uk_token",
+                    "ALTER TABLE t_login_session ADD UNIQUE KEY uk_token (token)");
         } catch (Exception e) {
             log.warn("[DbMigration] 创建 t_login_session 表失败: {}", e.getMessage());
+        }
+    }
+
+    /** 幂等补齐索引 */
+    private void addIndexIfMissing(String table, String indexName, String alterSql) {
+        try {
+            Integer count = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM information_schema.STATISTICS " +
+                            "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?",
+                    Integer.class, table, indexName);
+            if (count == null || count == 0) {
+                jdbcTemplate.execute(alterSql);
+                log.info("[DbMigration] 已为 {} 补齐索引 {}", table, indexName);
+            }
+        } catch (Exception e) {
+            log.warn("[DbMigration] 补齐 {}.{} 索引失败: {}", table, indexName, e.getMessage());
         }
     }
 
@@ -525,9 +546,13 @@ public class DbMigrationRunner implements ApplicationRunner {
         }
     }
 
-    /** 初始化管理后台菜单(按 id 幂等增量补齐, 已有库也会补上新菜单) */
+    /** 初始化管理后台菜单: 仅空表时一次性播种, 此后菜单为运行时数据由后台菜单管理维护 */
     private void ensureMenus() {
         try {
+            Long existing = menuMapper.selectCount(null);
+            if (existing != null && existing > 0) {
+                return;
+            }
             Map<String, Object[]> rows = seedMenus();
             int inserted = 0;
             LocalDateTime now = LocalDateTime.now();
@@ -555,7 +580,7 @@ public class DbMigrationRunner implements ApplicationRunner {
                 inserted++;
             }
             if (inserted > 0) {
-                log.info("[DbMigration] 已补齐 {} 个后台菜单", inserted);
+                log.info("[DbMigration] 已初始化 {} 个后台菜单", inserted);
             }
         } catch (Exception e) {
             log.warn("[DbMigration] 初始化菜单失败: {}", e.getMessage());

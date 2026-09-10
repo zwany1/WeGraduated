@@ -3,6 +3,7 @@ package com.graduate.thesis.config;
 import com.graduate.thesis.annotation.OperLog;
 import com.graduate.thesis.common.UserContext;
 import com.graduate.thesis.service.LogService;
+import com.graduate.thesis.service.UndoService;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
@@ -36,11 +37,12 @@ public class OperLogAspect {
         try {
             Object result = pjp.proceed();
             logService.recordOper(UserContext.get(), operLog.module(), operLog.action(),
-                    methodName, params, true, null, System.currentTimeMillis() - start);
+                    methodName, params, UndoService.takeStaged(), true, null, System.currentTimeMillis() - start);
             return result;
         } catch (Throwable e) {
+            UndoService.takeStaged();
             logService.recordOper(UserContext.get(), operLog.module(), operLog.action(),
-                    methodName, params, false, e.getMessage(), System.currentTimeMillis() - start);
+                    methodName, params, null, false, e.getMessage(), System.currentTimeMillis() - start);
             throw e;
         }
     }

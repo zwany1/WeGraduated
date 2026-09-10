@@ -1,4 +1,8 @@
 import { getMenus as fetchMenusApi } from '../api/admin'
+import { getUserInfo } from '../api/user'
+
+/** 管理端配置(菜单/按钮授权)拉新间隔: 后台变更后, 其他会话最迟该时长内自动生效 */
+export const ADMIN_REFRESH_TTL = 60_000
 
 // ============ 登录态持久化 ============
 
@@ -90,6 +94,32 @@ export async function loadUserMenus() {
     return menus || []
   } catch (e) {
     return getMenus()
+  }
+}
+
+// ============ 按钮权限拉新 ============
+
+let permsRefreshedAt = 0
+
+/** 拉取当前用户角色与权限标识更新缓存, 并广播 perms-changed 供 v-perm 即时更新显隐 */
+export async function loadUserPerms() {
+  const info = await getUserInfo()
+  localStorage.setItem('role', info.role || 'USER')
+  localStorage.setItem('roles', JSON.stringify(info.roles || []))
+  localStorage.setItem('perms', JSON.stringify(info.perms || []))
+  permsRefreshedAt = Date.now()
+  window.dispatchEvent(new CustomEvent('perms-changed'))
+}
+
+/** 按 TTL 拉新权限缓存, force 时立即拉新; 失败时沿用现有缓存并同样计入 TTL, 避免每次导航重试 */
+export async function ensureUserPerms(force = false) {
+  if (!getToken() || (!force && Date.now() - permsRefreshedAt <= ADMIN_REFRESH_TTL)) {
+    return
+  }
+  try {
+    await loadUserPerms()
+  } catch (e) {
+    permsRefreshedAt = Date.now()
   }
 }
 

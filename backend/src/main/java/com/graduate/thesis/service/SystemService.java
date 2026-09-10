@@ -29,6 +29,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
@@ -182,6 +183,45 @@ public class SystemService {
     public String getConfigValue(String key) {
         Config c = configMapper.selectOne(new LambdaQueryWrapper<Config>().eq(Config::getConfigKey, key).last("LIMIT 1"));
         return c == null ? null : c.getConfigValue();
+    }
+
+    /**
+     * 读取整型系统参数(供调度/清理/上传等高频路径使用).
+     * 参数几乎不变, 不必每次查库: 按 key 缓存 60s, 取值非法(空/非数字/越界)时沿用 default.
+     */
+    public int getIntConfig(String key, int defaultValue, int min, int max) {
+        long now = System.currentTimeMillis();
+        IntConfigCache cache = intConfigCaches.get(key);
+        if (cache != null && now - cache.loadedAt < INT_CONFIG_TTL_MILLIS) {
+            return cache.value;
+        }
+        int value = defaultValue;
+        try {
+            String v = getConfigValue(key);
+            if (v != null && v.trim().matches("\\d+")) {
+                int n = Integer.parseInt(v.trim());
+                if (n >= min && n <= max) {
+                    value = n;
+                }
+            }
+        } catch (Exception ignore) {
+            // 查询失败沿用默认值
+        }
+        intConfigCaches.put(key, new IntConfigCache(value, now));
+        return value;
+    }
+
+    private static final long INT_CONFIG_TTL_MILLIS = 60_000L;
+    private final ConcurrentHashMap<String, IntConfigCache> intConfigCaches = new ConcurrentHashMap<>();
+
+    private static final class IntConfigCache {
+        final int value;
+        final long loadedAt;
+
+        IntConfigCache(int value, long loadedAt) {
+            this.value = value;
+            this.loadedAt = loadedAt;
+        }
     }
 
     @Transactional

@@ -855,7 +855,7 @@ const errorAdvice = computed(() => {
   if (low.includes('encrypt') || m.includes('密码') || m.includes('加密')) {
     list.push('文档受密码保护：用 Word/WPS「另存为」时取消密码，再重新上传排版')
   }
-  if (m.includes('过大') || m.includes('40MB') || m.includes('拆分')) {
+  if (m.includes('过大') || m.includes('拆分')) {
     list.push('文档过大：删除不需要的高清图片/附录，或按章节拆分成多个文档分别排版')
   }
   if (m.includes('图片')) {

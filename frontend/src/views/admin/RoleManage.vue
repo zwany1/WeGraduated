@@ -86,7 +86,7 @@
     <!-- 分配菜单 -->
     <el-dialog v-model="assignVisible" title="分配菜单权限" width="480px"
       class="admin-dialog" modal-class="admin-overlay" destroy-on-close append-to-body>
-      <div class="assign-hint">勾选角色可访问的菜单与可操作的按钮权限。超管角色默认拥有全部权限。</div>
+      <div class="assign-hint">勾选角色可访问的菜单与可操作的按钮权限。超管角色默认拥有全部权限。<br/>「按钮」勾选项对应各管理页内操作按钮的显示与后端接口放行，须在页面代码中使用同名权限标识（如 system:user:delete）才会生效。</div>
       <el-tree ref="menuTreeRef" v-loading="assignLoading" :data="menuTree" :props="{ label: 'menuName', children: 'children' }"
         show-checkbox node-key="id" default-expand-all :check-strictly="false" class="assign-tree" />
       <template #footer>
@@ -101,6 +101,7 @@
 import { ref, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { listRoles, createRole, updateRole, deleteRole, getRoleMenus, assignRoleMenus, getMenuTree } from '../../api/admin'
+import { refreshAdminRoutes } from '../../router'
 
 const rows = ref([])
 const total = ref(0)
@@ -248,6 +249,8 @@ async function saveAssign() {
     ElMessage.success('菜单权限已保存')
     assignVisible.value = false
     await load()
+    // 操作者本人属于被改角色时, 按钮显隐与可见菜单立即跟随变更
+    await refreshAdminRoutes()
   } catch (e) {
   } finally {
     saving.value = false

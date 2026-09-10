@@ -167,6 +167,7 @@ CREATE TABLE IF NOT EXISTS t_oper_log (
     action      VARCHAR(128) DEFAULT NULL,
     method      VARCHAR(255) DEFAULT NULL,
     params      TEXT         DEFAULT NULL,
+    undo_data   TEXT         DEFAULT NULL COMMENT '可逆操作的变更前快照JSON',
     ip          VARCHAR(64)  DEFAULT NULL,
     status      TINYINT(1)   NOT NULL DEFAULT 1 COMMENT '1成功 0失败',
     error_msg   VARCHAR(1000) DEFAULT NULL,
@@ -255,7 +256,7 @@ CREATE TABLE IF NOT EXISTS t_notice (
 -- 扩展功能: 登录会话 / 模板市场评分与收藏 / 团队协作 / 站内信
 -- ============================================================
 
--- 登录会话表: 记录活跃登录, 支持后台查看在线用户与强制下线
+-- 登录会话表: 会话行是 token 有效性的权威依据(行存在即有效), 支持后台查看在线用户与强制下线
 CREATE TABLE IF NOT EXISTS t_login_session (
     id          BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id     BIGINT       NOT NULL,
@@ -264,6 +265,7 @@ CREATE TABLE IF NOT EXISTS t_login_session (
     ip          VARCHAR(64)  DEFAULT NULL,
     login_time  DATETIME     DEFAULT NULL,
     expire_time BIGINT       NOT NULL,
+    UNIQUE KEY uk_token (token),
     KEY idx_login_user (user_id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='登录会话';
 

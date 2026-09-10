@@ -35,13 +35,16 @@ public class RoleService {
     private final RoleMapper roleMapper;
     private final RoleMenuMapper roleMenuMapper;
     private final UserRoleMapper userRoleMapper;
+    private final UndoService undoService;
 
     public RoleService(RoleMapper roleMapper,
                        RoleMenuMapper roleMenuMapper,
-                       UserRoleMapper userRoleMapper) {
+                       UserRoleMapper userRoleMapper,
+                       UndoService undoService) {
         this.roleMapper = roleMapper;
         this.roleMenuMapper = roleMenuMapper;
         this.userRoleMapper = userRoleMapper;
+        this.undoService = undoService;
     }
 
     public PageResult<RoleVO> listRoles(int pageNum, int pageSize, String keyword) {
@@ -111,6 +114,7 @@ public class RoleService {
             throw new BusinessException(404, "角色不存在");
         }
         validate(dto, false);
+        UndoService.stage(undoService.snapshotRole(dto.getId()));
         role.setRoleName(dto.getRoleName());
         role.setRemark(dto.getRemark());
         role.setStatus(dto.getStatus() == null ? Boolean.TRUE : dto.getStatus());
@@ -162,6 +166,7 @@ public class RoleService {
             throw new BusinessException(404, "角色不存在");
         }
         List<Long> menuIds = dto.getMenuIds() == null ? Collections.emptyList() : dto.getMenuIds();
+        UndoService.stage(undoService.snapshotRoleMenus(dto.getRoleId()));
         roleMenuMapper.delete(new LambdaQueryWrapper<RoleMenu>().eq(RoleMenu::getRoleId, dto.getRoleId()));
         for (Long menuId : menuIds) {
             if (menuId != null) {

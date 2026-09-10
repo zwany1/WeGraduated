@@ -122,8 +122,8 @@ public class UserService {
         checkPasswordStrength(dto.getNewPassword());
         user.setPassword(encoder.encode(dto.getNewPassword()));
         userMapper.updateById(user);
-        // 重置后失效该用户所有旧 token
-        jwtUtil.revokeAllForUser(user.getId());
+        // 重置后失效该用户所有旧会话
+        sessionService.revokeAllForUser(user.getId());
         logService.recordLogin(user.getId(), user.getUsername(), true, "重置密码成功");
         LoginResponse resp = buildLoginResponse(user);
         sessionService.createSession(resp.getToken(), user.getId(), user.getUsername(), null,
@@ -273,7 +273,6 @@ public class UserService {
 
     public void logout(Long userId, String token) {
         if (token != null && !token.isEmpty()) {
-            jwtUtil.revoke(token);
             sessionService.removeByToken(token);
         }
     }
@@ -317,7 +316,7 @@ public class UserService {
                 .eq(UserRole::getUserId, userId));
         // 5. 用户本身
         userMapper.deleteById(userId);
-        jwtUtil.revokeAllForUser(userId);
+        sessionService.revokeAllForUser(userId);
     }
 
     private User findUserByAccount(String account) {
@@ -533,7 +532,7 @@ public class UserService {
         emailCodeService.verify(user.getEmail(), emailCode);
         user.setPassword(encoder.encode(newPassword));
         userMapper.updateById(user);
-        // 改密后吊销该用户全部旧 token, 被泄露的旧会话立即失效
-        jwtUtil.revokeAllForUser(user.getId());
+        // 改密后吊销该用户全部旧会话, 被泄露的旧 token 立即失效
+        sessionService.revokeAllForUser(user.getId());
     }
 }

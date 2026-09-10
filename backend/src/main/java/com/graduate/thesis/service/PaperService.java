@@ -38,6 +38,7 @@ public class PaperService {
     private final DiffService diffService;
     private final TaskProgressService progressService;
     private final TeamService teamService;
+    private final SystemService systemService;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     // 自引用代理: 使 @Async runFormat 生效(避免自调用绕过代理)
     private final PaperService self;
@@ -50,6 +51,7 @@ public class PaperService {
                         DiffService diffService,
                         TaskProgressService progressService,
                         TeamService teamService,
+                        SystemService systemService,
                         com.fasterxml.jackson.databind.ObjectMapper objectMapper,
                         @Lazy PaperService self) {
         this.paperFileMapper = paperFileMapper;
@@ -60,8 +62,20 @@ public class PaperService {
         this.diffService = diffService;
         this.progressService = progressService;
         this.teamService = teamService;
+        this.systemService = systemService;
         this.objectMapper = objectMapper;
         this.self = self;
+    }
+
+    /** 上传大小上限(MB): 由系统参数 upload.max.size 控制, 不得超过 multipart 硬顶 50MB */
+    private int uploadSizeLimitMb() {
+        return systemService.getIntConfig("upload.max.size", 40, 1, 50);
+    }
+
+    private void checkUploadSize(long fileSize) {
+        if (fileSize > uploadSizeLimitMb() * 1024L * 1024L) {
+            throw new BusinessException("文件过大(超过 " + uploadSizeLimitMb() + "MB)，请拆分后重新上传");
+        }
     }
 
     public PaperFile upload(Long userId, MultipartFile file) {
@@ -72,9 +86,7 @@ public class PaperService {
         if (original == null || !original.toLowerCase().endsWith(".docx")) {
             throw new BusinessException("仅支持 .docx 文件，旧版 .doc 请先用 Word 另存为 .docx 后再上传");
         }
-        if (file.getSize() > 40L * 1024 * 1024) {
-            throw new BusinessException("文件过大(超过 40MB)，请拆分后重新上传");
-        }
+        checkUploadSize(file.getSize());
         String relative = storageService.store(file, "upload");
         PaperFile paperFile = new PaperFile();
         paperFile.setUserId(userId);
@@ -98,9 +110,7 @@ public class PaperService {
         if (original == null || !original.toLowerCase().endsWith(".docx")) {
             throw new BusinessException("仅支持 .docx 文件，旧版 .doc 请先用 Word 另存为 .docx 后再试排");
         }
-        if (file.getSize() > 40L * 1024 * 1024) {
-            throw new BusinessException("文件过大(超过 40MB)，请拆分后重新上传");
-        }
+        checkUploadSize(file.getSize());
         int limit = Math.min(Math.max(maxParagraphs, 10), 400);
         RuleSet ruleSet = RuleSet.from(templateService.getOwned(templateId, userId),
                 templateService.listRules(templateId));
@@ -181,7 +191,7 @@ public class PaperService {
             return "排版失败，请重试";
         }
         String m = msg;
-        if (m.contains("文档过大") || m.contains("40MB")) {
+        if (m.contains("文档过大") || m.contains("MB") && m.contains("拆分")) {
             return m;
         }
         if (m.contains("图片") && (m.contains("无法") || m.contains("不支持") || m.contains("读取"))) {
@@ -240,9 +250,7 @@ public class PaperService {
                     new com.graduate.thesis.engine.model.FormatReport();
             File source = storageService.load(paperFile.getStoredPath());
             // 超大文档保护: 超过阈值直接失败, 避免长时间占用内存/CPU
-            if (source.length() > 40L * 1024 * 1024) {
-                throw new BusinessException(400, "文档过大(超过 40MB)，请拆分后重新上传");
-            }
+            checkUploadSize(source.length());
             progressService.publish(taskId, Map.of("type", "progress", "progress", 10, "status", FormatTask.STATUS_PROCESSING,
                     "stage", "formatting", "stageText", "正在识别标题并应用格式规则"));
             File result = formatEngine.format(source, ruleSet, progress -> {

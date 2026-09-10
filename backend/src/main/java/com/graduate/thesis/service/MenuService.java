@@ -24,13 +24,16 @@ public class MenuService {
     private final MenuMapper menuMapper;
     private final RoleMenuMapper roleMenuMapper;
     private final PermissionService permissionService;
+    private final UndoService undoService;
 
     public MenuService(MenuMapper menuMapper,
                        RoleMenuMapper roleMenuMapper,
-                       PermissionService permissionService) {
+                       PermissionService permissionService,
+                       UndoService undoService) {
         this.menuMapper = menuMapper;
         this.roleMenuMapper = roleMenuMapper;
         this.permissionService = permissionService;
+        this.undoService = undoService;
     }
 
     public List<MenuVO> listMenuTree() {
@@ -64,6 +67,7 @@ public class MenuService {
         if (dto.getParentId() != null && dto.getParentId().equals(dto.getId())) {
             throw new BusinessException(400, "父级菜单不能是自己");
         }
+        UndoService.stage(undoService.snapshotMenu(dto.getId()));
         apply(menu, dto);
         menu.setUpdateTime(LocalDateTime.now());
         menuMapper.updateById(menu);
@@ -81,6 +85,7 @@ public class MenuService {
         if (children != null && children > 0) {
             throw new BusinessException(400, "存在子菜单, 无法删除, 请先删除子菜单/子按钮");
         }
+        UndoService.stage(undoService.snapshotMenuDelete(id));
         menuMapper.deleteById(id);
         roleMenuMapper.delete(new LambdaQueryWrapper<RoleMenu>().eq(RoleMenu::getMenuId, id));
     }
@@ -95,6 +100,9 @@ public class MenuService {
         }
         if ((Menu.TYPE_DIR.equals(type) || Menu.TYPE_MENU.equals(type)) && !StringUtils.hasText(dto.getPath())) {
             throw new BusinessException(400, "路由地址不能为空");
+        }
+        if (Menu.TYPE_MENU.equals(type) && !StringUtils.hasText(dto.getComponent())) {
+            throw new BusinessException(400, "菜单类型必须填写组件路径");
         }
         if (Menu.TYPE_BUTTON.equals(type) && !StringUtils.hasText(dto.getPerms())) {
             throw new BusinessException(400, "按钮权限标识不能为空");

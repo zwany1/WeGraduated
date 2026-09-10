@@ -5,6 +5,6 @@ spring:
     password: 123456
 thesis:
   admin:
-    password: ${THESIS_ADMIN_PASSWORD:admin123}
+    password: ${THESIS_ADMIN_PASSWORD:birthday1220}
   jwt:
     secret: graduate-thesis-format-secret-key-2026-please-change-me

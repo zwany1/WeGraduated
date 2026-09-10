@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getToken, hasPerm, getMenus, loadUserMenus, flattenMenus } from '../utils/perm'
+import { getToken, hasPerm, getMenus, loadUserMenus, flattenMenus, ensureUserPerms, ADMIN_REFRESH_TTL } from '../utils/perm'
 
 // 无需登录即可访问的白名单页面
 const PUBLIC_PAGES = [
@@ -11,7 +11,7 @@ const PUBLIC_PAGES = [
 ]
 
 // 管理端组件映射: 由后端菜单 component 字段决定
-const viewMap = {
+export const viewMap = {
   'admin/Dashboard': () => import('../views/admin/Dashboard.vue'),
   'admin/UserManage': () => import('../views/admin/UserManage.vue'),
   'admin/TemplateManage': () => import('../views/admin/TemplateManage.vue'),
@@ -83,9 +83,10 @@ router.afterEach((to) => {
 })
 
 let lastMenuSignature = null
+let menusRefreshedAt = 0
 
 function menusSignature(menus) {
-  return JSON.stringify(flattenMenus(menus || []).map(r => r.path).sort())
+  return JSON.stringify(flattenMenus(menus || []).map(r => [r.path, r.component, r.title, r.perms.join('|')]).sort())
 }
 
 /** 根据菜单树注册管理端动态子路由; 返回本次是否发生了路由变更 */
@@ -112,13 +113,31 @@ export function setupAdminRoutes(menus) {
   return true
 }
 
-/** 确保动态路由与当前用户菜单一致; 返回本次是否发生了路由变更 */
-export async function ensureAdminRoutes() {
-  let menus = getMenus()
-  if ((!menus || menus.length === 0) && getToken()) {
-    menus = await loadUserMenus()
-  }
+/** 确保动态路由与当前用户菜单、按钮权限一致; 返回本次是否发生了路由变更 */
+export async function ensureAdminRoutes(force = false) {
+  const [menus] = await Promise.all([
+    loadUserMenusTtl(force),
+    ensureUserPerms(force)
+  ])
   return setupAdminRoutes(menus)
+}
+
+/** 管理端导航按 TTL 拉新菜单; force 时立即拉新 */
+async function loadUserMenusTtl(force) {
+  let menus = getMenus()
+  const stale = Date.now() - menusRefreshedAt > ADMIN_REFRESH_TTL
+  if ((!menus || menus.length === 0) || stale || force) {
+    menus = await loadUserMenus()
+    menusRefreshedAt = Date.now()
+  }
+  return menus
+}
+
+/** 拉新菜单与权限并重建路由(菜单管理增删改后调用), 侧边栏通过 menus-changed 事件同步刷新 */
+export async function refreshAdminRoutes() {
+  const changed = await ensureAdminRoutes(true)
+  window.dispatchEvent(new CustomEvent('menus-changed'))
+  return changed
 }
 
 function firstAdminPath() {
@@ -137,14 +156,17 @@ router.beforeEach(async (to, from, next) => {
     next({ path: '/login', query: { redirect: to.fullPath } })
     return
   }
-  const routesChanged = await ensureAdminRoutes()
-  if (routesChanged && to.path.startsWith('/admin')) {
+  // 管理端导航按 TTL 拉新菜单与按钮权限; 其他导航仅同步缓存, 不产生管理端请求
+  const isAdminNav = to.path.startsWith('/admin')
+  const routesChanged = isAdminNav
+    ? await ensureAdminRoutes()
+    : setupAdminRoutes(getMenus())
+  if (routesChanged && isAdminNav) {
     // 动态路由刚注册/变更, 本次 to.matched 尚未包含新路由, 重新导航以正确匹配
     next({ ...to, replace: true })
     return
   }
-
-  if (to.path.startsWith('/admin')) {
+  if (isAdminNav) {
     if (to.path === '/admin') {
       next(firstAdminPath() || '/home')
       return

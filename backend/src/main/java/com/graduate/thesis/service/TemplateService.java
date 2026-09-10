@@ -51,6 +51,7 @@ public class TemplateService {
     private final DbRetryService dbRetryService;
     private final TeamService teamService;
     private final NotificationService notificationService;
+    private final SystemService systemService;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     public TemplateService(FormatTemplateMapper templateMapper, FormatRuleMapper ruleMapper,
@@ -60,6 +61,7 @@ public class TemplateService {
                            UserMapper userMapper,
                            DbRetryService dbRetryService, TeamService teamService,
                            NotificationService notificationService,
+                           SystemService systemService,
                            com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
         this.templateMapper = templateMapper;
         this.ruleMapper = ruleMapper;
@@ -72,6 +74,7 @@ public class TemplateService {
         this.dbRetryService = dbRetryService;
         this.teamService = teamService;
         this.notificationService = notificationService;
+        this.systemService = systemService;
         this.objectMapper = objectMapper;
     }
 
@@ -396,9 +399,11 @@ public class TemplateService {
         return usage;
     }
 
-    /** 模板市场分类列表 */
+    /** 模板市场分类列表: 由字典 template_type 定义(后台字典管理可维护) */
     public List<String> listMarketCategories() {
-        return java.util.Arrays.asList("毕业论文", "期刊论文", "报告文档", "其他");
+        return systemService.listDictData("template_type").stream()
+                .map(d -> d.getDictValue())
+                .collect(Collectors.toList());
     }
 
     private static int nvl(Integer v) {

@@ -33,6 +33,9 @@ public class OperLog {
     /** 请求参数 */
     private String params;
 
+    /** 可逆操作的变更前快照JSON, 供撤销重放 */
+    private String undoData;
+
     private String ip;
 
     /** 1成功 0失败 */

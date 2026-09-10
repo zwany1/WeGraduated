@@ -188,6 +188,10 @@ export function deleteOperLogs(ids) {
   return api.delete('/admin/system/log/oper', { data: ids })
 }
 
+export function undoOperLog(id) {
+  return api.post(`/admin/system/log/oper/${id}/undo`)
+}
+
 export function listLoginLogs(params) {
   return api.get('/admin/system/log/login', { params })
 }

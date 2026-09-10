@@ -182,6 +182,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { listMarketTemplates, setMarketTemplate, getMarketTemplateDetail } from '../../api/admin'
+import { listMarketCategories } from '../../api/template'
 
 const rows = ref([])
 const total = ref(0)
@@ -189,6 +190,7 @@ const page = ref(1)
 const size = ref(10)
 const keyword = ref('')
 const loading = ref(false)
+const categories = ref([])
 
 // ===== 模板详情 =====
 const detailVisible = ref(false)
@@ -255,9 +257,9 @@ async function togglePublic(row) {
   let body = { isPublic: !row.isPublic }
   if (!row.isPublic) {
     // 上架时选择分类
-    const c = window.prompt('请选择上架分类（毕业论文 / 期刊论文 / 报告文档 / 其他）：', row.category || '毕业论文')
+    const c = window.prompt(`请选择上架分类（${categories.value.join(' / ')}）：`, row.category || categories.value[0] || '')
     if (c === null) return
-    body = { isPublic: true, category: (c.trim() || '毕业论文') }
+    body = { isPublic: true, category: (c.trim() || categories.value[0] || '') }
   }
   try {
     await setMarketTemplate(row.id, body)
@@ -274,7 +276,10 @@ async function toggleRecommended(row) {
   } catch (e) {}
 }
 
-onMounted(() => load())
+onMounted(() => {
+  load()
+  listMarketCategories().then(list => { categories.value = list || [] }).catch(() => {})
+})
 </script>
 
 <style scoped>

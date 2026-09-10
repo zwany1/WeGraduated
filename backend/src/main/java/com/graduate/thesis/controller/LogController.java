@@ -8,6 +8,8 @@ import com.graduate.thesis.entity.LoginLog;
 import com.graduate.thesis.service.LogService;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -42,6 +44,15 @@ public class LogController {
     @RequiresPerms("system:log:oper")
     public Result<Void> deleteOper(@RequestBody List<Long> ids) {
         logService.deleteOperLogs(ids);
+        return Result.ok();
+    }
+
+    /** 撤销一条可逆操作, 恢复其变更前快照 */
+    @PostMapping("/oper/{id}/undo")
+    @OperLog(module = "操作日志", action = "撤销操作")
+    @RequiresPerms("system:log:oper")
+    public Result<Void> undoOper(@PathVariable Long id) {
+        logService.undoOper(id);
         return Result.ok();
     }
 

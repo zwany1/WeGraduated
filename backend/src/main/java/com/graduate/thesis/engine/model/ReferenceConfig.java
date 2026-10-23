@@ -28,7 +28,7 @@ public class ReferenceConfig {
     private String itemFontLatin = "Times New Roman";
 
     /** 条目字号pt(默认 五号10.5) */
-    private int itemFontSize = 10;
+    private double itemFontSize = 10.5;
 
     /** 是否删掉 DOI(默认 true) */
     private boolean removeDoi = true;

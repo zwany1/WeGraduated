@@ -202,10 +202,10 @@ public class CaptionFormatter {
         String latin = (rule != null && rule.getFontLatin() != null && !rule.getFontLatin().isEmpty())
                 ? rule.getFontLatin() : TextFormatter.DEFAULT_LATIN;
         int sizeHalfPoints = (rule != null && rule.getFontSize() != null && rule.getFontSize() > 0)
-                ? rule.getFontSize() * 2 : 21;
+                ? (int) Math.round(rule.getFontSize() * 2) : 21;
         String xml = "<w:p xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">"
                 + "<w:pPr><w:jc w:val=\"center\"/>"
-                + "<w:spacing w:line=\"360\" w:lineRule=\"auto\"/></w:pPr>"
+                + spacingXml(rule) + "</w:pPr>"
                 + "<w:r><w:rPr><w:rFonts w:ascii=\"" + latin + "\" w:hAnsi=\"" + latin
                 + "\" w:eastAsia=\"" + cn + "\"/>"
                 + "<w:sz w:val=\"" + sizeHalfPoints + "\"/><w:szCs w:val=\"" + sizeHalfPoints + "\"/></w:rPr>"
@@ -272,10 +272,33 @@ public class CaptionFormatter {
         run.setText(text);
     }
 
+    /** 规则是否使用"固定值"行距(如 20 磅) */
+    private static boolean isExactSpacing(FormatRule rule) {
+        return rule != null && "exact".equalsIgnoreCase(rule.getLineSpacingType())
+                && rule.getLineSpacingExact() != null && rule.getLineSpacingExact() > 0;
+    }
+
+    /** 按规则生成 w:spacing 片段: 固定值用 pt*20(twips), 倍数用 mult*240 */
+    private static String spacingXml(FormatRule rule) {
+        if (isExactSpacing(rule)) {
+            return "<w:spacing w:line=\"" + (rule.getLineSpacingExact() * 20) + "\" w:lineRule=\"exact\"/>";
+        }
+        float mult = (rule != null && rule.getLineSpacing() != null && rule.getLineSpacing() > 0)
+                ? rule.getLineSpacing() : 1.5f;
+        return "<w:spacing w:line=\"" + Math.round(mult * 240) + "\" w:lineRule=\"auto\"/>";
+    }
+
     private static void applyCaptionStyle(XWPFParagraph paragraph, FormatRule rule) {
         paragraph.setAlignment(ParagraphAlignment.CENTER);
-        paragraph.setSpacingBetween(1.5, LineSpacingRule.AUTO);
-        int sizePt = (rule != null && rule.getFontSize() != null && rule.getFontSize() > 0)
+        if (isExactSpacing(rule)) {
+            // 校规普遍要求"行间距取固定值"(如桂林信息科技学院 20 磅), 不能一律写死 1.5 倍
+            paragraph.setSpacingBetween(rule.getLineSpacingExact(), LineSpacingRule.EXACT);
+        } else {
+            float mult = (rule != null && rule.getLineSpacing() != null && rule.getLineSpacing() > 0)
+                    ? rule.getLineSpacing() : 1.5f;
+            paragraph.setSpacingBetween(mult, LineSpacingRule.AUTO);
+        }
+        double sizePt = (rule != null && rule.getFontSize() != null && rule.getFontSize() > 0)
                 ? rule.getFontSize() : 10;
         for (XWPFRun run : paragraph.getRuns()) {
             String font = (rule != null && rule.getFont() != null) ? rule.getFont() : "宋体";

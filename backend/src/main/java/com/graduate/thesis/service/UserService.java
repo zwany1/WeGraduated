@@ -41,6 +41,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Service
 public class UserService {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(UserService.class);
+
     /** 最大连续失败次数 */
     private static final int MAX_FAILURES = 5;
     /** 失败达到此次数后要求图形验证码(降低正常用户登录摩擦) */
@@ -65,6 +67,7 @@ public class UserService {
     private final PermissionService permissionService;
     private final LogService logService;
     private final LoginSessionService sessionService;
+    private final PresetTemplateService presetTemplateService;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
     /** 登录失败记录: 登录名(用户名或邮箱) -> 失败次数 */
@@ -81,7 +84,8 @@ public class UserService {
                        FormatTaskMapper taskMapper, PaperFileMapper paperFileMapper,
                        StorageService storageService, RoleMapper roleMapper,
                        UserRoleMapper userRoleMapper, PermissionService permissionService,
-                       LogService logService, LoginSessionService sessionService) {
+                       LogService logService, LoginSessionService sessionService,
+                       PresetTemplateService presetTemplateService) {
         this.userMapper = userMapper;
         this.jwtUtil = jwtUtil;
         this.emailCodeService = emailCodeService;
@@ -95,6 +99,7 @@ public class UserService {
         this.permissionService = permissionService;
         this.logService = logService;
         this.sessionService = sessionService;
+        this.presetTemplateService = presetTemplateService;
     }
 
     /** 邮箱是否已绑定账号(发码场景校验用) */
@@ -164,6 +169,13 @@ public class UserService {
             throw new BusinessException("用户名或邮箱已被注册，请更换后重试");
         }
         assignDefaultUserRole(user.getId());
+        // 新用户开箱即用: 自动创建一份归属本人的「桂林信息科技学院」模板
+        // 失败不阻断注册(模板属增值能力, 不应导致注册失败)
+        try {
+            presetTemplateService.provisionForNewUser(user.getId());
+        } catch (Exception e) {
+            log.warn("为新用户 {} 创建内置模板失败: {}", user.getId(), e.getMessage());
+        }
         logService.recordLogin(user.getId(), username, true, "注册成功");
         LoginResponse resp = buildLoginResponse(user);
         sessionService.createSession(resp.getToken(), user.getId(), username, null,

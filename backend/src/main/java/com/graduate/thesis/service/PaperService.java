@@ -217,10 +217,12 @@ public class PaperService {
         if (task == null) {
             return;
         }
-        // CAS 抢占: 仅 PENDING→PROCESSING 成功才继续, 防止重复派发/重复执行
+        // 认领任务: 调度器 dispatch() 已用 CAS 把 PENDING 抢占为 PROCESSING 再调用本方法,
+        // 因此这里必须同时接受 PENDING(直接调用) 与 PROCESSING(调度器已抢占),
+        // 否则第二次 CAS 必然失败, 任务会永久停留在 PROCESSING 0%。
         int claimed = taskMapper.update(null, new LambdaUpdateWrapper<FormatTask>()
                 .eq(FormatTask::getId, taskId)
-                .eq(FormatTask::getStatus, FormatTask.STATUS_PENDING)
+                .in(FormatTask::getStatus, FormatTask.STATUS_PENDING, FormatTask.STATUS_PROCESSING)
                 .set(FormatTask::getStatus, FormatTask.STATUS_PROCESSING)
                 .set(FormatTask::getProgress, 5));
         if (claimed <= 0) {

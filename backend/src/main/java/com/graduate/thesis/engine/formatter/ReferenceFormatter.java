@@ -32,8 +32,12 @@ public class ReferenceFormatter {
     private static final Pattern REF_NUM = Pattern.compile(
             "^(?:\\[(\\d+)\\]|\\((\\d+)\\)|(\\d+)[.、)])(.*)$");
     // 是否为条目行(行首带编号)
+    // 注意: 这里用 matches() 做全串匹配, 正则必须以 .* 收尾, 否则只要编号后面还有正文就永远返回 false,
+    // 会让"续行合并"逻辑把后续所有条目当成续行吞并(多条文献被拼成一段)。
     private static final Pattern REF_ITEM_START = Pattern.compile(
-            "^\\s*(?:\\[\\d+\\]|\\(\\d+\\)|\\d+[.、)])\\s*");
+            "^\\s*(?:\\[\\d+\\]|\\(\\d+\\)|\\d+[.、)]).*");
+    // 无编号文献条目特征: 含 GB/T 7714 文献类型标识, 如 [J] [M] [C] [D] [P] [S] [EB/OL]
+    private static final Pattern REF_TYPE_HINT = Pattern.compile(".*" + TYPE_CODE + ".*");
     // DOI 匹配
     private static final Pattern DOI_PATTERN = Pattern.compile(
             "(doi\\s*[:：]\\s*10\\.\\S+|10\\.\\d{4,}/\\S+.*)$", Pattern.CASE_INSENSITIVE);
@@ -92,15 +96,24 @@ public class ReferenceFormatter {
                 break;
             }
             Matcher m = REF_NUM.matcher(text);
-            if (!m.matches()) {
+            String content;
+            if (m.matches()) {
+                content = (m.group(4) == null ? "" : m.group(4)).trim();
+            } else if (looksLikeRefEntry(text)) {
+                // 原作者常直接罗列无序号文献(如"李玉飞. xxx[J]. 期刊, 2025."),
+                // 这类条目此前被整体跳过、完全不排版。识别出文献类型标识后按条目处理并补编号。
+                content = text.trim();
+            } else {
                 continue;
             }
-            String content = (m.group(4) == null ? "" : m.group(4)).trim();
             // 若后续段落是该条目的续行(无序号), 追加并清空续行段, 避免排版后内容重复
             StringBuilder sb = new StringBuilder(content);
             while (i + 1 < elements.size() && elements.get(i + 1) instanceof XWPFParagraph) {
                 String next = ((XWPFParagraph) elements.get(i + 1)).getText().trim();
+                // 续行的判定: 既不能是下一条(带编号), 也不能是本身就像一条独立文献(含 [J]/[M] 等类型标识),
+                // 否则无编号的文献列表会被整体拼进第一条里
                 if (next.isEmpty() || REF_ITEM_START.matcher(next).matches()
+                        || looksLikeRefEntry(next)
                         || AFTER_REF_SECTION.matcher(next).matches()) {
                     break;
                 }
@@ -119,6 +132,15 @@ public class ReferenceFormatter {
     /** 参考文献之后的章节标题(附录/致谢/攻读学位期间), 处理到此为止 */
     private static final Pattern AFTER_REF_SECTION =
             Pattern.compile("^(附\\s*录|致\\s*谢|攻读(硕士|博士|学位)期间|个人简历|学(术)?论文(发表|完成)情况).*$");
+
+    /** 是否为无编号但明显是文献的条目(含 [J]/[M]/[C]/[D]/[P]/[S]/[EB/OL] 等类型标识) */
+    private static boolean looksLikeRefEntry(String text) {
+        if (text == null) {
+            return false;
+        }
+        String t = text.trim();
+        return t.length() >= 12 && REF_TYPE_HINT.matcher(t).matches();
+    }
 
     /** 识别条目编号风格, 非条目行返回 null */
     private static String detectNumbering(String text) {

@@ -27,7 +27,8 @@ public class FormatRule {
     /** 西文字体(ascii/hAnsi), 默认 Times New Roman */
     private String fontLatin;
 
-    private Integer fontSize;
+    /** 字号(磅), 支持半磅如五号 10.5 */
+    private Double fontSize;
 
     private Boolean bold;
 

@@ -20,7 +20,7 @@ public class RuleSaveDTO {
 
     private String font;
     private String fontLatin;
-    private Integer fontSize;
+    private Double fontSize;
     private Boolean bold;
     private String align;
     private Float lineSpacing;

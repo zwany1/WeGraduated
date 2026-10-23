@@ -1,5 +1,6 @@
 package com.graduate.thesis.engine.model;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.graduate.thesis.entity.FormatRule;
@@ -75,6 +76,10 @@ public class RuleSet {
 
     public static RuleSet from(FormatTemplate template, List<FormatRule> rules) {
         ObjectMapper mapper = new ObjectMapper();
+        // 模板 page_config 可能包含 abstract / section 等扩展子节点(不由 PageConfig 建模),
+        // 早期使用默认 ObjectMapper 会因未知字段抛异常并把整个页面配置回退成默认值
+        // (表现为: 明明配了 2.5cm 页边距, 排版结果却是默认 3cm)。这里忽略未知字段。
+        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         PageConfig pageConfig = new PageConfig();
         if (template.getPageConfig() != null && !template.getPageConfig().trim().isEmpty()) {
             try {
@@ -150,7 +155,7 @@ public class RuleSet {
         fallback.setRuleType(ruleType);
         fallback.setFont("宋体");
         fallback.setFontLatin("Times New Roman");
-        fallback.setFontSize(12);
+        fallback.setFontSize(12.0);
         fallback.setBold(false);
         fallback.setAlign("left");
         fallback.setLineSpacing(1.5f);

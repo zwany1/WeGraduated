@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS t_format_rule (
     rule_type          VARCHAR(32)  NOT NULL,
     font               VARCHAR(64)  DEFAULT NULL,
     font_latin         VARCHAR(64)  DEFAULT NULL,
-    font_size          INT          DEFAULT NULL,
+    font_size          DOUBLE       DEFAULT NULL,
     bold               TINYINT(1)   DEFAULT NULL,
     align              VARCHAR(16)  DEFAULT NULL,
     line_spacing       FLOAT        DEFAULT NULL,

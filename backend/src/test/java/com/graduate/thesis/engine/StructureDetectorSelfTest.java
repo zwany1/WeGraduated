@@ -192,7 +192,7 @@ public class StructureDetectorSelfTest {
         r.setRuleType(type);
         r.setFont(font);
         r.setFontLatin("Times New Roman");
-        r.setFontSize(size);
+        r.setFontSize((double) size);
         r.setBold(bold);
         r.setAlign(align);
         r.setLineSpacing(1.5f);

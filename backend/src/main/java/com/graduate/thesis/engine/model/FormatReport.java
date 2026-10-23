@@ -36,8 +36,41 @@ public class FormatReport {
     /** 未匹配标题正则、已按正文处理的疑似标题行 */
     private List<Suspect> suspects = new ArrayList<>();
 
+    /**
+     * 结构评级: OK / WARN / EMPTY。
+     * 历史任务的报告 JSON 里没有这个字段, 反序列化后为 null, 前端据此回退旧渲染。
+     */
+    private String structureLevel;
+
+    /** 结构告警的用户可读说明; 结构正常时为 null */
+    private String structureMessage;
+
     /** 本次排版实际使用的关键格式参数快照(标题正则与各级字体字号), 供版本历史展示 */
     private java.util.Map<String, Object> usedConfig;
+
+    /**
+     * 计算结构评级与提示文案。
+     *
+     * <p>这是「结构是否正常」的<b>唯一判定点</b>：前端与其它端只读取 structureLevel / structureMessage，
+     * 不得各自再实现一遍条件判断。</p>
+     *
+     * <p>之所以必须由后端判定：空文档排版任务状态是 SUCCESS（引擎不报错），
+     * 仅凭「任务是否失败」无法提示用户。</p>
+     */
+    public void evaluateStructure() {
+        if (chapterCount == 0 && bodyParagraphs == 0) {
+            structureLevel = "EMPTY";
+            structureMessage = "未检测到任何正文内容：当前文档除空白段落外没有可排版的内容，"
+                    + "请确认上传的是正确的论文文件（排版任务本身会显示成功，但结果是一份空白文档）";
+        } else if (chapterCount == 0) {
+            structureLevel = "WARN";
+            structureMessage = "未识别到章节标题：正文已按普通段落排版。请确认标题使用了 Word 的"
+                    + "「标题 1 / 2 / 3」样式，或写成 1 / 1.1 / 1.1.1 的编号形式";
+        } else {
+            structureLevel = "OK";
+            structureMessage = null;
+        }
+    }
 
     /**
      * 疑似标题行: index 为原文档段落序号, 修复重排时用作覆盖键

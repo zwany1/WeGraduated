@@ -304,10 +304,12 @@ public class PaperService {
             result.delete(); // 排版产物已拷入存储, 引擎临时文件即用即删
 
             // 成功写入同样带 PROCESSING 条件: 被管理员取消的任务不再复活
+            // 结构评级只算一次(唯一判定点), 前端按 structureLevel 渲染, 不重复判断
+            report.evaluateStructure();
             String reportJson = null;
             try {
                 reportJson = objectMapper.writeValueAsString(report);
-                log.info("排版报告已生成 taskId={}, 疑似标题 {} 处", taskId, report.getSuspects().size());
+                log.info("排版报告已生成 taskId={}, 疑似标题 {} 处, 结构评级 {}", taskId, report.getSuspects().size(), report.getStructureLevel());
             } catch (Exception e) {
                 log.warn("报告序列化失败 taskId={}", taskId, e);
             }

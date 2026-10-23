@@ -240,6 +240,10 @@
             <div class="stat-chip"><b>{{ reportData.referenceCount }}</b><span>参考文献</span></div>
             <div class="stat-chip"><b>{{ reportData.bodyParagraphs }}</b><span>正文段落</span></div>
           </div>
+          <!-- 结构告警: 判定与文案均来自后端 structureLevel/structureMessage, 前端只渲染 -->
+          <div v-if="structureAlert" class="structure-alert" :class="structureAlert.level === 'EMPTY' ? 'is-danger' : 'is-warn'">
+            {{ structureAlert.message }}
+          </div>
           <div v-if="reportData.autoFixedHeadings" class="report-note ok-note">
             引擎已按无编号标题启发式自动识别 {{ reportData.autoFixedHeadings }} 处下级标题(如"研究背景"等短行)。
           </div>
@@ -283,7 +287,7 @@
             <el-button v-if="reportData.suspects && reportData.suspects.length" type="primary" :loading="refineLoading" @click="applyOverrides">按以上设置重新排版(生成新任务)</el-button>
           </div>
           </template>
-          <el-empty v-else-if="!reportLoading" description="未发现疑似标题问题，结构识别良好" :image-size="60" />
+          <el-empty v-else-if="!reportLoading && !structureAlert" description="未发现疑似标题问题，结构识别良好" :image-size="60" />
         </template>
         <el-empty v-else-if="!reportLoading" description="该任务没有体检报告（旧任务生成于报告功能上线前，重新排版即可获得）" />
       </div>
@@ -749,6 +753,17 @@ const reportData = ref(null)
 const reportTaskId = ref(null)
 const overrideMap = ref({})
 const refineLoading = ref(false)
+
+// 结构告警: 是否展示与展示什么完全由后端 structureLevel / structureMessage 决定。
+// 旧任务的报告里没有这两个字段(null), 此时返回 null, 回退到原来的渲染逻辑, 不会误报。
+const structureAlert = computed(() => {
+  const lv = reportData.value && reportData.value.structureLevel
+  if (lv !== 'EMPTY' && lv !== 'WARN') return null
+  return {
+    level: lv,
+    message: reportData.value.structureMessage || '文档结构可能存在问题，建议检查标题与正文内容'
+  }
+})
 
 function levelName(lv) {
   return lv === 1 ? '一级' : lv === 2 ? '二级' : lv === 3 ? '三级' : (lv || '?') + ' 级'
@@ -1348,6 +1363,24 @@ function formatTime(t) {
   border-radius: 6px;
   font-size: 13px;
   margin-bottom: 10px;
+}
+.structure-alert {
+  margin: 12px 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border-left: 4px solid transparent;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.structure-alert.is-warn {
+  background: #fdf6ec;
+  border-left-color: #e6a23c;
+  color: #a06a1e;
+}
+.structure-alert.is-danger {
+  background: #fef0f0;
+  border-left-color: #f56c6c;
+  color: #b93a3a;
 }
 .ok-note {
   background: #f0f9eb;

@@ -561,18 +561,41 @@ async function submit() {
   submitting.value = true
   try {
     const fileIds = []
+    const failed = []
+    // 逐篇容错: 某一篇上传失败不得中断整批, 也不让已上传成功的文件变成「有文件无任务」的孤儿
     for (const f of selectedFiles.value) {
-      const paperFile = await uploadPaper(f)
-      fileIds.push(paperFile.id)
+      try {
+        const paperFile = await uploadPaper(f)
+        fileIds.push(paperFile.id)
+      } catch (e) {
+        const reason = (e && e.response && e.response.data && e.response.data.message)
+          || (e && e.message) || '上传失败'
+        failed.push({ file: f, name: (f && f.name) || '未命名文件', reason })
+      }
     }
-    await startFormatBatch(templateId.value, fileIds)
-    ElMessage.success(`已提交 ${fileIds.length} 篇论文的排版任务`)
-    selectedFiles.value = []
-    fileList.value = []
-    selectedFile.value = null
-    await loadTasks(true)
-    await loadFiles()
-    startSse()
+
+    if (fileIds.length) {
+      await startFormatBatch(templateId.value, fileIds)
+    }
+
+    // 成功的移出待提交区, 失败的留在列表里等用户处理
+    const failedSet = new Set(failed.map(x => x.file))
+    const remain = fileList.value.filter(f => failedSet.has(f.raw || f))
+    fileList.value = remain
+    selectedFiles.value = remain.map(f => f.raw || f)
+    selectedFile.value = selectedFiles.value[0] || null
+
+    if (fileIds.length) {
+      ElMessage.success(`已提交 ${fileIds.length} 篇论文的排版任务`)
+      await loadTasks(true)
+      await loadFiles()
+      startSse()
+    }
+    if (failed.length) {
+      const shown = failed.slice(0, 3).map(x => `${x.name}（${x.reason}）`).join('；')
+      const more = failed.length > 3 ? ` 等 ${failed.length} 篇` : ''
+      ElMessage.error(`${failed.length} 篇未能提交：${shown}${more}`)
+    }
   } finally {
     submitting.value = false
   }

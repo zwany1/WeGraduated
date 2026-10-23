@@ -3,8 +3,10 @@ import api from './index'
 export function uploadPaper(file) {
   const form = new FormData()
   form.append('file', file)
+  // silent: 批量提交时由 submit() 统一汇总失败清单, 避免逐篇弹错
   return api.post('/paper/upload', form, {
-    headers: { 'Content-Type': 'multipart/form-data' }
+    headers: { 'Content-Type': 'multipart/form-data' },
+    silent: true
   })
 }
 

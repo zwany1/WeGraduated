@@ -23,8 +23,12 @@ api.interceptors.response.use(
     if (res.data.code === 200) {
       return res.data.data
     }
-    ElMessage.error(res.data.message || '请求失败')
-    return Promise.reject(new Error(res.data.message || '请求失败'))
+    const msg = res.data.message || '请求失败'
+    // silent: 由调用方统一汇总提示(如批量上传逐篇容错), 避免同一个错误弹两次
+    if (!res.config || !res.config.silent) {
+      ElMessage.error(msg)
+    }
+    return Promise.reject(new Error(msg))
   },
   err => {
     if (err.response && err.response.status === 401) {

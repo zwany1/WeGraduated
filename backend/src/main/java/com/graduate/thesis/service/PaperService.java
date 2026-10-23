@@ -78,6 +78,9 @@ public class PaperService {
         }
     }
 
+    /** ZIP 本地文件头魔数: .docx 本质是 zip 容器, 真实 Word 文件必以此开头 */
+    private static final byte[] ZIP_MAGIC = {0x50, 0x4B, 0x03, 0x04};
+
     public PaperFile upload(Long userId, MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new BusinessException("文件不能为空");
@@ -87,6 +90,8 @@ public class PaperService {
             throw new BusinessException("仅支持 .docx 文件，旧版 .doc 请先用 Word 另存为 .docx 后再上传");
         }
         checkUploadSize(file.getSize());
+        // 必须在落存储/入库之前校验: 被拒绝的坏文件不得留下任何痕迹
+        assertZipPackage(file);
         String relative = storageService.store(file, "upload");
         PaperFile paperFile = new PaperFile();
         paperFile.setUserId(userId);
@@ -185,12 +190,36 @@ public class PaperService {
         return tasks;
     }
 
+    /**
+     * 校验文件头是否为 ZIP 包。扩展名可以随便改, 但真正的 .docx 一定是 zip。
+     * 只读前 4 字节, 不把整个文件读进内存。
+     */
+    private void assertZipPackage(MultipartFile file) {
+        byte[] head = new byte[ZIP_MAGIC.length];
+        try (java.io.InputStream in = file.getInputStream()) {
+            int read = in.read(head);
+            if (read < ZIP_MAGIC.length) {
+                throw new BusinessException("文件已损坏或不是有效的 .docx，请用 Word 重新另存后再上传");
+            }
+        } catch (java.io.IOException e) {
+            throw new BusinessException("文件读取失败，请重新上传");
+        }
+        for (int i = 0; i < ZIP_MAGIC.length; i++) {
+            if (head[i] != ZIP_MAGIC[i]) {
+                throw new BusinessException("文件已损坏或不是有效的 .docx，请用 Word 重新另存后再上传");
+            }
+        }
+    }
+
     /** 失败原因人性化: 把底层异常翻译成用户能理解的话 */
     private String friendlyFormatError(String msg) {
         if (msg == null || msg.trim().isEmpty()) {
             return "排版失败，请重试";
         }
-        String m = msg;
+        String m = msg.trim().replaceFirst("^排版失败\\s*[：:]\\s*", "").trim();
+        if (m.isEmpty()) {
+            return "排版失败，请重试";
+        }
         if (m.contains("文档过大") || m.contains("MB") && m.contains("拆分")) {
             return m;
         }
@@ -200,11 +229,18 @@ public class PaperService {
         if (m.toLowerCase().contains("encrypt") || m.contains("密码") || m.contains("加密")) {
             return "文档已加密，请用 Word/WPS 另存为不带密码的 .docx 后重新上传";
         }
-        if (m.contains("document.xml") || m.contains("XWPF") || m.contains("docx4j") || m.contains("无法解析") || m.contains("不是有效的")) {
+        if (m.contains("document.xml") || m.contains("XWPF") || m.contains("docx4j") || m.contains("无法解析")
+                || m.contains("不是有效的") || m.contains("ZipException") || m.contains("Unexpected record signature")
+                || m.contains("not a zip") || m.contains("invalid block") || m.contains("Too large")) {
             return "文档无法解析，请确认上传的是有效的 Word 文档(.docx)";
         }
-        // 去掉包名/类名噪音, 截断过长
-        m = m.replaceAll("com\\.graduate\\.thesis\\.[\\w.]+", "").replaceAll("\\s+", " ").trim();
+        // 去掉包名/类名/十六进制签名等噪音, 用户不需要看到堆栈细节
+        m = m.replaceAll("com\\.graduate\\.thesis\\.[\\w.]+", "")
+                .replaceAll("[A-Za-z0-9_.$]*Exception", "")
+                .replaceAll("0x[0-9a-fA-F]+", "")
+                .replaceAll("\\s+", " ")
+                .replaceAll("^[：:，,（(\\s]+", "")
+                .trim();
         if (m.length() > 90) {
             m = m.substring(0, 90) + "...";
         }

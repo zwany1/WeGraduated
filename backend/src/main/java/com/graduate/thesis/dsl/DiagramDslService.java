@@ -78,21 +78,45 @@ public class DiagramDslService {
     }
 
     /**
-     * 输入归一化: 只为结构识别。中文输入法的常见变体(全角空格 / 长破折号 / 零宽字符)
-     * 在视觉上与半角几乎无法区分, 让用户逐字符排查是折磨 —— 统一归一后,
-     * "—>"、"－>"、全角空格分隔都能正常解析。
+     * 输入归一化: 只为结构识别。中文输入法的常见变体在视觉上与半角几乎无法区分
+     * (全角空格 / 各类长破折号 / 零宽字符 / 汉字"一"当横线 / 单字符箭头),
+     * 让用户逐字符排查是折磨 —— 统一归一后再匹配。
      */
     private static String normalizeLine(String line) {
         String s = line
-                .replace('\u3000', ' ')                                  // 全角空格
-                .replace("\u200B", "").replace("\u200C", "")
-                .replace("\u200D", "").replace("\uFEFF", "")             // 零宽字符/BOM
-                .replace('—', '-').replace('–', '-')                     // em/en dash
-                .replace('―', '-').replace('‑', '-').replace('－', '-')  // 其余横线家族
-                .replace("→", "->");                                     // 单字符箭头补全横线
-        // 箭头内部被输入法拆开的 "- >" / "-- >"
+                .replaceAll("[\\u200B-\\u200D\\uFEFF]", "")      // 零宽字符/BOM
+                .replaceAll("[\\p{Zs}\\t]", " ")                 // 所有 Unicode 空格(含全角/EN SPACE)
+                .replaceAll("\\p{Pd}", "-")                      // 所有 Unicode 破折号/连字符(em/en/全角减号…)
+                .replace("→", "->").replace("⇒", "->")
+                .replace("➔", "->").replace("➜", "->")
+                .replace("➤", "->").replace("➝", "->")
+                .replace("➡", "->").replace("↦", "->").replace("⇢", "->");
+        // 中文输入法打横线最常误触的汉字"一": 仅当其后紧跟 ">" 时当作横线归一,
+        // 不做全局替换 —— 消息文本里的"一"不能动
+        s = s.replaceAll("一(?=\\s*>)", "-");
+        // 箭头内部被输入法拆开: "- >" / "-- >"
         s = s.replaceAll("-\\s+>", "->").replaceAll("--\\s+>", "-->");
         return s;
+    }
+
+    /**
+     * 列出行内"非常规"字符的码点(非 ASCII、非 CJK 汉字、非中文标点),
+     * 让解析失败的报错自带答案 —— 而不是让用户截图后靠猜。
+     */
+    private static String suspiciousChars(String line) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < line.length(); ) {
+            int cp = line.codePointAt(i);
+            boolean ascii = cp >= 0x20 && cp <= 0x7E;
+            boolean cjk = cp >= 0x4E00 && cp <= 0x9FFF;
+            boolean cnPunct = cp >= 0x3000 && cp <= 0x303F;
+            boolean fullwidth = cp >= 0xFF00 && cp <= 0xFFEF;
+            if (!ascii && !cjk && !cnPunct && !fullwidth) {
+                sb.append(String.format(" U+%04X(%c)", cp, cp));
+            }
+            i += Character.charCount(cp);
+        }
+        return sb.length() == 0 ? "" : "；该行含非常规字符:" + sb;
     }
 
     /** 参与者/实体名清理: 首尾空白 + 内部全角空格(否则名字带不可见尾巴, 图上显示异常) */
@@ -133,7 +157,8 @@ public class DiagramDslService {
             Matcher m = MSG.matcher(line);
             if (!m.matches()) {
                 return DslParseResult.fail(lineNo, line, SEQ_HINT,
-                        "第 " + lineNo + " 行无法识别，请检查是否缺少 -> 或 --> 连接符");
+                        "第 " + lineNo + " 行无法识别，请检查是否缺少 -> 或 --> 连接符"
+                                + suspiciousChars(raw));
             }
             String from = cleanName(m.group(1));
             String arrow = m.group(2);

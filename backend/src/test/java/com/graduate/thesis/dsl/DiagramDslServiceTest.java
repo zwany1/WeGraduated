@@ -176,7 +176,7 @@ class DiagramDslServiceTest {
     /** 输入法把 "-" 打成 em dash / 全角减号时, 视觉上无法分辨, 解析器必须兜住 */
     @Test
     void 输入法变体箭头长破折号与全角减号都能解析() {
-        for (String arrow : new String[]{"—>", "——>", "–>", "－>", "- >", "→"}) {
+        for (String arrow : new String[]{"—>", "——>", "–>", "－>", "- >", "→", "➔", "⇒", "一>"}) {
             DslParseResult r = svc.parse("SEQUENCE", "用户 " + arrow + " 系统: 登录请求");
             assertTrue(r.isOk(), "箭头变体 [" + arrow + "] 应能解析，实际: "
                     + (r.getError() == null ? "" : r.getError().getMessage()));
@@ -185,6 +185,17 @@ class DiagramDslServiceTest {
             assertEquals("用户", c.getMessages().get(0).getFrom(), "箭头 [" + arrow + "] 的 from 应干净");
             assertEquals("系统", c.getMessages().get(0).getTo());
         }
+    }
+
+    /** 解析失败时报错必须自带可疑字符码点 —— 否则每次都要用户截图靠猜 */
+    @Test
+    void 解析失败的报错列出非常规字符码点() {
+        DslParseResult r = svc.parse("SEQUENCE", "用户 ✗ 系统: 登录请求");
+        assertFalse(r.isOk());
+        assertTrue(r.getError().getMessage().contains("U+"), "报错应含码点诊断，实际: "
+                + r.getError().getMessage());
+        assertTrue(r.getError().getMessage().contains("2717"), "✗ 是 U+2717，实际: "
+                + r.getError().getMessage());
     }
 
     /** 全角空格是 \u3000, String.trim() 不会去掉它 —— 名字带隐形尾巴会在图上显示异常 */

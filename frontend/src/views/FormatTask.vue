@@ -574,22 +574,32 @@ async function submit() {
       }
     }
 
-    if (fileIds.length) {
-      await startFormatBatch(templateId.value, fileIds)
-    }
-
-    // 成功的移出待提交区, 失败的留在列表里等用户处理
+    // 先把上传成功的文件移出待提交区, 再建任务:
+    // 即便建任务失败, 也不会让用户误以为整批没提交而重复上传
     const failedSet = new Set(failed.map(x => x.file))
     const remain = fileList.value.filter(f => failedSet.has(f.raw || f))
     fileList.value = remain
     selectedFiles.value = remain.map(f => f.raw || f)
     selectedFile.value = selectedFiles.value[0] || null
 
+    let batchError = null
     if (fileIds.length) {
+      try {
+        await startFormatBatch(templateId.value, fileIds)
+      } catch (e) {
+        batchError = (e && e.message) || '创建排版任务失败'
+      }
+    }
+
+    if (fileIds.length && !batchError) {
       ElMessage.success(`已提交 ${fileIds.length} 篇论文的排版任务`)
       await loadTasks(true)
       await loadFiles()
       startSse()
+    }
+    if (batchError) {
+      ElMessage.error(`文件已上传，但创建排版任务失败：${batchError}`)
+      await loadFiles()
     }
     if (failed.length) {
       const shown = failed.slice(0, 3).map(x => `${x.name}（${x.reason}）`).join('；')

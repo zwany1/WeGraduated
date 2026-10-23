@@ -31,8 +31,9 @@ api.interceptors.response.use(
     return Promise.reject(new Error(msg))
   },
   err => {
+    // silent: 批量场景下由调用方统一汇总, 避免 N 个文件弹 N 次(业务码与网络/5xx 两类分支都要遵守)
+    const silent = !!(err && err.config && err.config.silent)
     if (err.response && err.response.status === 401) {
-      ElMessage.warning('登录已过期，请重新登录')
       localStorage.removeItem('token')
       localStorage.removeItem('userId')
       localStorage.removeItem('username')
@@ -42,11 +43,18 @@ api.interceptors.response.use(
       localStorage.removeItem('perms')
       localStorage.removeItem('menus')
       router.push({ path: '/login', query: { redirect: router.currentRoute.value.fullPath } })
+      if (!silent) {
+        ElMessage.warning('登录已过期，请重新登录')
+      }
     } else if ([502, 503, 504].includes(err.response?.status)) {
-      ElMessage.error('后端服务未启动或正在重启，请稍后重试')
+      if (!silent) {
+        ElMessage.error('后端服务未启动或正在重启，请稍后重试')
+      }
     } else {
       const msg = err.response?.data?.message || err.message || '网络错误'
-      ElMessage.error(msg)
+      if (!silent) {
+        ElMessage.error(msg)
+      }
     }
     return Promise.reject(err)
   }

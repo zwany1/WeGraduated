@@ -1,0 +1,192 @@
+package com.graduate.thesis.dsl;
+
+import com.graduate.thesis.dto.SequenceConfig;
+import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+/**
+ * 系统图文本 DSL: 文本 ↔ 图模型配置的双向转换。
+ *
+ * <p>两个方向都是必需的，不是可选品：只有 parse 而没有 render 时，
+ * 用户在画布或表单上的改动，一切回文本视图就会被文本覆盖回旧版本（R4）。</p>
+ *
+ * <p>解析全部在本地完成，不调用任何外部服务（R3）。</p>
+ */
+@Service
+public class DiagramDslService {
+
+    /** 支持文本输入的 8 种图；三线表不在其中（它是表格而非图，且有独立的 SQL 解析入口） */
+    private static final Set<String> SUPPORTED = Set.of(
+            "FLOW", "ARCH", "SWIMLANE", "ACTIVITY", "USECASE", "SEQUENCE", "CLASS", "ER");
+
+    /** 已实现方言的图类型。票 01 只打通时序图，其余逐票补齐 */
+    private static final Set<String> IMPLEMENTED = Set.of("SEQUENCE");
+
+    private static final Pattern MSG = Pattern.compile(
+            "^\\s*(.+?)\\s*(-->|->)\\s*(.+?)\\s*(?:[:：]\\s*(.*))?\\s*$");
+    private static final Pattern PARTICIPANTS = Pattern.compile("^\\s*@participants\\s*(.+?)\\s*$");
+    private static final Pattern TITLE = Pattern.compile("^\\s*@title\\s+(.+?)\\s*$");
+
+    private static final String SEQ_HINT = String.join("\n",
+            "时序图语法：",
+            "  用户 -> 系统: 登录请求      实线（请求）",
+            "  系统 --> 用户: 登录成功     虚线（返回）",
+            "  @participants 用户, 系统    可选，固定参与者顺序",
+            "  @title 用户登录时序图       可选，图标题",
+            "  # 开头为注释；空行忽略");
+
+    /**
+     * 文本 → 图配置。
+     *
+     * @return 成功时 config 非空；失败时 error 携带行号与语法提示
+     */
+    public DslParseResult parse(String type, String text) {
+        String t = type == null ? "" : type.trim().toUpperCase();
+
+        if (!SUPPORTED.contains(t)) {
+            if ("TABLE3".equals(t)) {
+                return DslParseResult.fail(0, "", "",
+                        "三线表请使用三线表页面（支持粘贴建表 SQL 自动生成）");
+            }
+            return DslParseResult.fail(0, "", "", "不支持的图类型：" + type);
+        }
+        if (!IMPLEMENTED.contains(t)) {
+            return DslParseResult.fail(0, "", "", "该图类型的文本输入尚未开放，请先用表单配置");
+        }
+        if (text == null || text.trim().isEmpty()) {
+            return DslParseResult.fail(0, "", SEQ_HINT, "请输入内容后再生成");
+        }
+        return "SEQUENCE".equals(t) ? parseSequence(text) : DslParseResult.fail(0, "", "", "未实现");
+    }
+
+    /** 图配置 → 文本。用于回填输入框，以及把画布/表单改动同步回文本 */
+    public String render(String type, Object config) {
+        String t = type == null ? "" : type.trim().toUpperCase();
+        if (!"SEQUENCE".equals(t)) {
+            throw new IllegalArgumentException("该图类型暂不支持生成文本: " + type);
+        }
+        if (!(config instanceof SequenceConfig)) {
+            throw new IllegalArgumentException("配置类型与图类型不匹配: " + t);
+        }
+        return renderSequence((SequenceConfig) config);
+    }
+
+    private DslParseResult parseSequence(String text) {
+        SequenceConfig cfg = new SequenceConfig();
+        List<SequenceConfig.ParticipantConfig> declared = new ArrayList<>();
+        List<SequenceConfig.MessageConfig> messages = new ArrayList<>();
+        LinkedHashSet<String> order = new LinkedHashSet<>();
+
+        String[] lines = text.split("\\R", -1);
+        for (int i = 0; i < lines.length; i++) {
+            String raw = lines[i];
+            int lineNo = i + 1;
+            String line = raw.trim();
+            if (line.isEmpty() || line.startsWith("#")) {
+                continue;
+            }
+
+            Matcher title = TITLE.matcher(line);
+            if (title.matches()) {
+                cfg.setTitle(title.group(1));
+                continue;
+            }
+
+            Matcher ps = PARTICIPANTS.matcher(line);
+            if (ps.matches()) {
+                for (String name : splitNames(ps.group(1))) {
+                    declared.add(participant(name));
+                    order.add(name);
+                }
+                continue;
+            }
+
+            Matcher m = MSG.matcher(line);
+            if (!m.matches()) {
+                return DslParseResult.fail(lineNo, line, SEQ_HINT,
+                        "第 " + lineNo + " 行无法识别，请检查是否缺少 -> 或 --> 连接符");
+            }
+            String from = m.group(1).trim();
+            String arrow = m.group(2);
+            String to = m.group(3).trim();
+            String label = m.group(4) == null ? "" : m.group(4).trim();
+
+            SequenceConfig.MessageConfig msg = new SequenceConfig.MessageConfig();
+            msg.setId("m" + (messages.size() + 1));
+            msg.setFrom(from);
+            msg.setTo(to);
+            msg.setText(label);
+            msg.setType("-->".equals(arrow) ? "return" : "request");
+            messages.add(msg);
+            order.add(from);
+            order.add(to);
+        }
+
+        // 显式声明的参与者优先保持其顺序，其余按消息中首次出现补齐
+        List<SequenceConfig.ParticipantConfig> participants = new ArrayList<>(declared);
+        for (String name : order) {
+            if (participants.stream().noneMatch(p -> p.getName().equals(name))) {
+                participants.add(participant(name));
+            }
+        }
+        for (int i = 0; i < participants.size(); i++) {
+            participants.get(i).setId("p" + (i + 1));
+        }
+        cfg.setParticipants(participants);
+        cfg.setMessages(messages);
+        return DslParseResult.success(cfg);
+    }
+
+    private String renderSequence(SequenceConfig c) {
+        StringBuilder sb = new StringBuilder();
+        if (c.getTitle() != null && !c.getTitle().isBlank()) {
+            sb.append("@title ").append(c.getTitle()).append('\n');
+        }
+        if (c.getParticipants() != null && !c.getParticipants().isEmpty()) {
+            List<String> names = new ArrayList<>();
+            for (SequenceConfig.ParticipantConfig p : c.getParticipants()) {
+                if (p.getName() != null && !p.getName().isBlank()) {
+                    names.add(p.getName());
+                }
+            }
+            if (!names.isEmpty()) {
+                sb.append("@participants ").append(String.join(", ", names)).append('\n');
+            }
+        }
+        if (c.getMessages() != null) {
+            for (SequenceConfig.MessageConfig m : c.getMessages()) {
+                sb.append(m.getFrom())
+                        .append("return".equalsIgnoreCase(String.valueOf(m.getType())) ? " --> " : " -> ")
+                        .append(m.getTo());
+                if (m.getText() != null && !m.getText().isBlank()) {
+                    sb.append(": ").append(m.getText());
+                }
+                sb.append('\n');
+            }
+        }
+        return sb.toString();
+    }
+
+    private SequenceConfig.ParticipantConfig participant(String name) {
+        SequenceConfig.ParticipantConfig p = new SequenceConfig.ParticipantConfig();
+        p.setName(name);
+        return p;
+    }
+
+    private List<String> splitNames(String raw) {
+        List<String> out = new ArrayList<>();
+        for (String part : raw.split("[,，、]")) {
+            String n = part.trim();
+            if (!n.isEmpty()) {
+                out.add(n);
+            }
+        }
+        return out;
+    }
+}

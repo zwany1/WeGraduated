@@ -239,9 +239,31 @@
           </div>
         </template>
 
-        <!-- 时序图: 结构化配置(参与者 + 消息) -->
+        <!-- 时序图: 文本 DSL(推荐) + 结构化配置(精确调整) -->
         <template v-else-if="type === 'SEQUENCE'">
-          <div class="input-title">时序图配置</div>
+          <div class="input-title">时序图文本</div>
+          <el-input
+            v-model="seqDsl"
+            type="textarea"
+            :rows="8"
+            class="dsl-input"
+            placeholder="用户 -> 系统: 提交登录信息&#10;系统 -> 数据库: 查询账号&#10;数据库 --> 系统: 返回查询结果&#10;系统 --> 用户: 登录成功"
+            @input="onDslInput"
+          />
+          <div class="dsl-row">
+            <el-button size="small" @click="fillSeqExample">填入示例</el-button>
+            <el-button size="small" type="primary" :loading="generating" @click="generate">生成时序图</el-button>
+            <span class="tip">-> 请求(实线)　--> 返回(虚线)　# 注释</span>
+          </div>
+          <div v-if="dslError" class="dsl-error">
+            <div class="dsl-error-line">
+              第 {{ dslError.line }} 行有问题<template v-if="dslError.snippet">：<code>{{ dslError.snippet }}</code></template>
+            </div>
+            <pre v-if="dslError.hint" class="dsl-hint">{{ dslError.hint }}</pre>
+          </div>
+
+          <div class="section-divider"></div>
+          <div class="input-title">时序图配置（精确调整）</div>
           <el-form label-width="70px" size="small">
             <el-form-item label="图标题">
               <el-input v-model="seqConfig.title" placeholder="如：用户登录流程" />
@@ -621,6 +643,11 @@ const description = ref('')
 const generating = ref(false)
 const graphReady = ref(false)
 const currentVO = ref(null)
+
+// 文本 DSL 输入(票01 仅时序图开放; 其余图类型后端返回"尚未开放", 届时回退表单)
+const seqDsl = ref('')
+/** DSL 解析失败的结构化错误: { line, snippet, hint, message } */
+const dslError = ref(null)
 
 // 架构图配置: 动态层结构(默认示例)
 const config = ref({
@@ -1508,6 +1535,28 @@ async function renderGraph(vo) {
   }
 }
 
+// 时序图文本示例(取自真实登录场景, 不用 foo/bar 占位)
+const SEQ_EXAMPLE = [
+  '@title 用户登录时序图',
+  '用户 -> 系统: 提交登录信息',
+  '系统 -> 数据库: 查询账号',
+  '数据库 --> 系统: 返回查询结果',
+  '系统 --> 用户: 登录成功'
+].join('\n')
+
+let dslTimer = null
+/** 文本变更后防抖自动预览, 避免逐字符打接口 */
+function onDslInput() {
+  dslError.value = null
+  if (dslTimer) clearTimeout(dslTimer)
+  dslTimer = setTimeout(() => generate(), 400)
+}
+
+function fillSeqExample() {
+  seqDsl.value = SEQ_EXAMPLE
+  onDslInput()
+}
+
 async function generate() {
   let payload
   if (type.value === 'ARCH') {
@@ -1535,16 +1584,21 @@ async function generate() {
     }
     payload = { type: 'USECASE', useCase: uc }
   } else if (type.value === 'SEQUENCE') {
-    const sq = buildSequencePayload()
-    if (sq.participants.length < 2) {
-      ElMessage.warning('请至少配置两个参与者')
-      return
+    // 文本优先: 有文本就走 DSL, 不再要求先填表单(填表单正是这次要解决的繁琐)
+    if (seqDsl.value && seqDsl.value.trim()) {
+      payload = { type: 'SEQUENCE', dsl: seqDsl.value }
+    } else {
+      const sq = buildSequencePayload()
+      if (sq.participants.length < 2) {
+        ElMessage.warning('请至少配置两个参与者')
+        return
+      }
+      if (sq.messages.length === 0) {
+        ElMessage.warning('请至少配置一条消息')
+        return
+      }
+      payload = { type: 'SEQUENCE', sequence: sq }
     }
-    if (sq.messages.length === 0) {
-      ElMessage.warning('请至少配置一条消息')
-      return
-    }
-    payload = { type: 'SEQUENCE', sequence: sq }
   } else if (type.value === 'CLASS') {
     const cls = buildClassPayload()
     if (cls.classes.length === 0) {
@@ -1623,15 +1677,24 @@ async function generate() {
   generating.value = true
   try {
     const vo = await generateDiagram(payload)
+    // DSL 原文随图保存, 再次打开时回填输入框(没有它, 文本与图就对不上了)
+    if (payload.dsl) vo.dsl = payload.dsl
     currentVO.value = vo
     graphReady.value = true
+    dslError.value = null
     await nextTick()
     if (vo.type !== 'ARCH') {
       if (!graph) initGraph()
       renderGraph(vo)
     }
   } catch (e) {
-    ElMessage.error(e.message || '生成失败')
+    // 带行号的结构化错误在面板内联展示; 拦截器已弹过 message, 此处不重复弹
+    const p = e && e.payload
+    if (p && typeof p === 'object' && 'line' in p) {
+      dslError.value = { line: p.line, snippet: p.snippet, hint: p.hint, message: e.message }
+    } else {
+      dslError.value = null
+    }
   } finally {
     generating.value = false
   }
@@ -2016,6 +2079,42 @@ async function downloadArchSvg() {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+/* --- 文本 DSL 输入区 --- */
+.dsl-input :deep(textarea) {
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.dsl-row {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.dsl-error {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-left: 3px solid #d9534f;
+  background: #fdf2f2;
+  border-radius: 3px;
+  font-size: 12px;
+  color: #8a4b4b;
+}
+.dsl-error-line code {
+  background: #fff;
+  padding: 1px 5px;
+  border-radius: 2px;
+  border: 1px solid #e8c7c7;
+}
+.dsl-hint {
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 12px;
+  color: #6b5b5b;
 }
 .tip {
   font-size: 11px;

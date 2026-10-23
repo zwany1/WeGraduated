@@ -28,7 +28,11 @@ api.interceptors.response.use(
     if (!res.config || !res.config.silent) {
       ElMessage.error(msg)
     }
-    return Promise.reject(new Error(msg))
+    // 业务失败可能携带结构化详情(如 DSL 解析错误的行号/片段/语法提示),
+    // 挂在 error.payload 上供调用方取用 —— 只留 message 会丢掉这些定位信息
+    const err = new Error(msg)
+    err.payload = res.data.data
+    return Promise.reject(err)
   },
   err => {
     // silent: 批量场景下由调用方统一汇总, 避免 N 个文件弹 N 次(业务码与网络/5xx 两类分支都要遵守)

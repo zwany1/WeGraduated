@@ -172,4 +172,29 @@ class DiagramDslServiceTest {
         assertFalse(r.isOk(), "空输入不应判定为解析成功");
         assertNotNull(r.getError().getMessage());
     }
+
+    /** 输入法把 "-" 打成 em dash / 全角减号时, 视觉上无法分辨, 解析器必须兜住 */
+    @Test
+    void 输入法变体箭头长破折号与全角减号都能解析() {
+        for (String arrow : new String[]{"—>", "——>", "–>", "－>", "- >", "→"}) {
+            DslParseResult r = svc.parse("SEQUENCE", "用户 " + arrow + " 系统: 登录请求");
+            assertTrue(r.isOk(), "箭头变体 [" + arrow + "] 应能解析，实际: "
+                    + (r.getError() == null ? "" : r.getError().getMessage()));
+            SequenceConfig c = (SequenceConfig) r.getConfig();
+            assertEquals(1, c.getMessages().size());
+            assertEquals("用户", c.getMessages().get(0).getFrom(), "箭头 [" + arrow + "] 的 from 应干净");
+            assertEquals("系统", c.getMessages().get(0).getTo());
+        }
+    }
+
+    /** 全角空格是 \u3000, String.trim() 不会去掉它 —— 名字带隐形尾巴会在图上显示异常 */
+    @Test
+    void 全角空格分隔时参与者名字不带隐形尾巴() {
+        SequenceConfig c = parsed("用户\u3000->\u3000系统: 登录请求");
+        assertEquals("用户", c.getMessages().get(0).getFrom());
+        assertEquals("系统", c.getMessages().get(0).getTo());
+        for (SequenceConfig.ParticipantConfig p : c.getParticipants()) {
+            assertFalse(p.getName().contains("\u3000"), "参与者名不应含全角空格: " + p.getName());
+        }
+    }
 }

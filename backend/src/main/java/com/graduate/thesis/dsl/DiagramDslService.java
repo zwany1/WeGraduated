@@ -77,6 +77,29 @@ public class DiagramDslService {
         return renderSequence((SequenceConfig) config);
     }
 
+    /**
+     * 输入归一化: 只为结构识别。中文输入法的常见变体(全角空格 / 长破折号 / 零宽字符)
+     * 在视觉上与半角几乎无法区分, 让用户逐字符排查是折磨 —— 统一归一后,
+     * "—>"、"－>"、全角空格分隔都能正常解析。
+     */
+    private static String normalizeLine(String line) {
+        String s = line
+                .replace('\u3000', ' ')                                  // 全角空格
+                .replace("\u200B", "").replace("\u200C", "")
+                .replace("\u200D", "").replace("\uFEFF", "")             // 零宽字符/BOM
+                .replace('—', '-').replace('–', '-')                     // em/en dash
+                .replace('―', '-').replace('‑', '-').replace('－', '-')  // 其余横线家族
+                .replace("→", "->");                                     // 单字符箭头补全横线
+        // 箭头内部被输入法拆开的 "- >" / "-- >"
+        s = s.replaceAll("-\\s+>", "->").replaceAll("--\\s+>", "-->");
+        return s;
+    }
+
+    /** 参与者/实体名清理: 首尾空白 + 内部全角空格(否则名字带不可见尾巴, 图上显示异常) */
+    private static String cleanName(String name) {
+        return name == null ? "" : name.replace('\u3000', ' ').trim();
+    }
+
     private DslParseResult parseSequence(String text) {
         SequenceConfig cfg = new SequenceConfig();
         List<SequenceConfig.ParticipantConfig> declared = new ArrayList<>();
@@ -87,7 +110,7 @@ public class DiagramDslService {
         for (int i = 0; i < lines.length; i++) {
             String raw = lines[i];
             int lineNo = i + 1;
-            String line = raw.trim();
+            String line = normalizeLine(raw).trim();
             if (line.isEmpty() || line.startsWith("#")) {
                 continue;
             }
@@ -112,10 +135,10 @@ public class DiagramDslService {
                 return DslParseResult.fail(lineNo, line, SEQ_HINT,
                         "第 " + lineNo + " 行无法识别，请检查是否缺少 -> 或 --> 连接符");
             }
-            String from = m.group(1).trim();
+            String from = cleanName(m.group(1));
             String arrow = m.group(2);
-            String to = m.group(3).trim();
-            String label = m.group(4) == null ? "" : m.group(4).trim();
+            String to = cleanName(m.group(3));
+            String label = m.group(4) == null ? "" : cleanName(m.group(4));
 
             SequenceConfig.MessageConfig msg = new SequenceConfig.MessageConfig();
             msg.setId("m" + (messages.size() + 1));
@@ -182,7 +205,7 @@ public class DiagramDslService {
     private List<String> splitNames(String raw) {
         List<String> out = new ArrayList<>();
         for (String part : raw.split("[,，、]")) {
-            String n = part.trim();
+            String n = cleanName(part);
             if (!n.isEmpty()) {
                 out.add(n);
             }

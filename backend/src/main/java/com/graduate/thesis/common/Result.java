@@ -25,9 +25,15 @@ public class Result<T> {
     }
 
     public static <T> Result<T> fail(int code, String message) {
+        return fail(code, message, null);
+    }
+
+    /** 带结构化错误详情的失败响应(如 DSL 解析错误的行号/片段/语法提示) */
+    public static <T> Result<T> fail(int code, String message, T data) {
         Result<T> r = new Result<>();
         r.code = code;
         r.message = message;
+        r.data = data;
         return r;
     }
 }

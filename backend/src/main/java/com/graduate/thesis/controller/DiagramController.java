@@ -17,6 +17,8 @@ import com.graduate.thesis.service.DiagramGenerator;
 import com.graduate.thesis.service.SequenceRuleEngine;
 import com.graduate.thesis.service.SwimlaneRuleEngine;
 import com.graduate.thesis.service.UseCaseRuleEngine;
+import com.graduate.thesis.dsl.DiagramDslService;
+import com.graduate.thesis.dsl.DslParseResult;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
@@ -47,6 +49,7 @@ public class DiagramController {
     private final SequenceRuleEngine sequenceEngine;
     private final ClassDiagramRuleEngine classEngine;
     private final ActivityDiagramRuleEngine activityEngine;
+    private final DiagramDslService dslService;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Path root;
 
@@ -57,7 +60,8 @@ public class DiagramController {
                              UseCaseRuleEngine useCaseEngine,
                              SequenceRuleEngine sequenceEngine,
                              ClassDiagramRuleEngine classEngine,
-                             ActivityDiagramRuleEngine activityEngine) {
+                             ActivityDiagramRuleEngine activityEngine,
+                             DiagramDslService dslService) {
         this.root = Paths.get(storageDir).toAbsolutePath().normalize().resolve("diagrams");
         this.diagramGenerator = diagramGenerator;
         this.ruleEngine = ruleEngine;
@@ -66,13 +70,27 @@ public class DiagramController {
         this.sequenceEngine = sequenceEngine;
         this.classEngine = classEngine;
         this.activityEngine = activityEngine;
+        this.dslService = dslService;
     }
 
     /**
-     * 自动生成设计图: ARCH/SWIMLANE/USECASE/SEQUENCE/CLASS/ACTIVITY 支持结构化配置(规则引擎), 其余支持文本描述
+     * 自动生成设计图: ARCH/SWIMLANE/USECASE/SEQUENCE/CLASS/ACTIVITY 支持结构化配置(规则引擎), 其余支持文本描述。
+     * 传入 dsl 时优先按文本解析，解析失败返回 code=400 且 data 为结构化错误(行号/片段/语法提示)。
      */
     @PostMapping("/generate")
-    public Result<DiagramVO> generate(@RequestBody GenDTO dto) {
+    public Result<Object> generate(@RequestBody GenDTO dto) {
+        // 文本 DSL 优先: 有文本时先解析成结构化配置, 再复用原有的规则引擎链路。
+        // 解析失败直接返回结构化错误(行号/片段/语法提示), 不落到规则引擎。
+        if (dto.getDsl() != null && !dto.getDsl().isBlank()) {
+            DslParseResult pr = dslService.parse(dto.getType(), dto.getDsl());
+            if (!pr.isOk()) {
+                DslParseResult.DslError err = pr.getError();
+                return Result.fail(400, err.getMessage(), err);
+            }
+            if (pr.getConfig() instanceof SequenceConfig) {
+                dto.setSequence((SequenceConfig) pr.getConfig());
+            }
+        }
         if ("ARCH".equalsIgnoreCase(dto.getType()) && dto.getConfig() != null) {
             return Result.ok(ruleEngine.build(dto.getConfig()));
         }
@@ -161,6 +179,11 @@ public class DiagramController {
     public static class GenDTO {
         private String type;
         private String description;
+        /**
+         * 文本 DSL。非空时优先于结构化配置：先解析为对应 Config 再走规则引擎。
+         * 尚未实现方言的图类型会返回“尚未开放”，此时前端应回退到表单。
+         */
+        private String dsl;
         private ArchitectureConfig config;
         private SwimlaneConfig swimlane;
         private UseCaseConfig useCase;
@@ -172,6 +195,8 @@ public class DiagramController {
         public void setType(String type) { this.type = type; }
         public String getDescription() { return description; }
         public void setDescription(String description) { this.description = description; }
+        public String getDsl() { return dsl; }
+        public void setDsl(String dsl) { this.dsl = dsl; }
         public ArchitectureConfig getConfig() { return config; }
         public void setConfig(ArchitectureConfig config) { this.config = config; }
         public SwimlaneConfig getSwimlane() { return swimlane; }

@@ -165,6 +165,7 @@ Graduated/
 | 配置项 | 说明 |
 | --- | --- |
 | `DB_PASSWORD` | 数据库密码，通过环境变量配置 |
+| `MAIL_USERNAME` | 发件邮箱地址（默认 `2651896126@qq.com`，可用自己的 SMTP 账号覆盖） |
 | `MAIL_PASSWORD` | 邮箱 SMTP 授权码（用于发送邮箱验证码） |
 | `JWT_SECRET` | JWT 密钥，通过环境变量配置 |
 | `THESIS_ADMIN_PASSWORD` | 后台管理员密码，通过环境变量配置 |

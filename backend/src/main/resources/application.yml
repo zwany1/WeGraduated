@@ -27,9 +27,12 @@ spring:
       # 生产不因单条幂等SQL失败阻断启动(schema 全 IF NOT EXISTS, 正常不失败; 真异常由运行时明确报错)
       continue-on-error: true
   mail:
-    host: smtp.qq.com
-    port: 465
-    username: ${MAIL_USERNAME:}
+    host: ${MAIL_HOST:smtp.qq.com}
+    port: ${MAIL_PORT:465}
+    # 发件人地址同时用作 SMTP 登录账号与邮件 From。
+    # 必须给默认值: 若为空, SimpleMailMessage.setFrom("") 会抛 AddressException,
+    # 表现为"邮件发送失败, 请检查邮箱地址" —— 与用户填写的收件地址无关, 极具误导性。
+    username: ${MAIL_USERNAME:2651896126@qq.com}
     password: ${MAIL_PASSWORD:}
     protocol: smtp
     default-encoding: UTF-8

@@ -96,6 +96,7 @@ docker cp thesis-backend:/app/data/storage ./storage_backup
 | 上传大文件 413 | Nginx `client_max_body_size` 已设为 100m，若更大需调整 |
 | 端口冲突 | 修改 `docker-compose.yml` frontend 的 `80:80` 映射 |
 | 邮箱验证码发不出 | 确认 `MAIL_PASSWORD` 是 SMTP 授权码（非 QQ 密码） |
+| 提示"请检查邮箱地址或稍后重试"但邮箱没填错 | 多为服务端配置问题：检查 `MAIL_USERNAME` 是否被展开成空串（发件人为空会报同样话术），以及授权码是否过期 |
 
 ## 六、更新部署
 

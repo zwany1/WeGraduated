@@ -45,7 +45,9 @@ services:
       DB_USERNAME: root
       DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       DB_URL: jdbc:mysql://mysql:3306/thesis_format?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-      MAIL_USERNAME: ${MAIL_USERNAME}
+      # 必须带默认值: ${MAIL_USERNAME} 未设置时会被展开成空串并覆盖应用默认值,
+      # 导致发件人为空、验证码发送失败却提示"请检查邮箱地址"(与收件地址无关的误导)
+      MAIL_USERNAME: ${MAIL_USERNAME:-2651896126@qq.com}
       MAIL_PASSWORD: ${MAIL_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
       THESIS_ADMIN_PASSWORD: ${THESIS_ADMIN_PASSWORD}

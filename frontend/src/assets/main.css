@@ -157,6 +157,64 @@ body.theme-swiss {
   background: #f7f6f6;
   color: #0a0909;
 }
+/* 瑞士体系下的 Element Plus：红为唯一主色，圆角归零，去掉投影与蓝调 */
+body.theme-swiss {
+  --el-color-primary: #dd2627;
+  --el-color-primary-light-3: #e5575a;
+  --el-color-primary-light-5: #ec8a8c;
+  --el-color-primary-light-7: #f4bcbd;
+  --el-color-primary-light-8: #f8d4d5;
+  --el-color-primary-light-9: #fcecec;
+  --el-color-primary-dark-2: #b91d1e;
+  --el-border-radius-base: 0;
+  --el-border-radius-small: 0;
+  --el-border-radius-round: 0;
+  --el-box-shadow-light: none;
+  --el-box-shadow: none;
+  --el-font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --el-text-color-primary: #0a0909;
+  --el-text-color-regular: #3f3f3f;
+  --el-border-color: #c1c1c3;
+  --el-border-color-light: #e4e4e4;
+  --el-fill-color-light: #f7f6f6;
+}
+body.theme-swiss .el-button {
+  border-radius: 0;
+  font-weight: 500;
+}
+body.theme-swiss .el-dialog,
+body.theme-swiss .el-message-box {
+  border-radius: 0;
+}
+body.theme-swiss .el-dialog__header {
+  border-bottom: 1px solid #0a0909;
+  padding-bottom: 12px;
+}
+body.theme-swiss .el-dialog__title {
+  font-weight: 700;
+  color: #0a0909;
+}
+body.theme-swiss .el-overlay {
+  background-color: rgba(10, 9, 9, 0.32);
+}
+body.theme-swiss .el-input__wrapper,
+body.theme-swiss .el-select__wrapper {
+  border-radius: 0;
+  box-shadow: 0 0 0 1px #c1c1c3 inset;
+}
+body.theme-swiss .el-input__wrapper.is-focus,
+body.theme-swiss .el-select__wrapper.is-focused {
+  box-shadow: 0 0 0 1px #0a0909 inset;
+}
+body.theme-swiss .el-message {
+  border-radius: 0;
+  border-color: #0a0909;
+}
+body.theme-swiss .el-table th.el-table__cell {
+  background: transparent;
+  color: #6b6b6b;
+  font-weight: 400;
+}
 /* 落地页不显示工作台类悬浮件（后端状态 / 反馈气泡） */
 body.theme-swiss .feedback-fab,
 body.theme-swiss .backend-status {

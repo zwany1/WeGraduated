@@ -1,131 +1,135 @@
 <template>
-  <div class="page">
-    <NavBar />
+  <div class="market">
+    <PublicNav />
 
-    <section class="hero">
-      <div class="hero-inner">
-        <h1 class="hero-title">模板市场</h1>
-        <p class="hero-desc">选择适合你的排版模板，一键应用到论文</p>
+    <!-- 海报式页头 -->
+    <section class="m-hero">
+      <div class="m-hero-main">
+        <h1>模板市场</h1>
+        <p>别人调好的校规配置，直接拿来用。也可以把自己那套上架，让同校的人少走一遍。</p>
+      </div>
+      <div class="m-hero-side">
+        <span class="m-stat"><b>{{ marketTemplates.length }}</b> 套官方模板</span>
+        <span class="m-stat"><b>{{ categories.length }}</b> 个分类</span>
+        <span class="m-stat" v-if="isLoggedIn"><b>{{ favorites.length }}</b> 个收藏</span>
       </div>
     </section>
 
-    <section class="section">
-      <div class="section-inner">
-        <!-- 官方模板市场 -->
-        <h2 class="sec-title">官方模板市场</h2>
-        <p class="sec-sub">管理员精选的排版模板，一键复制使用</p>
-        <div class="filter-bar">
-          <div class="filter-left">
-            <span class="filter-label">分类</span>
-            <button class="chip" :class="{ on: category === '' }" @click="changeCategory('')">全部</button>
-            <button class="chip" v-for="c in categories" :key="c" :class="{ on: category === c }" @click="changeCategory(c)">{{ c }}</button>
-          </div>
-          <div class="filter-right">
-            <span class="filter-label">排序</span>
-            <button class="chip" :class="{ on: sort === 'recommended' }" @click="changeSort('recommended')">推荐</button>
-            <button class="chip" :class="{ on: sort === 'usage' }" @click="changeSort('usage')">使用量</button>
-            <button class="chip" :class="{ on: sort === 'rating' }" @click="changeSort('rating')">评分</button>
-            <button class="chip" :class="{ on: sort === 'newest' }" @click="changeSort('newest')">最新</button>
-          </div>
-          <el-input v-model="keyword" placeholder="搜索模板名称" clearable :prefix-icon="Search" class="search-input" />
+    <!-- 筛选 -->
+    <section class="m-filter">
+      <div class="flt">
+        <div class="flt-chips">
+          <button :class="['chip', { on: category === '' }]" type="button" @click="changeCategory('')">全部分类</button>
+          <button v-for="c in categories" :key="c" :class="['chip', { on: category === c }]" type="button" @click="changeCategory(c)">{{ c }}</button>
         </div>
-        <div v-if="filteredMarket.length" class="grid">
-          <div class="card" v-for="t in filteredMarket" :key="'p'+t.id" @click="openDetail(t)">
-            <div class="card-top">
-              <div class="card-type" :class="t.recommended ? '推荐' : '官方'">{{ t.recommended ? '推荐' : '官方' }}</div>
-              <div class="card-icon">
-                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><path d="M10 9l-1 1 1 1"/></svg>
-              </div>
-            </div>
-            <h3 class="card-title">{{ t.name }}</h3>
-            <p class="card-desc">共 {{ t.ruleCount || 0 }} 条排版规则 · {{ t.category || '未分类' }}</p>
-            <div class="card-stats">
-              <span class="stars">
-                <span v-for="i in 5" :key="i" class="star" :class="{ filled: i <= Math.round(t.ratingAvg || 0) }">★</span>
-                <span class="score">{{ (t.ratingAvg || 0).toFixed(1) }}</span>
-                <span class="count">({{ t.ratingCount || 0 }})</span>
-              </span>
-              <span class="usage">使用 {{ t.usageCount || 0 }}</span>
-            </div>
-            <div class="card-tags">
-              <span class="tag" v-if="t.recommended">推荐</span>
-              <span class="tag">一键复制</span>
-            </div>
-            <div class="card-actions">
-              <button class="btn-use" @click.stop="useMarket(t)">使用此模板</button>
-              <button v-if="isLoggedIn" class="btn-fav" :class="{ on: favSet.has(t.id) }" @click.stop="toggleFav(t)">
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M12 21s-6.7-4.35-9.33-8.11C.85 10.16 1.94 6.5 5.16 5.5c1.94-.6 3.98.2 4.84 1.82C10.86 5.7 12.9 4.9 14.84 5.5c3.22 1 4.31 4.66 2.49 7.39C18.7 16.65 12 21 12 21z"/></svg>
-              </button>
-            </div>
-          </div>
+        <label class="flt-search">
+          <span class="flt-k">搜索</span>
+          <input v-model="keyword" type="search" placeholder="模板名称" />
+        </label>
+        <div class="flt-chips sort">
+          <span class="flt-k">排序</span>
+          <button :class="['chip', { on: sort === 'recommended' }]" type="button" @click="changeSort('recommended')">推荐</button>
+          <button :class="['chip', { on: sort === 'usage' }]" type="button" @click="changeSort('usage')">使用量</button>
+          <button :class="['chip', { on: sort === 'rating' }]" type="button" @click="changeSort('rating')">评分</button>
+          <button :class="['chip', { on: sort === 'newest' }]" type="button" @click="changeSort('newest')">最新</button>
         </div>
-        <p v-else class="empty">暂无符合条件的模板，你可以先使用内置预设或创建自己的模板</p>
+        <span class="flt-count">{{ filteredMarket.length }} / {{ marketTemplates.length }}</span>
+      </div>
+    </section>
 
-        <!-- 我的收藏 -->
-        <template v-if="isLoggedIn && favorites.length">
-          <h2 class="sec-title mt">我的收藏</h2>
-          <p class="sec-sub">收藏的市场模板，随时复制使用</p>
-          <div class="grid">
-            <div class="card" v-for="t in favorites" :key="'f'+t.id" @click="openDetail(t)">
-              <div class="card-top">
-                <div class="card-type 官方">{{ t.category || '收藏' }}</div>
-                <div class="card-icon">
-                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><path d="M10 9l-1 1 1 1"/></svg>
-                </div>
-              </div>
-              <h3 class="card-title">{{ t.name }}</h3>
-              <p class="card-desc">共 {{ t.ruleCount || 0 }} 条排版规则 · {{ t.category || '未分类' }}</p>
-              <div class="card-stats">
-                <span class="stars">
-                  <span v-for="i in 5" :key="i" class="star" :class="{ filled: i <= Math.round(t.ratingAvg || 0) }">★</span>
-                  <span class="score">{{ (t.ratingAvg || 0).toFixed(1) }}</span>
-                </span>
-                <span class="usage">使用 {{ t.usageCount || 0 }}</span>
-              </div>
-              <div class="card-actions">
-                <button class="btn-use" @click.stop="useMarket(t)">使用此模板</button>
-              </div>
-            </div>
+    <!-- 官方模板 -->
+    <section class="m-grid-wrap">
+      <ul v-if="filteredMarket.length" class="m-grid">
+        <li v-for="t in filteredMarket" :key="'p' + t.id" class="m-card" @click="openDetail(t)">
+          <div class="m-card-top">
+            <span :class="['m-flag', { rec: t.recommended }]">{{ t.recommended ? '推荐' : '官方' }}</span>
+            <span class="m-cat">{{ t.category || '未分类' }}</span>
           </div>
-        </template>
 
-        <!-- 预设模板 -->
-        <template v-if="!marketTemplates.length">
-          <h2 class="sec-title mt">内置预设</h2>
-          <p class="sec-sub">按需选择，快速开始</p>
-          <div class="grid">
-            <div class="card" v-for="(t, i) in presets" :key="'p'+i" @click="usePreset(t)">
-              <div class="card-top">
-                <div class="card-type" :class="t.tag">{{ t.tag }}</div>
-                <div class="card-icon">
-                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><path d="M10 9l-1 1 1 1"/></svg>
-                </div>
-              </div>
-              <h3 class="card-title">{{ t.name }}</h3>
-              <p class="card-desc">{{ t.desc }}</p>
-              <div class="card-tags">
-                <span class="tag" v-for="(f, j) in t.features" :key="j">{{ f }}</span>
-              </div>
-              <button class="btn-use" @click.stop="usePreset(t)">使用此模板</button>
-            </div>
-          </div>
-        </template>
+          <h3 class="m-name">{{ t.name }}</h3>
 
-        <!-- 我的模板 -->
-        <template v-if="isLoggedIn">
-          <h2 class="sec-title mt">我的模板</h2>
-          <p class="sec-sub">你创建的排版模板</p>
-          <div v-if="myTemplates.length" class="grid">
-            <div class="card mine" v-for="t in myTemplates" :key="'m'+t.id">
-              <h3 class="card-title">{{ t.name }}</h3>
-              <div class="card-meta">创建于 {{ formatTime(t.createTime) }}</div>
-              <div class="card-actions">
-                <button class="btn-use" @click="goMy(t.id)">使用此模板</button>
-              </div>
-            </div>
+          <div class="m-spec">
+            <span class="m-num">{{ t.ruleCount || 0 }}</span>
+            <span class="m-unit">条排版规则</span>
           </div>
-          <p v-else class="empty">还没有模板，去创建一个吧</p>
-        </template>
+
+          <div class="m-meta">
+            <span>评分 {{ (t.ratingAvg || 0).toFixed(1) }}<span class="m-faint">（{{ t.ratingCount || 0 }} 人）</span></span>
+            <span>使用 {{ t.usageCount || 0 }} 次</span>
+          </div>
+
+          <div class="m-actions">
+            <button class="m-use" type="button" @click.stop="useMarket(t)">使用此模板</button>
+            <button
+              v-if="isLoggedIn"
+              :class="['m-fav', { on: favSet.has(t.id) }]"
+              type="button"
+              :title="favSet.has(t.id) ? '取消收藏' : '收藏'"
+              @click.stop="toggleFav(t)"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5l-1.45-1.32C5.4 14.36 2 11.28 2 7.5 2 4.42 4.42 2 7.5 2c1.74 0 3.41.81 4.5 2.09C13.09 2.81 14.76 2 16.5 2 19.58 2 22 4.42 22 7.5c0 3.78-3.4 6.86-8.55 11.68z" /></svg>
+              <span>{{ favSet.has(t.id) ? '已收藏' : '收藏' }}</span>
+            </button>
+          </div>
+        </li>
+      </ul>
+
+      <div v-else class="t-empty">
+        <p class="t-empty-k">没有符合条件的模板</p>
+        <p class="t-empty-d">换个分类或清空搜索；也可以直接用自己的格式方案，或去「我的格式方案」新建一套。</p>
+        <div class="t-empty-a">
+          <button class="wbtn ghost" type="button" @click="resetFilter">清空筛选</button>
+          <button class="wbtn solid" type="button" @click="$router.push('/templates')">新建格式方案</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 我的收藏 -->
+    <section v-if="isLoggedIn && favorites.length" class="m-band">
+      <div class="m-band-head">
+        <h2>我的收藏</h2>
+        <p>收藏过的模板，随时复制到自己名下。</p>
+      </div>
+      <ul class="m-grid">
+        <li v-for="t in favorites" :key="'f' + t.id" class="m-card" @click="openDetail(t)">
+          <div class="m-card-top">
+            <span class="m-flag">{{ t.category || '收藏' }}</span>
+          </div>
+          <h3 class="m-name">{{ t.name }}</h3>
+          <div class="m-spec">
+            <span class="m-num">{{ t.ruleCount || 0 }}</span>
+            <span class="m-unit">条排版规则</span>
+          </div>
+          <div class="m-actions">
+            <button class="m-use" type="button" @click.stop="useMarket(t)">使用此模板</button>
+            <button class="m-fav on" type="button" @click.stop="toggleFav(t)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5l-1.45-1.32C5.4 14.36 2 11.28 2 7.5 2 4.42 4.42 2 7.5 2c1.74 0 3.41.81 4.5 2.09C13.09 2.81 14.76 2 16.5 2 19.58 2 22 4.42 22 7.5c0 3.78-3.4 6.86-8.55 11.68z" /></svg>
+              <span>已收藏</span>
+            </button>
+          </div>
+        </li>
+      </ul>
+    </section>
+
+    <!-- 我的模板 -->
+    <section v-if="isLoggedIn" class="m-band">
+      <div class="m-band-head">
+        <h2>我的模板</h2>
+        <p>你自己创建的配置，上架后会出现在市场里。</p>
+      </div>
+      <ul v-if="myTemplates.length" class="m-rows">
+        <li v-for="t in myTemplates" :key="'m' + t.id">
+          <span class="m-row-name">{{ t.name }}</span>
+          <span class="m-row-time">创建于 {{ formatTime(t.createTime) }}</span>
+          <button class="m-row-go" type="button" @click="goMy(t.id)">使用此模板 →</button>
+        </li>
+      </ul>
+      <div v-else class="t-empty">
+        <p class="t-empty-k">还没有自己的模板</p>
+        <p class="t-empty-d">在「我的格式方案」里配置好一套，就能在这里使用与分享。</p>
+        <div class="t-empty-a">
+          <button class="wbtn solid" type="button" @click="$router.push('/templates')">去配置</button>
+        </div>
       </div>
     </section>
 
@@ -136,7 +140,7 @@
         <div class="d-meta">
           <span class="d-tag" v-if="detail.recommended">推荐</span>
           <span class="d-tag gray">{{ detail.category || '未分类' }}</span>
-          <span class="d-stat">★ {{ (detail.ratingAvg || 0).toFixed(1) }}（{{ detail.ratingCount || 0 }} 人评分）</span>
+          <span class="d-stat">评分 {{ (detail.ratingAvg || 0).toFixed(1) }}（{{ detail.ratingCount || 0 }} 人）</span>
           <span class="d-stat">已使用 {{ detail.usageCount || 0 }} 次</span>
         </div>
         <div class="d-grid2">
@@ -210,7 +214,7 @@
       </template>
     </el-dialog>
 
-    <SiteFooter />
+    <PublicFooter />
   </div>
 </template>
 
@@ -219,8 +223,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
-import NavBar from '../components/site/NavBar.vue'
-import SiteFooter from '../components/site/SiteFooter.vue'
+import PublicNav from '../components/PublicNav.vue'
+import PublicFooter from '../components/PublicFooter.vue'
 import { listTemplates, createTemplate, listMarketTemplates, listMarketCategories, rateMarketTemplate, copyMarketTemplate, getMarketTemplateDetail, toggleFavoriteTemplate, listFavoriteTemplates, listMarketComments, addMarketComment, deleteMarketComment, toggleMarketLike } from '../api/template'
 
 const router = useRouter()
@@ -231,8 +235,14 @@ const favorites = ref([])
 const favSet = ref(new Set())
 const categories = ref([])
 const category = ref('')
+
 const sort = ref('recommended')
 const keyword = ref('')
+function resetFilter() {
+  keyword.value = ''
+  category.value = ''
+  sort.value = 'recommended'
+}
 const detailVisible = ref(false)
 const detail = ref(null)
 const comments = ref([])
@@ -484,393 +494,445 @@ function formatTime(t) {
 </script>
 
 <style scoped>
-.page {
-  --c-primary: #2F5D46;
-  --c-primary-dark: #264A38;
-  --c-dark: #1F2E26;
-  --c-text: #33413A;
-  --c-text2: #5C6B60;
-  --c-text3: #8B968D;
-  --c-border: #E3E0D5;
-  --c-bg2: #F6F4EE;
-  font-family: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
-  color: var(--c-text);
-  background: #fff;
+/* ============================================================
+   模板市场：海报页头 + 样张式卡片（1px 硬边，靠数字与排印立住）
+   ============================================================ */
+.market {
   min-height: 100vh;
+  background: var(--paper, #f7f6f6);
+  color: var(--ink, #0a0909);
+  font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
-.hero {
-  background: linear-gradient(180deg, #F1EEE5 0%, #fff 100%);
-  padding: 64px 32px;
-  text-align: center;
-}
-.hero-title {
-  font-size: 38px;
-  font-weight: 800;
-  color: var(--c-dark);
-  margin: 0 0 10px;
-}
-.hero-desc {
-  font-size: 16px;
-  color: var(--c-text2);
-  margin: 0;
-}
-.section {
-  padding: 56px 32px;
-}
-.section-inner {
-  max-width: 1200px;
+.m-hero {
+  max-width: 1536px;
   margin: 0 auto;
-}
-.sec-title {
-  font-size: 26px;
-  font-weight: 700;
-  color: var(--c-dark);
-  text-align: center;
-  margin: 0 0 8px;
-}
-.sec-title.mt {
-  margin-top: 56px;
-}
-.sec-sub {
-  text-align: center;
-  color: var(--c-text2);
-  margin: 0 0 36px;
-  font-size: 15px;
-}
-.grid {
+  padding: 64px 48px 40px;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 22px;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 40px;
+  border-bottom: 2px solid var(--ink, #0a0909);
+  box-sizing: border-box;
 }
-.card {
-  background: #fff;
-  border: 1px solid var(--c-border);
-  border-radius: 16px;
-  padding: 24px;
-  cursor: pointer;
-  transition: box-shadow 0.2s, transform 0.2s;
-}
-.card:hover {
-  box-shadow: 0 8px 32px rgba(0,0,0,0.10);
-  transform: translateY(-4px);
-}
-.card-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 12px;
-}
-.card-type {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 10px;
-  border-radius: 999px;
-}
-.card-type.本科 { background: #E8EFE6; color: #2F5D46; }
-.card-type.硕士 { background: #F5F3FF; color: #8B6F47; }
-.card-type.期刊 { background: #ECFDF5; color: #10b981; }
-.card-type.博士 { background: #FFF7ED; color: #f59e0b; }
-.card-type.官方 { background: #E8EFE6; color: #2F5D46; }
-.card-type.推荐 { background: linear-gradient(135deg, #FFF7ED, #FEF3C7); color: #b45309; }
-.card-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: #E8EFE6;
-  color: #2F5D46;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.card-title {
-  font-size: 17px;
-  font-weight: 700;
-  color: var(--c-dark);
-  margin: 0 0 8px;
-}
-.card-desc {
-  font-size: 13px;
-  color: var(--c-text2);
-  line-height: 1.6;
+.m-hero-main h1 {
   margin: 0 0 14px;
-  min-height: 42px;
+  font-size: 56px;
+  line-height: 1.04;
+  font-weight: 900;
+  letter-spacing: -0.02em;
 }
-.card-tags {
-  display: flex;
-  flex-wrap: wrap;
+.m-hero-main p {
+  margin: 0;
+  max-width: 620px;
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--ink-2, #3f3f3f);
+}
+.m-hero-side {
+  display: grid;
   gap: 6px;
-  margin-bottom: 16px;
+  text-align: right;
+  font-size: 12.5px;
+  letter-spacing: 0.05em;
+  color: var(--ink-3, #6b6b6b);
 }
-.card-actions {
-  display: flex;
+.m-stat b {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--ink, #0a0909);
+  margin-right: 6px;
+  letter-spacing: -0.01em;
+}
+.m-filter {
+  max-width: 1536px;
+  margin: 0 auto;
+  padding: 20px 48px 0;
+  box-sizing: border-box;
+}
+.m-filter .sort {
+  align-items: center;
   gap: 8px;
 }
-.btn-use {
-  flex: 1;
-  padding: 9px 0;
-  border: none;
-  border-radius: 8px;
-  background: var(--c-primary);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s;
+.m-grid-wrap {
+  max-width: 1536px;
+  margin: 0 auto;
+  padding: 28px 48px 56px;
+  box-sizing: border-box;
 }
-.btn-use:hover {
-  background: var(--c-primary-dark);
+.m-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
 }
-.btn-fav {
-  width: 38px;
-  border: 1px solid var(--c-border);
-  border-radius: 8px;
-  background: #fff;
-  color: #B3BCB2;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-.btn-fav:hover {
-  border-color: #f56c6c;
-  color: #f56c6c;
-}
-.btn-fav.on {
-  color: #f56c6c;
-  border-color: #f56c6c;
-  background: #fef0f0;
-}
-.d-body {
+.m-card {
+  border: 1px solid var(--ink, #0a0909);
+  margin-right: -1px;
+  margin-bottom: -1px;
+  padding: 20px 20px 18px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  cursor: pointer;
+  background: var(--paper, #f7f6f6);
+  transition: background 0.16s ease;
+}
+.m-card:hover {
+  background: #fff;
+}
+.m-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.m-flag {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--ink-2, #3f3f3f);
+  border: 1px solid var(--hair, #c1c1c3);
+  padding: 2px 7px;
+}
+.m-flag.rec {
+  border-color: var(--red, #dd2627);
+  color: var(--red, #dd2627);
+  font-weight: 700;
+}
+.m-cat {
+  font-size: 12px;
+  color: var(--ink-3, #6b6b6b);
+  letter-spacing: 0.04em;
+}
+.m-name {
+  margin: 0;
+  font-size: 21px;
+  line-height: 1.35;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.m-spec {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding-top: 2px;
+}
+.m-num {
+  font-size: 40px;
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+.m-unit {
+  font-size: 12.5px;
+  color: var(--ink-3, #6b6b6b);
+}
+.m-meta {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  color: var(--ink-2, #3f3f3f);
+}
+.m-faint {
+  color: var(--ink-3, #6b6b6b);
+}
+.m-actions {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid #e4e4e4;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.m-use {
+  background: none;
+  border: 0;
+  padding: 0 0 2px;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink, #0a0909);
+  border-bottom: 2px solid var(--red, #dd2627);
+  cursor: pointer;
+}
+.m-fav {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1px solid var(--hair, #c1c1c3);
+  padding: 4px 9px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--ink-3, #6b6b6b);
+  cursor: pointer;
+}
+.m-fav svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+}
+.m-fav:hover {
+  border-color: var(--ink, #0a0909);
+  color: var(--ink, #0a0909);
+}
+.m-fav.on {
+  border-color: var(--red, #dd2627);
+  color: var(--red, #dd2627);
+}
+.m-fav.on svg {
+  fill: currentColor;
+}
+
+/* 收藏 / 我的模板 区 */
+.m-band {
+  max-width: 1536px;
+  margin: 0 auto;
+  padding: 48px;
+  border-top: 2px solid var(--ink, #0a0909);
+  box-sizing: border-box;
+}
+.m-band-head {
+  margin-bottom: 22px;
+}
+.m-band-head h2 {
+  margin: 0 0 8px;
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+.m-band-head p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--ink-2, #3f3f3f);
+}
+.m-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--ink, #0a0909);
+}
+.m-rows li {
+  display: grid;
+  grid-template-columns: 1fr 240px auto;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--hair, #c1c1c3);
+}
+.m-row-name {
+  font-size: 18px;
+  font-weight: 700;
+}
+.m-row-time {
+  font-size: 13px;
+  color: var(--ink-3, #6b6b6b);
+}
+.m-row-go {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink, #0a0909);
+  cursor: pointer;
+  border-bottom: 2px solid var(--red, #dd2627);
+  padding-bottom: 2px;
+}
+
+/* 详情弹窗内的表与评论 */
+:deep(.el-dialog) {
+  border-radius: 0;
+}
+:deep(.el-dialog__header) {
+  border-bottom: 1px solid var(--ink, #0a0909);
+}
+:deep(.el-table th.el-table__cell) {
+  background: transparent;
+  font-weight: 400;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--ink-3, #6b6b6b);
+  border-bottom: 1px solid var(--ink, #0a0909);
+}
+:deep(.el-table td.el-table__cell) {
+  border-bottom: 1px solid #e4e4e4;
+}
+:deep(.el-tag),
+:deep(.el-button) {
+  border-radius: 0;
+}
+
+@media (max-width: 900px) {
+  .m-hero {
+    grid-template-columns: 1fr;
+    padding: 32px 18px 24px;
+    gap: 18px;
+  }
+  .m-hero-main h1 {
+    font-size: 32px;
+  }
+  .m-hero-main p {
+    font-size: 14.5px;
+  }
+  .m-hero-side {
+    text-align: left;
+    grid-auto-flow: column;
+    justify-content: start;
+    gap: 18px;
+  }
+  .m-filter {
+    padding: 14px 18px 0;
+  }
+  .m-grid-wrap {
+    padding: 18px 18px 36px;
+  }
+  .m-grid {
+    grid-template-columns: 1fr;
+  }
+  .m-band {
+    padding: 32px 18px;
+  }
+  .m-band-head h2 {
+    font-size: 22px;
+  }
+  .m-rows li {
+    grid-template-columns: 1fr auto;
+    row-gap: 6px;
+  }
+  .m-row-time {
+    grid-column: 1;
+  }
+}
+
+
+/* ---------- 详情弹窗 / 评论 / 评分 ---------- */
+.d-body {
+  display: grid;
+  gap: 14px;
 }
 .d-meta {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  color: var(--ink-3, #6b6b6b);
 }
 .d-tag {
-  font-size: 12px;
-  font-weight: 600;
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #FFF7ED, #FEF3C7);
-  color: #b45309;
+  border: 1px solid var(--red, #dd2627);
+  color: var(--red, #dd2627);
+  padding: 2px 8px;
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
 }
 .d-tag.gray {
-  background: #f3f4f6;
-  color: #5C6B60;
+  border-color: var(--hair, #c1c1c3);
+  color: var(--ink-2, #3f3f3f);
 }
 .d-stat {
-  font-size: 13px;
-  color: var(--c-text2);
+  letter-spacing: 0.04em;
 }
 .d-grid2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px 20px;
-  background: #F6F4EE;
-  border-radius: 10px;
-  padding: 12px 16px;
+  border-top: 1px solid var(--ink, #0a0909);
+  border-bottom: 1px solid #e4e4e4;
 }
 .d-item {
   display: flex;
-  gap: 8px;
-  font-size: 13px;
-  align-items: baseline;
+  justify-content: space-between;
+  padding: 12px 0;
+  font-size: 14px;
 }
 .d-k {
-  color: var(--c-text3);
-  flex-shrink: 0;
+  color: var(--ink-3, #6b6b6b);
 }
 .d-v {
-  color: var(--c-text);
+  color: var(--ink, #0a0909);
+  font-weight: 700;
 }
 .d-h {
-  margin: 4px 0 0;
-  font-size: 14px;
+  margin: 6px 0 8px;
+  font-size: 15px;
   font-weight: 700;
-  color: var(--c-dark);
 }
 .d-muted {
-  color: var(--c-text3);
+  color: var(--ink-3, #6b6b6b);
 }
 .d-actions {
   display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 4px;
-}
-.rate-body {
-  text-align: center;
-  padding: 8px 0 4px;
-}
-.rate-tip {
-  color: var(--c-text2);
-  font-size: 14px;
-  margin: 0 0 16px;
-}
-.filter-bar {
-  display: flex;
-  justify-content: space-between;
+  gap: 10px;
   flex-wrap: wrap;
-  gap: 12px;
-  margin: 0 0 24px;
-}
-.filter-left, .filter-right {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.search-input {
-  width: 220px;
-}
-.filter-label {
-  font-size: 13px;
-  color: var(--c-text2);
-  margin-right: 2px;
-}
-.chip {
-  border: 1px solid var(--c-border);
-  background: #fff;
-  border-radius: 999px;
-  padding: 4px 14px;
-  font-size: 13px;
-  color: var(--c-text2);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.chip:hover {
-  border-color: var(--c-primary);
-  color: var(--c-primary);
-}
-.chip.on {
-  background: var(--c-primary);
-  border-color: var(--c-primary);
-  color: #fff;
-}
-.card-stats {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-.stars {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  cursor: pointer;
-}
-.star {
-  color: #d1d5db;
-  font-size: 15px;
-}
-.star.filled {
-  color: #f59e0b;
-}
-.score {
-  font-size: 13px;
-  font-weight: 700;
-  color: #b45309;
-  margin-left: 4px;
-}
-.count {
-  font-size: 12px;
-  color: var(--c-text3);
-}
-.usage {
-  font-size: 12px;
-  color: var(--c-text3);
-}
-.card.mine .card-meta {
-  font-size: 12px;
-  color: var(--c-text3);
-  margin-bottom: 14px;
-}
-.tag {
-  font-size: 11px;
-  color: var(--c-text2);
-  background: var(--c-bg2);
-  border: 1px solid var(--c-border);
-  padding: 2px 8px;
-  border-radius: 999px;
-}
-.empty {
-  text-align: center;
-  color: var(--c-text3);
-  padding: 40px 0;
-}
-@media (max-width: 900px) {
-  .grid { grid-template-columns: 1fr 1fr; }
 }
 .d-comments {
-  margin-top: 16px;
-}
-.d-comments .d-h {
-  margin: 0 0 10px;
-  font-size: 14px;
-  color: #1F2E26;
+  border-top: 1px solid #e4e4e4;
+  padding-top: 12px;
 }
 .comment-list {
-  max-height: 280px;
-  overflow: auto;
+  display: grid;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 .comment-item {
   display: flex;
-  align-items: flex-start;
   gap: 10px;
-  padding: 10px 0;
-  border-bottom: 1px solid #EFEDE4;
+  align-items: flex-start;
 }
 .c-avatar {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: #E8EFE6;
-  color: #2F5D46;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--ink, #0a0909);
   font-size: 13px;
-  flex-shrink: 0;
+  font-weight: 700;
 }
 .c-main {
-  flex: 1;
   min-width: 0;
+  flex: 1;
 }
 .c-head {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 3px;
+  gap: 10px;
+  align-items: baseline;
 }
 .c-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: #24312A;
+  font-size: 13.5px;
+  font-weight: 700;
 }
 .c-time {
   font-size: 12px;
-  color: #B3BCB2;
+  color: var(--ink-3, #6b6b6b);
 }
 .c-content {
-  font-size: 13px;
-  color: #4a4f5e;
+  margin-top: 3px;
+  font-size: 13.5px;
   line-height: 1.6;
-  word-break: break-word;
+  color: var(--ink-2, #3f3f3f);
 }
 .comment-input {
   display: flex;
   gap: 10px;
   align-items: flex-end;
-  margin-top: 12px;
 }
-.comment-input .el-button {
-  flex-shrink: 0;
+.comment-input :deep(.el-textarea) {
+  flex: 1;
 }
+.rate-body {
+  padding: 6px 0 4px;
+}
+.rate-tip {
+  margin: 0 0 10px;
+  font-size: 13.5px;
+  color: var(--ink-2, #3f3f3f);
+}
+
 </style>

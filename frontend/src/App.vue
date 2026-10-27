@@ -16,7 +16,7 @@ import BackendStatus from './components/BackendStatus.vue'
 const route = useRoute()
 const isLanding = ref(true)
 // 已完成重设计的页面（瑞士海报墙）：首页 + 我的格式方案。其余页面暂时沿用学术沉静风，随重设计逐个切换
-const SWISS_ROUTES = ['/', '/home', '/templates', '/tasks', '/team']
+const SWISS_ROUTES = ['/', '/home', '/templates', '/tasks', '/team', '/profile']
 watch(
   () => route.path,
   p => {

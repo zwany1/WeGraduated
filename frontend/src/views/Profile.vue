@@ -1,108 +1,113 @@
 <template>
-  <div class="page">
-    <SiteNav />
+  <WorkbenchShell title="个人资料">
+    <template #meta>
+      @{{ form.username || '—' }} · {{ form.email || '未绑定邮箱' }}<br />
+      带 * 的为公开信息，其余仅你可见
+    </template>
 
-    <main class="content">
-      <div class="profile-card">
-        <!-- 顶部档案区 -->
-        <section class="profile-header">
-          <div class="avatar-block" @click="pickAvatar">
-            <img v-if="avatarPreview" :src="avatarPreview" class="avatar-img" alt="头像" />
-            <div v-else class="avatar-placeholder">{{ avatarText }}</div>
-            <div class="avatar-mask">点击更换</div>
-            <input ref="fileInput" type="file" accept="image/*" style="display:none" @change="onFileChange" />
-          </div>
-          <div class="meta">
-            <div class="name-line">
-              <span class="nickname">{{ form.nickname || form.username || '未命名用户' }}</span>
-              <span v-if="dirty" class="dirty-tag">有未保存的修改</span>
-            </div>
-            <div class="sub-line">
-              <span class="username">@{{ form.username }}</span>
-              <span class="dot">·</span>
-              <span class="email-text">{{ form.email || '未绑定邮箱' }}</span>
-            </div>
-            <p class="bio-line" v-if="form.bio">{{ form.bio }}</p>
-            <p class="bio-line muted" v-else>这个人很懒，还没有写简介。</p>
-          </div>
-        </section>
+    <template #actions>
+      <span v-if="dirty" class="dirty-flag">有未保存的修改</span>
+      <button class="wbtn ghost" type="button" :disabled="!dirty" @click="resetDirty">放弃修改</button>
+      <button class="wbtn solid" type="button" :disabled="!dirty || saving" @click="save">
+        {{ saving ? '保存中…' : '保存修改' }}
+      </button>
+    </template>
 
-        <!-- 基本信息区 -->
-        <section class="section">
-          <div class="section-head">
-            <h2 class="section-title">基本信息</h2>
-            <span class="section-tip">带 * 的为公开信息，其余仅你可见</span>
-          </div>
-          <el-form :model="form" label-width="100px" class="info-form">
-            <el-form-item label="用户名">
-              <el-input :model-value="form.username" disabled />
-            </el-form-item>
-            <el-form-item label="昵称 *">
-              <el-input v-model="form.nickname" maxlength="30" placeholder="自定义昵称" show-word-limit />
-            </el-form-item>
-            <el-form-item label="个人简介">
-              <el-input v-model="form.bio" type="textarea" :rows="3" maxlength="200" show-word-limit
-                placeholder="一句话介绍自己（最多 200 字）" />
-            </el-form-item>
-            <el-form-item label="性别">
-              <el-radio-group v-model="form.gender">
-                <el-radio :value="0">不填</el-radio>
-                <el-radio :value="1">男</el-radio>
-                <el-radio :value="2">女</el-radio>
-              </el-radio-group>
-            </el-form-item>
-            <el-form-item label="学校 / 单位 *">
-              <el-input v-model="form.school" maxlength="80" placeholder="如：清华大学" show-word-limit />
-            </el-form-item>
-            <el-form-item label="学院 / 专业 *">
-              <el-input v-model="form.major" maxlength="80" placeholder="如：计算机科学与技术" show-word-limit />
-            </el-form-item>
-            <el-form-item label="常驻城市">
-              <el-input v-model="form.city" maxlength="40" placeholder="如：北京" />
-            </el-form-item>
-            <el-form-item label="联系电话">
-              <el-input v-model="form.phone" maxlength="11" placeholder="11 位手机号" />
-            </el-form-item>
-            <el-form-item>
-              <el-button type="primary" :loading="saving" :disabled="!dirty" @click="save">保存修改</el-button>
-              <el-button :disabled="!dirty" @click="resetDirty">放弃修改</el-button>
-            </el-form-item>
-          </el-form>
-        </section>
+    <!-- 档案头 -->
+    <section class="ident">
+      <button class="ident-avatar" type="button" @click="pickAvatar" :title="avatarPreview ? '点击更换头像' : '上传头像'">
+        <img v-if="avatarPreview" :src="avatarPreview" alt="头像" />
+        <span v-else>{{ avatarText }}</span>
+        <span class="ident-mask">更换</span>
+      </button>
+      <input ref="fileInput" type="file" accept="image/*" class="hidden-file" @change="onFileChange" />
 
-        <!-- 账号安全区 -->
-        <section class="section">
-          <div class="section-head">
-            <h2 class="section-title">账号安全</h2>
-          </div>
-          <ul class="security-list">
-            <li class="security-item">
-              <div class="security-info">
-                <div class="security-label">邮箱</div>
-                <div class="security-value">{{ form.email || '未绑定' }}</div>
-              </div>
-              <el-button plain @click="openChangeEmail">{{ form.email ? '更换邮箱' : '绑定邮箱' }}</el-button>
-            </li>
-            <li class="security-item">
-              <div class="security-info">
-                <div class="security-label">密码</div>
-                <div class="security-value muted">定期更换密码可提升账号安全</div>
-              </div>
-              <el-button plain @click="openChangePassword">修改密码</el-button>
-            </li>
-          </ul>
-        </section>
-
-        <el-divider />
-
-        <!-- 危险区 -->
-        <section class="danger-zone">
-          <h3 class="danger-title">危险操作</h3>
-          <p class="danger-desc">注销后你的账号、模板、排版任务及上传的论文文件将被永久删除，且无法恢复。</p>
-          <el-button type="danger" plain :loading="deleting" @click="confirmDelete">注销账号</el-button>
-        </section>
+      <div class="ident-main">
+        <h2 class="ident-name">{{ form.nickname || form.username || '未命名用户' }}</h2>
+        <p class="ident-sub">
+          <span>@{{ form.username }}</span>
+          <span class="sep">·</span>
+          <span>{{ form.email || '未绑定邮箱' }}</span>
+          <span class="sep">·</span>
+          <span>{{ form.school || '未填写学校' }}</span>
+        </p>
+        <p class="ident-bio">{{ form.bio || '这个人很懒，还没有写简介。' }}</p>
       </div>
-    </main>
+    </section>
+
+    <!-- 基本信息 -->
+    <section class="band">
+      <div class="band-head">
+        <h3 class="band-title">基本信息</h3>
+        <span class="band-note">昵称、学校、学院为公开信息，会显示在模板与团队里</span>
+      </div>
+
+      <el-form :model="form" label-position="top" class="form-grid">
+        <el-form-item label="用户名">
+          <el-input :model-value="form.username" disabled />
+        </el-form-item>
+        <el-form-item label="昵称 *">
+          <el-input v-model="form.nickname" maxlength="30" placeholder="自定义昵称" show-word-limit />
+        </el-form-item>
+        <el-form-item label="学校 / 单位 *">
+          <el-input v-model="form.school" maxlength="80" placeholder="如：示例大学" show-word-limit />
+        </el-form-item>
+        <el-form-item label="学院 / 专业 *">
+          <el-input v-model="form.major" maxlength="80" placeholder="如：计算机科学与技术" show-word-limit />
+        </el-form-item>
+        <el-form-item label="常驻城市">
+          <el-input v-model="form.city" maxlength="40" placeholder="如：北京" />
+        </el-form-item>
+        <el-form-item label="联系电话">
+          <el-input v-model="form.phone" maxlength="11" placeholder="11 位手机号" />
+        </el-form-item>
+        <el-form-item label="性别" class="span-2">
+          <el-radio-group v-model="form.gender">
+            <el-radio :value="0">不填</el-radio>
+            <el-radio :value="1">男</el-radio>
+            <el-radio :value="2">女</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="个人简介" class="span-2">
+          <el-input v-model="form.bio" type="textarea" :rows="3" maxlength="200" show-word-limit
+            placeholder="一句话介绍自己（最多 200 字）" />
+        </el-form-item>
+      </el-form>
+    </section>
+
+    <!-- 账号安全 -->
+    <section class="band">
+      <div class="band-head">
+        <h3 class="band-title">账号安全</h3>
+        <span class="band-note">换绑邮箱与改密都需要邮箱验证码</span>
+      </div>
+
+      <ul class="sec-list">
+        <li>
+          <span class="sec-k">邮箱</span>
+          <span class="sec-v">{{ form.email || '未绑定' }}</span>
+          <button class="wbtn ghost" type="button" @click="openChangeEmail">
+            {{ form.email ? '更换邮箱' : '绑定邮箱' }}
+          </button>
+        </li>
+        <li>
+          <span class="sec-k">密码</span>
+          <span class="sec-v muted">定期更换密码可提升账号安全</span>
+          <button class="wbtn ghost" type="button" @click="openChangePassword">修改密码</button>
+        </li>
+      </ul>
+    </section>
+
+    <!-- 危险操作 -->
+    <section class="band danger">
+      <div class="band-head">
+        <h3 class="band-title">注销账号</h3>
+        <span class="band-note">注销后账号、格式方案、排版任务与上传的论文文件将被永久删除，且无法恢复</span>
+      </div>
+      <button class="wbtn ghost danger" type="button" :disabled="deleting" @click="confirmDelete">
+        {{ deleting ? '处理中…' : '注销账号' }}
+      </button>
+    </section>
 
     <!-- 更换邮箱弹窗 -->
     <el-dialog v-model="emailDlg" title="更换邮箱" width="460px" destroy-on-close>
@@ -161,13 +166,13 @@
         <el-button type="primary" :loading="pwSaving" @click="submitChangePassword">确认修改</el-button>
       </template>
     </el-dialog>
-  </div>
+  </WorkbenchShell>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import SiteNav from '../components/SiteNav.vue'
+import WorkbenchShell from '../components/WorkbenchShell.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getProfile, updateProfile, deleteAccount,
@@ -416,135 +421,256 @@ function startCooldown(target) {
 </script>
 
 <style scoped>
-.page {
-  min-height: 100vh;
-  background: #F6F4EE;
-  padding-bottom: 40px;
-}
-.content {
-  max-width: 720px;
-  margin: 32px auto;
-  padding: 0 20px;
-}
-.profile-card {
-  background: #fff;
-  border-radius: 12px;
-  padding: 32px 36px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
-  border: 1px solid #E3E0D5;
+
+/* 少量仍被复用的基元 */
+.muted {
+  color: var(--ink-3);
+  font-size: 12.5px;
 }
 
-/* ===== 档案头 ===== */
-.profile-header {
+ /* ============================================================
+   个人资料：档案头 + 两列表单 + 安全行 + 危险区
+   ============================================================ */
+.hidden-file {
+  display: none;
+}
+.dirty-flag {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--red);
+  font-weight: 700;
+}
+
+/* 档案头 */
+.ident {
   display: flex;
-  gap: 24px;
-  padding-bottom: 28px;
-  border-bottom: 1px solid #E3E0D5;
-  margin-bottom: 8px;
+  align-items: flex-start;
+  gap: 28px;
+  padding: 28px 0 32px;
+  border-bottom: 1px solid var(--hair);
 }
-.avatar-block {
+.ident-avatar {
   position: relative;
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  overflow: hidden;
+  width: 104px;
+  height: 104px;
+  flex: none;
+  border: 1px solid var(--ink);
+  background: #fff;
+  font-family: inherit;
+  font-size: 40px;
+  font-weight: 700;
+  color: var(--ink);
   cursor: pointer;
-  border: 3px solid #E3E0D5;
-  background: #EFEDE4;
-  flex-shrink: 0;
+  overflow: hidden;
+  padding: 0;
 }
-.avatar-img { width: 100%; height: 100%; object-fit: cover; }
-.avatar-placeholder {
-  width: 100%; height: 100%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 48px; font-weight: 700;
-  color: #5C6B60;
-  background: linear-gradient(135deg, #E8EFE6, #F6F4EE);
+.ident-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
-.avatar-mask {
-  position: absolute; left: 0; right: 0; bottom: 0;
-  background: rgba(31, 46, 38, 0.6);
-  color: #fff; font-size: 12px; text-align: center;
-  padding: 4px 0; opacity: 0; transition: opacity 0.2s;
+.ident-mask {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  background: var(--ink);
+  color: #fff;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  opacity: 0;
+  transition: opacity 0.16s ease;
 }
-.avatar-block:hover .avatar-mask { opacity: 1; }
-
-.meta { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
-.name-line {
-  display: flex; align-items: center; gap: 10px; margin-bottom: 6px;
+.ident-avatar:hover .ident-mask {
+  opacity: 1;
 }
-.nickname {
-  font-family: 'Noto Serif SC', 'Songti SC', serif;
-  font-size: 24px; font-weight: 700; color: #1F2E26;
-  letter-spacing: 0.02em;
+.ident-main {
+  min-width: 0;
 }
-.dirty-tag {
-  font-size: 11px; font-weight: 500; color: #C1621A;
-  background: #FBE9D8; border: 1px solid #EBC8A4;
-  padding: 1px 8px; border-radius: 10px;
+.ident-name {
+  margin: 2px 0 8px;
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: -0.01em;
 }
-.sub-line {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 13px; color: #5C6B60; margin-bottom: 10px;
+.ident-sub {
+  margin: 0 0 10px;
+  font-size: 13.5px;
+  color: var(--ink-2);
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
-.sub-line .dot { color: #B3BCB2; }
-.sub-line .email-text { color: #24312A; font-weight: 500; }
-.bio-line {
-  font-size: 14px; line-height: 1.7; color: #24312A;
-  margin: 0; padding: 8px 12px;
-  background: #F6F4EE; border-left: 3px solid #2F5D46;
-  border-radius: 0 4px 4px 0;
+.ident-sub .sep {
+  color: var(--hair);
 }
-.bio-line.muted { background: #FAF7F2; border-left-color: #D8CCB8; color: #8B968D; font-style: italic; }
-
-/* ===== 区块 ===== */
-.section { padding: 24px 0 8px; }
-.section-head {
-  display: flex; align-items: baseline; justify-content: space-between;
-  margin-bottom: 16px;
-}
-.section-title {
-  font-family: 'Noto Serif SC', 'Songti SC', serif;
-  font-size: 18px; font-weight: 700; color: #1F2E26;
-  margin: 0; letter-spacing: 0.02em;
-}
-.section-tip { font-size: 12px; color: #8B968D; }
-.info-form { max-width: 560px; }
-
-/* ===== 安全区 ===== */
-.security-list { list-style: none; margin: 0; padding: 0; }
-.security-item {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 16px; border: 1px solid #E3E0D5; border-radius: 8px;
-  margin-bottom: 10px; background: #FAF7F2;
-}
-.security-info { display: flex; flex-direction: column; gap: 2px; }
-.security-label { font-size: 13px; color: #5C6B60; }
-.security-value { font-size: 15px; color: #24312A; font-weight: 600; }
-.security-value.muted { font-weight: 400; color: #8B968D; font-size: 13px; }
-
-/* ===== 危险区 ===== */
-.danger-zone {
-  text-align: center;
-  padding: 12px 0 0;
-}
-.danger-title {
-  color: #b23a2e; font-size: 15px; margin: 0 0 8px;
-  font-family: 'Noto Serif SC', 'Songti SC', serif;
-}
-.danger-desc {
-  color: #8B968D; font-size: 13px; line-height: 1.7; margin: 0 0 14px;
+.ident-bio {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  max-width: 640px;
 }
 
-/* ===== 弹窗共用 ===== */
-.code-row { display: flex; gap: 8px; width: 100%; }
-.code-row :deep(.el-input) { flex: 1; }
-.form-hint { font-size: 12px; color: #b23a2e; line-height: 1.4; margin-top: 4px; }
-
-/* ===== 响应式 ===== */
-@media (max-width: 640px) {
-  .profile-card { padding: 24px 20px; }
-  .profile-header { flex-direction: column; align-items: center; text-align: center; gap: 16px; }
-  .sub-line { justify-content: center; flex-wrap: wrap; }
+/* 区块 */
+.band {
+  padding: 32px 0;
+  border-bottom: 1px solid var(--hair);
 }
+.band-head {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.band-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+.band-note {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  letter-spacing: 0.03em;
+}
+
+/* 表单：两列，标签在上 */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 40px;
+  row-gap: 4px;
+}
+.form-grid :deep(.el-form-item) {
+  margin-bottom: 18px;
+}
+.form-grid :deep(.span-2) {
+  grid-column: 1 / -1;
+}
+.form-grid :deep(.el-form-item__label) {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  padding: 0 0 6px;
+  line-height: 1.4;
+}
+.form-grid :deep(.el-input__wrapper),
+.form-grid :deep(.el-textarea__inner) {
+  border-radius: 0;
+  box-shadow: 0 0 0 1px var(--hair) inset;
+  background: #fff;
+  padding: 6px 12px;
+}
+.form-grid :deep(.el-input__wrapper.is-focus),
+.form-grid :deep(.el-textarea__inner:focus) {
+  box-shadow: 0 0 0 1px var(--ink) inset;
+}
+.form-grid :deep(.el-input.is-disabled .el-input__wrapper) {
+  background: #f2f1ef;
+  box-shadow: 0 0 0 1px var(--hair-soft) inset;
+}
+.form-grid :deep(.el-radio) {
+  margin-right: 22px;
+}
+.form-grid :deep(.el-radio__inner) {
+  border-radius: 0;
+}
+
+/* 安全行 */
+.sec-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--ink);
+}
+.sec-list li {
+  display: grid;
+  grid-template-columns: 120px 1fr auto;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--hair-soft);
+}
+.sec-k {
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+}
+.sec-v {
+  font-size: 15px;
+  color: var(--ink);
+}
+.sec-v.muted {
+  color: var(--ink-3);
+  font-size: 13.5px;
+}
+
+/* 危险区 */
+.band.danger {
+  border-bottom: 0;
+}
+.band.danger .band-title {
+  color: var(--red);
+}
+.band.danger .wbtn.ghost.danger {
+  border-color: var(--red);
+  color: var(--red);
+}
+.band.danger .wbtn.ghost.danger:hover {
+  background: var(--red);
+  color: #fff;
+}
+
+/* 弹窗里的表单标签与页内一致 */
+:deep(.el-dialog .el-form-item__label) {
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+}
+:deep(.el-dialog .el-input__wrapper) {
+  border-radius: 0;
+  box-shadow: 0 0 0 1px var(--hair) inset;
+}
+:deep(.el-dialog .el-button) {
+  border-radius: 0;
+}
+:deep(.el-dialog__footer .el-button--primary) {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .ident {
+    gap: 16px;
+    padding: 18px 0 22px;
+  }
+  .ident-avatar {
+    width: 72px;
+    height: 72px;
+    font-size: 28px;
+  }
+  .ident-name {
+    font-size: 22px;
+  }
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .sec-list li {
+    grid-template-columns: 1fr auto;
+    row-gap: 6px;
+  }
+  .sec-k {
+    grid-column: 1 / -1;
+  }
+  .band-title {
+    font-size: 17px;
+  }
+}
+
 </style>

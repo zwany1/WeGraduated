@@ -1,22 +1,29 @@
 <template>
   <el-config-provider :locale="zhCn">
     <router-view />
-    <FeedbackButton />
-    <BackendStatus />
+    <FeedbackButton v-if="!isLanding" />
+    <BackendStatus v-if="!isLanding" />
   </el-config-provider>
 </template>
 
 <script setup>
-import { watch } from 'vue'
+import { watch, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import FeedbackButton from './components/FeedbackButton.vue'
 import BackendStatus from './components/BackendStatus.vue'
 
 const route = useRoute()
+const isLanding = ref(true)
 watch(
   () => route.path,
-  p => document.body.classList.toggle('theme-academic', !p.startsWith('/admin')),
+  p => {
+    // 首页已迁移到瑞士海报墙世界观；其余页面暂时沿用学术沉静风，随重设计逐个切换
+    const swiss = p === '/home' || p === '/'
+    isLanding.value = swiss
+    document.body.classList.toggle('theme-swiss', swiss)
+    document.body.classList.toggle('theme-academic', !swiss && !p.startsWith('/admin'))
+  },
   { immediate: true }
 )
 </script>

@@ -1,5 +1,9 @@
 @import "@fontsource/noto-serif-sc/chinese-simplified-600.css";
 @import "@fontsource/noto-serif-sc/chinese-simplified-700.css";
+@import "@fontsource/noto-sans-sc/chinese-simplified-400.css";
+@import "@fontsource/noto-sans-sc/chinese-simplified-500.css";
+@import "@fontsource/noto-sans-sc/chinese-simplified-700.css";
+@import "@fontsource/noto-sans-sc/chinese-simplified-900.css";
 @import "tailwindcss";
 
 :root {
@@ -64,7 +68,7 @@ html,
 body {
   background: hsl(var(--background));
   color: hsl(var(--foreground));
-  font-family: "Inter", sans-serif;
+  font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
 }
 
 /* ============ 后台弹窗统一风格 ============ */
@@ -149,6 +153,15 @@ body {
 }
 
 /* ============ 学术沉静风（仅前台，body.theme-academic 生效） ============ */
+body.theme-swiss {
+  background: #f7f6f6;
+  color: #0a0909;
+}
+/* 落地页不显示工作台类悬浮件（后端状态 / 反馈气泡） */
+body.theme-swiss .feedback-fab,
+body.theme-swiss .backend-status {
+  display: none !important;
+}
 body.theme-academic {
   --font-serif: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', serif;
   --font-sans: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;

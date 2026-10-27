@@ -1,388 +1,309 @@
 <template>
-  <div class="landing">
-    <div class="scroll-progress" ref="progRef"></div>
-    <div class="cursor-glow" ref="glowRef"></div>
+  <div class="sw">
     <OnboardingDialog />
-    <!-- ========== Navbar ========== -->
-    <nav class="navbar">
-      <div class="nav-inner">
-        <div class="nav-brand">
-          <div class="logo-w">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h4l3 12 3-12h4"/></svg>
-          </div>
-          <span class="brand-text">Word 排版助手</span>
-          <span class="ai-badge">AI</span>
-          <span class="brand-sub">文档工具箱</span>
-        </div>
-        <div class="nav-links">
-          <a class="nav-link active" @click="goPage('/home')">首页</a>
+
+    <!-- ================= 首屏：栅格即规则 ================= -->
+    <section class="hero" id="top">
+      <div class="grid-lines" aria-hidden="true"></div>
+
+      <header class="nav">
+        <a class="brand" @click="goPage('/home')">论文格式助手</a>
+        <nav class="links" aria-label="主导航">
+          <a :class="['nav-link', { on: route.path === '/home' }]" @click="goPage('/home')">首页</a>
           <a class="nav-link" @click="goPage('/features')">功能</a>
           <a class="nav-link" @click="goPage('/template-market')">模板</a>
-          <a v-if="isLoggedIn" class="nav-link team-link" @click="goPage('/team')">团队协作</a>
-          <a class="nav-link" @click="goPage('/guide')">使用教程</a>
+          <a class="nav-link" @click="goPage('/guide')">教程</a>
           <a class="nav-link" @click="goPage('/cases')">案例</a>
           <a class="nav-link" @click="goPage('/pricing')">价格</a>
-        </div>
+        </nav>
         <div class="nav-actions">
-          <template v-if="isLoggedIn">
-            <NotificationBell />
-            <el-dropdown trigger="click" @command="handleUserCommand">
-              <div class="user-chip">
-                <img v-if="userAvatar" :src="userAvatar" class="avatar-img" alt="" />
-                <span v-else class="avatar">{{ avatarText }}</span>
-                <span class="username">{{ userName }}</span>
-              </div>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="templates">我的工作台</el-dropdown-item>
-                  <el-dropdown-item command="profile">个人资料</el-dropdown-item>
-                  <el-dropdown-item v-if="isAdmin" command="admin" divided>
-                    <span class="admin-entry">
-                      管理后台
-                      <span class="admin-entry-badge">ADMIN</span>
-                    </span>
-                  </el-dropdown-item>
-                  <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </template>
-          <template v-else>
-            <button class="btn-ghost" @click="goLogin">登录</button>
-          </template>
-          <button class="btn-primary" @click="goStart">免费开始使用</button>
-        </div>
-      </div>
-    </nav>
-
-    <!-- 公告栏 -->
-    <div v-if="notices.length" class="notice-bar">
-      <div class="notice-inner">
-        <span class="notice-icon">📢</span>
-        <div class="notice-track">
-          <div v-for="n in notices" :key="n.id" class="notice-item" @click="showNotice(n)">
-            <span class="notice-type">{{ n.noticeType === '2' ? '公告' : '通知' }}</span>
-            <span class="notice-text" :title="n.content">{{ n.title }}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ========== Hero ========== -->
-    <section class="hero">
-      <div class="hero-bg">
-        <div class="hero-blob blob-1"></div>
-        <div class="hero-blob blob-2"></div>
-      </div>
-      <div class="hero-inner">
-        <div class="hero-left">
-          <div class="hero-badge">
-            <svg viewBox="0 0 16 16" width="14" height="14" fill="none"><path d="M8 1l1.5 4.5L14 7l-4.5 1.5L8 13l-1.5-4.5L2 7l4.5-1.5z" fill="#2F5D46"/></svg>
-            专为论文排版设计，让复杂排版变得简单
-          </div>
-          <h1 class="hero-title">
-            让论文排版，<br/>
-            从几个小时<br/>
-            <span class="highlight">变成几分钟</span>
-          </h1>
-          <p class="hero-desc">
-            支持 Word 智能排版、三线表生成、ER 图绘制、系统图设计等，<br/>
-            一站式解决论文排版难题，符合学校规范要求。
-          </p>
-          <div class="hero-cta">
-            <button class="btn-cta-primary" @click="goStart">
-              开始智能排版
-              <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+          <NotificationBell v-if="isLoggedIn" />
+          <el-dropdown v-if="isLoggedIn" trigger="click" @command="handleUserCommand">
+            <button class="user-chip" type="button">
+              <img v-if="userAvatar" :src="userAvatar" class="avatar-img" alt="" />
+              <span v-else class="avatar">{{ avatarText }}</span>
+              <span class="username">{{ userName }}</span>
             </button>
-            <button class="btn-cta-ghost" @click="$router.push('/guide')">
-              <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><polygon points="6,3 13,8 6,13"/></svg>
-              使用指南
-            </button>
-          </div>
-          <div class="hero-features">
-            <span class="feat-tag">
-              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#2F5D46" stroke-width="1.8" stroke-linecap="round"><path d="M5 8l2 2 4-4"/></svg>
-              无需安装
-            </span>
-            <span class="feat-tag">
-              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#2F5D46" stroke-width="1.8" stroke-linecap="round"><path d="M5 8l2 2 4-4"/></svg>
-              在线使用
-            </span>
-            <span class="feat-tag">
-              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#2F5D46" stroke-width="1.8" stroke-linecap="round"><path d="M5 8l2 2 4-4"/></svg>
-              数据安全
-            </span>
-            <span class="feat-tag">
-              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#2F5D46" stroke-width="1.8" stroke-linecap="round"><path d="M5 8l2 2 4-4"/></svg>
-              多格式导出
-            </span>
-          </div>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="templates">我的工作台</el-dropdown-item>
+                <el-dropdown-item command="profile">个人资料</el-dropdown-item>
+                <el-dropdown-item v-if="isAdmin" command="admin" divided>管理后台</el-dropdown-item>
+                <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+          <a v-else class="login" @click="goLogin">登录</a>
+          <button class="btn-solid" type="button" @click="goStart">免费试用</button>
         </div>
+      </header>
 
-        <!-- Mock UI Panel -->
-        <div class="hero-right">
-          <div class="mock-panel">
-            <div class="mock-titlebar">
-              <div class="mock-dots">
-                <span class="dot dot-red"></span>
-                <span class="dot dot-yellow"></span>
-                <span class="dot dot-green"></span>
-              </div>
-              <div class="mock-titlebar-text">
-                <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#5C6B60" stroke-width="1.5"><rect x="3" y="2" width="10" height="12" rx="1"/><path d="M6 6h4M6 9h4"/></svg>
-                我的工作台
-              </div>
-            </div>
-            <div class="mock-body">
-              <div class="mock-sidebar">
-                <div class="mock-sidebar-item">
-                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#5C6B60" stroke-width="1.5"><rect x="3" y="2" width="10" height="12" rx="1"/><path d="M6 6h4M6 9h2"/></svg>
-                  文档管理
-                </div>
-                <div class="mock-sidebar-item active">
-                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#2F5D46" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M5 7h6M5 10h4"/></svg>
-                  规则配置
-                </div>
-                <div class="mock-sidebar-item">
-                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#5C6B60" stroke-width="1.5"><path d="M3 3h10v2H3zM3 7h10v2H3zM3 11h10v2H3z"/></svg>
-                  排版任务
-                </div>
-                <div class="mock-sidebar-item">
-                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#5C6B60" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1"/><path d="M5 7h6M5 10h3"/></svg>
-                  模板库
-                </div>
-                <div class="mock-sidebar-item">
-                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#5C6B60" stroke-width="1.5"><circle cx="8" cy="8" r="5"/><path d="M8 5v3l2 2"/></svg>
-                  图表工具
-                </div>
-                <div class="mock-sidebar-item">
-                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#5C6B60" stroke-width="1.5"><circle cx="8" cy="8" r="5"/><path d="M8 5v6M5 8h6"/></svg>
-                  历史记录
-                </div>
-                <div class="mock-sidebar-item">
-                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#5C6B60" stroke-width="1.5"><path d="M4 4l8 8M12 4l-8 8"/></svg>
-                  回收站
-                </div>
-              </div>
-              <div class="mock-content">
-                <div class="mock-content-header">
-                  <div class="mock-content-title">
-                    <strong>规则配置</strong>
-                    <span class="mock-content-sub">根据学校要求自定义排版规则，系统将严格按照规则执行排版。</span>
-                  </div>
-                  <div class="mock-badge-ok">
-                    <svg viewBox="0 0 14 14" width="12" height="12" fill="#10b981"><circle cx="7" cy="7" r="6"/><path d="M4.5 7l2 2 3.5-3.5" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
-                    规则已保存
-                  </div>
-                </div>
-                <div class="mock-rules-list">
-                  <div class="mock-rule-row" v-for="(r, i) in mockRules" :key="i">
-                    <div class="mock-rule-icon" :class="r.color">
-                      <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" v-html="r.icon"></svg>
-                    </div>
-                    <div class="mock-rule-info">
-                      <div class="mock-rule-name">{{ r.name }}</div>
-                      <div class="mock-rule-desc">{{ r.desc }}</div>
-                    </div>
-                    <button class="mock-rule-btn">编辑</button>
-                  </div>
-                </div>
-                <div class="mock-preview">
-                  <div class="mock-preview-title">规则预览</div>
-                  <div class="mock-preview-heading">一级标题（黑体三号）</div>
-                  <div class="mock-preview-sub1">1.1 二级标题（黑体小三）</div>
-                  <div class="mock-preview-sub2">1.1.1 三级标题（黑体四号）</div>
-                  <div class="mock-preview-lines">
-                    <div class="mp-line" v-for="n in 5" :key="n"></div>
-                  </div>
-                  <div class="mock-preview-lines">
-                    <div class="mp-line" v-for="n in 5" :key="'b'+n"></div>
-                  </div>
-                  <div class="mock-preview-caption">图 1-1 图表示例（宋体小五，居中）</div>
-                </div>
-              </div>
-            </div>
+      <h1 class="hero-title">让论文排版，<br />从几个小时<span class="hl-band">变成几分钟<i class="band" aria-hidden="true"></i></span></h1>
+      <p class="hero-sub">上传 Word 论文，套用校规规则，<br />引擎自动排版，一键下载</p>
+      <button class="btn-solid btn-hero" type="button" @click="goStart">免费开始使用</button>
+
+      <div class="motifs" aria-hidden="true">
+        <span class="arc"></span>
+        <span class="vbar"></span>
+      </div>
+
+      <ul class="mini-steps">
+        <li>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10m0 0l-4-4m4 4l4-4" /><path d="M4 16v3h16v-3" /></svg>
+          <span>上传</span>
+        </li>
+        <li>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z" /><path d="M14 3v4h4" /><path d="M9 14l2 2 4-4" /></svg>
+          <span>比对校规</span>
+        </li>
+        <li>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2" /><path d="M12 3v2.4M12 18.6V21M3 12h2.4M18.6 12H21M5.6 5.6l1.7 1.7M16.7 16.7l1.7 1.7M18.4 5.6l-1.7 1.7M7.3 16.7l-1.7 1.7" /></svg>
+          <span>自动排版</span>
+        </li>
+        <li>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v9m0 0l-3.4-3.4M12 12l3.4-3.4" /><path d="M4 15v5h16v-5" /></svg>
+          <span>下载</span>
+        </li>
+      </ul>
+
+      <span class="rule-red" aria-hidden="true"></span>
+      <h2 class="steps-title">三步拿到合格论文</h2>
+
+      <div class="steps">
+        <article class="step">
+          <span class="step-arc" aria-hidden="true"></span>
+          <div class="step-body">
+            <h3>上传论文</h3>
+            <p>上传 Word 文档，支持 DOC、DOCX 格式，快速解析文档结构</p>
           </div>
-        </div>
+        </article>
+        <article class="step">
+          <span class="step-block" aria-hidden="true"></span>
+          <div class="step-body">
+            <h3>自动比对校规</h3>
+            <p>系统内置高校官方论文格式规则，自动比对文档，标记不符合规范的格式</p>
+          </div>
+        </article>
+        <article class="step">
+          <span class="step-bar" aria-hidden="true"></span>
+          <div class="step-body">
+            <h3>一键下载排版</h3>
+            <p>完成排版后，一键下载符合规范的论文文档，提交无忧</p>
+          </div>
+        </article>
       </div>
     </section>
 
-    <!-- ========== Stats ========== -->
-    <section class="stats reveal">
-      <div class="stats-inner">
-        <div class="stat-item" v-for="(s, i) in stats" :key="i">
-          <div class="stat-icon" :class="s.color">
-            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" v-html="s.icon"></svg>
-          </div>
-          <div class="stat-number">{{ statDisplays[i] }}{{ s.suffix }}</div>
-          <div class="stat-label">{{ s.label }}</div>
-        </div>
+    <!-- ================= 能力矩阵 ================= -->
+    <section class="band-sec" id="capability">
+      <div class="sec-head" data-reveal>
+        <h2 class="sec-title">一套规则，六件事</h2>
+        <p class="sec-note">排版、表格、图、流程图——论文里要交的东西，都在同一套规则下产出。</p>
       </div>
+      <ul class="cap-list">
+        <li class="cap" data-reveal>
+          <h3>论文智能排版</h3>
+          <p>按校规统一字体、字号、行距、页边距、页码，自动生成目录与题注。</p>
+          <span class="cap-tag">DOCX · 规则引擎</span>
+        </li>
+        <li class="cap" data-reveal>
+          <h3>系统图</h3>
+          <p>一个工具画完全部图表：分层架构图、流程 DSL 与泳道、Chen 记法 ER 图、三线表（可解析建表语句）。</p>
+          <span class="cap-tag">架构 · 流程 · ER · 三线表</span>
+        </li>
+        <li class="cap" data-reveal>
+          <h3>自由绘画</h3>
+          <p>内嵌画布，拖拽图形与连线，悬停建图，图纸可保存与导出 PNG。</p>
+          <span class="cap-tag">Canvas · PNG</span>
+        </li>
+        <li class="cap" data-reveal>
+          <h3>校规导入向导</h3>
+          <p>从学校规范文档里抽取字体、字号、行距、边距，逐项确认后套用。</p>
+          <span class="cap-tag">启发式 · 可回溯</span>
+        </li>
+      </ul>
     </section>
 
-    <!-- ========== Features ========== -->
-    <section class="features reveal">
-      <div class="features-inner">
-        <div class="feat-left">
-          <h2 class="feat-title">用户配置规则</h2>
-          <p class="feat-subtitle">根据学校或个人要求，自定义排版规范</p>
-          <ul class="feat-checks">
-            <li v-for="(c, i) in featChecks" :key="i">
-              <svg viewBox="0 0 16 16" width="16" height="16" fill="none"><circle cx="8" cy="8" r="7" fill="#2F5D46"/><path d="M5 8l2 2 4-4" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
-              {{ c }}
-            </li>
+
+    <!-- ================= 工具直达 ================= -->
+    <section class="band-sec tools" id="tools">
+      <div class="sec-head" data-reveal>
+        <h2 class="sec-title">直接打开工具</h2>
+        <p class="sec-note">图表不用另找软件：选一个工具就能画，画完按图注编号直接插进论文。</p>
+      </div>
+      <ul class="tool-strip" data-reveal>
+        <li>
+          <a class="tool" @click="goPage('/system-design')">
+            <span class="tool-name">系统图</span>
+            <span class="tool-desc">分层架构图 · 流程 DSL · 泳道 · ER 图 · 三线表</span>
+            <span class="tool-go" aria-hidden="true">→</span>
+          </a>
+        </li>
+        <li>
+          <a class="tool" @click="goPage('/free-draw')">
+            <span class="tool-name">自由绘画</span>
+            <span class="tool-desc">拖拽画布 · 导出 PNG</span>
+            <span class="tool-go" aria-hidden="true">→</span>
+          </a>
+        </li>
+      </ul>
+    </section>
+
+    <!-- ================= 排版体检 ================= -->
+    <section class="band-sec report" id="report">
+      <div class="sec-head" data-reveal>
+        <h2 class="sec-title">先体检，再交稿</h2>
+        <p class="sec-note">排版结果是黑盒，所以每一步都留下可核对的证据：体检报告、逐项差异、可回退的规则来源。</p>
+      </div>
+
+      <div class="report-wrap" data-reveal>
+        <table class="report-table">
+          <caption>排版体检报告 · 示例数据</caption>
+          <thead>
+            <tr>
+              <th scope="col">检查项</th>
+              <th scope="col">校规要求</th>
+              <th scope="col">当前文档</th>
+              <th scope="col">结论</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>一级标题</td>
+              <td>黑体 · 三号 · 居中</td>
+              <td>黑体 · 三号 · 居中</td>
+              <td><span class="ok">已套用</span></td>
+            </tr>
+            <tr>
+              <td>正文行距</td>
+              <td>固定值 22 磅</td>
+              <td>固定值 22 磅</td>
+              <td><span class="ok">已套用</span></td>
+            </tr>
+            <tr>
+              <td>图表题注</td>
+              <td>图注在下 · 编号 图 3-1</td>
+              <td>图注在上 · 无编号</td>
+              <td><span class="flag">待修正</span></td>
+            </tr>
+            <tr>
+              <td>页边距</td>
+              <td>上 2.5 cm · 左 3.0 cm</td>
+              <td>上 2.5 cm · 左 3.0 cm</td>
+              <td><span class="ok">已套用</span></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <aside class="report-side">
+          <p class="side-k">可疑标题 3 处</p>
+          <ul class="side-list">
+            <li><span>2.3.1 系统设计</span><span class="side-tag flag">层级存疑</span></li>
+            <li><span>第四章</span><span class="side-tag flag">编号冲突</span></li>
+            <li><span>5.1 数据库</span><span class="side-tag flag">格式不一</span></li>
           </ul>
-          <div class="feat-buttons">
-            <button class="btn-cta-primary" @click="goStart">立即配置规则</button>
-            <button class="btn-cta-ghost" @click="$router.push('/template-market')">使用预设模板</button>
-          </div>
-        </div>
-        <div class="feat-right">
-          <div class="feat-icons-row">
-            <div class="feat-icon-card" v-for="(f, i) in featIcons" :key="i">
-              <div class="fic-icon" :class="f.color">
-                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" v-html="f.icon"></svg>
-              </div>
-              <div class="fic-label">{{ f.label }}</div>
-            </div>
-          </div>
-          <div class="feat-example">
-            <div class="feat-example-title">规则设置示例</div>
-            <div class="feat-example-cols">
-              <div class="feat-example-col">
-                <div class="ex-item" v-for="(e, i) in featExamplesLeft" :key="i">
-                  <span class="ex-dot" :style="{background: i===0?'#2F5D46':i===1?'#10b981':'#f59e0b'}"></span>
-                  {{ e }}
-                </div>
-              </div>
-              <div class="feat-example-col">
-                <div class="ex-item" v-for="(e, i) in featExamplesRight" :key="i">
-                  <span class="ex-dot" :style="{background: i===0?'#2F5D46':i===1?'#10b981':'#f59e0b'}"></span>
-                  {{ e }}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+          <p class="side-note">每一处都能点回原文定位，确认后再重排，不会静默改动你的内容。</p>
+        </aside>
       </div>
     </section>
 
-    <!-- ========== Steps ========== -->
-    <section class="steps-section reveal">
-      <h2 class="steps-title">三步完成规范排版</h2>
-      <div class="steps-inner">
-        <div class="step-card" v-for="(s, i) in steps" :key="i">
-          <div class="step-icon" :class="s.color">
-            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" v-html="s.icon"></svg>
-          </div>
-          <div class="step-title">{{ s.title }}</div>
-          <div class="step-desc" v-html="s.desc"></div>
-        </div>
-        <template v-if="false">
-          <div class="step-arrow" v-for="n in 2" :key="'a'+n">
-            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#C9D8CC" stroke-width="2" stroke-linecap="round"><path d="M4 12h16M14 6l6 6-6 6"/></svg>
-          </div>
-        </template>
-        <div class="step-arrows">
-          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#C9D8CC" stroke-width="2" stroke-linecap="round"><path d="M4 12h16M14 6l6 6-6 6"/></svg>
-          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#C9D8CC" stroke-width="2" stroke-linecap="round"><path d="M4 12h16M14 6l6 6-6 6"/></svg>
-        </div>
+    <!-- ================= 协作与模板 ================= -->
+    <section class="band-sec" id="team">
+      <div class="sec-head" data-reveal>
+        <h2 class="sec-title">方案可以复用，也可以共享</h2>
+        <p class="sec-note">一个人的校规配置，能成为整个课题组的标准：模板上架、修订提醒、参数两两对比。</p>
       </div>
+      <ul class="row-list">
+        <li data-reveal>
+          <span class="row-name">我的格式方案</span>
+          <span class="row-desc">保存多套校规配置，导入导出 JSON，随时切换学校版本</span>
+        </li>
+        <li data-reveal>
+          <span class="row-name">团队空间</span>
+          <span class="row-desc">模板、任务、论文归属团队，成员共享可见，权限越界有校验</span>
+        </li>
+        <li data-reveal>
+          <span class="row-name">模板市场</span>
+          <span class="row-desc">按学校与学科筛选，下载量、评分、修订记录公开可见</span>
+        </li>
+        <li data-reveal>
+          <span class="row-name">任务队列</span>
+          <span class="row-desc">并发上限、超大文档保护、失败重试，进度实时推送</span>
+        </li>
+      </ul>
     </section>
 
-    <!-- ========== Tools ========== -->
-    <section class="tools-section reveal">
-      <h2 class="tools-title">丰富的排版与图表工具</h2>
-      <div class="tools-grid">
-        <div class="tool-card" v-for="(t, i) in tools" :key="i">
-          <div class="tool-icon" :class="t.color">
-            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" v-html="t.icon"></svg>
-          </div>
-          <div class="tool-name">{{ t.name }}</div>
-          <div class="tool-desc">{{ t.desc }}</div>
-          <a v-if="t.route" class="tool-link" href="#" @click.prevent="$router.push(t.route)">立即使用 <svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 6h8M7 3l3 3-3 3"/></svg></a>
-          <a v-else class="tool-link" href="#">了解更多 <svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 6h8M7 3l3 3-3 3"/></svg></a>
-        </div>
-      </div>
+    <!-- ================= 开始使用 ================= -->
+    <section class="cta-band" id="start" data-reveal>
+      <h2>把你的论文交给规则</h2>
+      <p>上传 Word，套用校规，几分钟后拿到符合规范的成稿。</p>
+      <button class="cta-btn" type="button" @click="goStart">免费开始使用</button>
     </section>
 
-    <!-- ========== Footer ========== -->
-    <footer class="footer">
-      <div class="footer-inner">
-        <div class="footer-brand">
-          <div class="logo-w sm">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h4l3 12 3-12h4"/></svg>
-          </div>
-          <span>Word 排版助手</span>
-        </div>
-        <div class="footer-links">
-          <a @click="goPage('/about')">关于我们</a>
-          <a @click="goPage('/terms')">使用条款</a>
+    <!-- ================= 页脚 ================= -->
+    <footer class="foot">
+      <div class="foot-top">
+        <span class="foot-brand">论文格式助手</span>
+        <nav class="foot-links" aria-label="页脚导航">
+          <a @click="goPage('/features')">功能</a>
+          <a @click="goPage('/template-market')">模板</a>
+          <a @click="goPage('/guide')">教程</a>
+          <a @click="goPage('/cases')">案例</a>
+          <a @click="goPage('/pricing')">价格</a>
+          <a @click="goPage('/about')">关于</a>
+          <a @click="goPage('/terms')">服务条款</a>
           <a @click="goPage('/privacy')">隐私政策</a>
-          <a href="mailto:2651896126@qq.com">联系我们</a>
-        </div>
-        <div class="footer-copy">&copy; 2026 Word 排版助手. All rights reserved.</div>
+        </nav>
       </div>
+      <p class="foot-copy">© {{ new Date().getFullYear() }} 论文格式助手 · 为毕业论文排版而生</p>
     </footer>
 
-    <!-- 回到顶部 -->
-    <button v-show="showBackTop" class="back-top" @click="scrollToTop">
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
-    </button>
-
-    <!-- 公告详情 -->
-    <el-dialog v-model="noticeVisible" :title="currentNotice ? currentNotice.title : '公告'" width="560px" destroy-on-close>
-      <div v-if="currentNotice" class="notice-detail">
-        <div class="notice-detail-meta">
-          <span class="notice-type">{{ currentNotice.noticeType === '2' ? '公告' : '通知' }}</span>
-          <span class="notice-detail-time">{{ formatNoticeTime(currentNotice.createTime) }}</span>
-        </div>
-        <div class="notice-detail-content">{{ currentNotice.content }}</div>
-      </div>
-    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getProfile, logout } from '../api/user'
-import { listPublicNotices } from '../api/admin'
 import NotificationBell from '../components/NotificationBell.vue'
 import OnboardingDialog from '../components/OnboardingDialog.vue'
 import { clearAuth } from '../utils/perm'
 
 const router = useRouter()
+const route = useRoute()
 
 const isLoggedIn = ref(false)
 const isAdmin = ref(false)
 const userName = ref('')
 const userAvatar = ref('')
-
 const avatarText = computed(() => (userName.value || 'U').slice(0, 1).toUpperCase())
 
-const notices = ref([])
+const prefersReduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+let io = null
 
-// 公告详情弹窗
-const noticeVisible = ref(false)
-const currentNotice = ref(null)
-function showNotice(n) {
-  currentNotice.value = n
-  noticeVisible.value = true
-}
-function formatNoticeTime(t) {
-  if (!t) return ''
-  return String(t).replace('T', ' ').substring(0, 16)
+function initReveal() {
+  if (prefersReduced) {
+    document.querySelectorAll('[data-reveal]').forEach(el => el.classList.add('in'))
+    return
+  }
+  io = new IntersectionObserver(
+    entries => {
+      entries.forEach(en => {
+        if (!en.isIntersecting) return
+        en.target.classList.add('in')
+        io.unobserve(en.target)
+      })
+    },
+    { rootMargin: '0px 0px -12% 0px', threshold: 0.08 }
+  )
+  document.querySelectorAll('[data-reveal]').forEach(el => io.observe(el))
 }
 
 onMounted(async () => {
-  try {
-    notices.value = await listPublicNotices(3)
-  } catch (e) {}
+  initReveal()
   isLoggedIn.value = !!localStorage.getItem('token')
   isAdmin.value = localStorage.getItem('role') === 'ADMIN'
-  // 非超管但被授予后台菜单/权限时也可进入管理后台
   if (!isAdmin.value) {
     try {
       const menus = JSON.parse(localStorage.getItem('menus') || '[]')
@@ -391,7 +312,6 @@ onMounted(async () => {
   }
   userName.value = localStorage.getItem('username') || '用户'
   userAvatar.value = localStorage.getItem('avatar') || ''
-  // 已登录时以数据库为准同步昵称/头像; token 失效则清除本地状态
   if (isLoggedIn.value) {
     try {
       const p = await getProfile()
@@ -402,24 +322,19 @@ onMounted(async () => {
         localStorage.setItem('avatar', userAvatar.value)
       }
     } catch (e) {
-      // token 失效: 清除本地登录状态, 显示未登录
       isLoggedIn.value = false
       isAdmin.value = false
       userName.value = ''
       userAvatar.value = ''
-      localStorage.removeItem('token')
-      localStorage.removeItem('userId')
-      localStorage.removeItem('username')
-      localStorage.removeItem('avatar')
-      localStorage.removeItem('role')
-      localStorage.removeItem('roles')
-      localStorage.removeItem('perms')
-      localStorage.removeItem('menus')
+      ;['token', 'userId', 'username', 'avatar', 'role', 'roles', 'perms', 'menus'].forEach(k =>
+        localStorage.removeItem(k)
+      )
     }
   }
-  initReveal()
-  initNavShadow()
-  initEffects()
+})
+
+onBeforeUnmount(() => {
+  if (io) io.disconnect()
 })
 
 function goLogin() {
@@ -429,11 +344,8 @@ function goPage(path) {
   router.push(path)
 }
 function goStart() {
-  if (localStorage.getItem('token')) {
-    router.push('/templates')
-  } else {
-    router.push('/login')
-  }
+  if (localStorage.getItem('token')) router.push('/templates')
+  else router.push('/login')
 }
 async function handleUserCommand(cmd) {
   if (cmd === 'templates') {
@@ -445,1412 +357,1013 @@ async function handleUserCommand(cmd) {
   } else if (cmd === 'logout') {
     try {
       await ElMessageBox.confirm('确定退出登录？', '提示', { type: 'warning' })
-      try { await logout() } catch (e) {}
+      try {
+        await logout()
+      } catch (e) {}
       clearAuth()
       isLoggedIn.value = false
       isAdmin.value = false
       ElMessage.success('已退出登录')
       router.push('/home')
-    } catch (e) {
-      // 取消
-    }
+    } catch (e) {}
   }
 }
-
-const mockRules = [
-  { name: '标题样式', desc: '设置各级标题的字体、字号、加粗、对齐方式等', color: 'blue', icon: '<rect x="3" y="3" width="10" height="2" rx="0.5"/><rect x="3" y="7" width="7" height="2" rx="0.5"/><rect x="3" y="11" width="9" height="2" rx="0.5"/>' },
-  { name: '段落格式', desc: '设置行距、段前段后、首行缩进、对齐方式等', color: 'green', icon: '<path d="M3 4h10M3 8h10M3 12h7"/>' },
-  { name: '字体规范', desc: '设置正文、英文、数字等字体的格式要求', color: 'purple', icon: '<text x="3" y="13" font-size="10" font-weight="bold" fill="currentColor" stroke="none">Aa</text>' },
-  { name: '图表编号', desc: '设置图表编号格式、位置和样式', color: 'blue', icon: '<rect x="3" y="4" width="8" height="7" rx="0.5"/><path d="M5 8l2 2 3-3"/><rect x="13" y="4" width="6" height="7" rx="0.5"/><path d="M14 7h4"/>' },
-  { name: '页眉页脚', desc: '设置页眉页脚内容、页码格式和位置', color: 'green', icon: '<rect x="3" y="3" width="10" height="10" rx="0.5"/><path d="M3 7h10"/><rect x="13" y="5" width="7" height="10" rx="0.5"/><path d="M13 9h7"/>' },
-  { name: '参考文献', desc: '设置参考文献格式（GB/T 7714、APA、MLA 等）', color: 'purple', icon: '<path d="M5 3C5 3 3 5 3 8C3 11 5 13 5 13M11 3C11 3 13 5 13 8C13 11 11 13 11 13"/><path d="M7 5h2M7 8h2M7 11h2"/>' }
-]
-
-const stats = [
-  { value: 5000, suffix: '+', label: '用户信赖选择', color: 'blue', icon: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>' },
-  { value: 98, suffix: '%', label: '格式匹配准确率', color: 'green', icon: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>' },
-  { value: 10, suffix: '万+', label: '文档已智能排版', color: 'blue', icon: '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>' },
-  { value: 99.9, suffix: '%', decimal: 1, label: '数据安全保障', color: 'green', icon: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>' }
-]
-
-// 统计数字滚动显示
-const statDisplays = ref(stats.map(() => '0'))
-function animateStat(index, target, decimal = 0, duration = 1600) {
-  const fmt = v => (decimal ? v.toFixed(decimal) : Math.round(v).toLocaleString('en-US'))
-  // 尊重系统"减少动态效果"偏好: 直接显示最终值
-  if (prefersReducedMotion.value) {
-    statDisplays.value[index] = fmt(target)
-    return
-  }
-  const start = performance.now()
-  const step = now => {
-    const t = Math.min(1, (now - start) / duration)
-    const eased = 1 - Math.pow(1 - t, 3)
-    statDisplays.value[index] = fmt(target * eased)
-    if (t < 1) requestAnimationFrame(step)
-  }
-  requestAnimationFrame(step)
-}
-
-// 滚动触发: 区块进入视口淡入上移 + 统计数字滚动
-function initReveal() {
-  const io = new IntersectionObserver(entries => {
-    entries.forEach(en => {
-      if (!en.isIntersecting) return
-      en.target.classList.add('in-view')
-      if (en.target.classList.contains('stats')) {
-        stats.forEach((s, i) => animateStat(i, s.value, s.decimal || 0))
-      }
-      io.unobserve(en.target)
-    })
-  }, { threshold: 0.15 })
-  document.querySelectorAll('.reveal').forEach(el => io.observe(el))
-  revealIo = io
-}
-
-// 导航滚动阴影
-function initNavShadow() {
-  const nav = document.querySelector('.navbar')
-  if (!nav) return
-  const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 12)
-  onScroll()
-  window.addEventListener('scroll', onScroll, { passive: true, signal: domCleanup.signal })
-}
-
-// ===== 追加特效: 进度条/回顶/鼠标光斑/卡片3D倾斜/按钮波纹 =====
-const progRef = ref(null)
-const glowRef = ref(null)
-const showBackTop = ref(false)
-const domCleanup = new AbortController()
-let revealIo = null
-// 尊重系统"减少动态效果"偏好: 装饰性动效让路, 功能性逻辑保留; 监听偏好中途切换
-const prefersReducedMotion = ref(window.matchMedia('(prefers-reduced-motion: reduce)').matches)
-window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', e => {
-  prefersReducedMotion.value = e.matches
-})
-
-function initEffects() {
-  // 滚动进度条 + 回到顶部按钮(功能性, 不受偏好影响)
-  const onScroll = () => {
-    const h = document.documentElement
-    const p = h.scrollTop / Math.max(1, h.scrollHeight - h.clientHeight) * 100
-    if (progRef.value) progRef.value.style.width = p + '%'
-    showBackTop.value = h.scrollTop > 400
-  }
-  onScroll()
-  window.addEventListener('scroll', onScroll, { passive: true, signal: domCleanup.signal })
-
-  if (prefersReducedMotion.value) {
-    return
-  }
-
-  // 鼠标跟随光斑(全页, 节流)
-  const glow = glowRef.value
-  if (glow) {
-    let raf = 0
-    window.addEventListener('mousemove', e => {
-      if (raf) return
-      raf = requestAnimationFrame(() => {
-        glow.style.left = e.clientX + 'px'
-        glow.style.top = e.clientY + 'px'
-        raf = 0
-      })
-    }, { signal: domCleanup.signal })
-  }
-
-  // 工具卡片 3D 倾斜 + 跟随光效
-  document.querySelectorAll('.tool-card').forEach(card => {
-    card.addEventListener('mousemove', e => {
-      const r = card.getBoundingClientRect()
-      const x = (e.clientX - r.left) / r.width - 0.5
-      const y = (e.clientY - r.top) / r.height - 0.5
-      card.style.transform = `perspective(900px) rotateX(${(-y * 8).toFixed(2)}deg) rotateY(${(x * 10).toFixed(2)}deg) translateY(-6px)`
-    })
-    card.addEventListener('mouseleave', () => {
-      card.style.transform = ''
-    })
-  })
-
-  // 主按钮点击波纹
-  document.querySelectorAll('.btn-cta-primary').forEach(btn => {
-    btn.addEventListener('click', function (e) {
-      const r = this.getBoundingClientRect()
-      const span = document.createElement('span')
-      span.className = 'ripple'
-      span.style.left = (e.clientX - r.left) + 'px'
-      span.style.top = (e.clientY - r.top) + 'px'
-      this.appendChild(span)
-      setTimeout(() => span.remove(), 650)
-    })
-  })
-}
-
-onBeforeUnmount(() => {
-  domCleanup.abort()
-  if (revealIo) revealIo.disconnect()
-})
-
-function scrollToTop() {
-  window.scrollTo({ top: 0, behavior: 'smooth' })
-}
-
-const featChecks = [
-  '完全自定义各级标题、字体、段落格式',
-  '设置图表编号、目录生成规则',
-  '支持多种参考文献格式',
-  '保存为模板，重复使用'
-]
-
-const featIcons = [
-  { label: '标题样式', color: 'blue', icon: '<text x="2" y="18" font-size="16" font-weight="bold" fill="currentColor" stroke="none">H1</text>' },
-  { label: '段落格式', color: 'green', icon: '<path d="M4 4h12M4 8h12M4 12h8"/><path d="M16 8l-2-2v4z"/>' },
-  { label: '字体规范', color: 'purple', icon: '<text x="1" y="18" font-size="14" font-weight="bold" fill="currentColor" stroke="none">Aa</text>' },
-  { label: '图表编号', color: 'blue', icon: '<rect x="3" y="3" width="18" height="14" rx="2"/><circle cx="12" cy="10" r="3"/><path d="M7 17l3-3 2 2 4-4"/>' },
-  { label: '页眉页脚', color: 'green', icon: '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="12" x2="12" y2="18"/><line x1="9" y1="15" x2="15" y2="15"/>' },
-  { label: '参考文献', color: 'purple', icon: '<path d="M6 3c-2 2-2 6 0 8M18 3c2 2 2 6 0 8"/><path d="M9 5h6M9 8h6M9 11h4"/>' }
-]
-
-const featExamplesLeft = [
-  '一级标题：黑体 三号 加粗 居中',
-  '二级标题：黑体 小三 加粗 左对齐',
-  '正文：宋体 小四 行距1.5倍 首行缩进2字符'
-]
-const featExamplesRight = [
-  '图表编号：章-图顺序号（如：图 1-1）',
-  '表格样式：三线表 格式规范',
-  '参考文献：GB/T 7714 - 2015'
-]
-
-const steps = [
-  {
-    title: '上传论文',
-    desc: '支持 .docx 格式<br/>智能识别论文结构',
-    color: 'blue',
-    icon: '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>'
-  },
-  {
-    title: '应用规则排版',
-    desc: '系统按您配置的规则<br/>自动排版和格式调整',
-    color: 'purple',
-    icon: '<line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="8" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="10" cy="18" r="2"/>'
-  },
-  {
-    title: '生成规范文档',
-    desc: '生成符合要求的论文<br/>支持多种格式导出',
-    color: 'green',
-    icon: '<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>'
-  }
-]
-
-const tools = [
-  {
-    name: 'Word 智能排版',
-    desc: '识别标题层级、统一字体、字号、行距等自动生成总页边距目录，优化文档格式。',
-    color: 'blue',
-    icon: '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><path d="M10 9l-1 1 1 1"/>'
-  },
-  {
-    name: '系统图设计',
-    desc: '流程图、架构图、ER 图、三线表等<br/>一键生成专业图表与文档。',
-    color: 'purple',
-    route: '/system-design',
-    icon: '<rect x="3" y="3" width="7" height="5" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="8" y="14" width="7" height="5" rx="1"/><line x1="6.5" y1="8" x2="6.5" y2="11" stroke-dasharray="2"/><line x1="17.5" y1="8" x2="17.5" y2="11" stroke-dasharray="2"/><line x1="6.5" y1="11" x2="11.5" y2="14"/><line x1="17.5" y1="11" x2="11.5" y2="14"/>'
-  },
-  {
-    name: '自由绘画',
-    desc: 'drawio 画板 · 全形状图形设计<br/>拖拽绘制、连线、导出 PNG / Mermaid。',
-    color: 'orange',
-    route: '/free-draw',
-    icon: '<path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5z"/><path d="M15 5l4 4"/>'
-  }
-]
 </script>
 
 <style scoped>
-/* ===== Variables ===== */
-.landing {
-  --c-primary: #2F5D46;
-  --c-primary-light: #E8EFE6;
-  --c-primary-dark: #264A38;
-  --c-dark: #1F2E26;
-  --c-text: #33413A;
-  --c-text2: #5C6B60;
-  --c-text3: #8B968D;
-  --c-border: #E3E0D5;
-  --c-bg: #ffffff;
-  --c-bg2: #F6F4EE;
-  --c-bg3: #F1EEE5;
-  --c-green: #10b981;
-  --c-purple: #8B6F47;
-  --c-orange: #f59e0b;
-  --radius: 12px;
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
-  --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
-  --shadow-lg: 0 8px 32px rgba(0,0,0,0.10);
-  --shadow-xl: 0 16px 48px rgba(0,0,0,0.12);
-  --font: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+/* ============================================================
+   瑞士海报墙 · 论文格式助手
+   纸白地面 / 客观黑 / 单一信号红 / 外露模数栅格 / 硬边无圆角
+   一切尺寸以构图 1536×1024 的像素为单位，按视口等比缩放
+   ============================================================ */
+.sw {
+  --u: calc(min(100vw, 1536px) / 1536);
+  --paper: #f7f6f6;
+  --ink: #0a0909;
+  --ink-2: #3f3f3f;
+  --ink-3: #6b6b6b;
+  --red: #dd2627;
+  --hair: #c1c1c3;
+  --hair-soft: #e4e4e4;
+  --sans: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
 
-  font-family: var(--font);
-  color: var(--c-text);
-  background: var(--c-bg);
-  overflow-x: hidden;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
 }
 
-/* ===== Navbar ===== */
-.navbar {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: rgba(255,255,255,0.92);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--c-border);
-  transition: box-shadow 0.3s ease, background 0.3s ease;
-}
-.navbar.scrolled {
-  background: rgba(255,255,255,0.96);
-  box-shadow: 0 6px 24px rgba(31, 46, 38, 0.08);
-}
-.nav-inner {
-  max-width: 1200px;
+.hero {
+  position: relative;
+  width: 100%;
+  max-width: 1536px;
   margin: 0 auto;
+  aspect-ratio: 1536 / 1024;
+  overflow: hidden;
+}
+
+/* 外露模数栅格：十列发丝线 */
+.grid-lines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--hair-soft) 0,
+    var(--hair-soft) calc(1 * var(--u)),
+    transparent calc(1 * var(--u)),
+    transparent calc(153.6 * var(--u))
+  );
+}
+
+/* ---------------- 导航 ---------------- */
+.nav {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: calc(80 * var(--u));
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 32px;
-  height: 64px;
+  padding: 0 calc(38 * var(--u));
+  box-sizing: border-box;
+  border-bottom: calc(1 * var(--u)) solid var(--hair);
+  gap: calc(28 * var(--u));
+  background: var(--paper);
+  z-index: 3;
 }
-.nav-brand {
+.brand {
+  font-size: calc(25 * var(--u));
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.links {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-.logo-w {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: var(--c-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.logo-w.sm {
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-}
-.brand-text {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--c-dark);
-}
-.ai-badge {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--c-primary);
-  background: var(--c-primary-light);
-  border: 1px solid #C9D8CC;
-  border-radius: 4px;
-  padding: 1px 6px;
-}
-.brand-sub {
-  font-size: 13px;
-  color: var(--c-text2);
-  margin-left: 4px;
-}
-.nav-links {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  gap: calc(46 * var(--u));
+  margin-left: calc(76 * var(--u));
 }
 .nav-link {
-  text-decoration: none;
-  font-size: 14px;
-  color: var(--c-text2);
-  padding: 6px 14px;
-  border-radius: 6px;
+  font-size: calc(15 * var(--u));
+  color: var(--ink);
   cursor: pointer;
-  transition: all 0.2s;
-  position: relative;
+  padding-bottom: calc(3 * var(--u));
+  border-bottom: calc(2 * var(--u)) solid transparent;
+  white-space: nowrap;
 }
-.nav-link:hover {
-  color: var(--c-primary);
-  background: var(--c-primary-light);
-}
-.nav-link.active {
-  color: var(--c-primary);
-  font-weight: 600;
-}
-.nav-link.active::after {
-  content: '';
-  position: absolute;
-  bottom: -1px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 20px;
-  height: 2px;
-  background: var(--c-primary);
-  border-radius: 1px;
+.nav-link:hover,
+.nav-link.on {
+  border-bottom-color: var(--red);
 }
 .nav-actions {
+  margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: calc(26 * var(--u));
+}
+.login {
+  font-size: calc(15 * var(--u));
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.login:hover {
+  color: var(--red);
 }
 .user-chip {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 5px 12px 5px 5px;
-  border: 1.5px solid var(--c-border);
-  border-radius: 24px;
+  gap: calc(8 * var(--u));
+  background: none;
+  border: 0;
+  padding: 0;
   cursor: pointer;
-  transition: all 0.2s;
+  font-family: inherit;
 }
-.user-chip:hover {
-  border-color: var(--c-primary);
-  background: var(--c-primary-light);
-}
-.avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--c-primary);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+.avatar,
 .avatar-img {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
+  width: calc(28 * var(--u));
+  height: calc(28 * var(--u));
+  display: grid;
+  place-items: center;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: calc(13 * var(--u));
+  font-weight: 700;
   object-fit: cover;
 }
 .username {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--c-text);
-  max-width: 80px;
+  font-size: calc(14 * var(--u));
+  color: var(--ink);
+  max-width: calc(120 * var(--u));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.admin-entry {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.admin-entry-badge {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: #b08a3e;
-  background: rgba(201, 164, 92, 0.16);
-  border: 1px solid rgba(201, 164, 92, 0.4);
-  border-radius: 4px;
-  padding: 1px 6px;
-}
-
-/* ===== Buttons ===== */
-.btn-ghost {
-  padding: 8px 20px;
-  border: 1.5px solid var(--c-border);
-  border-radius: 8px;
-  background: #fff;
-  color: var(--c-text);
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.btn-ghost:hover {
-  border-color: var(--c-primary);
-  color: var(--c-primary);
-}
-.btn-primary {
-  padding: 8px 20px;
-  border: none;
-  border-radius: 8px;
-  background: var(--c-primary);
+/* ---------------- 按钮 ---------------- */
+.btn-solid {
+  background: var(--red);
   color: #fff;
-  font-size: 14px;
-  font-weight: 600;
+  border: 0;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: calc(15 * var(--u));
+  height: calc(44 * var(--u));
+  padding: 0 calc(24 * var(--u));
   cursor: pointer;
-  transition: all 0.2s;
+  white-space: nowrap;
+  transition: background 0.15s ease;
 }
-.btn-primary:hover {
-  background: var(--c-primary-dark);
-  box-shadow: 0 4px 12px rgba(47,93,70,0.35);
+.btn-solid:hover {
+  background: #b91d1e;
 }
 
-/* ===== Hero ===== */
-.hero {
-  position: relative;
-  padding: 80px 32px 100px;
-  overflow: hidden;
-}
-.hero-bg {
+/* ---------------- 标题 ---------------- */
+.hero-title {
   position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, #F1EEE5 0%, #ffffff 100%);
+  left: calc(38 * var(--u));
+  top: calc(108 * var(--u));
+  width: calc(966 * var(--u));
+  margin: 0;
+  font-size: calc(96 * var(--u));
+  line-height: 0.98;
+  font-weight: 900;
+  letter-spacing: -0.005em;
+  z-index: 2;
+}
+/* 红色高亮带：压在「变成几分钟」字脚下，文字仍为墨黑 */
+.hl-band {
+  position: relative;
+  display: inline-block;
   z-index: 0;
 }
-.hero-blob {
+.band {
   position: absolute;
-  border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.4;
-}
-@keyframes floatBlob {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(24px, -28px) scale(1.08); }
-}
-.blob-1 {
-  width: 500px;
-  height: 500px;
-  background: #C9D8CC;
-  top: -150px;
-  right: -100px;
-  animation: floatBlob 14s ease-in-out infinite;
-}
-.blob-2 {
-  width: 400px;
-  height: 400px;
-  background: #DDE7DC;
-  bottom: -100px;
-  left: -100px;
-  animation: floatBlob 18s ease-in-out infinite reverse;
-}
-
-/* Hero 首屏渐入 */
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(26px); }
-  to { opacity: 1; transform: none; }
-}
-.hero-badge, .hero-title, .hero-desc, .hero-cta, .hero-features {
-  animation: fadeUp 0.85s cubic-bezier(0.22, 0.61, 0.36, 1) both;
-}
-.hero-title { animation-delay: 0.06s; }
-.hero-desc { animation-delay: 0.18s; }
-.hero-cta { animation-delay: 0.3s; }
-.hero-features { animation-delay: 0.42s; }
-
-/* 右侧演示面板: 渐入 + 缓慢浮动 */
-@keyframes floatPanel {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-12px); }
-}
-.hero-right {
-  animation: fadeUp 0.85s cubic-bezier(0.22, 0.61, 0.36, 1) 0.25s both,
-             floatPanel 6s ease-in-out 1.4s infinite;
-}
-
-/* 按钮 hover 微动 */
-.btn-cta-primary {
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-}
-.btn-cta-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 24px rgba(47, 93, 70, 0.35);
-}
-.hero-inner {
-  position: relative;
-  z-index: 1;
-  max-width: 1200px;
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 60px;
-}
-.hero-left {
-  flex: 1;
-  min-width: 0;
-}
-.hero-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--c-primary);
-  background: var(--c-primary-light);
-  border: 1px solid #C9D8CC;
-  border-radius: 20px;
-  padding: 6px 16px;
-  margin-bottom: 24px;
-}
-.hero-title {
-  font-size: 52px;
-  font-weight: 800;
-  line-height: 1.2;
-  color: var(--c-dark);
-  margin: 0 0 20px;
-  letter-spacing: -0.02em;
-}
-.hero-title .highlight {
-  color: var(--c-primary);
-  position: relative;
-}
-.hero-title .highlight::after {
-  content: '';
-  position: absolute;
-  bottom: 2px;
-  left: 0;
-  right: 0;
-  height: 8px;
-  background: rgba(47,93,70,0.12);
-  border-radius: 4px;
+  left: calc(-4 * var(--u));
+  right: calc(-4 * var(--u));
+  bottom: calc(7 * var(--u));
+  height: calc(22 * var(--u));
+  background: var(--red);
   z-index: -1;
+  pointer-events: none;
 }
-.hero-desc {
-  font-size: 16px;
-  line-height: 1.7;
-  color: var(--c-text2);
-  margin: 0 0 32px;
+.hero-sub {
+  position: absolute;
+  left: calc(28 * var(--u));
+  top: calc(348 * var(--u));
+  width: calc(430 * var(--u));
+  margin: 0;
+  font-size: calc(28 * var(--u));
+  line-height: 1.3;
+  color: var(--ink);
 }
-.hero-cta {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 32px;
-}
-.btn-cta-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 14px 28px;
-  background: var(--c-primary);
-  color: #fff;
-  border: none;
-  border-radius: 10px;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.25s;
-  box-shadow: 0 4px 16px rgba(47,93,70,0.3);
-}
-.btn-cta-primary:hover {
-  background: var(--c-primary-dark);
-  box-shadow: 0 6px 24px rgba(47,93,70,0.4);
-  transform: translateY(-1px);
-}
-.btn-cta-ghost {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 14px 28px;
-  background: #fff;
-  color: var(--c-text);
-  border: 1.5px solid var(--c-border);
-  border-radius: 10px;
-  font-size: 15px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.25s;
-}
-.btn-cta-ghost:hover {
-  border-color: var(--c-primary);
-  color: var(--c-primary);
-}
-.hero-features {
-  display: flex;
-  gap: 24px;
-}
-.feat-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--c-text2);
+.btn-hero {
+  position: absolute;
+  left: calc(550 * var(--u));
+  top: calc(342 * var(--u));
+  height: calc(62 * var(--u));
+  font-size: calc(21 * var(--u));
+  padding: 0 calc(30 * var(--u));
 }
 
-/* ===== Mock Panel ===== */
-.hero-right {
-  flex: 1.1;
-  min-width: 0;
+/* ---------------- 海报几何 ---------------- */
+.motifs {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
-.mock-panel {
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: var(--shadow-xl);
-  border: 1px solid var(--c-border);
-  overflow: hidden;
-}
-.mock-titlebar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 20px;
-  background: #F6F4EE;
-  border-bottom: 1px solid var(--c-border);
-}
-.mock-dots {
-  display: flex;
-  gap: 6px;
-}
-.dot {
-  width: 10px;
-  height: 10px;
+.arc {
+  position: absolute;
+  left: calc(830 * var(--u));
+  top: calc(78 * var(--u));
+  width: calc(360 * var(--u));
+  height: calc(360 * var(--u));
+  border: calc(2 * var(--u)) solid var(--red);
   border-radius: 50%;
+  border-left-color: transparent;
+  transform: rotate(-12deg);
 }
-.dot-red { background: #ff5f57; }
-.dot-yellow { background: #ffbd2e; }
-.dot-green { background: #28c840; }
-.mock-titlebar-text {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--c-text2);
-  font-weight: 500;
-}
-.mock-body {
-  display: flex;
-  height: 380px;
-}
-.mock-sidebar {
-  width: 160px;
-  flex-shrink: 0;
-  border-right: 1px solid var(--c-border);
-  padding: 12px 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.mock-sidebar-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  font-size: 13px;
-  color: var(--c-text2);
-  cursor: default;
-  transition: all 0.15s;
-}
-.mock-sidebar-item.active {
-  background: var(--c-primary-light);
-  color: var(--c-primary);
-  font-weight: 600;
-}
-.mock-content {
-  flex: 1;
-  padding: 16px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.mock-content-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-.mock-content-title strong {
-  font-size: 15px;
-  color: var(--c-dark);
-  display: block;
-  margin-bottom: 2px;
-}
-.mock-content-sub {
-  font-size: 11px;
-  color: var(--c-text3);
-  line-height: 1.4;
-}
-.mock-badge-ok {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  color: var(--c-green);
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  border-radius: 12px;
-  padding: 3px 10px;
-  flex-shrink: 0;
-}
-.mock-rules-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  flex: 1;
-  overflow: hidden;
-}
-.mock-rule-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: #F6F4EE;
-  border: 1px solid #EFEDE4;
-}
-.mock-rule-icon {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.mock-rule-icon.blue { background: #E8EFE6; color: var(--c-primary); }
-.mock-rule-icon.green { background: #ecfdf5; color: var(--c-green); }
-.mock-rule-icon.purple { background: #f5f3ff; color: var(--c-purple); }
-.mock-rule-info {
-  flex: 1;
-  min-width: 0;
-}
-.mock-rule-name {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--c-dark);
-}
-.mock-rule-desc {
-  font-size: 10px;
-  color: var(--c-text3);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.mock-rule-btn {
-  padding: 3px 12px;
-  border: 1px solid var(--c-border);
-  border-radius: 6px;
-  background: #fff;
-  font-size: 11px;
-  color: var(--c-text2);
-  cursor: default;
-  flex-shrink: 0;
-}
-.mock-preview {
-  border: 1px solid var(--c-border);
-  border-radius: 8px;
-  padding: 12px;
-  background: #F6F4EE;
-}
-.mock-preview-title {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--c-text3);
-  margin-bottom: 8px;
-  text-align: center;
-}
-.mock-preview-heading {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--c-dark);
-  margin-bottom: 4px;
-}
-.mock-preview-sub1 {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--c-text);
-  margin-bottom: 3px;
-}
-.mock-preview-sub2 {
-  font-size: 10px;
-  font-weight: 500;
-  color: var(--c-text2);
-  margin-bottom: 8px;
-}
-.mock-preview-lines {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  margin-bottom: 8px;
-}
-.mp-line {
-  height: 4px;
-  background: #E3E0D5;
-  border-radius: 2px;
-}
-.mp-line:nth-child(1) { width: 100%; }
-.mp-line:nth-child(2) { width: 92%; }
-.mp-line:nth-child(3) { width: 96%; }
-.mp-line:nth-child(4) { width: 88%; }
-.mp-line:nth-child(5) { width: 60%; }
-.mock-preview-caption {
-  font-size: 10px;
-  color: var(--c-text3);
-  text-align: center;
+.vbar {
+  position: absolute;
+  left: calc(1298 * var(--u));
+  top: calc(168 * var(--u));
+  width: calc(30 * var(--u));
+  height: calc(178 * var(--u));
+  background: var(--red);
 }
 
-/* ===== Stats ===== */
-.stats {
-  padding: 48px 32px;
-  border-top: 1px solid var(--c-border);
-  border-bottom: 1px solid var(--c-border);
-  background: #fff;
-}
-.stats-inner {
-  max-width: 1200px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 32px;
-}
-.stat-item {
-  text-align: center;
-}
-.stat-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 12px;
-}
-.stat-icon.blue { background: var(--c-primary-light); color: var(--c-primary); }
-.stat-icon.green { background: #ecfdf5; color: var(--c-green); }
-.stat-number {
-  font-size: 28px;
-  font-weight: 800;
-  color: var(--c-dark);
-  margin-bottom: 4px;
-  letter-spacing: -0.02em;
-}
-.stat-label {
-  font-size: 13px;
-  color: var(--c-text2);
-}
-
-/* ===== Features ===== */
-.features {
-  padding: 80px 32px;
-  background: var(--c-bg3);
-}
-.features-inner {
-  max-width: 1200px;
-  margin: 0 auto;
-  display: flex;
-  gap: 60px;
-  align-items: flex-start;
-}
-.feat-left {
-  flex: 1;
-  min-width: 0;
-}
-.feat-title {
-  font-size: 32px;
-  font-weight: 800;
-  color: var(--c-dark);
-  margin: 0 0 12px;
-  letter-spacing: -0.02em;
-}
-.feat-subtitle {
-  font-size: 15px;
-  color: var(--c-text2);
-  margin: 0 0 28px;
-  line-height: 1.6;
-}
-.feat-checks {
-  list-style: none;
+/* ---------------- 2×2 小模块 ---------------- */
+.mini-steps {
+  position: absolute;
+  left: calc(38 * var(--u));
+  top: calc(427 * var(--u));
+  width: calc(489 * var(--u));
+  height: calc(240 * var(--u));
+  margin: 0;
   padding: 0;
-  margin: 0 0 32px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.feat-checks li {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 14px;
-  color: var(--c-text);
-}
-.feat-buttons {
-  display: flex;
-  gap: 12px;
-}
-.feat-right {
-  flex: 1.2;
-  min-width: 0;
-}
-.feat-icons-row {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 12px;
-  margin-bottom: 20px;
-}
-.feat-icon-card {
-  text-align: center;
-}
-.fic-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 8px;
-  background: #fff;
-  box-shadow: var(--shadow-sm);
-}
-.fic-icon.blue { color: var(--c-primary); }
-.fic-icon.green { color: var(--c-green); }
-.fic-icon.purple { color: var(--c-purple); }
-.fic-label {
-  font-size: 12px;
-  color: var(--c-text2);
-}
-.feat-example {
-  background: #fff;
-  border-radius: var(--radius);
-  padding: 20px 24px;
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--c-border);
-}
-.feat-example-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--c-dark);
-  margin-bottom: 14px;
-}
-.feat-example-cols {
+  list-style: none;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px 32px;
+  grid-template-rows: 1fr 1fr;
+  gap: calc(14 * var(--u));
 }
-.ex-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--c-text);
-  margin-bottom: 6px;
-}
-.ex-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-/* ===== Steps ===== */
-.steps-section {
-  padding: 80px 32px;
-  background: #fff;
-  text-align: center;
-}
-.steps-title {
-  font-size: 32px;
-  font-weight: 800;
-  color: var(--c-dark);
-  margin: 0 0 48px;
-  letter-spacing: -0.02em;
-}
-.steps-inner {
-  max-width: 1000px;
-  margin: 0 auto;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 0;
-}
-.step-card {
-  flex: 1;
-  text-align: center;
-  padding: 0 16px;
-}
-.step-icon {
-  width: 72px;
-  height: 72px;
-  border-radius: 18px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 16px;
-}
-.step-icon.blue { background: var(--c-primary-light); color: var(--c-primary); }
-.step-icon.purple { background: #f5f3ff; color: var(--c-purple); }
-.step-icon.green { background: #ecfdf5; color: var(--c-green); }
-.step-title {
-  font-size: 17px;
-  font-weight: 700;
-  color: var(--c-dark);
-  margin-bottom: 8px;
-}
-.step-desc {
-  font-size: 13px;
-  color: var(--c-text2);
-  line-height: 1.6;
-}
-.step-arrows {
+.mini-steps li {
+  border: calc(1 * var(--u)) solid var(--ink);
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 80px;
-  padding: 0 8px;
-}
-
-/* ===== Tools ===== */
-.tools-section {
-  padding: 80px 32px 100px;
-  background: var(--c-bg2);
-}
-.tools-title {
-  text-align: center;
-  font-size: 32px;
-  font-weight: 800;
-  color: var(--c-dark);
-  margin: 0 0 48px;
-  letter-spacing: -0.02em;
-}
-.tools-grid {
-  max-width: 1200px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-}
-.tool-card {
-  background: #fff;
-  border-radius: var(--radius);
-  padding: 28px 24px;
-  border: 1px solid var(--c-border);
-  transition: all 0.25s;
-}
-.tool-card:hover {
-  box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
-  border-color: #C9D8CC;
-}
-.tool-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 16px;
+  gap: calc(14 * var(--u));
+  padding: 0;
+  font-size: calc(19 * var(--u));
+  font-weight: 500;
+  text-align: center;
 }
-.tool-icon.blue { background: var(--c-primary-light); color: var(--c-primary); }
-.tool-icon.green { background: #ecfdf5; color: var(--c-green); }
-.tool-icon.orange { background: #fffbeb; color: var(--c-orange); }
-.tool-icon.purple { background: #f5f3ff; color: var(--c-purple); }
-.tool-name {
-  font-size: 16px;
+.mini-steps svg {
+  width: calc(44 * var(--u));
+  height: calc(44 * var(--u));
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.5;
+  stroke-linecap: square;
+  flex: none;
+}
+
+/* ---------------- 工作台 ---------------- */
+.workbench {
+  position: absolute;
+  left: calc(828 * var(--u));
+  top: calc(238 * var(--u));
+  width: calc(426 * var(--u));
+  height: calc(453 * var(--u));
+  border: calc(1 * var(--u)) solid var(--ink);
+  background: var(--paper);
+  display: flex;
+  z-index: 2;
+}
+.wb-rail {
+  width: calc(120 * var(--u));
+  border-right: calc(1 * var(--u)) solid var(--hair);
+  display: flex;
+  flex-direction: column;
+  padding-top: calc(14 * var(--u));
+  box-sizing: border-box;
+}
+.wb-tab {
+  font-size: calc(13.5 * var(--u));
+  font-weight: 500;
+  padding: calc(13 * var(--u)) calc(16 * var(--u));
+  color: var(--ink-2);
+  border-left: calc(3 * var(--u)) solid transparent;
+}
+.wb-tab.on {
+  color: var(--red);
+  border-left-color: var(--red);
   font-weight: 700;
-  color: var(--c-dark);
-  margin-bottom: 8px;
+}
+.wb-panel {
+  flex: 1;
+  padding: calc(16 * var(--u));
+  min-width: 0;
+  box-sizing: border-box;
+}
+.wb-head {
+  font-size: calc(17 * var(--u));
+  font-weight: 700;
+  padding-bottom: calc(10 * var(--u));
+}
+.wb-card {
+  border: calc(1 * var(--u)) solid var(--hair);
+  padding: calc(14 * var(--u));
+  height: calc(100% - 46 * var(--u));
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+.wb-card-title {
+  font-size: calc(15 * var(--u));
+  font-weight: 700;
+  margin-bottom: calc(8 * var(--u));
+}
+.wb-line {
+  margin: 0 0 calc(12 * var(--u));
+  font-size: calc(11.5 * var(--u));
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+.wb-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: calc(1 * var(--u)) solid var(--hair-soft);
+}
+.wb-rows li {
+  display: flex;
+  justify-content: space-between;
+  gap: calc(8 * var(--u));
+  padding: calc(7 * var(--u)) 0;
+  border-bottom: calc(1 * var(--u)) solid var(--hair-soft);
+  font-size: calc(12 * var(--u));
+  color: var(--ink-2);
+}
+.wb-check {
+  color: var(--ink);
+  font-weight: 700;
+}
+.wb-flag {
+  color: var(--red);
+  font-weight: 700;
+}
+.wb-foot {
+  margin-top: auto;
+  text-align: center;
+  font-size: calc(11 * var(--u));
+  color: var(--ink-3);
+}
+
+/* ---------------- 三步 ---------------- */
+.rule-red {
+  position: absolute;
+  left: calc(11 * var(--u));
+  right: calc(11 * var(--u));
+  top: calc(690 * var(--u));
+  height: calc(1 * var(--u));
+  background: var(--red);
+}
+.steps-title {
+  position: absolute;
+  left: calc(48 * var(--u));
+  top: calc(716 * var(--u));
+  margin: 0;
+  font-size: calc(50 * var(--u));
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+}
+.steps {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.step {
+  position: absolute;
+  top: calc(809 * var(--u)) !important;
+  height: 200px !important;
+  border: calc(1 * var(--u)) solid var(--ink);
+  padding: calc(18 * var(--u)) calc(20 * var(--u)) calc(18 * var(--u)) calc(112 * var(--u));
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  box-sizing: border-box;
+  background: var(--paper);
+  pointer-events: auto;
+}
+.step:nth-of-type(1) {
+  left: calc(11 * var(--u));
+  width: calc(499 * var(--u));
+}
+.step:nth-of-type(2) {
+  left: calc(542 * var(--u));
+  width: calc(530 * var(--u));
+}
+.step:nth-of-type(3) {
+  left: calc(1072 * var(--u));
+  width: calc(453 * var(--u));
+}
+.step::before {
+  content: '';
+  position: absolute;
+  left: calc(170 * var(--u));
+  top: 0;
+  bottom: 0;
+  width: calc(1 * var(--u));
+  background: var(--hair);
+}
+.step-body {
+  position: relative;
+}
+.step-body h3 {
+  margin: 0 0 calc(10 * var(--u));
+  font-size: calc(30 * var(--u));
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.step-body p {
+  margin: 0;
+  font-size: calc(20 * var(--u));
+  line-height: 1.6;
+  color: var(--ink);
+  max-width: calc(300 * var(--u));
+}
+.step-arc,
+.step-block,
+.step-bar {
+  position: absolute;
+  background: var(--red);
+}
+.step-arc {
+  left: calc(24 * var(--u));
+  top: calc(4 * var(--u));
+  width: calc(140 * var(--u));
+  height: calc(192 * var(--u));
+  background: none;
+  border: calc(2 * var(--u)) solid var(--red);
+  border-radius: 50%;
+  border-right-color: transparent;
+  border-top-color: transparent;
+}
+.step-block {
+  left: calc(20 * var(--u));
+  top: calc(70 * var(--u));
+  width: calc(70 * var(--u));
+  height: calc(44 * var(--u));
+}
+.step-bar {
+  left: calc(20 * var(--u));
+  top: calc(56 * var(--u));
+  width: calc(26 * var(--u));
+  height: calc(86 * var(--u));
+}
+
+/* ============================================================
+   首屏之后：同一套栅格与排印继续统治整页
+   ============================================================ */
+.band-sec {
+  max-width: 1536px;
+  margin: 0 auto;
+  padding: calc(88 * var(--u)) calc(48 * var(--u));
+  border-top: calc(1 * var(--u)) solid var(--hair);
+}
+.sec-head {
+  display: grid;
+  grid-template-columns: 1fr;
+  margin-bottom: calc(48 * var(--u));
+}
+
+.sec-title {
+  margin: 0 0 calc(16 * var(--u));
+  font-size: calc(46 * var(--u));
+  line-height: 1.12;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+.sec-note {
+  margin: 0;
+  max-width: calc(560 * var(--u));
+  font-size: calc(18 * var(--u));
+  line-height: 1.65;
+  color: var(--ink-2);
+}
+
+/* 能力矩阵：用横线与列宽组织，不做等大卡片 */
+.cap-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: calc(1 * var(--u)) solid var(--ink);
+}
+.cap {
+  display: grid;
+  grid-template-columns: calc(300 * var(--u)) 1fr calc(200 * var(--u));
+  align-items: baseline;
+  column-gap: calc(32 * var(--u));
+  padding: calc(26 * var(--u)) 0;
+  border-bottom: calc(1 * var(--u)) solid var(--hair);
+}
+.cap h3 {
+  margin: 0;
+  font-size: calc(26 * var(--u));
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.cap p {
+  margin: 0;
+  font-size: calc(16 * var(--u));
+  line-height: 1.65;
+  color: var(--ink-2);
+  max-width: calc(660 * var(--u));
+}
+.cap-tag {
+  justify-self: end;
+  font-size: calc(12.5 * var(--u));
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+
+/* 工具直达：四格横条，竖发丝线分栏，红箭头指向入口 */
+.tool-strip {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  border-top: calc(1 * var(--u)) solid var(--ink);
+  border-bottom: calc(1 * var(--u)) solid var(--ink);
+}
+.tool-strip li {
+  border-left: calc(1 * var(--u)) solid var(--hair);
+}
+.tool-strip li:first-child {
+  border-left: 0;
+}
+.tool {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: calc(10 * var(--u));
+  min-height: calc(150 * var(--u));
+  padding: calc(24 * var(--u)) calc(44 * var(--u)) calc(22 * var(--u)) calc(24 * var(--u));
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+.tool:hover {
+  background: #fff;
+}
+.tool-name {
+  font-size: calc(26 * var(--u));
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
 }
 .tool-desc {
-  font-size: 13px;
-  color: var(--c-text2);
+  font-size: calc(14 * var(--u));
   line-height: 1.6;
-  margin-bottom: 16px;
-  min-height: 42px;
+  color: var(--ink-2);
 }
-.tool-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--c-primary);
-  text-decoration: none;
-  transition: gap 0.2s;
+.tool-go {
+  position: absolute;
+  right: calc(22 * var(--u));
+  top: calc(24 * var(--u));
+  font-size: calc(20 * var(--u));
+  color: var(--red);
+  line-height: 1;
+  transition: transform 0.18s ease;
 }
-.tool-link:hover {
-  gap: 8px;
+.tool:hover .tool-go {
+  transform: translateX(calc(4 * var(--u)));
 }
 
-/* ===== Footer ===== */
-.footer {
-  background: var(--c-dark);
-  padding: 32px;
+/* 体检报告 */
+.report-wrap {
+  display: grid;
+  grid-template-columns: 1fr calc(360 * var(--u));
+  gap: calc(32 * var(--u));
+  align-items: start;
 }
-.footer-inner {
-  max-width: 1200px;
-  margin: 0 auto;
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: calc(17 * var(--u));
+}
+.report-table caption {
+  text-align: left;
+  font-size: calc(13 * var(--u));
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  padding-bottom: calc(12 * var(--u));
+}
+.report-table th,
+.report-table td {
+  text-align: left;
+  padding: calc(16 * var(--u)) calc(14 * var(--u));
+  border-bottom: calc(1 * var(--u)) solid var(--hair);
+  font-weight: 400;
+  color: var(--ink-2);
+}
+.report-table thead th {
+  font-size: calc(13 * var(--u));
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  border-bottom: calc(1 * var(--u)) solid var(--ink);
+}
+.report-table tbody td:first-child {
+  color: var(--ink);
+  font-weight: 700;
+}
+.report-table tbody tr:first-child td {
+  border-top: calc(2 * var(--u)) solid var(--ink);
+}
+.ok {
+  color: var(--ink);
+  font-weight: 700;
+}
+.flag {
+  color: var(--red);
+  font-weight: 700;
+}
+.report-side {
+  border: calc(1 * var(--u)) solid var(--ink);
+  padding: calc(24 * var(--u));
+}
+.side-k {
+  margin: 0 0 calc(14 * var(--u));
+  font-size: calc(14 * var(--u));
+  letter-spacing: 0.08em;
+  color: var(--red);
+  font-weight: 700;
+}
+.side-list {
+  list-style: none;
+  margin: 0 0 calc(18 * var(--u));
+  padding: 0;
+}
+.side-list li {
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  gap: calc(12 * var(--u));
+  padding: calc(12 * var(--u)) 0;
+  border-bottom: calc(1 * var(--u)) solid var(--hair-soft);
+  font-size: calc(16 * var(--u));
+  color: var(--ink);
 }
-.footer-brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
-}
-.footer-links {
-  display: flex;
-  gap: 24px;
-}
-.footer-links a {
-  color: #8B968D;
-  text-decoration: none;
-  font-size: 13px;
-  cursor: pointer;
-  transition: color 0.2s;
-}
-.footer-links a:hover {
-  color: #fff;
-}
-.footer-copy {
-  color: #5C6B60;
-  font-size: 12px;
-}
-
-/* ===== Responsive ===== */
-@media (max-width: 900px) {
-  .hero-inner { flex-direction: column; gap: 40px; }
-  .hero-title { font-size: 36px; }
-  .stats-inner { grid-template-columns: repeat(2, 1fr); }
-  .features-inner { flex-direction: column; }
-  .feat-icons-row { grid-template-columns: repeat(3, 1fr); }
-  .tools-grid { grid-template-columns: repeat(2, 1fr); }
-  .nav-links { display: none; }
-  .step-arrows { display: none; }
-}
-
-/* ========== 公告栏 ========== */
-.notice-bar {
-  background: linear-gradient(90deg, #E8EFE6, #F3F0E6);
-  border-bottom: 1px solid #E3E0D5;
-}
-.notice-inner {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 8px 24px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.notice-icon { font-size: 14px; }
-.notice-track {
-  display: flex;
-  gap: 24px;
-  overflow: hidden;
-  flex: 1;
-}
-.notice-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.side-tag {
+  font-size: calc(13 * var(--u));
   white-space: nowrap;
-  min-width: 0;
-  cursor: pointer;
 }
-.notice-detail-meta {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 12px;
-}
-.notice-detail-time {
-  font-size: 12px;
-  color: #8B968D;
-}
-.notice-detail-content {
-  font-size: 14px;
-  line-height: 1.8;
-  color: #24312A;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-.notice-type {
-  font-size: 10px;
-  font-weight: 600;
-  color: #2F5D46;
-  background: rgba(47, 93, 70, 0.1);
-  border: 1px solid rgba(47, 93, 70, 0.3);
-  padding: 1px 7px;
-  border-radius: 999px;
-  flex-shrink: 0;
-}
-.notice-text {
-  font-size: 13px;
-  color: #33413A;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.side-note {
+  margin: 0;
+  font-size: calc(14 * var(--u));
+  line-height: 1.7;
+  color: var(--ink-3);
 }
 
-/* ===== 滚动触发动效 ===== */
-.reveal {
-  opacity: 0;
-  transform: translateY(28px);
-  transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.22, 0.61, 0.36, 1);
-  will-change: opacity, transform;
+/* 行列表 */
+.row-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: calc(1 * var(--u)) solid var(--ink);
 }
-.reveal.in-view {
+.row-list li {
+  display: grid;
+  grid-template-columns: calc(280 * var(--u)) 1fr;
+  align-items: baseline;
+  gap: calc(24 * var(--u));
+  padding: calc(24 * var(--u)) 0;
+  border-bottom: calc(1 * var(--u)) solid var(--hair);
+}
+
+.row-name {
+  font-size: calc(24 * var(--u));
+  font-weight: 700;
+}
+.row-desc {
+  font-size: calc(16 * var(--u));
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+
+/* 开始使用 */
+.cta-band {
+  max-width: 1536px;
+  margin: 0 auto;
+  padding: calc(96 * var(--u)) calc(48 * var(--u));
+  background: var(--red);
+  color: #fff;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  column-gap: calc(40 * var(--u));
+}
+.cta-band h2 {
+  grid-column: 1;
+  margin: 0 0 calc(14 * var(--u));
+  font-size: calc(58 * var(--u));
+  font-weight: 900;
+  letter-spacing: -0.015em;
+  line-height: 1.08;
+}
+.cta-band p {
+  grid-column: 1;
+  margin: 0;
+  font-size: calc(18 * var(--u));
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.86);
+}
+.cta-btn {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  background: #fff;
+  color: var(--ink);
+  border: 0;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: calc(18 * var(--u));
+  height: calc(58 * var(--u));
+  padding: 0 calc(34 * var(--u));
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cta-btn:hover {
+  background: var(--ink);
+  color: #fff;
+}
+
+/* 页脚 */
+.foot {
+  max-width: 1536px;
+  margin: 0 auto;
+  padding: calc(56 * var(--u)) calc(48 * var(--u)) calc(64 * var(--u));
+  border-top: calc(1 * var(--u)) solid var(--ink);
+}
+.foot-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: calc(32 * var(--u));
+  margin-bottom: calc(40 * var(--u));
+}
+.foot-brand {
+  font-size: calc(22 * var(--u));
+  font-weight: 900;
+}
+.foot-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(28 * var(--u));
+}
+.foot-links a {
+  font-size: calc(15 * var(--u));
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.foot-links a:hover {
+  color: var(--red);
+}
+.foot-copy {
+  margin: 0;
+  font-size: calc(13 * var(--u));
+  color: var(--ink-3);
+  letter-spacing: 0.04em;
+}
+
+
+/* 浏览器自己的表面也属于这套系统 */
+.sw ::selection {
+  background: var(--red);
+  color: #fff;
+}
+.sw a:focus-visible,
+.sw button:focus-visible,
+.sw [tabindex]:focus-visible {
+  outline: calc(2 * var(--u)) solid var(--red);
+  outline-offset: calc(3 * var(--u));
+}
+.sw :focus:not(:focus-visible) {
+  outline: none;
+}
+* {
+  scrollbar-color: var(--hair) var(--paper);
+  scrollbar-width: thin;
+}
+
+/* ============================================================
+   动效：海报的入场是「刷上去的一条红」，不是位移特效
+   ============================================================ */
+.hero-title,
+.hero-sub,
+.btn-hero,
+.mini-steps,
+.motifs .arc,
+.motifs .vbar,
+.steps-title,
+.step,
+.nav {
+  animation: rise 0.72s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.hero-title { animation-delay: 0.04s; }
+.hero-sub { animation-delay: 0.16s; }
+.btn-hero { animation-delay: 0.2s; }
+.mini-steps { animation-delay: 0.26s; }
+.motifs .arc { animation-delay: 0.1s; }
+.motifs .vbar { animation-delay: 0.14s; }
+.steps-title { animation-delay: 0.3s; }
+.step:nth-of-type(1) { animation-delay: 0.34s; }
+.step:nth-of-type(2) { animation-delay: 0.38s; }
+.step:nth-of-type(3) { animation-delay: 0.42s; }
+.nav { animation-delay: 0s; }
+
+.band {
+  transform-origin: left center;
+  animation: brush 0.55s cubic-bezier(0.65, 0, 0.35, 1) 0.34s both;
+}
+
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(calc(14 * var(--u)));
+  transition: opacity 0.6s ease, transform 0.7s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+[data-reveal].in {
   opacity: 1;
   transform: none;
 }
+.cap:nth-child(2),
+.row-list li:nth-child(2) { transition-delay: 0.06s; }
+.cap:nth-child(3),
+.row-list li:nth-child(3) { transition-delay: 0.12s; }
+.cap:nth-child(4),
+.row-list li:nth-child(4) { transition-delay: 0.18s; }
+.cap:nth-child(5) { transition-delay: 0.08s; }
+.cap:nth-child(6) { transition-delay: 0.14s; }
 
-/* ===== 工具卡片微交互 ===== */
-.tool-card {
-  background: #fff;
-  border-radius: var(--radius);
-  padding: 28px 24px;
-  border: 1px solid var(--c-border);
-  transition: all 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
-  position: relative;
-  overflow: hidden;
+@keyframes rise {
+  from { opacity: 0; transform: translateY(calc(18 * var(--u))); }
+  to { opacity: 1; transform: none; }
 }
-.tool-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #2F5D46, #8B6F47);
-  opacity: 0;
-  transition: opacity 0.3s;
+@keyframes brush {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
 }
-.tool-card:hover::before {
-  opacity: 1;
-}
-.tool-card:hover {
-  box-shadow: 0 16px 40px rgba(31, 46, 38, 0.12);
-  transform: translateY(-6px);
-  border-color: #C9D8CC;
-}
-.tool-card .tool-icon {
-  transition: transform 0.3s ease;
-}
-.tool-card:hover .tool-icon {
-  transform: translateY(-4px) scale(1.06);
-}
-
-/* ===== 鼠标跟随光斑 ===== */
-.cursor-glow {
-  position: fixed;
-  width: 340px;
-  height: 340px;
-  margin: -170px 0 0 -170px;
-  border-radius: 50%;
-  pointer-events: none;
-  z-index: 3;
-  background: radial-gradient(circle, rgba(47, 93, 70, 0.10) 0%, rgba(139, 111, 71, 0.06) 40%, transparent 70%);
-  transform: translate(-100px, -100px);
-  transition: left 0.12s ease-out, top 0.12s ease-out;
-  opacity: 0;
-}
-.landing:hover .cursor-glow {
-  opacity: 1;
-}
-
-/* ===== 滚动进度条 ===== */
-.scroll-progress {
-  position: fixed;
-  top: 0;
-  left: 0;
-  height: 3px;
-  width: 0;
-  background: linear-gradient(90deg, #2F5D46, #8B6F47);
-  z-index: 200;
-  transition: width 0.1s linear;
-}
-
-/* ===== 回到顶部 ===== */
-.back-top {
-  position: fixed;
-  right: 26px;
-  bottom: 30px;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  border: 1px solid var(--c-border);
-  background: rgba(255, 255, 255, 0.9);
-  color: #2F5D46;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 6px 20px rgba(31, 46, 38, 0.15);
-  transition: transform 0.25s ease, box-shadow 0.25s ease, opacity 0.25s;
-  z-index: 150;
-}
-.back-top:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 28px rgba(47, 93, 70, 0.3);
-}
-
-/* ===== 按钮波纹 ===== */
-.btn-cta-primary {
-  position: relative;
-  overflow: hidden;
-}
-.ripple {
-  position: absolute;
-  width: 20px;
-  height: 20px;
-  margin: -10px 0 0 -10px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.45);
-  transform: scale(0);
-  animation: rippleAnim 0.6s ease-out forwards;
-  pointer-events: none;
-}
-@keyframes rippleAnim {
-  to { transform: scale(14); opacity: 0; }
-}
-
-/* ===== 标题下划线生长 ===== */
-.tools-title, .feat-title {
-  position: relative;
-  display: inline-block;
-  padding-bottom: 8px;
-}
-.tools-title::after, .feat-title::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  height: 3px;
-  border-radius: 3px;
-  background: linear-gradient(90deg, #2F5D46, #8B6F47);
-  width: 0;
-  transition: width 0.7s ease;
-}
-.reveal.in-view .tools-title::after,
-.reveal.in-view .feat-title::after {
-  width: 100%;
-}
-
-/* ===== 图标呼吸 ===== */
-@keyframes iconFloat {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
-}
-.fic-icon {
-  animation: iconFloat 4.5s ease-in-out infinite;
-}
-.fic-icon:nth-child(2n) {
-  animation-delay: 0.8s;
-}
-.fic-icon:nth-child(3n) {
-  animation-delay: 1.6s;
-}
-
-/* ===== 工具卡片交错进入 ===== */
-.tools-section.in-view .tool-card {
-  animation: fadeUp 0.6s cubic-bezier(0.22, 0.61, 0.36, 1) both;
-}
-.tools-section.in-view .tool-card:nth-child(2) { animation-delay: 0.1s; }
-.tools-section.in-view .tool-card:nth-child(3) { animation-delay: 0.2s; }
-.tools-section.in-view .tool-card:nth-child(4) { animation-delay: 0.3s; }
-
-/* 无障碍: 系统开启"减少动态效果"时关闭装饰性动画与过渡 */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-  .cursor-glow {
-    display: none;
-  }
+  .hero-title, .hero-sub, .btn-hero, .mini-steps, .motifs .arc, .motifs .vbar,
+  .steps-title, .step, .nav, .band { animation: none !important; }
+  [data-reveal] { opacity: 1 !important; transform: none !important; transition: none !important; }
 }
+
+/* ============================================================
+   窄屏：海报折成单列，栅格仍在
+   ============================================================ */
+@media (max-width: 900px) {
+  .sw { --u: 1px; }
+  .hero {
+    aspect-ratio: auto;
+    padding: 18px 18px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .grid-lines { display: none; }
+  .nav {
+    position: static;
+    height: auto;
+    padding: 0 0 14px;
+    border-bottom: 1px solid var(--ink);
+    animation: none;
+  }
+  .links { display: none; }
+  .brand { font-size: 19px; }
+  .nav-actions { gap: 12px; }
+  .btn-solid { height: 40px; font-size: 14px; padding: 0 16px; }
+  .hero-title {
+    position: static;
+    width: auto;
+    font-size: 33px;
+    line-height: 1.18;
+    letter-spacing: -0.01em;
+    order: 1;
+  }
+  .hl-band { display: inline; }
+  .band { display: none; }
+  .hero-sub {
+    position: static;
+    width: auto;
+    font-size: 15px;
+    line-height: 1.55;
+    order: 2;
+  }
+  .btn-hero {
+    position: static;
+    align-self: flex-start;
+    height: 46px;
+    font-size: 15px;
+    padding: 0 20px;
+    order: 3;
+  }
+  .motifs { display: none; }
+  .mini-steps {
+    position: static;
+    width: auto;
+    height: auto;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 10px;
+    order: 4;
+  }
+  .mini-steps li { padding: 16px 10px; gap: 8px; }
+  .mini-steps svg { width: 28px; height: 28px; }
+  .mini-steps li { font-size: 13px; }
+  .rule-red { display: none; }
+  .steps-title {
+    position: static;
+    font-size: 27px;
+    margin: 12px 0 0;
+    letter-spacing: 0.02em;
+    order: 5;
+  }
+  .steps { position: static; order: 6; }
+  .step {
+    position: relative;
+    left: auto !important;
+    width: auto !important;
+    height: auto !important;
+    top: auto !important;
+    bottom: auto !important;
+    padding: 18px 16px 18px 96px;
+    margin-bottom: 10px;
+    animation: none;
+  }
+  .step::before { left: 74px; }
+  .step-body h3 { font-size: 19px; }
+  .step-body p { font-size: 13.5px; max-width: none; }
+  .step-arc { left: 12px; top: 8px; width: 52px; height: 84px; }
+  .step-block { left: 14px; top: 34px; width: 36px; height: 26px; }
+  .step-bar { left: 14px; top: 26px; width: 14px; height: 46px; }
+
+  .band-sec { padding: 44px 18px; }
+  .sec-head { margin-bottom: 26px; }
+  .sec-title { font-size: 27px; margin-bottom: 10px; }
+  .sec-note { font-size: 14.5px; }
+
+  .cap {
+    grid-template-columns: 1fr;
+    row-gap: 6px;
+    padding: 18px 0;
+  }
+  .cap h3 { font-size: 19px; }
+  .cap p { font-size: 14px; max-width: none; }
+  .cap-tag { justify-self: start; }
+
+  .tool-strip { grid-template-columns: 1fr 1fr; }
+  .tool-strip li:nth-child(3) { border-left: 0; }
+  .tool-strip li:nth-child(n + 3) { border-top: 1px solid var(--hair); }
+  .tool { min-height: 0; padding: 16px 14px; }
+  .tool-name { font-size: 18px; }
+  .tool-desc { font-size: 12.5px; }
+
+  .report-wrap { grid-template-columns: 1fr; gap: 20px; }
+  .report-table { font-size: 13px; display: block; overflow-x: auto; }
+  .report-table th, .report-table td { padding: 11px 8px; white-space: nowrap; }
+  .report-side { padding: 18px; }
+  .side-list li { font-size: 14px; }
+
+  .row-list li {
+    grid-template-columns: 1fr;
+    row-gap: 6px;
+    padding: 18px 0;
+  }
+  .row-desc { font-size: 13.5px; }
+  .row-name { font-size: 18px; }
+
+  .cta-band {
+    grid-template-columns: 1fr;
+    padding: 48px 18px;
+    row-gap: 18px;
+  }
+  .cta-band h2 { font-size: 32px; }
+  .cta-band p { font-size: 14.5px; }
+  .cta-btn { grid-column: 1; grid-row: auto; height: 50px; font-size: 15px; justify-self: start; }
+
+  .foot { padding: 36px 18px 48px; }
+  .foot-top { flex-direction: column; gap: 20px; margin-bottom: 26px; }
+  .foot-links { gap: 16px 20px; }
+  .foot-copy { font-size: 12px; }
+}
+
 </style>

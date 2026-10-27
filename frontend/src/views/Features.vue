@@ -1,288 +1,339 @@
 <template>
   <div class="page">
-    <NavBar />
+    <PublicNav />
 
-    <!-- Hero -->
-    <section class="hero">
-      <div class="hero-inner">
-        <h1 class="hero-title">强大的论文排版工具箱</h1>
-        <p class="hero-desc">从智能排版到图表生成，一站式满足毕业论文全部需求</p>
-      </div>
-    </section>
-
-    <!-- 核心功能 -->
-    <section class="section">
-      <div class="section-inner">
-        <h2 class="sec-title">核心能力</h2>
-        <p class="sec-sub">覆盖排版、表格、绘图全流程</p>
-        <div class="grid">
-          <div class="card" v-for="(f, i) in features" :key="i">
-            <div class="card-icon" :class="f.color">
-              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" v-html="f.icon"></svg>
-            </div>
-            <h3 class="card-title">{{ f.title }}</h3>
-            <p class="card-desc">{{ f.desc }}</p>
-            <ul class="card-list">
-              <li v-for="(item, j) in f.points" :key="j">
-                <svg viewBox="0 0 16 16" width="14" height="14" fill="none"><circle cx="8" cy="8" r="7" fill="#2F5D46"/><path d="M5 8l2 2 4-4" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
-                {{ item }}
-              </li>
-            </ul>
-          </div>
+    <!-- 首屏：样张墙 · 批注式 -->
+    <section class="wall" aria-label="功能总览">
+      <article class="sheet">
+        <h1 class="chapter">第三章 系统设计</h1>
+        <h2 class="sec-h">3.1 系统概述</h2>
+        <div class="body-p">
+          <p>系统采用规则驱动的排版架构：解析器提取文档结构，规则引擎匹配高校格式规则，排版器套用页边距、字体与行距。</p>
+          <p>表 3-1 列出核心模块的职责划分，图 3-1 说明系统总体架构，页边距、字号、行距与编号格式均由规则引擎统一控制。</p>
         </div>
-      </div>
-    </section>
-
-    <!-- 工具入口 -->
-    <section class="section alt">
-      <div class="section-inner">
-        <h2 class="sec-title">实用工具</h2>
-        <p class="sec-sub">立即体验</p>
-        <div class="tools-grid">
-          <div class="tool-card" v-for="(t, i) in tools" :key="i" @click="goStart(t.route)">
-            <div class="tool-icon" :class="t.color">
-              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" v-html="t.icon"></svg>
-            </div>
-            <div class="tool-name">{{ t.name }}</div>
-            <div class="tool-desc">{{ t.desc }}</div>
-            <span class="tool-link">立即使用 →</span>
-          </div>
+        <div class="tbl">
+          <p class="tbl-cap">表 3-1 各模块职责</p>
+          <table>
+            <colgroup>
+              <col style="width: 18%" /><col style="width: 26%" /><col style="width: 18%" /><col style="width: 18%" /><col style="width: 20%" />
+            </colgroup>
+            <thead>
+              <tr><th>模块</th><th>职责</th><th>输入</th><th>输出</th><th>状态</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>解析器</td><td>提取章节段落结构</td><td>DOCX</td><td>结构树</td><td>已上线</td></tr>
+              <tr><td>规则引擎</td><td>匹配高校格式规则</td><td>规则集</td><td>标记结果</td><td>已上线</td></tr>
+              <tr><td>排版器</td><td>套用字体行距页边距</td><td>结构树</td><td>DOCX</td><td>已上线</td></tr>
+            </tbody>
+          </table>
         </div>
-      </div>
-    </section>
+        <p class="fig-cap">图 3-1 系统总体架构</p>
+        <div class="seal" aria-hidden="true"><span>合格</span></div>
+      </article>
 
-    <SiteFooter />
+      <aside class="anns" aria-label="引擎处理要点">
+        <div class="ann" v-for="(a, i) in anns" :key="i">
+          <span class="ann-n">{{ String(i + 1).padStart(2, '0') }}</span>
+          <span class="ann-t">{{ a }}</span>
+        </div>
+      </aside>
+
+      <nav class="f-band" aria-label="页面导航">
+        <a
+          v-for="l in bandLinks"
+          :key="l.label"
+          class="f-link"
+          @click="goBand(l.to)"
+        >{{ l.label }}</a>
+      </nav>
+    </section>
   </div>
 </template>
 
 <script setup>
 import { useRouter } from 'vue-router'
-import NavBar from '../components/site/NavBar.vue'
-import SiteFooter from '../components/site/SiteFooter.vue'
+import PublicNav from '../components/PublicNav.vue'
 
 const router = useRouter()
 
-const features = [
-  {
-    title: 'Word 智能排版',
-    color: 'blue',
-    icon: '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><path d="M10 9l-1 1 1 1"/>',
-    desc: '自动识别论文结构，统一字体字号行距，快速生成规范文档。',
-    points: ['章节结构智能识别', '标题/正文格式一键统一', '自动生成目录', '图表题注自动编号']
-  },
-  {
-    title: '规则配置驱动',
-    color: 'purple',
-    icon: '<line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="8" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="10" cy="18" r="2"/>',
-    desc: '可视化配置页面、标题、正文、图表编号等全部排版规则。',
-    points: ['页面/页边距/页眉页脚', '各级标题格式', '正文行距缩进对齐', '模板保存复用']
-  },
-  {
-    title: '三线表生成',
-    color: 'green',
-    icon: '<rect x="3" y="3" width="18" height="18" rx="1"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>',
-    desc: '一键生成符合学术规范的三线表 Word 文档。',
-    points: ['顶线/底线 1.5pt 栏目线 0.75pt', 'SQL CREATE TABLE 解析', '实时预览导出']
-  },
-  {
-    title: 'ER 图生成',
-    color: 'orange',
-    icon: '<circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><line x1="9" y1="6" x2="15" y2="6"/><line x1="6" y1="9" x2="6" y2="15"/><line x1="18" y1="9" x2="18" y2="15"/><line x1="9" y1="18" x2="15" y2="18"/>',
-    desc: 'Chen 记法实体关系图，自动布局，专业美观。',
-    points: ['实体/属性/关系建模', '主键下划线标注', '力导向自动布局', 'SVG/PNG 导出']
-  },
-  {
-    title: '系统设计图',
-    color: 'purple',
-    icon: '<rect x="3" y="3" width="7" height="5" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="8" y="14" width="7" height="5" rx="1"/><line x1="6.5" y1="8" x2="6.5" y2="11" stroke-dasharray="2"/><line x1="17.5" y1="8" x2="17.5" y2="11" stroke-dasharray="2"/><line x1="6.5" y1="11" x2="11.5" y2="14"/><line x1="17.5" y1="11" x2="11.5" y2="14"/>',
-    desc: '流程图、泳道图、架构图、用例图、时序图等一键生成。',
-    points: ['流程 DSL 解析', '泳道自动分组', '分层架构图', '类图/活动图/用例图']
-  },
-  {
-    title: '参考文献格式化',
-    color: 'green',
-    icon: '<path d="M5 3C5 3 3 5 3 8C3 11 5 13 5 13M11 3C11 3 13 5 13 8C13 11 11 13 11 13"/><path d="M7 5h2M7 8h2M7 11h2"/>',
-    desc: '支持 GB/T 7714、APA、MLA 等主流参考文献格式。',
-    points: ['多格式支持', '作者截断规范', '自动排版生成', '模板内置']
-  }
+const anns = [
+  '标题层级自动识别',
+  '三线表 顶线 1.5pt',
+  '图表题注连续编号',
+  '行距固定 22 磅',
+  '参考文献 GB/T 7714',
+  '目录自动生成'
 ]
 
-const tools = [
-  { name: 'Word 智能排版', color: 'blue', route: '/templates', desc: '上传论文自动排版', icon: '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><path d="M10 9l-1 1 1 1"/>' },
-  { name: '系统设计图', color: 'purple', route: '/system-design', desc: '多种系统设计图', icon: '<rect x="3" y="3" width="7" height="5" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="8" y="14" width="7" height="5" rx="1"/><line x1="6.5" y1="8" x2="6.5" y2="11" stroke-dasharray="2"/><line x1="17.5" y1="8" x2="17.5" y2="11" stroke-dasharray="2"/><line x1="6.5" y1="11" x2="11.5" y2="14"/><line x1="17.5" y1="11" x2="11.5" y2="14"/>' }
+const bandLinks = [
+  { label: '自动排版', to: '/features' },
+  { label: '智能校对', to: '/features' },
+  { label: '格式模板', to: '/template-market' },
+  { label: '引用管理', to: '/features' },
+  { label: '论文检测', to: '/features' },
+  { label: '学术资源', to: '/features' },
+  { label: '客户评价', to: '/features' },
+  { label: '关于我们', to: '/home' }
 ]
 
-function goStart(route) {
-  if (!localStorage.getItem('token')) {
-    router.push({ path: '/login', query: { redirect: route } })
-  } else {
-    router.push(route)
-  }
+function goBand(to) {
+  if (to && to !== '/features') router.push(to)
 }
 </script>
 
 <style scoped>
 .page {
-  --c-primary: #2F5D46;
-  --c-primary-dark: #264A38;
-  --c-dark: #1F2E26;
-  --c-text: #33413A;
-  --c-text2: #5C6B60;
-  --c-text3: #8B968D;
-  --c-border: #E3E0D5;
-  --c-bg2: #F6F4EE;
-  font-family: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
-  color: var(--c-text);
-  background: #fff;
+  --paper: #f7f6f6;
+  --ink: #0a0909;
+  --ink-2: #3f3f3f;
+  --red: #dd2627;
+  --hair: #c1c1c3;
+  --hair-2: #e4e4e4;
+  --u: calc(min(100vw, 1536px) / 1536);
   min-height: 100vh;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
-.hero {
-  background: linear-gradient(180deg, #F1EEE5 0%, #fff 100%);
-  padding: 72px 32px;
-  text-align: center;
+
+/* ---------- 首屏画布：1536 x 1024 ---------- */
+.page :deep(.pn) {
+  height: calc(102 * var(--u));
+  border-bottom: 0;
+  padding: calc(14 * var(--u)) calc(80 * var(--u)) 0;
 }
-.hero-inner {
-  max-width: 800px;
-  margin: 0 auto;
+.wall {
+  position: relative;
+  height: calc(922 * var(--u));
+  overflow: hidden;
 }
-.hero-title {
-  font-size: 40px;
-  font-weight: 800;
-  color: var(--c-dark);
-  margin: 0 0 12px;
-}
-.hero-desc {
-  font-size: 17px;
-  color: var(--c-text2);
-  margin: 0;
-}
-.section {
-  padding: 64px 32px;
-}
-.section.alt {
-  background: var(--c-bg2);
-}
-.section-inner {
-  max-width: 1200px;
-  margin: 0 auto;
-}
-.sec-title {
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--c-dark);
-  text-align: center;
-  margin: 0 0 8px;
-}
-.sec-sub {
-  text-align: center;
-  color: var(--c-text2);
-  margin: 0 0 40px;
-  font-size: 15px;
-}
-.grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
-}
-.card {
+
+/* ---------- 样张纸面 ---------- */
+.sheet {
+  position: absolute;
+  left: calc(153.6 * var(--u));
+  top: calc(0.4 * var(--u));
+  width: calc(921.6 * var(--u));
+  height: calc(819.2 * var(--u));
   background: #fff;
-  border: 1px solid var(--c-border);
-  border-radius: 16px;
-  padding: 28px;
-  transition: box-shadow 0.2s, transform 0.2s;
+  border: 1px solid var(--hair-2);
 }
-.card:hover {
-  box-shadow: 0 8px 32px rgba(0,0,0,0.10);
-  transform: translateY(-4px);
+.chapter {
+  position: absolute;
+  left: calc(18 * var(--u));
+  top: calc(68 * var(--u));
+  margin: 0;
+  font-size: calc(38 * var(--u));
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: 0;
+  color: var(--ink);
 }
-.card-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 12px;
+.sec-h {
+  position: absolute;
+  left: calc(18 * var(--u));
+  top: calc(140 * var(--u));
+  margin: 0;
+  font-size: calc(26 * var(--u));
+  font-weight: 900;
+  line-height: 1.2;
+  color: var(--ink);
+}
+.body-p {
+  position: absolute;
+  left: calc(18 * var(--u));
+  top: calc(190 * var(--u));
+  width: calc(740 * var(--u));
+}
+.body-p p {
+  margin: 0;
+  font-size: calc(18 * var(--u));
+  font-weight: 500;
+  line-height: 1.78;
+  text-indent: 2em;
+  color: #212122;
+}
+
+/* 三线表 */
+.tbl {
+  position: absolute;
+  left: calc(23 * var(--u));
+  top: calc(380 * var(--u));
+  width: calc(743 * var(--u));
+}
+.tbl-cap {
+  margin: 0 0 calc(8 * var(--u));
+  text-align: center;
+  font-size: calc(20 * var(--u));
+  font-weight: 700;
+  color: var(--ink);
+}
+.tbl table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: calc(19 * var(--u));
+}
+.tbl th,
+.tbl td {
+  padding: calc(8 * var(--u)) calc(6 * var(--u));
+  text-align: center;
+  color: var(--ink);
+}
+.tbl th {
+  font-weight: 700;
+}
+.tbl thead tr {
+  border-top: calc(2.4 * var(--u)) solid var(--ink);
+  border-bottom: calc(1.2 * var(--u)) solid var(--ink);
+}
+.tbl tbody tr:last-child {
+  border-bottom: calc(2.4 * var(--u)) solid var(--ink);
+}
+
+.fig-cap {
+  position: absolute;
+  left: calc(26 * var(--u));
+  top: calc(606 * var(--u));
+  margin: 0;
+  font-size: calc(21 * var(--u));
+  font-weight: 400;
+  color: var(--ink);
+}
+
+/* 合格章 */
+.seal {
+  position: absolute;
+  left: calc(610 * var(--u));
+  top: calc(643 * var(--u));
+  width: calc(160 * var(--u));
+  height: calc(74 * var(--u));
+  display: grid;
+  place-items: center;
+  border: calc(3.5 * var(--u)) solid var(--red);
+  border-radius: calc(14 * var(--u));
+  color: var(--red);
+  transform: rotate(-10deg);
+}
+.seal span {
+  font-size: calc(32 * var(--u));
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+/* ---------- 右侧批注列 ---------- */
+.anns {
+  position: absolute;
+  left: calc(1085 * var(--u));
+  top: calc(94 * var(--u));
+  width: calc(420 * var(--u));
+}
+.ann {
+  position: relative;
+  height: calc(97 * var(--u));
   display: flex;
   align-items: center;
-  justify-content: center;
-  margin-bottom: 16px;
+  gap: calc(24 * var(--u));
 }
-.card-icon.blue { background: #E8EFE6; color: #2F5D46; }
-.card-icon.green { background: #ECFDF5; color: #10b981; }
-.card-icon.purple { background: #F5F3FF; color: #8B6F47; }
-.card-icon.orange { background: #FFF7ED; color: #f59e0b; }
-.card-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--c-dark);
-  margin: 0 0 8px;
+.ann::before {
+  content: '';
+  position: absolute;
+  left: calc(-142 * var(--u));
+  top: 50%;
+  width: calc(140 * var(--u));
+  border-top: calc(2 * var(--u)) solid var(--red);
 }
-.card-desc {
-  font-size: 14px;
-  color: var(--c-text2);
-  margin: 0 0 16px;
-  line-height: 1.6;
+.ann::after {
+  content: '';
+  position: absolute;
+  left: calc(-148 * var(--u));
+  top: calc(50% - 3.5 * var(--u));
+  width: calc(8 * var(--u));
+  height: calc(8 * var(--u));
+  background: var(--red);
+  border-radius: 50%;
 }
-.card-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+.ann-n {
+  font-size: calc(34 * var(--u));
+  font-weight: 900;
+  color: var(--red);
+  letter-spacing: 0.02em;
+}
+.ann-t {
+  font-size: calc(24 * var(--u));
+  font-weight: 500;
+  color: var(--ink);
+}
+
+/* ---------- 底部链接带 ---------- */
+.f-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(102.4 * var(--u));
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: calc(14 * var(--u)) calc(128 * var(--u)) 0;
 }
-.card-list li {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--c-text);
-}
-.tools-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-}
-.tool-card {
-  background: #fff;
-  border: 1px solid var(--c-border);
-  border-radius: 14px;
-  padding: 24px;
+.f-link {
+  font-size: calc(20 * var(--u));
+  font-weight: 500;
+  color: var(--ink);
   cursor: pointer;
-  transition: box-shadow 0.2s, transform 0.2s;
 }
-.tool-card:hover {
-  box-shadow: 0 8px 32px rgba(0,0,0,0.10);
-  transform: translateY(-4px);
+.f-link:hover {
+  color: var(--red);
 }
-.tool-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 12px;
+
+/* ---------- 焦点可达 ---------- */
+.f-link:focus-visible {
+  outline: calc(2 * var(--u)) solid var(--red);
+  outline-offset: 2px;
 }
-.tool-icon.blue { background: #E8EFE6; color: #2F5D46; }
-.tool-icon.green { background: #ECFDF5; color: #10b981; }
-.tool-icon.purple { background: #F5F3FF; color: #8B6F47; }
-.tool-icon.orange { background: #FFF7ED; color: #f59e0b; }
-.tool-name {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--c-dark);
-  margin-bottom: 6px;
+
+::selection {
+  background: var(--red);
+  color: #fff;
 }
-.tool-desc {
-  font-size: 13px;
-  color: var(--c-text2);
-  margin-bottom: 12px;
-}
-.tool-link {
-  color: var(--c-primary);
-  font-size: 14px;
-  font-weight: 600;
-}
+
+/* ---------- 窄屏基础兜底（响应式阶段细化） ---------- */
 @media (max-width: 900px) {
-  .grid { grid-template-columns: 1fr; }
-  .tools-grid { grid-template-columns: 1fr 1fr; }
+  .wall {
+    height: auto;
+    padding: 20px 16px 0;
+  }
+  .sheet,
+  .anns,
+  .f-band {
+    position: static;
+  }
+  .sheet {
+    width: 100%;
+    height: auto;
+    padding: 24px 16px 40px;
+  }
+  .chapter, .sec-h, .body-p, .tbl, .fig-cap, .seal {
+    position: static;
+    font-size: 18px;
+  }
+  .body-p { width: 100%; margin: 12px 0; }
+  .body-p p { font-size: 14px; }
+  .tbl { width: 100%; margin: 16px 0; }
+  .tbl table { font-size: 13px; }
+  .anns { width: 100%; margin: 20px 0; }
+  .ann { height: 44px; gap: 10px; }
+  .ann::before, .ann::after { display: none; }
+  .ann-n { font-size: 18px; }
+  .ann-t { font-size: 14px; }
+  .f-band {
+    height: auto;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 14px 16px;
+    justify-content: flex-start;
+  }
+  .f-link { font-size: 13px; }
 }
 </style>

@@ -1,34 +1,51 @@
 <template>
-  <div class="page">
-    <SiteNav />
+  <WorkbenchShell title="团队">
+    <template #meta>
+      共 {{ teams.length }} 个团队 · 队长 {{ ownerCount }} 人<br />
+      团队内共享格式方案、排版任务与结果
+    </template>
 
-    <main class="content">
-      <section class="create-card">
-        <h3>创建团队</h3>
-        <p class="sub">团队成员可共享模板、查看彼此排版任务与结果</p>
-        <div class="create-row">
-          <el-input v-model="newName" placeholder="团队名称" maxlength="64" style="width: 220px" />
-          <el-input v-model="newDesc" placeholder="团队简介（可选）" maxlength="120" style="width: 300px" @keyup.enter="create" />
-          <el-button type="primary" :loading="creating" @click="create">创建团队</el-button>
-        </div>
-      </section>
+    <template #toolbar>
+      <div class="flt">
+        <label class="flt-search">
+          <span class="flt-k">团队名称</span>
+          <input v-model="newName" type="text" maxlength="64" placeholder="如：张老师课题组" />
+        </label>
+        <label class="flt-search wide">
+          <span class="flt-k">简介</span>
+          <input v-model="newDesc" type="text" maxlength="120" placeholder="可选，一句话说明这个团队在做什么" @keyup.enter="create" />
+        </label>
+        <button class="wbtn solid" type="button" :disabled="creating" @click="create">
+          {{ creating ? '创建中…' : '创建团队' }}
+        </button>
+        <span class="flt-count">{{ teams.length }} 个团队</span>
+      </div>
+    </template>
 
-      <section class="team-section">
-        <h3>我的团队</h3>
-        <div v-if="teams.length" class="team-grid">
-          <div class="team-card" v-for="t in teams" :key="t.id" @click="openDetail(t)">
-            <div class="team-top">
-              <span class="team-icon">{{ t.name.slice(0, 1).toUpperCase() }}</span>
-              <span class="role-tag" :class="roleClass(t.role)">{{ roleLabel(t.role) }}</span>
-            </div>
-            <h4 class="team-name">{{ t.name }}</h4>
-            <p class="team-desc">{{ t.description || '暂无简介' }}</p>
-            <span class="team-meta">{{ t.memberCount }} 名成员</span>
-          </div>
+    <section class="teams" ref="createRef">
+      <h2 class="sec-h">我的团队</h2>
+
+      <ul v-if="teams.length" class="team-rows">
+        <li v-for="t in teams" :key="t.id" class="team-row" @click="openDetail(t)">
+          <span class="t-mark">{{ t.name.slice(0, 1).toUpperCase() }}</span>
+          <span class="t-main">
+            <span class="t-name">{{ t.name }}</span>
+            <span class="t-desc">{{ t.description || '暂无简介' }}</span>
+          </span>
+          <span class="t-role" :class="roleClass(t.role)">{{ roleLabel(t.role) }}</span>
+          <span class="t-count">{{ t.memberCount }} 名成员</span>
+          <span class="t-go" aria-hidden="true">→</span>
+        </li>
+      </ul>
+
+      <div v-else class="t-empty">
+        <p class="t-empty-k">还没有团队</p>
+        <p class="t-empty-d">团队里可以共享格式方案、看到彼此的排版任务与结果；创建后把同学或导师拉进来即可。</p>
+        <div class="t-empty-a">
+          <button class="wbtn solid" type="button" @click="focusCreate">创建团队</button>
         </div>
-        <el-empty v-else description="还没有团队，创建一个开始协作吧" :image-size="80" />
-      </section>
-    </main>
+      </div>
+    </section>
 
     <el-dialog v-model="dlg" :title="d ? d.name : '团队详情'" width="640px" destroy-on-close>
       <template v-if="d">
@@ -78,13 +95,13 @@
         <el-button @click="dlg = false">关闭</el-button>
       </template>
     </el-dialog>
-  </div>
+  </WorkbenchShell>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import SiteNav from '../components/SiteNav.vue'
+import WorkbenchShell from '../components/WorkbenchShell.vue'
 import { createTeam, listTeams, getTeamDetail, inviteMember, removeMember, leaveTeam, deleteTeam, setMemberRole, transferOwnership } from '../api/team'
 import { getProfile } from '../api/user'
 
@@ -97,6 +114,12 @@ const d = ref(null)
 const inviteKw = ref('')
 const inviting = ref(false)
 const meId = ref(null)
+const createRef = ref(null)
+const ownerCount = computed(() => teams.value.filter(t => t.role === 'owner').length)
+
+function focusCreate() {
+  if (createRef.value) createRef.value.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
 
 async function load() {
   try {
@@ -225,7 +248,7 @@ onMounted(async () => {
   load()
   try {
     const p = await getProfile()
-    if (p) meId.value = p.userId
+    if (p) meId.value = p.userId ?? p.id
   } catch (e) {}
 })
 </script>
@@ -400,4 +423,228 @@ onMounted(async () => {
 @media (max-width: 800px) {
   .team-grid { grid-template-columns: 1fr 1fr; }
 }
+
+/* ============================================================
+   团队页：行式团队清单 + 成员表（沿用工作台通用语汇）
+   ============================================================ */
+.teams {
+  margin-top: 8px;
+}
+.team-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--ink);
+}
+.team-row {
+  display: grid;
+  grid-template-columns: 48px 1fr 96px 120px 24px;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--hair);
+  cursor: pointer;
+  transition: background 0.14s ease;
+}
+.team-row:hover {
+  background: #fff;
+}
+.t-mark {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--ink);
+  font-size: 16px;
+  font-weight: 700;
+}
+.t-main {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.t-name {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.t-desc {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.t-role {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--ink-2);
+  border: 1px solid var(--hair);
+  padding: 3px 8px;
+  text-align: center;
+}
+.t-role.owner {
+  border-color: var(--ink);
+  color: var(--ink);
+  font-weight: 700;
+}
+.t-role.admin {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+.t-count {
+  font-size: 13px;
+  color: var(--ink-3);
+  text-align: right;
+}
+.t-go {
+  font-size: 18px;
+  color: var(--red);
+  transition: transform 0.16s ease;
+}
+.team-row:hover .t-go {
+  transform: translateX(4px);
+}
+
+/* 成员弹窗 */
+.invite-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.pending-box {
+  border: 1px solid var(--hair);
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+.pending-title {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  margin-bottom: 8px;
+}
+.pending-item {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 6px 0;
+  border-top: 1px solid var(--hair-soft);
+  font-size: 13.5px;
+}
+.pi-name {
+  color: var(--ink);
+  font-weight: 500;
+}
+.pi-muted,
+.muted {
+  color: var(--ink-3);
+  font-size: 12.5px;
+}
+:deep(.member-table) {
+  border: 0;
+}
+:deep(.member-table .el-table__cell) {
+  border-color: var(--hair-soft);
+}
+:deep(.member-table th.el-table__cell) {
+  border-bottom: 1px solid var(--ink);
+  background: transparent;
+  font-weight: 400;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+:deep(.member-table .el-button) {
+  height: auto;
+  padding: 0 0 2px;
+  border: 0;
+  background: none !important;
+}
+:deep(.member-table .el-button--primary) {
+  color: var(--ink) !important;
+  font-weight: 700;
+  border-bottom: 2px solid var(--red);
+}
+:deep(.member-table .el-button--danger) {
+  color: var(--ink-3) !important;
+}
+:deep(.member-table .el-button--danger:hover) {
+  color: var(--red) !important;
+}
+:deep(.member-table .el-tag) {
+  border-radius: 0;
+  background: none;
+}
+
+@media (max-width: 900px) {
+  .team-row {
+    grid-template-columns: 40px 1fr 24px;
+    row-gap: 8px;
+    padding: 16px 0;
+  }
+  .t-role,
+  .t-count {
+    grid-column: 2;
+    justify-self: start;
+    text-align: left;
+  }
+  .t-go {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  .t-name {
+    font-size: 17px;
+  }
+}
+
+
+/* 角色标签：旧的彩色胶囊 → 硬线方块 */
+:deep(.role-tag) {
+  border-radius: 0;
+  padding: 3px 8px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  background: none !important;
+  border: 1px solid var(--hair);
+  color: var(--ink-2) !important;
+  font-weight: 400;
+}
+:deep(.role-tag.owner),
+:deep(.role-tag.admin) {
+  border-color: var(--ink);
+  color: var(--ink) !important;
+  font-weight: 700;
+}
+
+
+/* 弹窗底部按钮：硬边、方角、红为危险动作 */
+:deep(.el-dialog__footer .el-button) {
+  border-radius: 0;
+  height: 34px;
+  padding: 0 16px;
+  font-family: inherit;
+  border: 1px solid var(--ink);
+  background: none;
+  color: var(--ink);
+}
+:deep(.el-dialog__footer .el-button:hover) {
+  background: var(--ink);
+  color: #fff;
+}
+:deep(.el-dialog__footer .el-button--danger) {
+  border-color: var(--red);
+  color: var(--red);
+}
+:deep(.el-dialog__footer .el-button--danger:hover) {
+  background: var(--red);
+  color: #fff;
+}
+:deep(.member-table .el-button + .el-button) {
+  margin-left: 12px;
+}
+:deep(.el-dialog__body) {
+  padding-top: 6px;
+}
+
 </style>

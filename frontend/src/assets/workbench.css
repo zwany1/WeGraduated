@@ -1,0 +1,211 @@
+/* ============================================================
+   工作台通用语汇（全站共享，随 main.css 一起加载）
+   只放跨页面复用的原子：筛选条、按钮、分页、空状态、区块标题
+   ============================================================ */
+
+/* 筛选条 */
+.flt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  width: 100%;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--hair, #c1c1c3);
+}
+.flt-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.chip {
+  height: 38px;
+  padding: 0 14px;
+  background: none;
+  border: 1px solid var(--hair, #c1c1c3);
+  font-family: inherit;
+  font-size: 13.5px;
+  color: var(--ink-2, #3f3f3f);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.chip:hover {
+  border-color: var(--ink, #0a0909);
+  color: var(--ink, #0a0909);
+}
+.chip.on {
+  border-color: var(--ink, #0a0909);
+  color: var(--ink, #0a0909);
+  font-weight: 700;
+}
+.flt-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 38px;
+  padding: 0 12px;
+  background: #fff;
+  border: 1px solid var(--ink, #0a0909);
+  min-width: 240px;
+}
+.flt-search.wide {
+  min-width: 340px;
+  flex: 1;
+  max-width: 520px;
+}
+.flt-k {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--ink-3, #6b6b6b);
+  white-space: nowrap;
+}
+.flt-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--ink, #0a0909);
+}
+.flt-count {
+  margin-left: auto;
+  font-size: 12.5px;
+  color: var(--ink-3, #6b6b6b);
+  letter-spacing: 0.05em;
+}
+
+/* 按钮 */
+.wbtn {
+  height: 38px;
+  padding: 0 18px;
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  border: 0;
+  white-space: nowrap;
+}
+.wbtn.solid {
+  background: var(--red, #dd2627);
+  color: #fff;
+  font-weight: 700;
+}
+.wbtn.solid:hover {
+  background: #b91d1e;
+}
+.wbtn.solid:disabled {
+  background: var(--hair, #c1c1c3);
+  cursor: not-allowed;
+}
+.wbtn.ghost {
+  background: none;
+  border: 1px solid var(--ink, #0a0909);
+  color: var(--ink, #0a0909);
+}
+.wbtn.ghost:hover {
+  background: var(--ink, #0a0909);
+  color: #f7f6f6;
+}
+.wbtn.ghost:disabled {
+  border-color: var(--hair, #c1c1c3);
+  color: var(--hair, #c1c1c3);
+  background: none;
+  cursor: not-allowed;
+}
+.wbtn.ghost.danger:not(:disabled):hover {
+  background: var(--red, #dd2627);
+  border-color: var(--red, #dd2627);
+  color: #fff;
+}
+
+/* 分页 */
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--ink-2, #3f3f3f);
+}
+.pager button {
+  background: none;
+  border: 1px solid var(--hair, #c1c1c3);
+  height: 30px;
+  padding: 0 12px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--ink-2, #3f3f3f);
+  cursor: pointer;
+}
+.pager button:disabled {
+  color: var(--hair, #c1c1c3);
+  border-color: #e4e4e4;
+  cursor: not-allowed;
+}
+.pager b {
+  color: var(--ink, #0a0909);
+}
+
+/* 区块标题 */
+.sec-h {
+  margin: 0 0 14px;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  color: var(--ink, #0a0909);
+}
+
+/* 空状态 */
+.t-empty {
+  padding: 48px 0 56px;
+  border-bottom: 1px solid #e4e4e4;
+}
+.t-empty-k {
+  margin: 0 0 10px;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--ink, #0a0909);
+}
+.t-empty-d {
+  margin: 0 0 20px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--ink-2, #3f3f3f);
+  max-width: 520px;
+}
+.t-empty-a {
+  display: flex;
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .flt {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .flt-search,
+  .flt-search.wide {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+  .flt-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .chip {
+    flex: none;
+  }
+  .flt-count {
+    margin-left: 0;
+  }
+  .sec-h {
+    font-size: 18px;
+  }
+  .t-empty-k {
+    font-size: 20px;
+  }
+}

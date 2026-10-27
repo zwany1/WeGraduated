@@ -1,107 +1,143 @@
 <template>
-  <div class="page">
-    <SiteNav />
+  <WorkbenchShell title="排版任务">
+    <template #meta>
+      共 {{ tasks.length }} 个任务 · 进行中 {{ runningCount }} / 已完成 {{ doneCount }} / 失败 {{ failedCount }}<br />
+      上传论文 → 选方案 → 批量排版，进度实时推送
+    </template>
 
-    <main class="content">
-      <section ref="uploadSectionRef" class="upload-box">
-        <el-upload
-          drag
-          multiple
-          :auto-upload="false"
-          :limit="10"
-          accept=".docx"
-          :on-change="onFileChange"
-          :on-remove="onFileRemove"
-          :file-list="fileList"
-          style="width: 100%"
-        >
-          <el-icon class="el-icon--upload"><upload-filled /></el-icon>
-          <div class="el-upload__text">将论文拖到此处，或<em>点击上传</em>（仅支持 .docx，可一次选择多篇）</div>
-        </el-upload>
-        <div class="format-row">
-          <span>选择格式方案：</span>
-          <el-select v-model="templateId" placeholder="请选择格式方案" style="width: 260px">
-            <el-option v-for="t in templates" :key="t.id" :label="t.name" :value="t.id" />
-            <template #empty>
-              <div style="padding:10px 12px;font-size:13px;color:#8B968D;line-height:1.6">
-                <div>还没有格式方案</div>
-                <router-link to="/templates" style="color:#2F5D46;font-weight:600">去创建一个 →</router-link>
-              </div>
-            </template>
-          </el-select>
-          <el-button type="primary" :loading="submitting" @click="submit">批量排版</el-button>
-          <span v-if="selectedFiles.length" class="file-count">已选 {{ selectedFiles.length }} 篇</span>
+    <template #actions>
+      <button class="wbtn ghost" type="button" :disabled="!selectedTasks.length || batchDownloading" @click="downloadBatch">
+        批量下载{{ selectedTasks.length ? `（${selectedTasks.length}）` : '' }}
+      </button>
+      <button class="wbtn ghost danger" type="button" :disabled="!selectedTasks.length || batchDeleting" @click="removeTasks">
+        批量删除{{ selectedTasks.length ? `（${selectedTasks.length}）` : '' }}
+      </button>
+      <button class="wbtn solid" type="button" @click="scrollToUpload">上传论文</button>
+    </template>
+
+    <template #toolbar>
+      <div class="flt">
+        <div class="flt-chips">
+          <button :class="['chip', { on: statusFilter === '' }]" type="button" @click="statusFilter = ''">全部</button>
+          <button :class="['chip', { on: statusFilter === 'processing' }]" type="button" @click="statusFilter = 'processing'">处理中</button>
+          <button :class="['chip', { on: statusFilter === 'SUCCESS' }]" type="button" @click="statusFilter = 'SUCCESS'">已完成</button>
+          <button :class="['chip', { on: statusFilter === 'FAILED' }]" type="button" @click="statusFilter = 'FAILED'">失败</button>
+          <button :class="['chip', { on: groupByPaper }]" type="button" @click="groupByPaper = !groupByPaper">按论文分组</button>
+          <button :class="['chip', { on: notifyEnabled }]" type="button" @click="toggleNotify(!notifyEnabled)">桌面通知</button>
         </div>
+        <label class="flt-search">
+          <span class="flt-k">搜索</span>
+          <input v-model="taskKeyword" type="search" placeholder="论文文件名" />
+        </label>
+        <span class="flt-count">{{ filteredTasks.length }} / {{ tasks.length }}</span>
+      </div>
+    </template>
+
+      <section ref="uploadSectionRef" class="upload">
+        <div class="upload-head">
+          <h2>把论文拖进来</h2>
+          <p>仅支持 .docx，一次最多 10 篇。选好格式方案后点「批量排版」，进度会实时推到这里。</p>
+        </div>
+
+        <div class="upload-drop">
+          <el-upload
+            drag
+            multiple
+            :auto-upload="false"
+            :limit="10"
+            accept=".docx"
+            :on-change="onFileChange"
+            :on-remove="onFileRemove"
+            :file-list="fileList"
+            :show-file-list="false"
+            class="drop-el"
+          >
+            <div class="drop-inner">
+              <svg viewBox="0 0 24 24" aria-hidden="true" class="drop-icon">
+                <path d="M12 3v10m0 0l-4-4m4 4l4-4" />
+                <path d="M4 16v3h16v-3" />
+              </svg>
+              <span class="drop-k">拖到这里，或点击选择文件</span>
+              <span class="drop-d">.docx · 单篇不超过 50 MB</span>
+            </div>
+          </el-upload>
+        </div>
+
+        <div class="upload-set">
+          <label class="set">
+            <span class="set-k">格式方案</span>
+            <el-select v-model="templateId" placeholder="选一套校规配置" style="width: 100%">
+              <el-option v-for="t in templates" :key="t.id" :label="t.name" :value="t.id" />
+              <template #empty>
+                <div class="sel-empty">
+                  <div>还没有格式方案</div>
+                  <router-link to="/templates">去创建一个 →</router-link>
+                </div>
+              </template>
+            </el-select>
+          </label>
+          <div class="set-act">
+            <span class="set-count">已选 {{ selectedFiles.length }} 篇</span>
+            <button class="wbtn solid" type="button" :disabled="submitting" @click="submit">
+              {{ submitting ? '提交中…' : '批量排版' }}
+            </button>
+          </div>
+        </div>
+
+        <ul v-if="selectedFiles.length" class="picked">
+          <li v-for="(f, i) in selectedFiles" :key="i">
+            <span class="picked-name">{{ f.name || f.raw?.name }}</span>
+            <span class="picked-size">{{ formatSize(f.size || f.raw?.size) }}</span>
+            <span class="picked-state">待提交</span>
+          </li>
+        </ul>
       </section>
 
       <section class="task-list">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <h3 style="margin:0">历史任务</h3>
-          <div class="task-batch">
-            <el-button size="small" type="success" :disabled="!selectedTasks.length || batchDownloading" @click="downloadBatch">批量下载{{ selectedTasks.length ? `（${selectedTasks.length}）` : '' }}</el-button>
-            <el-button size="small" type="danger" plain :disabled="!selectedTasks.length || batchDeleting" @click="removeTasks">批量删除{{ selectedTasks.length ? `（${selectedTasks.length}）` : '' }}</el-button>
-          </div>
-        </div>
-        <div class="task-filter">
-          <el-radio-group v-model="statusFilter" size="small">
-            <el-radio-button label="">全部</el-radio-button>
-            <el-radio-button label="processing">处理中</el-radio-button>
-            <el-radio-button label="SUCCESS">已完成</el-radio-button>
-            <el-radio-button label="FAILED">失败</el-radio-button>
-          </el-radio-group>
-          <el-checkbox v-model="groupByPaper" size="small" style="margin-left: 8px">按论文分组(版本历史)</el-checkbox>
-          <el-checkbox :model-value="notifyEnabled" size="small" style="margin-left: 4px" @change="toggleNotify" title="浏览器桌面通知, 排版完成/失败时提醒">桌面通知</el-checkbox>
-          <el-input v-model="taskKeyword" placeholder="搜索论文文件名" clearable :prefix-icon="Search" style="width: 220px" />
-          <span class="task-count">{{ filteredTasks.length }} / {{ tasks.length }}</span>
-        </div>
+        <h2 class="sec-h">历史任务</h2>
         <el-table :data="pagedTasks" :span-method="taskSpan" @selection-change="handleSelectionChange">
           <template #empty>
-            <el-empty description="还没有排版任务：先在上方上传论文，选一个格式方案开始">
-              <el-button type="primary" @click="scrollToUpload">去上传论文</el-button>
-              <el-button @click="$router.push('/templates')">去配置格式方案</el-button>
-            </el-empty>
+            <div class="t-empty">
+              <p class="t-empty-k">还没有排版任务</p>
+              <p class="t-empty-d">先在上方上传论文，选一套格式方案，点「批量排版」。跑完可以预览、对比前后差异、下载成稿。</p>
+              <div class="t-empty-a">
+                <button class="wbtn solid" type="button" @click="scrollToUpload">去上传论文</button>
+                <button class="wbtn ghost" type="button" @click="$router.push('/templates')">去配置格式方案</button>
+              </div>
+            </div>
           </template>
           <el-table-column type="selection" width="44" />
-          <el-table-column prop="id" label="ID" width="60" />
-          <el-table-column label="论文" min-width="140">
+          <el-table-column label="论文" min-width="220">
             <template #default="{ row }">
               {{ fileName(row) }}
               <div v-if="groupByPaper" class="version-sub">{{ paperVersionLabel(row) }}</div>
             </template>
           </el-table-column>
-          <el-table-column label="格式方案" min-width="140">
+          <el-table-column label="格式方案" min-width="180">
             <template #default="{ row }">{{ templateName(row) }}</template>
           </el-table-column>
-          <el-table-column label="来源" width="100">
+          <el-table-column label="来源" width="84">
             <template #default="{ row }">
               <span v-if="row.teamId && teamMap[row.teamId]" class="src-team">团队</span>
               <span v-else class="src-mine">个人</span>
             </template>
           </el-table-column>
-          <el-table-column label="状态" width="140">
+          <el-table-column label="状态" width="180">
             <template #default="{ row }">
-              <el-tag v-if="row.status === 'SUCCESS'" type="success">已完成</el-tag>
-              <el-tag v-else-if="row.status === 'FAILED'" type="danger" class="fail-tag" @click="showError(row)">失败</el-tag>
-              <el-tag v-else type="warning">处理中</el-tag>
-              <el-progress
-                v-if="row.status === 'PROCESSING' || row.status === 'PENDING'"
-                :percentage="row.progress"
-                :stroke-width="6"
-                style="width: 120px; margin-top: 4px"
-              />
-              <div v-if="row.stageText && (row.status === 'PROCESSING' || row.status === 'PENDING')" class="stage-text">{{ row.stageText }}</div>
+              <div class="st-cell">
+                <el-tag v-if="row.status === 'SUCCESS'" type="success">已完成</el-tag>
+                <el-tag v-else-if="row.status === 'FAILED'" type="danger" class="fail-tag" @click="showError(row)">失败</el-tag>
+                <el-tag v-else type="warning">处理中</el-tag>
+                <el-progress
+                  v-if="row.status === 'PROCESSING' || row.status === 'PENDING'"
+                  :percentage="row.progress"
+                  :stroke-width="6"
+                />
+                <div v-if="row.stageText && (row.status === 'PROCESSING' || row.status === 'PENDING')" class="stage-text">{{ row.stageText }}</div>
+              </div>
             </template>
           </el-table-column>
-          <el-table-column label="失败原因" min-width="100">
-            <template #default="{ row }">
-              <el-button v-if="row.status === 'FAILED' && row.errorMsg" text type="danger" size="small" @click="showError(row)">
-                查看原因
-              </el-button>
-              <span v-else-if="row.status === 'FAILED'" style="color:#B3BCB2">无</span>
-              <span v-else style="color:#B3BCB2">—</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="490" fixed="right">
+          <el-table-column label="操作" min-width="300">
             <template #default="{ row }">
               <div class="op-row">
                 <el-button v-if="row.status === 'SUCCESS'" size="small" @click="preview(row)">预览</el-button>
@@ -109,13 +145,14 @@
                 <el-button v-if="row.status === 'SUCCESS'" size="small" type="warning" plain @click="openReport(row)">报告</el-button>
                 <el-button v-if="row.status === 'SUCCESS'" size="small" type="primary" @click="download(row)">下载</el-button>
                 <el-button v-if="row.status === 'SUCCESS'" size="small" plain @click="reformatSame(row)" title="用同一篇论文和同一模板再排一次">再排一次</el-button>
+                <el-button v-if="row.status === 'FAILED'" size="small" type="primary" @click="showError(row)">查看原因</el-button>
                 <el-button v-if="row.status === 'FAILED'" size="small" @click="retry(row)">重试</el-button>
                 <el-button v-if="row.status === 'SUCCESS' || row.status === 'FAILED'" size="small" plain @click="openRerun(row)">换模板</el-button>
                 <el-button size="small" type="danger" plain @click="removeTask(row)">删除</el-button>
               </div>
             </template>
           </el-table-column>
-          <el-table-column label="创建时间" width="170">
+          <el-table-column label="创建时间" width="150">
             <template #default="{ row }">{{ formatTime(row.createTime) }}</template>
           </el-table-column>
         </el-table>
@@ -123,7 +160,7 @@
       </section>
 
       <section class="file-list">
-        <h3>我的上传文档</h3>
+        <h2 class="sec-h">我的上传文档</h2>
         <el-table :data="files" empty-text="暂无上传文档">
           <el-table-column label="文件名" min-width="180">
             <template #default="{ row }">{{ row.originalName }}</template>
@@ -144,7 +181,16 @@
           </el-table-column>
         </el-table>
       </section>
-    </main>
+    <template #footer>
+      <span>任务完成后可预览、对比前后差异、下载成稿；失败任务支持重试与换模板重排</span>
+      <span v-if="filteredTasks.length > taskPageSize" class="pager">
+        <button type="button" :disabled="taskPage === 1" @click="taskPage--">上一页</button>
+        <b>{{ taskPage }}</b>
+        <span>/ {{ Math.ceil(filteredTasks.length / taskPageSize) }}</span>
+        <button type="button" :disabled="taskPage >= Math.ceil(filteredTasks.length / taskPageSize)" @click="taskPage++">下一页</button>
+      </span>
+    </template>
+  </WorkbenchShell>
 
     <el-dialog v-model="previewVisible" title="排版结果预览" width="80%" top="4vh" destroy-on-close @closed="onPreviewClosed">
       <div style="height: 72vh">
@@ -303,7 +349,6 @@
         </ul>
       </div>
     </el-dialog>
-  </div>
 </template>
 
 <script setup>
@@ -316,7 +361,7 @@ import { listTeams } from '../api/team'
 import { uploadPaper, startFormat, startFormatBatch, listTasks, getTask, downloadPaper, downloadPaperBatch, downloadPaperOriginal, getDiff, progressTicket, deleteTask, deleteTaskBatch, listFiles, deleteFile, getTaskReport, refineTask } from '../api/paper'
 import DocxCompare from '../components/DocxCompare.vue'
 import { extractHeadings } from '../utils/docxHeadings'
-import SiteNav from '../components/SiteNav.vue'
+import WorkbenchShell from '../components/WorkbenchShell.vue'
 
 const route = useRoute()
 const templates = ref([])
@@ -345,6 +390,10 @@ const filteredTasks = computed(() => {
     return true
   })
 })
+const runningCount = computed(() => tasks.value.filter(t => t.status === 'PENDING' || t.status === 'PROCESSING').length)
+const doneCount = computed(() => tasks.value.filter(t => t.status === 'SUCCESS').length)
+const failedCount = computed(() => tasks.value.filter(t => t.status === 'FAILED').length)
+
 const pagedTasks = computed(() => {
   // 按论文分组查看: 同一篇论文的多次排版(版本历史)聚在一起, 新版本在上
   let list = filteredTasks.value
@@ -1454,4 +1503,580 @@ function formatTime(t) {
   width: 80px;
   color: #8B968D;
 }
+
+/* ============================================================
+   瑞士体系覆盖层（保留原有弹窗样式，只重做页级与表格）
+   ============================================================ */
+.flt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  width: 100%;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--hair);
+}
+.flt-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.chip {
+  height: 38px;
+  padding: 0 14px;
+  background: none;
+  border: 1px solid var(--hair);
+  font-family: inherit;
+  font-size: 13.5px;
+  color: var(--ink-2);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.chip:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+.chip.on {
+  border-color: var(--ink);
+  color: var(--ink);
+  font-weight: 700;
+}
+.flt-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 38px;
+  padding: 0 12px;
+  background: #fff;
+  border: 1px solid var(--ink);
+  min-width: 240px;
+}
+.flt-k {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+.flt-search input {
+  flex: 1;
+  border: 0;
+  outline: none;
+  background: none;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--ink);
+}
+.flt-count {
+  margin-left: auto;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  letter-spacing: 0.05em;
+}
+
+.wbtn {
+  height: 38px;
+  padding: 0 18px;
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  border: 0;
+  white-space: nowrap;
+}
+.wbtn.solid {
+  background: var(--red);
+  color: #fff;
+  font-weight: 700;
+}
+.wbtn.solid:disabled {
+  background: var(--hair);
+  cursor: not-allowed;
+}
+.wbtn.ghost {
+  background: none;
+  border: 1px solid var(--ink);
+  color: var(--ink);
+}
+.wbtn.ghost:disabled {
+  border-color: var(--hair);
+  color: var(--hair);
+  cursor: not-allowed;
+}
+.wbtn.ghost.danger:not(:disabled):hover {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+}
+
+/* ---------------- 上传区 ---------------- */
+.upload {
+  margin: 8px 0 40px;
+}
+.upload-head h2 {
+  margin: 0 0 8px;
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+.upload-head p {
+  margin: 0 0 20px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  max-width: 720px;
+}
+.upload-drop :deep(.el-upload) {
+  width: 100%;
+}
+.upload-drop :deep(.el-upload-dragger) {
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  background: #fff;
+  padding: 0;
+  transition: background 0.16s ease;
+}
+.upload-drop :deep(.el-upload-dragger:hover),
+.upload-drop :deep(.el-upload-dragger.is-dragover) {
+  background: #fcecec;
+  border-color: var(--red);
+}
+.drop-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 34px 28px;
+  text-align: left;
+}
+.drop-icon {
+  width: 28px;
+  height: 28px;
+  stroke: var(--ink);
+  stroke-width: 1.5;
+  fill: none;
+  margin-bottom: 6px;
+}
+.drop-k {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.drop-d {
+  font-size: 13px;
+  color: var(--ink-3);
+  letter-spacing: 0.04em;
+}
+
+.upload-set {
+  display: flex;
+  align-items: flex-end;
+  gap: 24px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+.set {
+  display: grid;
+  gap: 8px;
+  min-width: 320px;
+  flex: 1;
+  max-width: 480px;
+}
+.set-k {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+.set-act {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+}
+.set-count {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.sel-empty {
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ink-3);
+}
+.sel-empty a {
+  color: var(--red);
+  font-weight: 700;
+}
+
+.picked {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  border-top: 1px solid var(--ink);
+}
+.picked li {
+  display: grid;
+  grid-template-columns: 1fr 120px 90px;
+  gap: 16px;
+  align-items: baseline;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--hair-soft);
+  font-size: 14px;
+}
+.picked-name {
+  color: var(--ink);
+  font-weight: 500;
+  word-break: break-all;
+}
+.picked-size {
+  color: var(--ink-3);
+  font-size: 13px;
+}
+.picked-state {
+  color: var(--ink-3);
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
+  text-align: right;
+}
+
+/* ---------------- 区块标题 ---------------- */
+.t-empty {
+  padding: 48px 0 56px;
+  text-align: left;
+}
+.t-empty-k {
+  margin: 0 0 10px;
+  font-size: 24px;
+  font-weight: 700;
+}
+.t-empty-d {
+  margin: 0 0 20px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  max-width: 520px;
+}
+.t-empty-a {
+  display: flex;
+  gap: 12px;
+}
+
+.sec-h {
+  margin: 0 0 14px;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+.task-list,
+.file-list {
+  margin-bottom: 40px;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+}
+:deep(.el-table) {
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+  --el-table-header-bg-color: transparent;
+}
+:deep(.el-table__inner-wrapper) {
+  background: transparent;
+}
+:deep(.el-table__empty-block) {
+  background: transparent;
+}
+:deep(.op-row .el-button) {
+  height: auto;
+  padding: 0 0 2px;
+  border: 0;
+  background: none !important;
+  color: var(--ink-2) !important;
+  font-size: 13.5px;
+  border-bottom: 1px solid transparent;
+}
+:deep(.op-row .el-button:hover) {
+  color: var(--ink) !important;
+  border-bottom-color: var(--hair);
+}
+:deep(.op-row .el-button--primary) {
+  color: var(--ink) !important;
+  font-weight: 700;
+  border-bottom: 2px solid var(--red);
+}
+:deep(.op-row .el-button--success) {
+  color: var(--ink) !important;
+}
+:deep(.op-row .el-button--danger:hover) {
+  color: var(--red) !important;
+  border-bottom-color: var(--red);
+}
+
+/* ---------------- Element 表格：硬线、透明表头、无圆角 ---------------- */
+:deep(.el-table) {
+  --el-table-border-color: var(--hair-soft);
+  --el-table-header-text-color: var(--ink-3);
+  --el-table-text-color: var(--ink-2);
+  --el-table-row-hover-bg-color: #fff;
+  background: transparent;
+  font-size: 14px;
+}
+:deep(.el-table tr),
+:deep(.el-table th.el-table__cell) {
+  background: transparent;
+}
+:deep(.el-table th.el-table__cell) {
+  font-weight: 400;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid var(--ink);
+  padding: 6px 0;
+}
+:deep(.el-table td.el-table__cell) {
+  border-bottom: 1px solid var(--hair-soft);
+  padding: 14px 0;
+  vertical-align: top;
+}
+:deep(.el-table__inner-wrapper::before) {
+  display: none;
+}
+:deep(.el-table .cell) {
+  padding: 0 12px 0 0;
+}
+:deep(.el-tag) {
+  border-radius: 0;
+  background: none;
+  font-weight: 500;
+}
+:deep(.el-tag--success) {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+:deep(.el-tag--danger) {
+  border-color: var(--red);
+  color: var(--red);
+}
+:deep(.el-tag--warning) {
+  border-color: var(--hair);
+  color: var(--ink-2);
+}
+:deep(.el-progress-bar__outer) {
+  background: var(--hair-soft);
+  border-radius: 0;
+}
+:deep(.el-progress-bar__inner) {
+  background: var(--red);
+  border-radius: 0;
+}
+:deep(.el-progress__text) {
+  display: none;
+}
+:deep(.el-checkbox__inner) {
+  border-radius: 0;
+}
+:deep(.el-pagination) {
+  display: none;
+}
+
+.stage-text {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--ink-3);
+  line-height: 1.5;
+}
+.version-sub {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.src-team,
+.src-mine {
+  font-size: 12.5px;
+  letter-spacing: 0.05em;
+}
+.src-team {
+  color: var(--ink);
+  font-weight: 700;
+}
+.src-mine {
+  color: var(--ink-3);
+}
+.op-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+:deep(.op-row .el-button) {
+  border-radius: 0;
+  margin: 0;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.pager button {
+  background: none;
+  border: 1px solid var(--hair);
+  height: 30px;
+  padding: 0 12px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.pager button:disabled {
+  color: var(--hair);
+  border-color: var(--hair-soft);
+  cursor: not-allowed;
+}
+.pager b {
+  color: var(--ink);
+}
+
+@media (max-width: 900px) {
+  .task-list,
+  .file-list {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .task-list :deep(.el-table),
+  .file-list :deep(.el-table) {
+    min-width: 760px;
+  }
+  .flt {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .flt-search {
+    width: 100%;
+    min-width: 0;
+  }
+  .flt-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .chip {
+    flex: none;
+  }
+  .flt-count {
+    margin-left: 0;
+  }
+  .upload-head h2 {
+    font-size: 22px;
+  }
+  .drop-inner {
+    padding: 24px 18px;
+  }
+  .drop-k {
+    font-size: 16px;
+  }
+  .set {
+    min-width: 0;
+  }
+  .set-act {
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
+  }
+  .picked li {
+    grid-template-columns: 1fr 80px;
+  }
+  .picked-state {
+    display: none;
+  }
+  .t-empty {
+  padding: 48px 0 56px;
+  text-align: left;
+}
+.t-empty-k {
+  margin: 0 0 10px;
+  font-size: 24px;
+  font-weight: 700;
+}
+.t-empty-d {
+  margin: 0 0 20px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  max-width: 520px;
+}
+.t-empty-a {
+  display: flex;
+  gap: 12px;
+}
+
+.sec-h {
+    font-size: 18px;
+  }
+}
+
+
+/* 状态与来源：去掉旧主题的绿色胶囊 */
+:deep(.src-team),
+:deep(.src-mine) {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+}
+:deep(.src-team) {
+  color: var(--ink);
+  font-weight: 700;
+}
+:deep(.src-mine) {
+  color: var(--ink-3);
+}
+:deep(.el-tag) {
+  background: none !important;
+  border: 1px solid var(--hair);
+  color: var(--ink-2);
+  height: 24px;
+  padding: 0 8px;
+  line-height: 22px;
+}
+:deep(.el-tag--danger) {
+  border-color: var(--red);
+  color: var(--red);
+}
+:deep(.el-tag--success) {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+.st-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.st-cell :deep(.el-progress) {
+  display: block;
+  width: 100%;
+  margin: 0;
+}
+.st-cell :deep(.el-progress-bar) {
+  padding: 0;
+  margin: 0;
+}
+:deep(.el-table .el-progress-bar) {
+  padding-right: 0;
+  margin-right: 0;
+}
+/* 上传文档的删除按钮同样走文字链 */
+:deep(.file-list .el-button) {
+  height: auto;
+  padding: 0 0 2px;
+  border: 0;
+  background: none !important;
+  color: var(--ink-3) !important;
+  font-size: 13.5px;
+  border-bottom: 1px solid transparent;
+}
+:deep(.file-list .el-button:hover) {
+  color: var(--red) !important;
+  border-bottom-color: var(--red);
+}
+
 </style>

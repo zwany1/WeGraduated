@@ -1,90 +1,59 @@
 <template>
   <div class="page">
-    <NavBar />
+    <PublicNav />
 
-    <section class="hero">
-      <div class="hero-inner">
-        <h1 class="hero-title">使用教程</h1>
-        <p class="hero-desc">四步上手，轻松完成论文排版</p>
-      </div>
-    </section>
+    <!-- 首屏：自查清单 · 勾选式 -->
+    <section class="wall" aria-label="使用教程">
+      <h1 class="g-title" data-reveal>使用教程</h1>
+      <p class="g-sub" data-reveal>照着勾，四步交卷</p>
 
-    <!-- 步骤 -->
-    <section class="section">
-      <div class="section-inner">
-        <div class="steps">
-          <div class="step" v-for="(s, i) in steps" :key="i">
-            <div class="step-num">{{ i + 1 }}</div>
-            <div class="step-icon" :class="s.color">
-              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" v-html="s.icon"></svg>
-            </div>
-            <h3 class="step-title">{{ s.title }}</h3>
-            <p class="step-desc">{{ s.desc }}</p>
-            <ul class="step-list">
-              <li v-for="(p, j) in s.points" :key="j">{{ p }}</li>
-            </ul>
+      <ol class="clist">
+        <li v-for="(s, i) in steps" :key="s.name" class="crow" data-reveal :style="{ '--ri': i }">
+          <span class="cbox" aria-hidden="true"></span>
+          <div class="cmain">
+            <h2 class="cname">{{ s.name }}</h2>
+            <p class="cdesc">{{ s.desc }}</p>
           </div>
-        </div>
-      </div>
+          <button class="cact" type="button" @click="go(s.to)">去做这步</button>
+        </li>
+      </ol>
+
+      <button class="g-cta" data-reveal type="button" @click="start">免费试用</button>
+      <div class="sec-rule" aria-hidden="true"></div>
+      <h2 class="faq-h">常见问题</h2>
     </section>
 
-    <!-- FAQ -->
-    <section class="section alt">
-      <div class="section-inner">
-        <h2 class="sec-title">常见问题</h2>
-        <p class="sec-sub">FAQ</p>
-        <div class="faq-list">
-          <div class="faq-item" v-for="(f, i) in faqs" :key="i">
-            <div class="faq-q" @click="toggle(i)">
-              <span>{{ f.q }}</span>
-              <svg :class="{ open: openIdx === i }" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6l4 4 4-4"/></svg>
-            </div>
-            <div v-if="openIdx === i" class="faq-a">{{ f.a }}</div>
-          </div>
-        </div>
-      </div>
+    <!-- 下折：常见问题 -->
+    <section class="faq" aria-label="常见问题">
+      <ul class="faq-list">
+        <li v-for="(f, i) in faqs" :key="i" class="frow" data-reveal :class="{ open: openIdx === i }">
+          <button class="fq" type="button" @click="toggle(i)" :aria-expanded="openIdx === i" :aria-controls="'faq-a-' + i">
+            <span class="fqt">{{ f.q }}</span>
+            <span class="fplus" aria-hidden="true"></span>
+          </button>
+          <p v-show="openIdx === i" :id="'faq-a-' + i" class="fa">{{ f.a }}</p>
+        </li>
+      </ul>
     </section>
 
-    <SiteFooter />
+    <PublicFooter />
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import NavBar from '../components/site/NavBar.vue'
-import SiteFooter from '../components/site/SiteFooter.vue'
+import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import PublicNav from '../components/PublicNav.vue'
+import PublicFooter from '../components/PublicFooter.vue'
 
+const router = useRouter()
 const openIdx = ref(0)
 
 const steps = [
-  {
-    title: '注册登录',
-    color: 'blue',
-    icon: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>',
-    desc: '创建账号并登录，邮箱 + 图形双重验证确保安全。',
-    points: ['邮箱注册（可选用户名）', '邮箱验证码验证', '登录后进入工作台']
-  },
-  {
-    title: '创建模板',
-    color: 'purple',
-    icon: '<line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="8" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="10" cy="18" r="2"/>',
-    desc: '选择预设模板或从零配置页面、标题、正文等全部排版规则。',
-    points: ['从模板市场选择预设', '配置页面/页边距/页眉页脚', '设置标题与正文格式', '图表编号与参考文献']
-  },
-  {
-    title: '上传排版',
-    color: 'green',
-    icon: '<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
-    desc: '上传 .docx 论文，选择模板一键自动排版。',
-    points: ['支持 .docx 格式', '自动识别章节结构', '按规则统一格式', '实时查看进度']
-  },
-  {
-    title: '下载交付',
-    color: 'orange',
-    icon: '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>',
-    desc: '预览排版效果，下载规范论文，还可导出 PDF。',
-    points: ['排版结果预览', '下载 .docx 文档', 'PDF 预览导出']
-  }
+  { name: '注册登录', desc: '拿到工作台账号', to: '/login' },
+  { name: '创建模板', desc: '存好你的校规方案', to: '/template-market' },
+  { name: '上传排版', desc: '得到排版结果', to: '/tasks' },
+  { name: '下载交付', desc: '下载合格论文', to: '/tasks' }
 ]
 
 const faqs = [
@@ -99,121 +68,339 @@ const faqs = [
 function toggle(i) {
   openIdx.value = openIdx.value === i ? -1 : i
 }
+
+function go(to) {
+  router.push(to)
+}
+function start() {
+  router.push(localStorage.getItem('token') ? '/tasks' : '/login')
+}
+
+onMounted(() => {
+  const els = document.querySelectorAll('[data-reveal]')
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) {
+    els.forEach(e => e.setAttribute('data-in', '1'))
+    return
+  }
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(en => {
+      if (en.isIntersecting) {
+        en.target.setAttribute('data-in', '1')
+        io.unobserve(en.target)
+      }
+    })
+  }, { threshold: 0.15 })
+  els.forEach(e => io.observe(e))
+})
 </script>
 
 <style scoped>
 .page {
-  --c-primary: #2F5D46;
-  --c-dark: #1F2E26;
-  --c-text: #33413A;
-  --c-text2: #5C6B60;
-  --c-text3: #8B968D;
-  --c-border: #E3E0D5;
-  --c-bg2: #F6F4EE;
-  font-family: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
-  color: var(--c-text);
-  background: #fff;
+  --paper: #f7f6f6;
+  --ink: #0a0909;
+  --ink-2: #3f3f3f;
+  --red: #dd2627;
+  --hair: #c1c1c3;
+  --hair-2: #e4e4e4;
+  --u: calc(min(100vw, 1536px) / 1536);
   min-height: 100vh;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
-.hero {
-  background: linear-gradient(180deg, #F1EEE5 0%, #fff 100%);
-  padding: 64px 32px;
-  text-align: center;
+
+/* 导航对齐样张：102 高、无下边线 */
+.page :deep(.pn) {
+  height: calc(102 * var(--u));
+  border-bottom: 0;
+  padding: calc(14 * var(--u)) calc(80 * var(--u)) 0;
 }
-.hero-title { font-size: 38px; font-weight: 800; color: var(--c-dark); margin: 0 0 10px; }
-.hero-desc { font-size: 16px; color: var(--c-text2); margin: 0; }
-.section { padding: 56px 32px; }
-.section.alt { background: var(--c-bg2); }
-.section-inner { max-width: 1000px; margin: 0 auto; }
-.sec-title { font-size: 26px; font-weight: 700; color: var(--c-dark); text-align: center; margin: 0 0 8px; }
-.sec-sub { text-align: center; color: var(--c-text2); margin: 0 0 32px; font-size: 15px; }
-.steps {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-}
-.step {
+
+.wall {
   position: relative;
-  background: #fff;
-  border: 1px solid var(--c-border);
-  border-radius: 16px;
-  padding: 28px 22px 22px;
-  text-align: center;
-}
-.step-num {
-  position: absolute;
-  top: -14px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--c-primary);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.step-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 12px;
-  margin: 8px auto 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.step-icon.blue { background: #E8EFE6; color: #2F5D46; }
-.step-icon.green { background: #ECFDF5; color: #10b981; }
-.step-icon.purple { background: #F5F3FF; color: #8B6F47; }
-.step-icon.orange { background: #FFF7ED; color: #f59e0b; }
-.step-title { font-size: 16px; font-weight: 700; color: var(--c-dark); margin: 0 0 8px; }
-.step-desc { font-size: 13px; color: var(--c-text2); margin: 0 0 12px; line-height: 1.6; }
-.step-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--c-text);
-  text-align: left;
-}
-.step-list li { position: relative; padding-left: 14px; }
-.step-list li::before { content: '•'; position: absolute; left: 2px; color: var(--c-primary); }
-.faq-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.faq-item {
-  background: #fff;
-  border: 1px solid var(--c-border);
-  border-radius: 12px;
+  height: calc(922 * var(--u));
   overflow: hidden;
 }
-.faq-q {
+
+.g-title {
+  position: absolute;
+  left: calc(179 * var(--u));
+  top: calc(52 * var(--u));
+  margin: 0;
+  font-size: calc(80 * var(--u));
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: 0;
+  color: var(--ink);
+}
+.g-sub {
+  position: absolute;
+  left: calc(179 * var(--u));
+  top: calc(152 * var(--u));
+  margin: 0;
+  font-size: calc(30 * var(--u));
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  color: var(--ink);
+}
+
+/* 清单：四行，行间 1px 细线 */
+.clist {
+  position: absolute;
+  left: calc(160 * var(--u));
+  top: calc(233 * var(--u));
+  width: calc(1250 * var(--u));
+  height: calc(570 * var(--u));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.crow {
+  position: relative;
+  height: calc(137.5 * var(--u));
+}
+.crow + .crow {
+  border-top: 1px solid var(--hair-2);
+}
+.cbox {
+  position: absolute;
+  left: calc(34 * var(--u));
+  top: calc(31 * var(--u));
+  width: calc(66 * var(--u));
+  height: calc(66 * var(--u));
+  border: calc(2.5 * var(--u)) solid var(--ink);
+  background: #fff;
+}
+.cmain {
+  position: absolute;
+  left: calc(132 * var(--u));
+  top: calc(27 * var(--u));
+}
+.cname {
+  margin: 0;
+  font-size: calc(33 * var(--u));
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--ink);
+}
+.cdesc {
+  margin: calc(6 * var(--u)) 0 0;
+  font-size: calc(14 * var(--u));
+  font-weight: 400;
+  color: var(--ink-2);
+}
+.cact {
+  background: none;
+  border: 0;
+  font-family: inherit;
+  padding: 0 0 calc(3 * var(--u));
+  position: absolute;
+  right: calc(26 * var(--u));
+  top: calc(54 * var(--u));
+  font-size: calc(25 * var(--u));
+  line-height: 1.2;
+  font-weight: 500;
+  color: var(--red);
+  border-bottom: calc(3 * var(--u)) solid var(--red);
+  padding-bottom: calc(3 * var(--u));
+  cursor: pointer;
+}
+.cact:hover {
+  color: #b91d1e;
+}
+
+.g-cta {
+  position: absolute;
+  left: calc(179 * var(--u));
+  top: calc(758 * var(--u));
+  width: calc(220 * var(--u));
+  height: calc(76 * var(--u));
+  display: grid;
+  place-items: center;
+  background: var(--red);
+  color: #fff;
+  border: 0;
+  font-family: inherit;
+  font-size: calc(24 * var(--u));
+  font-weight: 700;
+  cursor: pointer;
+}
+.g-cta:hover {
+  background: #b91d1e;
+}
+.sec-rule {
+  position: absolute;
+  left: calc(160 * var(--u));
+  top: calc(858 * var(--u));
+  width: calc(1250 * var(--u));
+  border-top: 1px solid var(--hair-2);
+}
+.faq-h {
+  position: absolute;
+  left: calc(179 * var(--u));
+  top: calc(883 * var(--u));
+  margin: 0;
+  font-size: calc(30 * var(--u));
+  font-weight: 900;
+  color: var(--ink);
+}
+
+/* ---------- 动效：入场 reveal + 行悬停 ---------- */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(14px);
+}
+[data-reveal][data-in="1"] {
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+.crow[data-in="1"] {
+  transition-delay: calc(var(--ri, 0) * 60ms);
+}
+.crow:hover {
+  background: #ffffff;
+}
+.crow:hover .cbox {
+  border-color: var(--red);
+}
+.crow:hover .cbox::after {
+  content: '';
+  position: absolute;
+  inset: calc(12 * var(--u));
+  background: var(--red);
+}
+.cbox {
+  transition: border-color 0.15s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .fplus::after {
+    transition: none;
+  }
+}
+
+/* ---------- 焦点可达 ---------- */
+.cact:focus-visible,
+.g-cta:focus-visible {
+  outline: calc(2 * var(--u)) solid var(--red);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--red);
+  color: #fff;
+}
+
+/* ---------- 下折：常见问题 ---------- */
+.faq {
+  padding: calc(40 * var(--u)) calc(160 * var(--u)) calc(90 * var(--u));
+}
+.faq-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.frow {
+  border-top: 1px solid var(--hair-2);
+}
+.frow:last-child {
+  border-bottom: 1px solid var(--hair-2);
+}
+.fq {
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--c-dark);
+  gap: calc(24 * var(--u));
+  background: none;
+  border: 0;
+  padding: calc(26 * var(--u)) calc(4 * var(--u));
   cursor: pointer;
+  font-family: inherit;
+  text-align: left;
 }
-.faq-q svg { transition: transform 0.2s; color: var(--c-text3); }
-.faq-q svg.open { transform: rotate(180deg); }
-.faq-a {
-  padding: 0 20px 16px;
-  font-size: 14px;
-  color: var(--c-text2);
-  line-height: 1.7;
+.fqt {
+  font-size: calc(22 * var(--u));
+  font-weight: 700;
+  color: var(--ink);
 }
+.fq:hover .fqt {
+  color: var(--red);
+}
+.fplus {
+  position: relative;
+  flex: none;
+  width: calc(22 * var(--u));
+  height: calc(22 * var(--u));
+}
+.fplus::before,
+.fplus::after {
+  content: '';
+  position: absolute;
+  background: var(--red);
+}
+.fplus::before {
+  left: 0;
+  right: 0;
+  top: calc(50% - calc(1.5 * var(--u)));
+  height: calc(3 * var(--u));
+}
+.fplus::after {
+  top: 0;
+  bottom: 0;
+  left: calc(50% - calc(1.5 * var(--u)));
+  width: calc(3 * var(--u));
+  transition: transform 0.15s ease;
+}
+.frow.open .fplus::after {
+  transform: scaleY(0);
+}
+.fa {
+  margin: 0;
+  padding: 0 calc(4 * var(--u)) calc(28 * var(--u));
+  max-width: calc(980 * var(--u));
+  font-size: calc(17 * var(--u));
+  line-height: 1.9;
+  color: var(--ink-2);
+}
+.fq:focus-visible {
+  outline: calc(2 * var(--u)) solid var(--red);
+  outline-offset: 2px;
+}
+
+/* ---------- 窄屏基础兜底（响应式阶段细化） ---------- */
 @media (max-width: 900px) {
-  .steps { grid-template-columns: 1fr 1fr; }
+  .page :deep(.pn) {
+    height: auto;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--hair);
+  }
+  .wall {
+    height: auto;
+    padding: 16px;
+  }
+  .g-title, .g-sub, .clist, .g-cta, .faq-h {
+    position: static;
+  }
+  .g-title { font-size: 34px; }
+  .g-sub { font-size: 15px; margin: 8px 0 20px; }
+  .clist { width: 100%; height: auto; }
+  .crow { height: auto; padding: 14px 0; display: flex; align-items: center; gap: 12px; }
+  .cbox { position: static; width: 22px; height: 22px; border-width: 1.5px; flex: none; }
+  .cmain { position: static; flex: 1; }
+  .cname { font-size: 17px; }
+  .cdesc { font-size: 13px; margin-top: 2px; }
+  .cact { position: static; font-size: 14px; border-bottom-width: 1px; }
+  .g-cta { width: 100%; height: 44px; font-size: 15px; margin: 18px 0; }
+  .faq-h { font-size: 20px; }
+  .faq { padding: 24px 16px 48px; }
+  .fqt { font-size: 15px; }
+  .fa { font-size: 13px; max-width: 100%; }
+  .fplus { width: 14px; height: 14px; }
 }
 </style>

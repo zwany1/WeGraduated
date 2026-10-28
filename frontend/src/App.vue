@@ -18,7 +18,7 @@ const isLanding = ref(true)
 // 已完成重设计的页面（瑞士海报墙）：首页 + 我的格式方案。其余页面暂时沿用学术沉静风，随重设计逐个切换
 const SWISS_ROUTES = ['/', '/home', '/features', '/templates', '/tasks', '/team', '/profile', '/template-market']
 // 公共营销页（无登录态工作台上下文）不挂浮动组件，与定稿样张一致
-const BARE_PUBLIC_ROUTES = ['/', '/home', '/features']
+const BARE_PUBLIC_ROUTES = ['/', '/home', '/features', '/guide']
 watch(
   () => route.path,
   p => {

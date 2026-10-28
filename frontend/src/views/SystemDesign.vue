@@ -1342,10 +1342,11 @@ function nodeAttrs(node) {
     }
   }
   if (node.shape === 'participant') {
-    return { body: { fill: '#fff', stroke: color, strokeWidth: 1.5, rx: 6, ry: 6 }, label }
+    return { body: { fill: '#fff', stroke: '#0a0909', strokeWidth: 1.5, rx: 0, ry: 0 }, label: { text: node.label, fill: '#0a0909', fontSize: 13, fontWeight: 600, textAnchor: 'middle', textVerticalAnchor: 'middle' } }
   }
   if (node.shape === 'activation') {
-    return { body: { fill: '#00aa66', stroke: '#008b55', strokeWidth: 1 }, label }
+    // UML 惯例: 激活条是白底黑框的窄长条, 盖在生命线上
+    return { body: { fill: '#fff', stroke: '#0a0909', strokeWidth: 1.2 }, label: { text: '' } }
   }
   if (node.shape === 'service' || node.shape === 'web' || node.shape === 'gateway' || node.shape === 'third' ||
       node.shape === 'search' || node.shape === 'storage') {
@@ -1394,20 +1395,36 @@ async function renderGraph(vo) {
       })
     })
   }
-  // SEQUENCE: 生命线(蓝色竖线)
+  // SEQUENCE: 图标题(左上角, 随图导出)
+  if (vo.type === 'SEQUENCE' && vo.name) {
+    nodes.push({
+      id: 'seq_title',
+      shape: 'rect',
+      x: 80,
+      y: 2,
+      width: Math.max(240, (vo.width || 600) - 160),
+      height: 28,
+      zIndex: 5,
+      attrs: {
+        body: { fill: 'transparent', stroke: 'none' },
+        label: { text: vo.name, fill: '#0a0909', fontSize: 15, fontWeight: 700, textAnchor: 'start', textVerticalAnchor: 'middle', refX: 0 }
+      }
+    })
+  }
+  // SEQUENCE: 生命线(细灰竖线, UML 惯例)
   if (vo.type === 'SEQUENCE' && vo.lanes && vo.lanes.length > 0) {
     vo.lanes.forEach(l => {
       const id = 'line_' + l.id
       nodes.push({
         id,
         shape: 'rect',
-        x: l.x - 1,
+        x: l.x - 0.75,
         y: l.y,
-        width: 2,
+        width: 1.5,
         height: l.height,
         zIndex: 0,
         attrs: {
-          body: { fill: '#264A38', stroke: '#264A38', strokeWidth: 1 }
+          body: { fill: '#8f8b82', stroke: 'none' }
         }
       })
     })
@@ -1419,7 +1436,7 @@ async function renderGraph(vo) {
       w = n.width || (n.shape === 'actor' ? 120 : 170)
       h = n.height || (n.shape === 'actor' ? 120 : (n.shape === 'system' ? 300 : 56))
     } else if (vo.type === 'SEQUENCE') {
-      w = n.width || (n.shape === 'activation' ? 12 : 120)
+      w = n.width || (n.shape === 'activation' ? 10 : 96)
       h = n.height || (n.shape === 'activation' ? 60 : 44)
     } else if (vo.type === 'CLASS') {
       w = n.width || 230
@@ -1509,10 +1526,23 @@ async function renderGraph(vo) {
         edge.attrs.line = { stroke: '#333333', strokeWidth: 1.5, targetMarker: 'block' }
       }
     }
-    // 时序图: 使用坐标定位消息
+    // 时序图: 使用坐标定位消息; 返回=虚线空心箭头; 自环消息画右侧回环
     if (vo.type === 'SEQUENCE' && e.sourceX != null) {
       edge.source = { x: e.sourceX, y: e.sourceY }
       edge.target = { x: e.targetX, y: e.targetY }
+      if (Math.abs(e.sourceX - e.targetX) < 1 && Math.abs(e.sourceY - e.targetY) < 1) {
+        // 自消息: 从生命线向右绕一个矩形回环
+        edge.vertices = [
+          { x: e.sourceX + 44, y: e.sourceY },
+          { x: e.sourceX + 44, y: e.sourceY + 26 }
+        ]
+        edge.target = { x: e.targetX + 5, y: e.targetY + 26 }
+        edge.attrs.line.targetMarker = { name: 'block', size: 7 }
+      }
+      edge.zIndex = 12
+      edge.attrs.line = isReturn
+        ? { stroke: '#0a0909', strokeWidth: 1.3, strokeDasharray: '7 5', targetMarker: { name: 'block', size: 8, fill: '#fff' } }
+        : { stroke: '#0a0909', strokeWidth: 1.6, targetMarker: 'block' }
     }
     if (e.label) {
       if (vo.type === 'CLASS' && e.label.includes(' ')) {
@@ -1526,6 +1556,15 @@ async function renderGraph(vo) {
           labels.push({ attrs: { label: { text: parts[1], fill: '#333', fontSize: 11, fontWeight: 700 } }, position: { distance: -20 } })
         }
         edge.labels = labels
+      } else if (vo.type === 'SEQUENCE') {
+        // 消息文字浮在箭头上方, 不压线; 自环消息文字放回环右侧
+        const isSelf = Math.abs(e.sourceX - e.targetX) < 1 && Math.abs(e.sourceY - e.targetY) < 1
+        edge.labels = [{
+          attrs: { label: { text: e.label, fill: '#333', fontSize: 12, fontWeight: 500 } },
+          position: isSelf
+            ? { distance: 0.5, offset: { x: 52, y: -8 } }
+            : { distance: 0.5, offset: { y: -11 } }
+        }]
       } else {
         edge.labels = [{ attrs: { label: { text: e.label, fill: '#666', fontSize: 11 } } }]
       }
@@ -1536,7 +1575,8 @@ async function renderGraph(vo) {
   // SWIMLANE / ACTIVITY / USECASE / SEQUENCE / ER: 泳道已定位, 节点用后端坐标, 不需 Dagre
   if (vo.type === 'SWIMLANE' || vo.type === 'ACTIVITY' || vo.type === 'USECASE' || vo.type === 'SEQUENCE' || vo.type === 'ER') {
     graph.fromJSON({ nodes, edges })
-    graph.centerContent()
+    if (vo.type === 'SEQUENCE') fitContent(1.35)
+    else graph.centerContent()
     return
   }
 
@@ -1606,6 +1646,20 @@ async function renderGraph(vo) {
       graph.centerPoint(0, 0)
     }, 100)
   } else {
+    graph.centerContent()
+  }
+}
+
+/**
+ * 让内容尽量铺满画布: 只放大不缩小(缩小会让小字更看不清), 上限 maxScale。
+ * 时序图常见的 3~5 个参与者在大画布里会显得很小, 放大后读起来舒服得多。
+ */
+function fitContent(maxScale = 1.3) {
+  if (!graph) return
+  try {
+    // minScale=1: 只放大不缩小, 避免大图被压成看不清的小字
+    graph.zoomToFit({ padding: 56, minScale: 1, maxScale })
+  } catch (e) {
     graph.centerContent()
   }
 }

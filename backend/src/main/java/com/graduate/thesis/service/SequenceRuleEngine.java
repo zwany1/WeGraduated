@@ -44,46 +44,63 @@ public class SequenceRuleEngine {
         vo.setName(config.getTitle() == null || config.getTitle().trim().isEmpty()
                 ? "时序图" : config.getTitle().trim());
 
-        int laneWidth = 150;
-        int x0 = 100;
+        // 布局: 盒子宽度按名字自适应, 生命线贴盒底, 消息紧凑排列, 画布高度按内容收缩
         int topY = 40;
-        int lifelineTop = 140;
-        int lifelineBottom = 720;
-        int msgY0 = 220;
-        int msgGap = 60;
+        int boxH = 44;
+        int laneGap = 56;
+        int msgGap = 64;
 
-        // 参与者 id -> x
-        Map<String, Double> xMap = new HashMap<>();
-        for (int i = 0; i < participants.size(); i++) {
+        int n = participants.size();
+        double[] centers = new double[n];
+        double[] boxWs = new double[n];
+        double cursor = 80;
+        for (int i = 0; i < n; i++) {
+            String name = participants.get(i).getName();
+            double w = Math.min(220, Math.max(96, textWidth(name)));
+            boxWs[i] = w;
+            centers[i] = cursor + w / 2;
+            cursor += w + laneGap;
+
             SequenceConfig.ParticipantConfig p = participants.get(i);
-            double x = x0 + i * laneWidth;
-            xMap.put(p.getId(), x);
-
             DiagramNode node = node(p.getId(), p.getName(), "participant");
-            node.setX(x);
+            node.setX(centers[i] - w / 2);
             node.setY(topY);
-            node.setWidth(120);
-            node.setHeight(44);
+            node.setWidth(w);
+            node.setHeight(boxH);
             vo.getNodes().add(node);
 
-            // 生命线(作为 lane, 前端画竖线)
+            // 生命线(作为 lane, x = 盒子中心, 前端画竖线)
             DiagramLane lane = new DiagramLane();
             lane.setId("line" + (seq.getAndIncrement()));
             lane.setName(p.getName());
-            lane.setX(x);
-            lane.setY(lifelineTop);
+            lane.setX(centers[i]);
+            lane.setY(topY + boxH);
             lane.setWidth(0);
-            lane.setHeight(lifelineBottom - lifelineTop);
+            lane.setHeight(0); // 底部在消息排完后回填
             vo.getLanes().add(lane);
         }
 
-        // 消息: 每条记录 y 坐标, 返回激活区间
-        List<double[]> msgYs = new ArrayList<>();
-        int idx = 0;
-        for (SequenceConfig.MessageConfig m : messages) {
-            double x1 = xMap.get(m.getFrom());
-            double x2 = xMap.get(m.getTo());
-            double y = msgY0 + idx * msgGap;
+        // 消息: 纵向排列, 端点落在激活条边缘而不是生命线圆心
+        int[] firstInv = new int[n];
+        int[] lastInv = new int[n];
+        java.util.Arrays.fill(firstInv, -1);
+        java.util.Arrays.fill(lastInv, -1);
+        double lastMsgY = 0;
+        for (int idx = 0; idx < messages.size(); idx++) {
+            SequenceConfig.MessageConfig m = messages.get(idx);
+            int fi = indexOf(participants, m.getFrom());
+            int ti = indexOf(participants, m.getTo());
+            if (fi < 0 || ti < 0) continue;
+            if (firstInv[fi] < 0) firstInv[fi] = idx;
+            lastInv[fi] = idx;
+            if (firstInv[ti] < 0) firstInv[ti] = idx;
+            lastInv[ti] = idx;
+
+            double y = msgY0() + idx * msgGap;
+            lastMsgY = y;
+            double dx = centers[ti] - centers[fi];
+            double x1 = dx == 0 ? centers[fi] : centers[fi] + Math.signum(dx) * 5;
+            double x2 = dx == 0 ? centers[ti] : centers[ti] - Math.signum(dx) * 5;
 
             DiagramEdge edge = new DiagramEdge();
             edge.setId("m" + (seq.getAndIncrement()));
@@ -96,26 +113,53 @@ public class SequenceRuleEngine {
             edge.setTargetX(x2);
             edge.setTargetY(y);
             vo.getEdges().add(edge);
-            msgYs.add(new double[]{x1, x2, y});
-            idx++;
+        }
+        if (messages.isEmpty()) {
+            lastMsgY = msgY0();
         }
 
-        // 激活条: 参与者在消息中的覆盖区间(简化: 首条消息上沿到末条消息下沿)
-        double msgTop = msgY0 - 15;
-        double msgBottom = msgY0 + (messages.size() - 1) * msgGap + 15;
-        for (SequenceConfig.ParticipantConfig p : participants) {
-            double x = xMap.get(p.getId());
-            DiagramNode act = node("act_" + p.getId(), "", "activation");
-            act.setX(x - 12);
-            act.setY(msgTop);
-            act.setWidth(12);
-            act.setHeight(msgBottom - msgTop);
+        // 激活条: 只给真正参与过消息的参与者画, 区间 = 首末消息各外扩 16px
+        for (int i = 0; i < n; i++) {
+            if (firstInv[i] < 0) continue;
+            double actTop = msgY0() + firstInv[i] * msgGap - 16;
+            double actBottom = msgY0() + lastInv[i] * msgGap + 16;
+            DiagramNode act = node("act_" + participants.get(i).getId(), "", "activation");
+            act.setX(centers[i] - 5);
+            act.setY(actTop);
+            act.setWidth(10);
+            act.setHeight(actBottom - actTop);
             vo.getNodes().add(act);
         }
 
-        vo.setWidth(x0 + participants.size() * laneWidth + 80);
-        vo.setHeight(lifelineBottom + 40);
+        double lifelineBottom = lastMsgY + 64;
+        for (DiagramLane lane : vo.getLanes()) {
+            lane.setHeight(lifelineBottom - lane.getY());
+        }
+
+        vo.setWidth((int) Math.round(cursor - laneGap + 80));
+        vo.setHeight((int) Math.round(lifelineBottom + 40));
         return vo;
+    }
+
+    /** 消息起始 y: 生命线顶部往下留一段呼吸空间 */
+    private double msgY0() {
+        return 40 + 44 + 52;
+    }
+
+    /** 粗略估算名字渲染宽度: CJK 15px/字, 其余 9px/字, 加左右内边距 */
+    private double textWidth(String name) {
+        int w = 32;
+        for (int i = 0; i < name.length(); i++) {
+            w += name.charAt(i) > 0x2E7F ? 15 : 9;
+        }
+        return w;
+    }
+
+    private int indexOf(List<SequenceConfig.ParticipantConfig> participants, String id) {
+        for (int i = 0; i < participants.size(); i++) {
+            if (participants.get(i).getId().equals(id)) return i;
+        }
+        return -1;
     }
 
     private List<SequenceConfig.ParticipantConfig> validParticipants(List<SequenceConfig.ParticipantConfig> participants) {

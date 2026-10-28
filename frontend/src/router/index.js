@@ -59,7 +59,7 @@ const routes = [
     meta: { requiresAdmin: true, title: '管理后台' },
     children: []
   },
-  { path: '/:pathMatch(.*)*', component: () => import('../views/NotFound.vue'), meta: { title: '页面不存在' } }
+  { path: '/:pathMatch(.*)*', name: 'notfound', component: () => import('../views/NotFound.vue'), meta: { title: '页面不存在' } }
 ]
 
 const router = createRouter({

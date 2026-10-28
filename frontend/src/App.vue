@@ -20,10 +20,12 @@ const SWISS_ROUTES = ['/', '/home', '/features', '/guide', '/cases', '/pricing',
 // 公共营销页（无登录态工作台上下文）不挂浮动组件，与定稿样张一致
 const BARE_PUBLIC_ROUTES = ['/', '/home', '/features', '/guide', '/cases', '/pricing']
 watch(
-  () => route.path,
-  p => {
-    const swiss = SWISS_ROUTES.includes(p) || p.startsWith('/cases/')
-    isLanding.value = BARE_PUBLIC_ROUTES.includes(p) || p.startsWith('/cases/')
+  () => [route.path, route.name],
+  ([p, name]) => {
+    // 404（catch-all）无导航自成一体：纳入瑞士主题、不挂浮动件
+    const nf = name === 'notfound'
+    const swiss = SWISS_ROUTES.includes(p) || p.startsWith('/cases/') || nf
+    isLanding.value = BARE_PUBLIC_ROUTES.includes(p) || p.startsWith('/cases/') || nf
     document.body.classList.toggle('theme-swiss', swiss)
     document.body.classList.toggle('theme-academic', !swiss && !p.startsWith('/admin'))
   },

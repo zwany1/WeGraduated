@@ -85,8 +85,8 @@ async function onCommand(cmd) {
   align-items: center;
   gap: 16px;
   padding: 12px 30px;
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  background: #f7f6f6;
+  border-bottom: 1px solid #c1c1c3;
   position: sticky;
   top: 0;
   z-index: 100;
@@ -94,13 +94,15 @@ async function onCommand(cmd) {
 .back-btn {
   font-size: 20px;
   padding: 0 4px;
+  color: #0a0909;
 }
 .brand {
   font-size: 18px;
-  font-weight: 700;
-  color: #24312A;
+  font-weight: 900;
+  color: #0a0909;
   cursor: pointer;
   white-space: nowrap;
+  letter-spacing: -0.01em;
 }
 .links {
   display: flex;
@@ -108,21 +110,28 @@ async function onCommand(cmd) {
   margin-left: 8px;
 }
 .links a {
-  padding: 6px 14px;
-  border-radius: 8px;
+  padding: 6px 12px;
   font-size: 14px;
-  color: #5C6B60;
+  color: #6b6b6e;
   text-decoration: none;
-  transition: all 0.2s;
+  position: relative;
+  transition: color 0.2s;
 }
 .links a:hover {
-  background: #F6F4EE;
-  color: #2F5D46;
+  color: #0a0909;
 }
 .links a.router-link-active {
-  background: #E8EFE6;
-  color: #2F5D46;
-  font-weight: 600;
+  color: #0a0909;
+  font-weight: 700;
+}
+.links a.router-link-active::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 3px;
+  background: #dd2627;
 }
 .right {
   margin-left: auto;
@@ -135,35 +144,37 @@ async function onCommand(cmd) {
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  padding: 4px 10px;
-  border-radius: 20px;
-  border: 1px solid #E3E0D5;
-  transition: all 0.2s;
+  padding: 4px 10px 4px 4px;
+  border-radius: 0;
+  border: 1px solid #c1c1c3;
+  background: transparent;
+  transition: border-color 0.2s;
 }
 .user-chip:hover {
-  border-color: #2F5D46;
-  background: #F1F4EF;
+  border-color: #0a0909;
 }
 .avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  border-radius: 0;
   object-fit: cover;
+  display: block;
 }
 .avatar-text {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: #2F5D46;
+  width: 26px;
+  height: 26px;
+  border-radius: 0;
+  background: #0a0909;
   color: #fff;
-  font-size: 14px;
+  font-size: 13px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
+  font-weight: 700;
 }
 .name {
   font-size: 13px;
-  color: #24312A;
+  color: #0a0909;
+  font-weight: 500;
 }
 </style>

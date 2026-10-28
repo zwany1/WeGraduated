@@ -32,13 +32,13 @@
 
       <!-- 01 基础 · 页面与开关 -->
       <section class="band">
-        <span class="band-no" aria-hidden="true">01</span>
         <div class="band-head">
           <h2 class="band-title">基础 · 页面与开关</h2>
         </div>
 
         <!-- 页面设置 -->
         <div class="sec" id="sec-page">
+          <div class="sec-head"><span class="sec-no">01</span><h3>页面设置</h3></div>
           <h3>校规一键预设</h3>
           <p class="tip">选择贴近你学校要求的预设一键填充全部配置（页面/标题/正文/图表/参考文献/目录），套用后再按校规微调即可。</p>
           <div class="school-presets">
@@ -103,13 +103,13 @@
 
       <!-- 02 文字 · 标题与正文 -->
       <section class="band">
-        <span class="band-no" aria-hidden="true">02</span>
         <div class="band-head">
           <h2 class="band-title">文字 · 标题与正文</h2>
         </div>
 
         <!-- 标题格式 -->
         <div class="sec" id="sec-heading">
+          <div class="sec-head"><span class="sec-no">02</span><h3>标题格式</h3></div>
           <h3>标题识别规则 (正则)</h3>
             <p class="tip">排版引擎按此规则识别章节标题并自动编号。例：<code>第1章</code> / <code>1 绪论</code> / <code>一、绪论</code></p>
             <div class="presets">
@@ -198,7 +198,7 @@
 
         <!-- 正文格式 -->
         <div class="sec" id="sec-body">
-          <h3>正文格式</h3>
+          <div class="sec-head"><span class="sec-no">03</span><h3>正文格式</h3></div>
           <el-form label-width="100px" style="max-width: 560px">
             <el-form-item label="字体">
               <el-select v-model="rules.body.font">
@@ -273,13 +273,13 @@
 
       <!-- 03 专项 · 图表 / 参考文献 / 目录 -->
       <section class="band">
-        <span class="band-no" aria-hidden="true">03</span>
         <div class="band-head">
           <h2 class="band-title">专项 · 图表 / 参考文献 / 目录</h2>
         </div>
 
         <!-- 图表格式 -->
         <div class="sec" id="sec-figure">
+          <div class="sec-head"><span class="sec-no">04</span><h3>图表格式</h3></div>
           <div class="grid3">
           <div class="block">
             <h3>图片题注</h3>
@@ -382,6 +382,7 @@
 
         <!-- 参考文献设置 -->
         <div class="sec" id="sec-reference">
+          <div class="sec-head"><span class="sec-no">05</span><h3>参考文献</h3></div>
           <el-form label-width="130px" style="max-width: 620px">
             <el-form-item label="启用参考文献排版">
               <el-switch v-model="refConfig.enabled" />
@@ -438,6 +439,7 @@
 
         <!-- 目录样式设置: 行距/前导符三级共用, 字体/字号各级独立 -->
         <div class="sec" id="sec-toc">
+          <div class="sec-head"><span class="sec-no">06</span><h3>目录样式</h3></div>
           <el-form label-width="130px" style="max-width: 620px">
             <el-form-item label="行距">
               <el-select v-model="tocConfig.lineSpacing" style="max-width: 220px">
@@ -487,14 +489,13 @@
 
       <!-- 04 验证 · 快速试排 -->
       <section class="band">
-        <span class="band-no" aria-hidden="true">04</span>
         <div class="band-head">
           <h2 class="band-title">验证 · 快速试排</h2>
         </div>
 
         <!-- 快速试排: 上传文档截取前几段, 用真实排版引擎同步出结果(实时样式预览见右侧 dock) -->
         <div class="sec" id="sec-preview">
-          <h3>快速试排</h3>
+          <div class="sec-head"><span class="sec-no">07</span><h3>快速试排</h3></div>
           <p class="tip">选一篇 .docx，只取开头部分用真实排版引擎同步排版，几秒即可验证标题正则与格式规则；不会在任务列表产生记录。样式的实时模拟效果见右下角"实时预览"。</p>
 
           <div class="quick-card">
@@ -1422,22 +1423,10 @@ async function goFormat() {
 /* ---------- 区带 ---------- */
 .band {
   position: relative;
-  padding: 40px 0 20px 104px;
+  padding: 40px 0 20px;
 }
 .band + .band {
   border-top: 1px solid var(--hair);
-}
-.band-no {
-  position: absolute;
-  left: -6px;
-  top: 28px;
-  font-size: 112px;
-  font-weight: 900;
-  line-height: 1;
-  letter-spacing: -0.02em;
-  color: var(--hair-2);
-  user-select: none;
-  pointer-events: none;
 }
 .band-head {
   display: flex;
@@ -1469,6 +1458,29 @@ async function goFormat() {
 .sec > h3:first-child {
   margin-top: 6px;
 }
+.sec-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: 6px 0 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--hair);
+}
+.sec-no {
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--red);
+  font-variant-numeric: tabular-nums;
+}
+.sec-head h3 {
+  margin: 0;
+  padding: 0;
+  border: none;
+  font-size: 17px;
+  font-weight: 900;
+  color: var(--ink);
+}
 .block {
   margin-bottom: 10px;
 }
@@ -1486,15 +1498,6 @@ async function goFormat() {
 @media (max-width: 1080px) {
   .grid3 {
     grid-template-columns: 1fr;
-  }
-  .band {
-    padding-left: 0;
-  }
-  .band-no {
-    position: static;
-    display: block;
-    font-size: 56px;
-    margin-bottom: -20px;
   }
   .anchors {
     overflow-x: auto;

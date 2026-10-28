@@ -24,7 +24,7 @@ watch(
   ([p, name]) => {
     // 404（catch-all）无导航自成一体：纳入瑞士主题、不挂浮动件
     const nf = name === 'notfound'
-    const swiss = SWISS_ROUTES.includes(p) || p.startsWith('/cases/') || nf
+    const swiss = SWISS_ROUTES.includes(p) || p.startsWith('/cases/') || p.startsWith('/template/') || nf
     isLanding.value = BARE_PUBLIC_ROUTES.includes(p) || p.startsWith('/cases/') || nf
     document.body.classList.toggle('theme-swiss', swiss)
     document.body.classList.toggle('theme-academic', !swiss && !p.startsWith('/admin'))

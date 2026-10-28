@@ -1,26 +1,44 @@
 <template>
   <div class="config">
     <SiteNav>
-      <el-button type="success" @click="goFormat">用此方案排版</el-button>
-      <el-button type="primary" :loading="saving" @click="saveAll">保存配置</el-button>
+      <el-button :loading="saving" @click="saveAll">保存配置</el-button>
+      <el-button type="primary" @click="goFormat">用此方案排版</el-button>
     </SiteNav>
 
     <main class="body">
-      <aside class="menu">
-        <div
-          v-for="m in menus"
-          :key="m.key"
-          class="menu-item"
-          :class="{ active: active === m.key }"
-          @click="active = m.key"
-        >
-          {{ m.label }}
+      <!-- 页头 -->
+      <header class="head">
+        <p class="head-kicker"><i class="sq" aria-hidden="true"></i>CONFIGURATION</p>
+        <div class="head-row">
+          <h1 class="head-title">{{ templateName }}</h1>
+          <p class="head-meta">7 个分区 · Ctrl+S 保存 · 草稿自动暂存</p>
         </div>
-      </aside>
+      </header>
 
-      <section class="panel">
+      <!-- 子锚导航（粘性） -->
+      <nav class="anchors" aria-label="配置分区">
+        <button
+          v-for="(a, i) in anchors"
+          :key="a.key"
+          class="anchor"
+          :class="{ on: active === a.key }"
+          type="button"
+          @click="goToSec(a.key)"
+        >
+          <span class="a-num">{{ String(i + 1).padStart(2, '0') }}</span>
+          <span class="a-label">{{ a.label }}</span>
+        </button>
+      </nav>
+
+      <!-- 01 基础 · 页面与开关 -->
+      <section class="band">
+        <span class="band-no" aria-hidden="true">01</span>
+        <div class="band-head">
+          <h2 class="band-title">基础 · 页面与开关</h2>
+        </div>
+
         <!-- 页面设置 -->
-        <template v-if="active === 'page'">
+        <div class="sec" id="sec-page">
           <h3>校规一键预设</h3>
           <p class="tip">选择贴近你学校要求的预设一键填充全部配置（页面/标题/正文/图表/参考文献/目录），套用后再按校规微调即可。</p>
           <div class="school-presets">
@@ -80,12 +98,19 @@
               </el-select>
             </el-form-item>
           </el-form>
-        </template>
+        </div>
+      </section>
+
+      <!-- 02 文字 · 标题与正文 -->
+      <section class="band">
+        <span class="band-no" aria-hidden="true">02</span>
+        <div class="band-head">
+          <h2 class="band-title">文字 · 标题与正文</h2>
+        </div>
 
         <!-- 标题格式 -->
-        <template v-else-if="active === 'heading'">
-          <div class="block">
-            <h3>标题识别规则 (正则)</h3>
+        <div class="sec" id="sec-heading">
+          <h3>标题识别规则 (正则)</h3>
             <p class="tip">排版引擎按此规则识别章节标题并自动编号。例：<code>第1章</code> / <code>1 绪论</code> / <code>一、绪论</code></p>
             <div class="presets">
               <el-button size="small" @click="applyPreset('chinese')">第X章式</el-button>
@@ -139,7 +164,7 @@
                 <div v-if="!regexValid.heading3" class="regex-error">不是合法的正则表达式</div>
               </el-form-item>
             </el-form>
-          </div>
+          <div class="grid3">
           <div v-for="h in headings" :key="h.key" class="block">
             <h3>{{ h.label }}</h3>
             <el-form label-width="100px" style="max-width: 560px">
@@ -168,10 +193,11 @@
               <el-form-item label="段后 (pt)"><el-input-number v-model="rules[h.key].spaceAfter" :min="0" :max="100" /></el-form-item>
             </el-form>
           </div>
-        </template>
+          </div>
+        </div>
 
         <!-- 正文格式 -->
-        <template v-else-if="active === 'body'">
+        <div class="sec" id="sec-body">
           <h3>正文格式</h3>
           <el-form label-width="100px" style="max-width: 560px">
             <el-form-item label="字体">
@@ -242,10 +268,19 @@
               </el-select>
             </el-form-item>
           </el-form>
-        </template>
+        </div>
+      </section>
+
+      <!-- 03 专项 · 图表 / 参考文献 / 目录 -->
+      <section class="band">
+        <span class="band-no" aria-hidden="true">03</span>
+        <div class="band-head">
+          <h2 class="band-title">专项 · 图表 / 参考文献 / 目录</h2>
+        </div>
 
         <!-- 图表格式 -->
-        <template v-else-if="active === 'figure'">
+        <div class="sec" id="sec-figure">
+          <div class="grid3">
           <div class="block">
             <h3>图片题注</h3>
             <el-form label-width="100px" style="max-width: 560px">
@@ -280,6 +315,7 @@
               </el-form-item>
             </el-form>
           </div>
+
           <div class="block">
             <h3>表格题注</h3>
             <el-form label-width="100px" style="max-width: 560px">
@@ -341,10 +377,11 @@
               </el-form-item>
             </el-form>
           </div>
-        </template>
+          </div>
+        </div>
 
         <!-- 参考文献设置 -->
-        <template v-else-if="active === 'reference'">
+        <div class="sec" id="sec-reference">
           <el-form label-width="130px" style="max-width: 620px">
             <el-form-item label="启用参考文献排版">
               <el-switch v-model="refConfig.enabled" />
@@ -397,10 +434,10 @@
             </template>
           </el-form>
           <div class="tip">参考文献另起一页、置于正文后。条目格式：序号 [1] 中括号+空两格，换行第二行对齐序号（悬挂缩进）。作者只写前 3 位，余者"等"/"et al"。</div>
-        </template>
+        </div>
 
         <!-- 目录样式设置: 行距/前导符三级共用, 字体/字号各级独立 -->
-        <template v-else-if="active === 'toc'">
+        <div class="sec" id="sec-toc">
           <el-form label-width="130px" style="max-width: 620px">
             <el-form-item label="行距">
               <el-select v-model="tocConfig.lineSpacing" style="max-width: 220px">
@@ -420,8 +457,10 @@
               <span class="tip-inline">各级共用;选「保留原文」则不改文档已有的制表符</span>
             </el-form-item>
           </el-form>
+          <div class="grid3">
           <template v-for="lv in tocLevels" :key="lv.key">
-            <h4 style="margin: 16px 0 8px; font-size: 15px; color: #24312A;">{{ lv.label }}</h4>
+            <div>
+            <h4 class="toc-lv">{{ lv.label }}</h4>
             <el-form label-width="130px" style="max-width: 620px">
               <el-form-item label="中文字体">
                 <el-select v-model="tocConfig[lv.key].font" style="max-width: 220px">
@@ -439,12 +478,22 @@
                 </el-select>
               </el-form-item>
             </el-form>
+            </div>
           </template>
+          </div>
           <div class="tip">行距/前导符三级共用,字体/字号各级独立;作用于 Word 自动目录的 toc1/toc2/toc3 样式,不改目录域的自动更新标识——用户在 Word 按 F9 仍可重新生成目录。</div>
-        </template>
+        </div>
+      </section>
+
+      <!-- 04 验证 · 快速试排 -->
+      <section class="band">
+        <span class="band-no" aria-hidden="true">04</span>
+        <div class="band-head">
+          <h2 class="band-title">验证 · 快速试排</h2>
+        </div>
 
         <!-- 快速试排: 上传文档截取前几段, 用真实排版引擎同步出结果(实时样式预览见右侧 dock) -->
-        <template v-else-if="active === 'preview'">
+        <div class="sec" id="sec-preview">
           <h3>快速试排</h3>
           <p class="tip">选一篇 .docx，只取开头部分用真实排版引擎同步排版，几秒即可验证标题正则与格式规则；不会在任务列表产生记录。样式的实时模拟效果见右下角"实时预览"。</p>
 
@@ -494,7 +543,7 @@
               <DocxCompare :data="quickData" :headings="quickHeadings" />
             </div>
           </div>
-        </template>
+        </div>
       </section>
     </main>
 
@@ -640,7 +689,7 @@ const route = useRoute()
 const router = useRouter()
 const id = Number(route.params.id)
 
-const menus = [
+const anchors = [
   { key: 'page', label: '页面设置' },
   { key: 'heading', label: '标题格式' },
   { key: 'body', label: '正文格式' },
@@ -1174,7 +1223,33 @@ function decodeHtml(s) {
     .replace(/&amp;/g, '&')
 }
 
-onMounted(loadConfig)
+onMounted(() => {
+  loadConfig()
+  setupSecSpy()
+})
+
+// 子锚定位与当前分区高亮（滚动时以视口上部为准）
+function goToSec(key) {
+  const el = document.getElementById('sec-' + key)
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+let secSpy = null
+function setupSecSpy() {
+  if (!('IntersectionObserver' in window)) return
+  secSpy = new IntersectionObserver(
+    entries => {
+      entries.forEach(en => {
+        if (en.isIntersecting) active.value = en.target.id.replace('sec-', '')
+      })
+    },
+    { rootMargin: '-12% 0px -78% 0px', threshold: 0 }
+  )
+  anchors.forEach(a => {
+    const el = document.getElementById('sec-' + a.key)
+    if (el) secSpy.observe(el)
+  })
+}
+onBeforeUnmount(() => secSpy?.disconnect())
 // Ctrl/Cmd + S 快捷保存: 覆盖浏览器默认"保存网页"
 function onKeydown(e) {
   if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
@@ -1236,78 +1311,201 @@ async function goFormat() {
 
 <style scoped>
 .config {
+  --paper: #f7f6f6;
+  --ink: #0a0909;
+  --ink-2: #3f3f3f;
+  --red: #dd2627;
+  --hair: #c1c1c3;
+  --hair-2: #e4e4e4;
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
-.bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 30px;
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-}
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 17px;
-  font-weight: 700;
-  color: #24312A;
-}
-.brand-actions {
-  display: flex;
-  gap: 8px;
-}
+
+/* ---------- 页头 ---------- */
 .body {
-  flex: 1;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 40px 48px 140px;
+}
+.head {
+  margin-bottom: 20px;
+}
+.head-kicker {
+  margin: 0 0 12px;
   display: flex;
-  padding: 20px;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  color: #8a8b8b;
+}
+.head-kicker .sq {
+  width: 10px;
+  height: 10px;
+  background: var(--red);
+}
+.head-row {
+  display: flex;
+  align-items: baseline;
   gap: 20px;
+  flex-wrap: wrap;
 }
-.menu {
-  width: 180px;
-  background: #fff;
-  border-radius: 10px;
-  padding: 12px 0;
-  height: fit-content;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+.head-title {
+  margin: 0;
+  font-size: 40px;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: var(--ink);
 }
-.menu-item {
-  padding: 14px 24px;
+.head-meta {
+  margin: 0;
+  font-size: 13px;
+  color: #8a8b8b;
+}
+
+/* ---------- 子锚导航 ---------- */
+.anchors {
+  position: sticky;
+  top: 60px;
+  z-index: 20;
+  display: flex;
+  background: var(--paper);
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--hair);
+  margin-bottom: 6px;
+}
+.anchor {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 14px 18px;
+  background: none;
+  border: 0;
+  border-right: 1px solid var(--hair-2);
+  font-family: inherit;
   cursor: pointer;
-  color: #5C6B60;
-  border-left: 3px solid transparent;
 }
-.menu-item:hover {
-  color: #2F5D46;
-  background: #F6F4EE;
+.anchor .a-num {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--red);
+  font-variant-numeric: tabular-nums;
 }
-.menu-item.active {
-  color: #2F5D46;
-  background: #EAEFED;
-  border-left-color: #2F5D46;
-  font-weight: 600;
+.anchor .a-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-2);
+  white-space: nowrap;
 }
-.panel {
-  flex: 1;
-  background: #fff;
-  border-radius: 10px;
-  padding: 24px 30px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+.anchor:hover .a-label {
+  color: var(--ink);
 }
-.panel h3 {
-  color: #24312A;
-  margin: 18px 0 12px;
+.anchor.on::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 4px;
+  background: var(--red);
+}
+.anchor.on .a-label {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+/* ---------- 区带 ---------- */
+.band {
+  position: relative;
+  padding: 40px 0 20px 104px;
+}
+.band + .band {
+  border-top: 1px solid var(--hair);
+}
+.band-no {
+  position: absolute;
+  left: -6px;
+  top: 28px;
+  font-size: 112px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--hair-2);
+  user-select: none;
+  pointer-events: none;
+}
+.band-head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 4px;
+}
+.band-title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 900;
+  color: var(--ink);
+}
+
+/* ---------- 分区 ---------- */
+.sec {
+  padding: 8px 0 28px;
+  scroll-margin-top: 150px;
+}
+.sec > h3,
+.block > h3 {
+  color: var(--ink);
+  margin: 22px 0 12px;
   padding-bottom: 8px;
-  border-bottom: 1px solid #E3E0D5;
+  border-bottom: 1px solid var(--hair);
+  font-size: 17px;
+  font-weight: 900;
 }
-.panel h3:first-child {
-  margin-top: 0;
+.sec > h3:first-child {
+  margin-top: 6px;
 }
 .block {
   margin-bottom: 10px;
+}
+.grid3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0 44px;
+}
+.toc-lv {
+  margin: 16px 0 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+@media (max-width: 1080px) {
+  .grid3 {
+    grid-template-columns: 1fr;
+  }
+  .band {
+    padding-left: 0;
+  }
+  .band-no {
+    position: static;
+    display: block;
+    font-size: 56px;
+    margin-bottom: -20px;
+  }
+  .anchors {
+    overflow-x: auto;
+    top: 0;
+  }
+  .body {
+    padding: 20px 16px 100px;
+  }
+  .head-title {
+    font-size: 28px;
+  }
 }
 .presets {
   margin: 10px 0 16px;
@@ -1332,38 +1530,36 @@ async function goFormat() {
   margin: 8px 0 4px;
 }
 .preset-card {
-  width: 240px;
-  padding: 12px 14px;
-  border: 1px solid #E3E0D5;
-  border-radius: 8px;
+  width: 250px;
+  padding: 14px 16px;
+  border: 1px solid var(--hair);
   background: #fff;
   cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.15s ease;
 }
 .preset-card:hover {
-  border-color: #2F5D46;
-  box-shadow: 0 2px 10px rgba(64, 158, 255, 0.15);
+  border-color: var(--red);
 }
 .preset-name {
   font-size: 14px;
-  font-weight: 600;
-  color: #24312A;
-  margin-bottom: 4px;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 5px;
 }
 .preset-desc {
   font-size: 12px;
-  color: #8B968D;
+  color: #8a8b8b;
   line-height: 1.6;
 }
 /* 正则防呆 */
 .regex-invalid .el-input__inner {
-  color: #f56c6c;
+  color: var(--red);
 }
 .regex-invalid .el-input__wrapper {
-  box-shadow: 0 0 0 1px #f56c6c inset;
+  box-shadow: 0 0 0 1px var(--red) inset;
 }
 .regex-error {
-  color: #f56c6c;
+  color: var(--red);
   font-size: 12px;
   margin-top: 4px;
   line-height: 1.4;
@@ -1392,8 +1588,8 @@ async function goFormat() {
 .spec-group {
   margin: 14px 0 8px;
   font-size: 14px;
-  color: #303133;
-  border-left: 3px solid #409eff;
+  color: var(--ink);
+  border-left: 3px solid var(--red);
   padding-left: 8px;
 }
 .spec-row {
@@ -1422,10 +1618,8 @@ async function goFormat() {
 .quick-card {
   margin: 12px 0 4px;
   padding: 18px 18px 14px;
-  border: 1px solid #E3E0D5;
-  border-radius: 8px;
+  border: 1px solid var(--hair);
   background: #fff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 .quick-card :deep(.el-upload-dragger) {
   padding: 24px 0 20px;
@@ -1468,10 +1662,8 @@ async function goFormat() {
 }
 .quick-result {
   margin-top: 18px;
-  border: 1px solid #E3E0D5;
-  border-radius: 8px;
+  border: 1px solid var(--hair);
   background: #fff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
   overflow: hidden;
 }
 .quick-result-bar {
@@ -1479,22 +1671,21 @@ async function goFormat() {
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  border-bottom: 1px solid #E3E0D5;
-  background: #F6F4EE;
+  border-bottom: 1px solid var(--hair);
+  background: var(--paper);
 }
 .quick-result-title {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: #24312A;
+  color: var(--ink);
   font-weight: 600;
 }
 .dot-ok {
   width: 8px;
   height: 8px;
-  border-radius: 50%;
-  background: #67c23a;
+  background: var(--red);
   display: inline-block;
 }
 .quick-result-body {
@@ -1511,43 +1702,38 @@ async function goFormat() {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 11px 22px;
-  border: none;
-  border-radius: 24px;
-  background: #2F5D46;
+  padding: 12px 20px;
+  border: 0;
+  background: var(--red);
   color: #fff;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(64, 158, 255, 0.45);
-  transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+  transition: background 0.15s ease;
 }
 .live-preview-toggle:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(64, 158, 255, 0.55);
+  background: #b91d1e;
 }
 .live-preview-toggle.on {
-  background: #67c23a;
-  box-shadow: 0 4px 14px rgba(103, 194, 58, 0.45);
+  background: var(--ink);
 }
 .live-preview-dock {
   position: fixed;
   right: 0;
-  top: 70px;
+  top: 60px;
   bottom: 0;
   width: 480px;
   z-index: 1400;
-  background: #F6F4EE;
-  border-left: 1px solid #D6D1C5;
-  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.08);
+  background: var(--paper);
+  border-left: 1px solid var(--ink);
   display: flex;
   flex-direction: column;
 }
 .live-preview-tip {
   padding: 8px 14px;
   font-size: 12px;
-  color: #8B968D;
-  border-bottom: 1px solid #E3E0D5;
+  color: #8a8b8b;
+  border-bottom: 1px solid var(--hair-2);
   background: #fff;
 }
 .live-preview-scroll {

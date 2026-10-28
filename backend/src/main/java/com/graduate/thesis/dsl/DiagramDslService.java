@@ -186,12 +186,37 @@ public class DiagramDslService {
         for (int i = 0; i < participants.size(); i++) {
             participants.get(i).setId("p" + (i + 1));
         }
+        // 引擎按参与者 id 校验/过滤消息(validMessages 只认 id), 而 DSL 里用户写的是名字
+        // —— 统一映射成 id, 与前端表单(下拉框提交 id)的产出完全一致
+        java.util.Map<String, String> nameToId = new java.util.HashMap<>();
+        for (SequenceConfig.ParticipantConfig p : participants) {
+            nameToId.putIfAbsent(p.getName(), p.getId());
+        }
+        for (SequenceConfig.MessageConfig m : messages) {
+            String fid = nameToId.get(m.getFrom());
+            String tid = nameToId.get(m.getTo());
+            if (fid != null) {
+                m.setFrom(fid);
+            }
+            if (tid != null) {
+                m.setTo(tid);
+            }
+        }
         cfg.setParticipants(participants);
         cfg.setMessages(messages);
         return DslParseResult.success(cfg);
     }
 
     private String renderSequence(SequenceConfig c) {
+        // config 里的 from/to 是参与者 id(parse 与前端表单均如此), 输出文本时转回名字才可读
+        java.util.Map<String, String> idToName = new java.util.HashMap<>();
+        if (c.getParticipants() != null) {
+            for (SequenceConfig.ParticipantConfig p : c.getParticipants()) {
+                if (p.getId() != null && p.getName() != null) {
+                    idToName.put(p.getId(), p.getName());
+                }
+            }
+        }
         StringBuilder sb = new StringBuilder();
         if (c.getTitle() != null && !c.getTitle().isBlank()) {
             sb.append("@title ").append(c.getTitle()).append('\n');
@@ -209,9 +234,11 @@ public class DiagramDslService {
         }
         if (c.getMessages() != null) {
             for (SequenceConfig.MessageConfig m : c.getMessages()) {
-                sb.append(m.getFrom())
+                String from = idToName.getOrDefault(String.valueOf(m.getFrom()), String.valueOf(m.getFrom()));
+                String to = idToName.getOrDefault(String.valueOf(m.getTo()), String.valueOf(m.getTo()));
+                sb.append(from)
                         .append("return".equalsIgnoreCase(String.valueOf(m.getType())) ? " --> " : " -> ")
-                        .append(m.getTo());
+                        .append(to);
                 if (m.getText() != null && !m.getText().isBlank()) {
                     sb.append(": ").append(m.getText());
                 }

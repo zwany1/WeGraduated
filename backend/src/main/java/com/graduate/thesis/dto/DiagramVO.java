@@ -26,6 +26,11 @@ public class DiagramVO {
      * 改造前保存的图没有这个字段（反序列化后为 null），由 render 反向生成。
      */
     private String dsl;
+    /**
+     * 解析后的结构化配置（如 SequenceConfig）。DSL 生成成功时随结果返回，
+     * 前端用它回填「精确调整」表单，保证文本与表单一致（R4）。
+     */
+    private Object config;
     private int width;
     private int height;
 }

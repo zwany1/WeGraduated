@@ -94,7 +94,10 @@ public class XssFilter extends OncePerRequestFilter {
     private static final java.util.Set<String> NO_ESCAPE_KEYS = new java.util.HashSet<>(java.util.Arrays.asList(
             "password", "newPassword", "confirmPassword", "emailCode", "captchaCode", "securityAnswer",
             "pageConfig", "headingPatterns", "referenceConfig", "tocConfig", "images",
-            "heading1", "heading2", "heading3", "numberingPattern"
+            "heading1", "heading2", "heading3", "numberingPattern",
+            // DSL 是代码类输入, "->" 是语法记号: 被转义成 "-&gt;" 后正则无法识别,
+            // 用户会看到莫名其妙的"第 N 行无法识别"(实际输入完全正确)
+            "dsl"
     ));
 
     @SuppressWarnings("unchecked")

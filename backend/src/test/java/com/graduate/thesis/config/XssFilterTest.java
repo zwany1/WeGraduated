@@ -59,6 +59,20 @@ class XssFilterTest {
         Assertions.assertTrue(out.contains("&lt;b&gt;&amp;&lt;/b&gt;"), "应转义 HTML 特殊字符: " + out);
     }
 
+    /** DSL 是代码类输入, "->" 是语法记号: 被转义成 "-&gt;" 后解析器无法识别,
+     *  用户看到"第 N 行无法识别"却完全不知道为什么 —— 必须走白名单 */
+    @Test
+    void dsl字段中的箭头不应被转义() throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        String body = "{\"type\":\"SEQUENCE\",\"dsl\":\"用户 -> 系统: 登录请求\\n系统 --> 用户: 成功\",\"remark\":\"<b>普通字段</b>\"}";
+        String out = wrappedBody(body);
+        var node = mapper.readTree(out);
+        Assertions.assertEquals("用户 -> 系统: 登录请求\n系统 --> 用户: 成功",
+                node.get("dsl").asText(), "dsl 字段的箭头必须原样保留");
+        Assertions.assertEquals("&lt;b&gt;普通字段&lt;/b&gt;",
+                node.get("remark").asText(), "其他字段仍应转义");
+    }
+
     @Test
     void 非法JSON应原样放行不抛异常() throws Exception {
         String body = "{\"heading2\":\"^\\d+\"}";

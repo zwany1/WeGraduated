@@ -313,6 +313,18 @@
             </el-form-item>
           </el-form>
 
+          <div class="input-row" style="margin-bottom:10px">
+            <el-button size="small" @click="clsShowSql = !clsShowSql">{{ clsShowSql ? '收起 SQL 导入' : '从 SQL 导入' }}</el-button>
+            <span class="tip">按建表语句生成类：表→类、字段→属性、外键→关联</span>
+          </div>
+          <div v-if="clsShowSql">
+            <el-input v-model="clsSql" type="textarea" :rows="6" placeholder="CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR(50));&#10;CREATE TABLE orders (id INT PRIMARY KEY, user_id INT, FOREIGN KEY (user_id) REFERENCES users(id));" />
+            <div class="input-row">
+              <el-button size="small" :loading="clsSqlLoading" @click="clsImportFromSql">解析 SQL 生成类</el-button>
+            </div>
+            <div class="section-divider"></div>
+          </div>
+
           <div class="section-divider"></div>
           <div class="input-title">类</div>
           <div v-for="(c, ci) in clsConfig.classes" :key="ci" class="cls-card">
@@ -527,6 +539,7 @@ import html2canvas from 'html2canvas'
 import { generateDiagram, saveDiagram } from '../api/diagram'
 import { getErGraph } from '../api/er'
 import { parseSql, generateTable3 } from '../api/table3'
+import { parseErSql } from '../api/er'
 import { toMermaid } from '../utils/mermaid'
 import MermaidExportDialog from '../components/MermaidExportDialog.vue'
 import { backOrHome } from '../utils/nav'
@@ -806,6 +819,18 @@ function buildSequencePayload() {
     .map(m => ({ id: m.id, from: m.from, to: m.to, text: m.text.trim(), type: m.type || 'request' }))
   return { title: seqConfig.value.title, participants, messages }
 }
+// DSL 解析成功后, 用后端返回的结构化配置整体替换表单数据(表单与画布保持一致)
+function syncSeqConfig(cfg) {
+  if (Array.isArray(cfg.participants) && cfg.participants.length) {
+    seqConfig.value.participants = cfg.participants.map((p, i) => ({ id: p.id || 'P' + (i + 1), name: p.name || '' }))
+  }
+  if (Array.isArray(cfg.messages)) {
+    seqConfig.value.messages = cfg.messages.map((m, i) => ({
+      id: m.id || 'M' + (i + 1), from: m.from, to: m.to, text: m.text, type: m.type || 'request'
+    }))
+  }
+  if (cfg.title) seqConfig.value.title = cfg.title
+}
 
 // 类图配置: 类 + 属性/方法 + 关系
 const clsConfig = ref({
@@ -899,6 +924,56 @@ function buildClassPayload() {
     .filter(r => r.source && r.target && r.source !== r.target)
     .map(r => ({ source: r.source, target: r.target, type: r.type || 'association', left: r.left || '', right: r.right || '' }))
   return { title: clsConfig.value.title, classes, relations }
+}
+
+// ==================== 类图 SQL 导入 ====================
+// 复用 ER 的 /api/er/parse-sql 接口: 表→类(字段→属性), 外键→关联(n:1)
+const clsShowSql = ref(false)
+const clsSql = ref('')
+const clsSqlLoading = ref(false)
+
+/** 表名转 PascalCase 类名: user_info → UserInfo */
+function toPascalCase(s) {
+  return String(s || '').split(/[^0-9a-zA-Z]+/).filter(Boolean)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('')
+}
+
+async function clsImportFromSql() {
+  if (!clsSql.value.trim()) {
+    ElMessage.warning('请输入建表 SQL')
+    return
+  }
+  clsSqlLoading.value = true
+  try {
+    const data = await parseErSql(clsSql.value.trim())
+    const entities = (data && data.entities) || []
+    const relations = (data && data.relations) || []
+    if (!entities.length) {
+      ElMessage.error('未能从 SQL 中解析出表结构，请检查语句格式')
+      return
+    }
+    const idOf = {}
+    clsConfig.value.classes = entities.map((e, i) => {
+      const id = 'C' + (i + 1)
+      idOf[e.name] = id
+      return {
+        id,
+        name: toPascalCase(e.name) || e.name,
+        attributes: (e.attrs || []).map(a => ({ name: a.name || '', type: a.type || '', visibility: '-' })),
+        methods: []
+      }
+    })
+    clsSeq = entities.length + 1
+    clsConfig.value.relations = relations
+      .filter(r => r.from && r.to && r.from !== r.to && idOf[r.from] && idOf[r.to])
+      .map(r => ({ source: idOf[r.from], target: idOf[r.to], type: 'association', left: 'n', right: '1' }))
+    clsShowSql.value = false
+    ElMessage.success(`已解析 ${clsConfig.value.classes.length} 个类、${clsConfig.value.relations.length} 个关联`)
+  } catch (e) {
+    // api 拦截器已统一提示错误信息
+  } finally {
+    clsSqlLoading.value = false
+  }
 }
 
 // ==================== ER 图配置 ====================
@@ -1679,6 +1754,10 @@ async function generate() {
     const vo = await generateDiagram(payload)
     // DSL 原文随图保存, 再次打开时回填输入框(没有它, 文本与图就对不上了)
     if (payload.dsl) vo.dsl = payload.dsl
+    // 后端把解析后的配置随结果带回: 用它回填「精确调整」表单, 保证表单与画布一致
+    if (payload.dsl && vo.config) {
+      syncSeqConfig(vo.config)
+    }
     currentVO.value = vo
     graphReady.value = true
     dslError.value = null

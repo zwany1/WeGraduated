@@ -49,9 +49,12 @@ class DiagramDslServiceTest {
         assertEquals("return", c.getMessages().get(2).getType());
         assertEquals("return", c.getMessages().get(3).getType());
 
-        assertEquals("用户", c.getMessages().get(0).getFrom());
-        assertEquals("系统", c.getMessages().get(0).getTo());
+        // from/to 应为参与者 id(与前端表单产出一致, 引擎只认 id), 名字经参与者列表对应
+        assertEquals("p1", c.getMessages().get(0).getFrom());
+        assertEquals("p2", c.getMessages().get(0).getTo());
         assertEquals("登录请求", c.getMessages().get(0).getText());
+        assertEquals("p3", c.getMessages().get(2).getFrom());
+        assertEquals("p2", c.getMessages().get(2).getTo());
     }
 
     @Test
@@ -182,8 +185,9 @@ class DiagramDslServiceTest {
                     + (r.getError() == null ? "" : r.getError().getMessage()));
             SequenceConfig c = (SequenceConfig) r.getConfig();
             assertEquals(1, c.getMessages().size());
-            assertEquals("用户", c.getMessages().get(0).getFrom(), "箭头 [" + arrow + "] 的 from 应干净");
-            assertEquals("系统", c.getMessages().get(0).getTo());
+            assertEquals("p1", c.getMessages().get(0).getFrom(), "箭头 [" + arrow + "] 的 from 应映射为参与者 id");
+            assertEquals("p2", c.getMessages().get(0).getTo());
+            assertEquals("用户", c.getParticipants().get(0).getName(), "箭头 [" + arrow + "] 参与者名应干净");
         }
     }
 
@@ -202,10 +206,10 @@ class DiagramDslServiceTest {
     @Test
     void 全角空格分隔时参与者名字不带隐形尾巴() {
         SequenceConfig c = parsed("用户\u3000->\u3000系统: 登录请求");
-        assertEquals("用户", c.getMessages().get(0).getFrom());
-        assertEquals("系统", c.getMessages().get(0).getTo());
         for (SequenceConfig.ParticipantConfig p : c.getParticipants()) {
             assertFalse(p.getName().contains("\u3000"), "参与者名不应含全角空格: " + p.getName());
         }
+        assertEquals("用户", c.getParticipants().get(0).getName());
+        assertEquals(1, c.getMessages().size());
     }
 }

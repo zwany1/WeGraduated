@@ -101,7 +101,16 @@ public class DiagramController {
             return Result.ok(useCaseEngine.build(dto.getUseCase()));
         }
         if ("SEQUENCE".equalsIgnoreCase(dto.getType()) && dto.getSequence() != null) {
-            return Result.ok(sequenceEngine.build(dto.getSequence()));
+            Object result = sequenceEngine.build(dto.getSequence());
+            // DSL 生成成功时把解析后的配置随结果带回，前端回填「精确调整」表单
+            if (result instanceof DiagramVO) {
+                DiagramVO vo = (DiagramVO) result;
+                if (dto.getDsl() != null && !dto.getDsl().isBlank()) {
+                    vo.setDsl(dto.getDsl());
+                    vo.setConfig(dto.getSequence());
+                }
+            }
+            return Result.ok(result);
         }
         if ("CLASS".equalsIgnoreCase(dto.getType()) && dto.getClassConfig() != null) {
             return Result.ok(classEngine.build(dto.getClassConfig()));

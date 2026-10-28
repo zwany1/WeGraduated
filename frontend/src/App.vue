@@ -22,8 +22,8 @@ const BARE_PUBLIC_ROUTES = ['/', '/home', '/features', '/guide', '/cases']
 watch(
   () => route.path,
   p => {
-    const swiss = SWISS_ROUTES.includes(p)
-    isLanding.value = BARE_PUBLIC_ROUTES.includes(p)
+    const swiss = SWISS_ROUTES.includes(p) || p.startsWith('/cases/')
+    isLanding.value = BARE_PUBLIC_ROUTES.includes(p) || p.startsWith('/cases/')
     document.body.classList.toggle('theme-swiss', swiss)
     document.body.classList.toggle('theme-academic', !swiss && !p.startsWith('/admin'))
   },

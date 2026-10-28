@@ -26,6 +26,7 @@ watch(
     const nf = name === 'notfound'
     const swiss = SWISS_ROUTES.includes(p) || p.startsWith('/cases/') || p.startsWith('/template/') || nf
     isLanding.value = BARE_PUBLIC_ROUTES.includes(p) || p.startsWith('/cases/') || nf
+    document.body.classList.toggle('bare-public', isLanding.value)
     document.body.classList.toggle('theme-swiss', swiss)
     document.body.classList.toggle('theme-academic', !swiss && !p.startsWith('/admin'))
   },

@@ -36,27 +36,33 @@ function open() {
   right: 26px;
   bottom: 84px;
   z-index: 150;
-  width: 50px;
-  height: 50px;
+  width: 46px;
+  height: 46px;
   border-radius: 0;
-  border: 1px solid #0a0909;
+  border: 1px solid #c1c1c3;
   cursor: pointer;
-  color: #fff;
-  background: #0a0909;
+  color: #0a0909;
+  background: #f7f6f6;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1px;
-  transition: background 0.2s, border-color 0.2s;
+  gap: 2px;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
 }
 .feedback-fab:hover {
   background: #dd2627;
   border-color: #dd2627;
+  color: #fff;
 }
 .feedback-fab:active {
   background: #0a0909;
   border-color: #0a0909;
+  color: #fff;
+}
+.feedback-fab svg {
+  width: 18px;
+  height: 18px;
 }
 .fab-label {
   font-size: 9px;

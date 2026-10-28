@@ -215,9 +215,9 @@ body.theme-swiss .el-table th.el-table__cell {
   color: #6b6b6b;
   font-weight: 400;
 }
-/* 落地页不显示工作台类悬浮件（后端状态 / 反馈气泡） */
-body.theme-swiss .feedback-fab,
-body.theme-swiss .backend-status {
+/* 公共营销页(bare-public)不显示工作台类悬浮件（后端状态 / 反馈气泡）；瑞士主题工作台页正常显示 */
+body.theme-swiss.bare-public .feedback-fab,
+body.theme-swiss.bare-public .backend-status {
   display: none !important;
 }
 body.theme-academic {

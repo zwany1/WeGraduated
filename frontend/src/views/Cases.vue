@@ -2,15 +2,31 @@
   <div class="page">
     <PublicNav />
 
-    <!-- 首屏：档案卷宗 -->
+    <!-- 首屏：档案卷宗 —— 内容完全由后台公开案例驱动，后台上架多少展示多少 -->
     <section class="wall" aria-label="成功案例">
       <h1 class="c-title" data-reveal>成功案例</h1>
       <p class="c-sub" data-reveal>案例即档案：产出可查、指标可验</p>
 
-      <div class="dgrid">
+      <div class="a-filters" data-reveal>
+        <p class="a-count">共 {{ shownCases.length }} 份公开档案</p>
+        <div class="a-chips">
+          <button
+            v-for="t in tags"
+            :key="t"
+            class="chip"
+            :class="{ on: filterTag === t }"
+            type="button"
+            @click="filterTag = filterTag === t ? '' : t"
+          >{{ t }}</button>
+          <button class="chip" :class="{ on: sortKey === 'rating' }" type="button" @click="sortKey = 'rating'">评分</button>
+          <button class="chip" :class="{ on: sortKey === 'newest' }" type="button" @click="sortKey = 'newest'">最新</button>
+        </div>
+      </div>
+
+      <div v-if="shownCases.length" class="dgrid">
         <article
-          v-for="(c, i) in wallCases"
-          :key="i"
+          v-for="(c, i) in shownCases"
+          :key="c.id"
           class="dcard"
           data-reveal
           :style="{ '--ri': i }"
@@ -18,59 +34,9 @@
           @click="goDetail(c)"
           @keydown.enter="goDetail(c)"
         >
-          <p class="dlabel">
-            档案 {{ String(i + 1).padStart(3, '0') }}<span v-if="c.sample" class="dsample"> · 示例</span>
-          </p>
-          <h2 class="dtitle">{{ c.title }}</h2>
-          <p class="ddesc">{{ c.desc }}</p>
-          <div class="dline" aria-hidden="true"></div>
-          <p class="dmetrics">{{ c.metrics }}</p>
-          <p class="dfoot">
-            <span class="dwho">{{ c.who }}</span>
-            <span class="dmore">调阅全文</span>
-          </p>
-        </article>
-      </div>
-    </section>
-
-    <!-- 下折：全部档案 -->
-    <section class="archive" aria-label="全部档案">
-      <div class="a-head" data-reveal>
-        <h2 class="a-title">全部档案</h2>
-        <p class="a-count">共 {{ realCases.length }} 份公开档案</p>
-      </div>
-
-      <div class="a-filters" data-reveal>
-        <div class="a-chips">
-          <button class="chip" :class="{ on: filterTag === '' }" type="button" @click="filterTag = ''">全部</button>
-          <button
-            v-for="t in tags"
-            :key="t"
-            class="chip"
-            :class="{ on: filterTag === t }"
-            type="button"
-            @click="filterTag = t"
-          >{{ t }}</button>
-        </div>
-        <div class="a-chips">
-          <button class="chip" :class="{ on: sortKey === 'rating' }" type="button" @click="sortKey = 'rating'">评分</button>
-          <button class="chip" :class="{ on: sortKey === 'newest' }" type="button" @click="sortKey = 'newest'">最新</button>
-        </div>
-      </div>
-
-      <div class="dgrid a-grid">
-        <article
-          v-for="c in shownReal"
-          :key="c.id"
-          class="dcard"
-          data-reveal
-          tabindex="0"
-          @click="goDetail(c)"
-          @keydown.enter="goDetail(c)"
-        >
-          <p class="dlabel">{{ c.tag || '档案' }}</p>
+          <p class="dlabel">档案 {{ String(i + 1).padStart(3, '0') }}</p>
           <h2 class="dtitle">{{ cleanTitle(c.title) }}</h2>
-          <p class="ddesc">{{ c.description || ' ' }}</p>
+          <p class="ddesc">{{ c.description }}</p>
           <div class="dline" aria-hidden="true"></div>
           <p class="dmetrics">{{ metricsLine(c) || '—' }}</p>
           <p class="dfoot">
@@ -79,7 +45,9 @@
           </p>
         </article>
       </div>
-      <p v-if="!shownReal.length" class="a-empty">暂无公开档案</p>
+      <div v-else class="a-empty-box" data-reveal>
+        <p class="a-empty">暂无公开档案</p>
+      </div>
     </section>
 
     <PublicFooter />
@@ -98,67 +66,19 @@ const cases = ref([])
 const filterTag = ref('')
 const sortKey = ref('rating')
 
-// hero 阶段逐字使用样张文字的示例卡：真实档案不足 4 份时补位，并标「示例」；
-// 真实数据接入与统计带取舍是 sections 阶段的明示决策
-const sampleCases = [
-  {
-    sample: true,
-    title: '计算机学院毕业论文排版',
-    desc: '毕业论文按校规模板一键排版，格式体检逐项落位，产出即档案可回查。',
-    metrics: '用时 32分钟 · 45页 · 98%匹配 · 评分 4.9',
-    who: '王同学 · 华中科技大学'
-  },
-  {
-    sample: true,
-    title: '计算机学院毕业论文排版',
-    desc: '排版结果在线预览，标题图表参考文献按校规落位，差异可逐项核对。',
-    metrics: '用时 32分钟 · 45页 · 98%匹配 · 评分 4.9',
-    who: '王同学 · 华中科技大学'
-  },
-  {
-    sample: true,
-    title: '计算机学院毕业论文排版',
-    desc: '标题、图表编号与参考文献按规范自动编号，条目格式一次到位。',
-    metrics: '用时 32分钟 · 45页 · 98%匹配 · 评分 4.9',
-    who: '王同学 · 华中科技大学'
-  },
-  {
-    sample: true,
-    title: '计算机学院毕业论文排版',
-    desc: '排版完成后一键下载交付，体检报告与规则来源随档案留存。',
-    metrics: '用时 32分钟 · 45页 · 98%匹配 · 评分 4.9',
-    who: '王同学 · 华中科技大学'
-  }
-]
-
-const realCases = computed(() =>
-  [...cases.value].sort((a, b) => {
-    if (sortKey.value === 'newest') {
-      return new Date(b.createTime || 0) - new Date(a.createTime || 0)
-    }
-    return Number(b.rating || 0) - Number(a.rating || 0)
-  })
-)
-
-// 首屏档案墙：逐字使用已批准样张 case-dossier.png 的示例内容（明示决策，全部标「示例」）；
-// 真实公开档案在下折「全部档案」区展示
-const wallCases = computed(() => sampleCases)
-
-const shownReal = computed(() =>
-  realCases.value.filter(c => !filterTag.value || c.tag === filterTag.value)
+// 案例内容完全来自后台公开案例接口：后台上架多少展示多少，不做任何示例/占位内容
+const shownCases = computed(() =>
+  [...cases.value]
+    .filter(c => !filterTag.value || c.tag === filterTag.value)
+    .sort((a, b) => {
+      if (sortKey.value === 'newest') {
+        return new Date(b.createTime || 0) - new Date(a.createTime || 0)
+      }
+      return Number(b.rating || 0) - Number(a.rating || 0)
+    })
 )
 
 const tags = computed(() => [...new Set(cases.value.map(c => c.tag).filter(Boolean))])
-
-function toCard(c) {
-  return {
-    id: c.id,
-    title: cleanTitle(c.title),
-    desc: c.description || '',
-    metrics: metricsLine(c),
-    who: [displayName(c), displaySub(c)].filter(Boolean).join(' · ')
-  }
-}
 
 function cleanTitle(t) {
   return (t || '').replace(/\.docx$/i, '')
@@ -233,6 +153,7 @@ onMounted(async () => {
 .wall {
   position: relative;
   min-height: calc(922 * var(--u));
+  padding: calc(202 * var(--u)) calc(113 * var(--u)) calc(80 * var(--u)) calc(112 * var(--u));
 }
 
 .c-title {
@@ -257,12 +178,9 @@ onMounted(async () => {
   color: var(--ink);
 }
 
-/* 档案卡阵列：2 列，卡 640x322，列距 29 行距 26 */
+/* 档案卡阵列：2 列，卡 640x322，列距 29 行距 26；数量由后台数据决定 */
 .dgrid {
-  position: absolute;
-  left: calc(112 * var(--u));
-  top: calc(202 * var(--u));
-  width: calc(1311 * var(--u));
+  width: 100%;
   display: grid;
   grid-template-columns: 1fr 1fr;
   column-gap: calc(29 * var(--u));
@@ -390,29 +308,8 @@ onMounted(async () => {
   outline: calc(2 * var(--u)) solid var(--red);
   outline-offset: 2px;
 }
-.dsample {
-  font-size: calc(15 * var(--u));
-  font-weight: 400;
-  letter-spacing: 0.04em;
-}
 
-/* ---------- 下折：全部档案 ---------- */
-.archive {
-  border-top: 1px solid var(--hair);
-  padding: calc(64 * var(--u)) calc(112 * var(--u)) calc(110 * var(--u));
-}
-.a-head {
-  display: flex;
-  align-items: baseline;
-  gap: calc(24 * var(--u));
-}
-.a-title {
-  margin: 0;
-  font-size: calc(34 * var(--u));
-  font-weight: 900;
-  letter-spacing: 0.02em;
-  color: var(--ink);
-}
+/* ---------- 筛选行与空态 ---------- */
 .a-count {
   margin: 0;
   font-size: calc(16 * var(--u));
@@ -425,7 +322,7 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   gap: calc(20 * var(--u));
-  margin: calc(30 * var(--u)) 0 calc(34 * var(--u));
+  margin: 0 0 calc(34 * var(--u));
   flex-wrap: wrap;
 }
 .a-chips {
@@ -454,12 +351,13 @@ onMounted(async () => {
   border-color: var(--ink);
   color: #fff;
 }
-.a-grid {
-  position: static;
-  width: 100%;
+.a-empty-box {
+  border: 1px solid var(--hair-2);
+  background: #fff;
+  padding: calc(56 * var(--u)) calc(29 * var(--u));
 }
 .a-empty {
-  margin: calc(20 * var(--u)) 0 0;
+  margin: 0;
   font-size: calc(17 * var(--u));
   color: #8a8b8b;
 }
@@ -532,12 +430,10 @@ onMounted(async () => {
   .dline { position: static; margin: 0 0 10px; }
   .dmetrics { font-size: 13px; margin-bottom: 10px; }
   .dfoot { font-size: 14px; }
-  .archive { padding: 32px 16px 56px; }
-  .a-title { font-size: 20px; }
   .a-count { font-size: 13px; }
-  .a-filters { margin: 16px 0 20px; }
+  .a-filters { margin: 0 0 20px; }
   .chip { font-size: 13px; padding: 7px 12px; }
-  .dsample { font-size: 12px; }
+  .a-empty-box { padding: 32px 16px; }
   .a-empty { font-size: 14px; }
 }
 </style>

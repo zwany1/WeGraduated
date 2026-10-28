@@ -55,7 +55,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import PublicNav from '../components/PublicNav.vue'
 import PublicFooter from '../components/PublicFooter.vue'
@@ -108,11 +108,11 @@ function goDetail(c) {
   if (c.id) router.push('/cases/' + c.id)
 }
 
-onMounted(async () => {
-  try {
-    cases.value = await listPublicCases(50)
-  } catch (e) {}
-  const els = document.querySelectorAll('[data-reveal]')
+// 入场动画：接口返回、卡片渲染完成后也要重新收集（异步内容不补收集会一直停留在透明态）
+async function setupReveal() {
+  await nextTick()
+  const els = [...document.querySelectorAll('[data-reveal]:not([data-in])')]
+  if (!els.length) return
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) {
     els.forEach(e => e.setAttribute('data-in', '1'))
     return
@@ -126,6 +126,14 @@ onMounted(async () => {
     })
   }, { threshold: 0.15 })
   els.forEach(e => io.observe(e))
+}
+
+onMounted(async () => {
+  setupReveal()
+  try {
+    cases.value = await listPublicCases(50)
+  } catch (e) {}
+  setupReveal()
 })
 </script>
 

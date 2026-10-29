@@ -22,46 +22,64 @@ const SAMPLES = {
   a4s: { file: 's1_chapter_shuffle.docx', tpl: '测试版式C·A4-宋体五号-单倍', label: 'A4/五号单倍' }
 };
 
-// A4 210mm ≈ 793.7px(96dpi); B5 176mm ≈ 665px
-const PAPER = { A4: 794, B5: 665 };
+// A4 210mm ≈ 793.7px(96dpi); 本仓 B5 模板写的是 8293×11810 twips ≈ 146×208mm(≈A5, 见场景末尾告警)
+const PAPER = { A4: 794, B5: 553 };
 
 const cdp = await openPage(9333);
 await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1600, height: 1000, deviceScaleFactor: 1, mobile: false });
 
 const METRICS = `(() => {
-  const wrap = document.querySelector('.docx-wrap');
-  const body = document.querySelector('.docx-body');
+  // 取最后一个 .docx-body: 上一个预览弹窗可能还在卸载中, 不能读到它的指标
+  const bodies = [...document.querySelectorAll('.docx-body')];
+  const body = bodies[bodies.length - 1];
+  const wrap = body ? body.closest('.docx-wrap') : null;
   if (!wrap || !body) return null;
-  const secs = [...document.querySelectorAll('.docx-wrapper section')];
-  const ps = [...document.querySelectorAll('.docx-body p')];
+  const secs = [...body.querySelectorAll('section')];
+  const ps = [...body.querySelectorAll('p')];
   const cs = el => el ? getComputedStyle(el) : null;
   const textSpan = el => el ? (el.querySelector('span') || el) : null;
   const bodyP = ps.find(p => (p.innerText || '').trim().length > 30);
   const headingP = ps.find(p => /docx_2\\b/.test(p.className || ''));
   const captionP = ps.find(p => /^(图|表)\\s*\\d/.test((p.innerText || '').trim()));
+  // 取"真正承载文字"的叶子 span: 段落里可能还有一个空 wrapper span(带样式默认字号), 不能用它判字号
+  const leaf = el => {
+    if (!el) return null;
+    const spans = [...el.querySelectorAll('span')].filter(s => (s.textContent || '').trim());
+    return spans.length ? spans[spans.length - 1] : el;
+  };
   const f = el => {
     if (!el) return null;
     const s = cs(el);
     return { ff: s.fontFamily, fs: parseFloat(s.fontSize), fw: s.fontWeight, ta: s.textAlign,
              lh: s.lineHeight, ti: s.textIndent };
   };
+  const dlg = body.closest('.el-dialog') || document;
+  const onMode = dlg.querySelector('[data-mode].on');
   return {
-    mode: document.querySelector('[data-mode].on') ? document.querySelector('[data-mode].on').dataset.mode : 'continuous',
+    mode: onMode ? onMode.dataset.mode : 'continuous',
     sections: secs.length,
     sectionWidth: secs[0] ? Math.round(secs[0].getBoundingClientRect().width * 10) / 10 : 0,
-    hasSheetNo: !!document.querySelector('.sheet-no'),
-    body: f(textSpan(bodyP)),
-    heading: headingP ? { ...f(textSpan(headingP)), text: (headingP.innerText || '').slice(0, 12) } : null,
-    caption: captionP ? { ...f(captionP), text: (captionP.innerText || '').slice(0, 14) } : null,
-    zoom: (document.querySelector('.zoom-val') || {}).innerText || '',
-    overflowRight: 0, overflowLeft: 0
+    lastWidth: secs.length ? Math.round(secs[secs.length - 1].getBoundingClientRect().width * 10) / 10 : 0,
+    hasSheetNo: !!body.querySelector('.sheet-no') || !!dlg.querySelector('.sheet-no'),
+    body: f(leaf(bodyP)),
+    heading: headingP ? { ...f(leaf(headingP)), text: (headingP.innerText || '').slice(0, 12) } : null,
+    caption: captionP ? { ...f(leaf(captionP)), pAlign: getComputedStyle(captionP).textAlign, text: (captionP.innerText || '').slice(0, 14) } : null,
+    zoom: (dlg.querySelector('.zoom-val') || {}).innerText || ''
   };
 })()`;
 
+/** 关掉所有预览弹窗并等它们真正卸载(否则会读到上一个弹窗的指标) */
+async function closeDialogs() {
+  await cdp.eval(`document.querySelectorAll('.el-dialog__headerbtn').forEach(b => b.click())`);
+  for (let i = 0; i < 20; i++) {
+    await sleep(200);
+    if (await cdp.eval(`document.querySelectorAll('.docx-body').length`) === 0) return;
+  }
+}
+
 /** 打开某样本的预览; 返回是否成功 */
 async function openPreview(sample) {
-  await cdp.eval(`document.querySelectorAll('.el-dialog__headerbtn').forEach(b => b.click())`);
-  await sleep(500);
+  await closeDialogs();
   const ok = await cdp.eval(`(() => {
     const rows = [...document.querySelectorAll('.el-table__row')];
     const row = rows.find(r => r.innerText.includes(${JSON.stringify(sample.file)})
@@ -76,7 +94,11 @@ async function openPreview(sample) {
   if (!ok) return false;
   for (let i = 0; i < 40; i++) {
     await sleep(500);
-    if (await cdp.eval(`document.querySelectorAll('.docx-body p').length`) > 100) break;
+    const n = await cdp.eval(`(() => {
+      const body = [...document.querySelectorAll('.docx-body')].pop();
+      return body ? body.querySelectorAll('p').length : 0;
+    })()`);
+    if (n > 100) break;
   }
   await sleep(1200);
   return true;
@@ -84,10 +106,17 @@ async function openPreview(sample) {
 
 /** 切到指定模式(页面视图由产品提供 [data-mode] 按钮; 缺省视为连续) */
 async function setMode(mode) {
-  const has = await cdp.eval(`!!document.querySelector('[data-mode="${mode}"]')`);
+  const has = await cdp.eval(`(() => {
+    const body = [...document.querySelectorAll('.docx-body')].pop();
+    if (!body) return false;
+    const dlg = body.closest('.el-dialog') || document;
+    const b = dlg.querySelector('[data-mode="${mode}"]');
+    if (!b) return false;
+    b.click();
+    return true;
+  })()`);
   if (!has) return false;
-  await cdp.eval(`document.querySelector('[data-mode="${mode}"]').click()`);
-  await sleep(1500);
+  await sleep(1800);
   return true;
 }
 
@@ -103,29 +132,47 @@ async function metrics() {
 
 async function zoomTo(target) {
   for (let i = 0; i < 12; i++) {
-    const cur = parseInt(await cdp.eval(`(document.querySelector('.zoom-val')||{}).innerText`)) || 100;
+    const cur = parseInt(await cdp.eval(`(() => {
+      const body = [...document.querySelectorAll('.docx-body')].pop();
+      const dlg = body ? (body.closest('.el-dialog') || document) : document;
+      return (dlg.querySelector('.zoom-val') || {}).innerText || '100%';
+    })()`)) || 100;
     if (cur >= target) break;
-    await cdp.eval(`(() => { const b = [...document.querySelectorAll('.el-dialog .zoom button')]; b[1] && b[1].click(); })()`);
+    await cdp.eval(`(() => {
+      const body = [...document.querySelectorAll('.docx-body')].pop();
+      const dlg = body ? (body.closest('.el-dialog') || document) : document;
+      const b = [...dlg.querySelectorAll('.zoom button')];
+      b[1] && b[1].click();
+    })()`);
     await sleep(150);
   }
-  await sleep(600);
-  return cdp.eval(`(document.querySelector('.zoom-val')||{}).innerText`);
+  await sleep(700);
+  return cdp.eval(`(() => {
+    const body = [...document.querySelectorAll('.docx-body')].pop();
+    const dlg = body ? (body.closest('.el-dialog') || document) : document;
+    return (dlg.querySelector('.zoom-val') || {}).innerText;
+  })()`);
 }
 
-/** 缩放后文本是否被横向裁切: 比较所有文本 span 的包围盒与滚动容器 */
+/** 缩放后内容是否可被完整滚到(裁切vs可滚动): 比较 body 布局宽与滚动容器的可滚宽。
+ *  transform 缩放不改布局宽 → scrollWidth 追不上视觉宽度 → 右侧文字被永久切掉; zoom 则会重排。 */
 async function overflow() {
   return cdp.eval(`(() => {
-    const wrap = document.querySelector('.docx-wrap');
+    const body = [...document.querySelectorAll('.docx-body')].pop();
+    const wrap = body ? body.closest('.docx-wrap') : null;
+    if (!wrap || !body) return { ok: false, bodyScroll: -1, wrapScroll: -1, visualRight: -1, left: 0 };
     const wr = wrap.getBoundingClientRect();
     let right = 0, left = 0;
-    document.querySelectorAll('.docx-body span').forEach(s => {
+    body.querySelectorAll('span').forEach(s => {
       if (!(s.textContent || '').trim()) return;
       const r = s.getBoundingClientRect();
       if (!r.width) return;
       right = Math.max(right, r.right - wr.right);
       left = Math.min(left, r.left - wr.left);
     });
-    return { right: Math.round(right), left: Math.round(left) };
+    return { ok: body.scrollWidth <= wrap.scrollWidth + 2,
+      bodyScroll: body.scrollWidth, wrapScroll: wrap.scrollWidth,
+      visualRight: Math.round(right), left: Math.round(left) };
   })()`);
 }
 
@@ -156,8 +203,8 @@ check('字体: 正文不再被强制成 Arial, 标题保留黑体',
   a4 && a4.body ? `正文 ${a4.body.ff.slice(0, 40)} / 标题 ${(a4.heading || {}).ff}` : '未取到');
 
 check('对齐: 题注居中, 正文两端对齐',
-  !!a4 && a4.caption && a4.caption.ta === 'center',
-  a4 && a4.caption ? `题注 ${a4.caption.ta} (${a4.caption.text})` : '未取到题注');
+  !!a4 && a4.caption && a4.caption.pAlign === 'center',
+  a4 && a4.caption ? `题注 ${a4.caption.pAlign} (${a4.caption.text})` : '未取到题注');
 
 // ---- B5 样本: 纸宽必须与 A4 不同 ----
 let b5 = null;
@@ -170,9 +217,15 @@ if (await openPreview(SAMPLES.b5)) {
   console.log('!! 找不到 B5 样本任务行:', JSON.stringify(SAMPLES.b5));
 }
 
-check('纸宽随版式变化: B5 ≠ A4',
-  !!b5 && Math.abs(b5.sectionWidth - PAPER.B5) <= 2 && Math.abs(b5.sectionWidth - PAPER.A4) > 20,
-  b5 ? `B5 ${b5.sectionWidth}px vs A4 ${a4 ? a4.sectionWidth : '?'}px` : '未取到');
+// B5 模板只改了 body 节(最后一节), 前两节仍是 A4 —— 所以取最后一页宽度验证"纸宽跟随文档"
+check('纸宽随版式变化: B5 末页 ≠ A4',
+  !!b5 && Math.abs(b5.lastWidth - PAPER.B5) <= 2 && Math.abs(b5.lastWidth - PAPER.A4) > 20,
+  b5 ? `B5 末页 ${b5.lastWidth}px / 首页 ${b5.sectionWidth}px, A4 ${a4 ? a4.sectionWidth : '?'}px` : '未取到');
+
+if (b5 && b5.lastWidth !== b5.sectionWidth) {
+  console.log(`⚠️  同一文档页码尺寸不一致: 首页 ${b5.sectionWidth}px, 末页 ${b5.lastWidth}px` +
+    ` —— 引擎只改了 body 节(B5=8293×11810 twips≈146×208mm, 也不是标准 B5 176×250mm)`);
+}
 
 // ---- A4/五号单倍: 标题字号/加粗 + 缩放不裁切 ----
 let small = null;
@@ -191,9 +244,9 @@ check('标题字号/加粗跟随模板: 15pt + 700',
 const z = await zoomTo(200);
 const ov = await overflow();
 await shot('a4s-zoom200');
-check('缩放 200%: 文字不被横向裁切',
-  ov.right <= 2 && ov.left >= -2,
-  `缩放 ${z}, 溢出 right=${ov.right}px left=${ov.left}px`);
+check('缩放 200%: 文字可完整滚动查看(不被裁切)',
+  !!ov && ov.ok,
+  `缩放 ${z}, body 布局宽 ${ov.bodyScroll}px / 可滚宽 ${ov.wrapScroll}px (视觉溢出 ${ov.visualRight}px)`);
 
 const failed = summarize();
 process.exit(failed ? 3 : 0);

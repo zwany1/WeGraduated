@@ -32,7 +32,33 @@
       <section class="input-panel">
         <!-- 架构图: 结构化配置表单 -->
         <template v-if="type === 'ARCH'">
-          <div class="input-title">系统架构配置</div>
+          <div class="input-title">架构图文本</div>
+          <el-input
+            v-model="archDsl"
+            type="textarea"
+            :rows="8"
+            class="dsl-input"
+            placeholder="表现层&#10;  Vue3 前端&#10;服务层&#10;  SpringBoot&#10;  MySQL"
+          />
+          <div class="dsl-row">
+            <el-button size="small" @click="fillArchExample">填入示例</el-button>
+            <el-button size="small" type="primary" :loading="generating" @click="generate">生成架构图</el-button>
+            <span class="tip">顶格写层名，缩进写该层组件</span>
+          </div>
+          <div v-if="dslError" class="dsl-error">
+            <div class="dsl-error-line">
+              第 {{ dslError.line }} 行有问题<template v-if="dslError.snippet">：<code>{{ dslError.snippet }}</code></template>
+            </div>
+            <pre v-if="dslError.hint" class="dsl-hint">{{ dslError.hint }}</pre>
+          </div>
+
+          <div class="section-divider"></div>
+          <div class="adv-toggle" @click="advancedOpen = !advancedOpen">
+            <span class="adv-arrow" :class="{ open: advancedOpen }">›</span>
+            <span>高级设置（逐层配置）</span>
+            <span class="adv-note">填了文本就以文本为准；这里改完点生成同样生效</span>
+          </div>
+          <div v-show="advancedOpen" class="adv-body">
           <el-form label-width="70px" size="small">
             <el-form-item label="系统名称">
               <el-input v-model="config.systemName" placeholder="如：会员卡系统" />
@@ -56,26 +82,54 @@
             <el-button type="primary" :loading="generating" @click="generate">生成架构图</el-button>
             <span class="tip">层名和每层组件可自由编辑</span>
           </div>
+          </div>
         </template>
 
-        <!-- 流程图: 文本描述 -->
+        <!-- 流程图: 文本 DSL(推荐) + 自然语言描述(旧入口, 折叠保留) -->
         <template v-else-if="type === 'FLOW'">
-          <div class="input-title">请输入流程脚本</div>
+          <div class="input-title">流程图文本</div>
           <el-input
-            v-model="description"
+            v-model="flowDsl"
             type="textarea"
             :rows="9"
-            placeholder="查询会员余额&#10;if(余额 >= 商品金额)&#10;    扣除余额&#10;    保存订单&#10;else&#10;    返回余额不足"
+            class="dsl-input"
+            placeholder="开始 -> 提交论文&#10;提交论文 -> 格式检查&#10;格式检查 -> 合格?&#10;合格? -> 通过: 是&#10;合格? -> 退回修改: 否"
           />
-          <div class="dsl-tip">普通文本 = 节点；if(条件) = 判断(菱形)；else = 否分支；缩进 = 归属</div>
-          <div class="input-row">
-            <el-button type="primary" :loading="generating" @click="generate">生成设计图</el-button>
-            <span class="tip">含 if( 的脚本走分支解析</span>
+          <div class="dsl-row">
+            <el-button size="small" @click="fillFlowExample">填入示例</el-button>
+            <el-button size="small" type="primary" :loading="generating" @click="generate">生成流程图</el-button>
+            <span class="tip">A -> B　名字带 ? = 判断　「: 是」为分支条件</span>
           </div>
-          <div class="examples">
-            <div class="ex-title">示例：</div>
-            <div class="ex-item" v-for="(ex, i) in examples" :key="i" @click="useExample(ex)">
-              <span class="ex-tag">{{ ex.typeText }}</span>{{ ex.text }}
+          <div v-if="dslError" class="dsl-error">
+            <div class="dsl-error-line">
+              第 {{ dslError.line }} 行有问题<template v-if="dslError.snippet">：<code>{{ dslError.snippet }}</code></template>
+            </div>
+            <pre v-if="dslError.hint" class="dsl-hint">{{ dslError.hint }}</pre>
+          </div>
+
+          <div class="section-divider"></div>
+          <div class="adv-toggle" @click="advancedOpen = !advancedOpen">
+            <span class="adv-arrow" :class="{ open: advancedOpen }">›</span>
+            <span>高级设置（自然语言描述）</span>
+            <span class="adv-note">改造前的入口，仍然可用；填了文本就以文本为准</span>
+          </div>
+          <div v-show="advancedOpen" class="adv-body">
+            <el-input
+              v-model="description"
+              type="textarea"
+              :rows="7"
+              placeholder="查询会员余额&#10;if(余额 >= 商品金额)&#10;    扣除余额&#10;    保存订单&#10;else&#10;    返回余额不足"
+            />
+            <div class="dsl-tip">普通文本 = 节点；if(条件) = 判断(菱形)；else = 否分支；缩进 = 归属</div>
+            <div class="input-row">
+              <el-button size="small" :loading="generating" @click="generate">用自然语言生成</el-button>
+              <span class="tip">含 if( 的脚本走分支解析</span>
+            </div>
+            <div class="examples">
+              <div class="ex-title">示例：</div>
+              <div class="ex-item" v-for="(ex, i) in examples" :key="i" @click="useExample(ex)">
+                <span class="ex-tag">{{ ex.typeText }}</span>{{ ex.text }}
+              </div>
             </div>
           </div>
         </template>
@@ -674,8 +728,10 @@ const generating = ref(false)
 const graphReady = ref(false)
 const currentVO = ref(null)
 
-// 文本 DSL 输入(票01 仅时序图开放; 其余图类型后端返回"尚未开放", 届时回退表单)
+// 文本 DSL 输入(时序图/流程图/架构图已开放; 其余图类型后端返回"尚未开放", 届时回退表单)
 const seqDsl = ref('')
+const flowDsl = ref('')
+const archDsl = ref('')
 /** DSL 解析失败的结构化错误: { line, snippet, hint, message } */
 const dslError = ref(null)
 
@@ -847,6 +903,19 @@ function syncSeqConfig(cfg) {
     }))
   }
   if (cfg.title) seqConfig.value.title = cfg.title
+}
+
+// 架构图: 文本生成后用解析结果覆盖「高级设置」里的逐层配置(层顺序与组件以文本为准)
+function syncArchConfig(cfg) {
+  if (cfg.systemName) config.value.systemName = cfg.systemName
+  if (Array.isArray(cfg.layers) && cfg.layers.length) {
+    config.value.layers = cfg.layers
+      .filter(l => l && l.name)
+      .map(l => ({
+        name: l.name,
+        components: (l.components || []).filter(c => c && c.name).map(c => ({ name: c.name }))
+      }))
+  }
 }
 
 // 类图配置: 类 + 属性/方法 + 关系
@@ -1707,9 +1776,43 @@ function fillSeqExample() {
   onDslInput()
 }
 
+// 流程图/架构图示例: 取自真实论文场景, 不用 foo/bar 占位
+const FLOW_EXAMPLE = [
+  '@title 论文提交流程',
+  '开始 -> 提交论文',
+  '提交论文 -> 格式检查',
+  '格式检查 -> 合格?',
+  '合格? -> 通过: 是',
+  '合格? -> 退回修改: 否'
+].join('\n')
+
+const ARCH_EXAMPLE = [
+  '@title 论文排版系统架构',
+  '表现层',
+  '  Vue3 前端',
+  '服务层',
+  '  SpringBoot',
+  '数据层',
+  '  MySQL',
+  '  Redis'
+].join('\n')
+
+function fillFlowExample() {
+  flowDsl.value = FLOW_EXAMPLE
+  dslError.value = null
+}
+
+function fillArchExample() {
+  archDsl.value = ARCH_EXAMPLE
+  dslError.value = null
+}
+
 async function generate() {
   let payload
-  if (type.value === 'ARCH') {
+  if (type.value === 'ARCH' && archDsl.value.trim()) {
+    // 文本优先: 有文本就不校验表单
+    payload = { type: 'ARCH', dsl: archDsl.value }
+  } else if (type.value === 'ARCH') {
     // 至少配置一个层且一个组件
     const hasAny = config.value.layers.some(l =>
       l.name && (l.components || []).some(c => c.name)
@@ -1719,6 +1822,9 @@ async function generate() {
       return
     }
     payload = { type: 'ARCH', config: config.value }
+  } else if (type.value === 'FLOW' && flowDsl.value.trim()) {
+    // 文本优先; 文本为空时继续走下面的自然语言描述(旧入口)
+    payload = { type: 'FLOW', dsl: flowDsl.value }
   } else if (type.value === 'SWIMLANE') {
     const swim = buildSwimlanePayload()
     if (swim.lanes.length === 0 || swim.nodes.length === 0) {
@@ -1819,7 +1925,12 @@ async function generate() {
     return
   } else {
     if (!description.value.trim()) {
-      ElMessage.warning('请输入系统描述')
+      // 走到这里的只有「流程图 + 文本为空 + 自然语言描述也为空」
+      ElMessage.warning(
+        type.value === 'FLOW'
+          ? '请先在上方写流程文本，或展开「高级设置」用自然语言描述'
+          : '请输入系统描述'
+      )
       return
     }
     payload = { type: type.value, description: description.value }
@@ -1831,7 +1942,8 @@ async function generate() {
     if (payload.dsl) vo.dsl = payload.dsl
     // 后端把解析后的配置随结果带回: 用它回填「精确调整」表单, 保证表单与画布一致
     if (payload.dsl && vo.config) {
-      syncSeqConfig(vo.config)
+      if (vo.type === 'SEQUENCE') syncSeqConfig(vo.config)
+      else if (vo.type === 'ARCH') syncArchConfig(vo.config)
     }
     currentVO.value = vo
     graphReady.value = true

@@ -7,6 +7,7 @@ import com.graduate.thesis.service.ActivityDiagramRuleEngine;
 import com.graduate.thesis.service.ArchitectureRuleEngine;
 import com.graduate.thesis.service.ClassDiagramRuleEngine;
 import com.graduate.thesis.service.DiagramGenerator;
+import com.graduate.thesis.service.FlowRuleEngine;
 import com.graduate.thesis.service.SequenceRuleEngine;
 import com.graduate.thesis.service.SwimlaneRuleEngine;
 import com.graduate.thesis.service.UseCaseRuleEngine;
@@ -45,6 +46,7 @@ class DiagramControllerRenderDslTest {
                 Mockito.mock(SequenceRuleEngine.class),
                 Mockito.mock(ClassDiagramRuleEngine.class),
                 Mockito.mock(ActivityDiagramRuleEngine.class),
+                Mockito.mock(FlowRuleEngine.class),
                 new DiagramDslService());
     }
 

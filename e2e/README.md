@@ -39,7 +39,8 @@ E2E_TOKEN=<token> node e2e/scenarios/sequence-canvas.mjs
 ## 跑场景
 
 ```bash
-node e2e/scenarios/sequence-canvas.mjs
+node e2e/scenarios/sequence-canvas.mjs   # 时序图: 生成/表单回填/画布编辑/持久化
+node e2e/scenarios/flow-arch.mjs         # 流程图+架构图: 判断菱形/分支标签/分层/错误定位
 ```
 
 断言失败时进程退出码为 `3`，可以直接当门禁用。截图落在 `e2e/shot-*.png`。
@@ -56,6 +57,17 @@ node e2e/scenarios/sequence-canvas.mjs
 | 表单参与者同步 | 票 02 验收 1 附带 |
 | 用改后文本重新生成不丢改动 | 票 02 验收 4 |
 | 拖动后位置随保存落盘 | 票 02 验收 2 |
+
+### flow-arch.mjs 覆盖什么
+
+| 断言 | 对应验收 |
+| --- | --- |
+| 流程图文本出图、无报错 | 票 03 验收 1 |
+| `合格?` 渲染为菱形（判断） | 票 03 验收 1 |
+| 分支标签「是」「否」出现在连线上 | 票 03 验收 1 |
+| 架构图三层顺序与组件正确 | 票 03 验收 2 |
+| 流程图缺连接符指到第 2 行 | 票 03 错误定位 |
+| 架构图缩进不一致指到行 | 票 03 验收 3 |
 
 ## 踩过的坑（改脚本前先看）
 

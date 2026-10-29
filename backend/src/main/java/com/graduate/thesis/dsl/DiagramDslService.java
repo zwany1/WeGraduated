@@ -1,5 +1,7 @@
 package com.graduate.thesis.dsl;
 
+import com.graduate.thesis.dto.ArchitectureConfig;
+import com.graduate.thesis.dto.FlowConfig;
 import com.graduate.thesis.dto.SequenceConfig;
 import org.springframework.stereotype.Service;
 
@@ -25,8 +27,8 @@ public class DiagramDslService {
     private static final Set<String> SUPPORTED = Set.of(
             "FLOW", "ARCH", "SWIMLANE", "ACTIVITY", "USECASE", "SEQUENCE", "CLASS", "ER");
 
-    /** 已实现方言的图类型。票 01 只打通时序图，其余逐票补齐 */
-    private static final Set<String> IMPLEMENTED = Set.of("SEQUENCE");
+    /** 已实现方言的图类型。票 01 时序图、票 03 流程图与架构图，其余逐票补齐 */
+    private static final Set<String> IMPLEMENTED = Set.of("SEQUENCE", "FLOW", "ARCH");
 
     private static final Pattern MSG = Pattern.compile(
             "^\\s*(.+?)\\s*(-->|->)\\s*(.+?)\\s*(?:[:：]\\s*(.*))?\\s*$");
@@ -40,6 +42,23 @@ public class DiagramDslService {
             "  @participants 用户, 系统    可选，固定参与者顺序",
             "  @title 用户登录时序图       可选，图标题",
             "  # 开头为注释；空行忽略");
+
+    private static final String FLOW_HINT = String.join("\n",
+            "流程图语法：",
+            "  开始 -> 提交论文            每行一条连线",
+            "  格式检查 -> 合格?           名字带 ? 即判断节点（菱形）",
+            "  合格? -> 通过: 是           「: 」后为分支条件",
+            "  @title 论文提交流程         可选，图标题",
+            "  # 开头为注释；空行忽略");
+
+    private static final String ARCH_HINT = String.join("\n",
+            "架构图语法（缩进表示从属）：",
+            "  表现层                      顶格写层名",
+            "    Vue3 前端                 缩进写该层的组件",
+            "  服务层                      再顶格写下一层",
+            "    SpringBoot",
+            "  @title 系统架构             可选，系统名",
+            "  同一层下的组件缩进要一致；只支持「层 → 组件」两层");
 
     /**
      * 文本 → 图配置。
@@ -60,21 +79,56 @@ public class DiagramDslService {
             return DslParseResult.fail(0, "", "", "该图类型的文本输入尚未开放，请先用表单配置");
         }
         if (text == null || text.trim().isEmpty()) {
-            return DslParseResult.fail(0, "", SEQ_HINT, "请输入内容后再生成");
+            return DslParseResult.fail(0, "", hintOf(t), "请输入内容后再生成");
         }
-        return "SEQUENCE".equals(t) ? parseSequence(text) : DslParseResult.fail(0, "", "", "未实现");
+        switch (t) {
+            case "SEQUENCE":
+                return parseSequence(text);
+            case "FLOW":
+                return parseFlow(text);
+            case "ARCH":
+                return parseArch(text);
+            default:
+                return DslParseResult.fail(0, "", "", "未实现");
+        }
+    }
+
+    private String hintOf(String type) {
+        switch (type) {
+            case "FLOW":
+                return FLOW_HINT;
+            case "ARCH":
+                return ARCH_HINT;
+            default:
+                return SEQ_HINT;
+        }
     }
 
     /** 图配置 → 文本。用于回填输入框，以及把画布/表单改动同步回文本 */
     public String render(String type, Object config) {
         String t = type == null ? "" : type.trim().toUpperCase();
-        if (!"SEQUENCE".equals(t)) {
+        if (!IMPLEMENTED.contains(t)) {
             throw new IllegalArgumentException("该图类型暂不支持生成文本: " + type);
         }
-        if (!(config instanceof SequenceConfig)) {
-            throw new IllegalArgumentException("配置类型与图类型不匹配: " + t);
+        switch (t) {
+            case "SEQUENCE":
+                if (!(config instanceof SequenceConfig)) {
+                    throw new IllegalArgumentException("配置类型与图类型不匹配: " + t);
+                }
+                return renderSequence((SequenceConfig) config);
+            case "FLOW":
+                if (!(config instanceof FlowConfig)) {
+                    throw new IllegalArgumentException("配置类型与图类型不匹配: " + t);
+                }
+                return renderFlow((FlowConfig) config);
+            case "ARCH":
+                if (!(config instanceof ArchitectureConfig)) {
+                    throw new IllegalArgumentException("配置类型与图类型不匹配: " + t);
+                }
+                return renderArch((ArchitectureConfig) config);
+            default:
+                throw new IllegalArgumentException("该图类型暂不支持生成文本: " + type);
         }
-        return renderSequence((SequenceConfig) config);
     }
 
     /**
@@ -263,5 +317,246 @@ public class DiagramDslService {
             }
         }
         return out;
+    }
+
+    // ==================== 流程图(FLOW) ====================
+
+    private static final Pattern FLOW_EDGE = Pattern.compile(
+            "^(.+?)\\s*(-->|->)\\s*(.+?)\\s*(?:[:：]\\s*(.*))?$");
+
+    /** 判断一个节点名是否表示判断: 名字带问号, 或用方括号括起来 */
+    private boolean isConditionName(String rawName, String name) {
+        if (name.contains("?") || name.contains("？")) {
+            return true;
+        }
+        String s = rawName.trim();
+        return (s.startsWith("[") && s.endsWith("]")) || (s.startsWith("【") && s.endsWith("】"));
+    }
+
+    private String stripBrackets(String raw) {
+        String s = raw.trim();
+        if (s.length() > 1 && ((s.startsWith("[") && s.endsWith("]")) || (s.startsWith("【") && s.endsWith("】")))) {
+            return s.substring(1, s.length() - 1).trim();
+        }
+        return s;
+    }
+
+    private DslParseResult parseFlow(String text) {
+        FlowConfig cfg = new FlowConfig();
+        List<FlowConfig.Node> nodes = new ArrayList<>();
+        List<FlowConfig.Edge> edges = new ArrayList<>();
+        java.util.Map<String, FlowConfig.Node> byName = new java.util.LinkedHashMap<>();
+
+        String[] lines = text.split("\\R", -1);
+        for (int i = 0; i < lines.length; i++) {
+            int lineNo = i + 1;
+            String line = normalizeLine(lines[i]).trim();
+            if (line.isEmpty() || line.startsWith("#")) {
+                continue;
+            }
+            Matcher title = TITLE.matcher(line);
+            if (title.matches()) {
+                cfg.setTitle(title.group(1));
+                continue;
+            }
+
+            Matcher m = FLOW_EDGE.matcher(line);
+            if (!m.matches()) {
+                // 不含连接符的整行 = 孤立节点(没有连线也要能画出来)
+                if (line.contains(">") || line.contains("-") || line.contains("→")) {
+                    return DslParseResult.fail(lineNo, line, FLOW_HINT,
+                            "第 " + lineNo + " 行缺少连接符，应写成「节点A -> 节点B」" + suspiciousChars(lines[i]));
+                }
+                nodeOf(byName, nodes, stripBrackets(line), isConditionName(line, line));
+                continue;
+            }
+
+            String rawFrom = m.group(1).trim();
+            String rawTo = m.group(3).trim();
+            String from = cleanName(stripBrackets(rawFrom));
+            String to = cleanName(stripBrackets(rawTo));
+            String label = m.group(4) == null ? "" : cleanName(m.group(4));
+            if (from.isEmpty() || to.isEmpty()) {
+                return DslParseResult.fail(lineNo, line, FLOW_HINT,
+                        "第 " + lineNo + " 行连接符两侧都要有节点名");
+            }
+            FlowConfig.Node nf = nodeOf(byName, nodes, from, isConditionName(rawFrom, from));
+            FlowConfig.Node nt = nodeOf(byName, nodes, to, isConditionName(rawTo, to));
+
+            FlowConfig.Edge e = new FlowConfig.Edge();
+            e.setFrom(nf.getId());
+            e.setTo(nt.getId());
+            e.setLabel(label.isEmpty() ? null : label);
+            edges.add(e);
+        }
+
+        if (nodes.isEmpty()) {
+            return DslParseResult.fail(0, "", FLOW_HINT, "请至少写一条连线，如「开始 -> 提交论文」");
+        }
+        cfg.setNodes(nodes);
+        cfg.setEdges(edges);
+        return DslParseResult.success(cfg);
+    }
+
+    /** 取或建节点; 已存在的节点若这次带了判断标记, 升级为判断类型 */
+    private FlowConfig.Node nodeOf(java.util.Map<String, FlowConfig.Node> byName,
+                                   List<FlowConfig.Node> nodes, String name, boolean condition) {
+        FlowConfig.Node n = byName.get(name);
+        if (n == null) {
+            n = new FlowConfig.Node();
+            n.setId("n" + (nodes.size() + 1));
+            n.setName(name);
+            n.setType(inferFlowType(name, condition));
+            byName.put(name, n);
+            nodes.add(n);
+        } else if (condition && !"condition".equals(n.getType())) {
+            n.setType("condition");
+        }
+        return n;
+    }
+
+    private String inferFlowType(String name, boolean condition) {
+        if (condition) {
+            return "condition";
+        }
+        String s = name.trim();
+        if (s.equals("开始") || s.equalsIgnoreCase("start")) {
+            return "start";
+        }
+        if (s.equals("结束") || s.equals("完成") || s.equalsIgnoreCase("end")) {
+            return "end";
+        }
+        return "action";
+    }
+
+    private String renderFlow(FlowConfig c) {
+        java.util.Map<String, String> nameOf = new java.util.HashMap<>();
+        if (c.getNodes() != null) {
+            for (FlowConfig.Node n : c.getNodes()) {
+                if (n.getId() != null) {
+                    nameOf.put(n.getId(), n.getName());
+                }
+            }
+        }
+        StringBuilder sb = new StringBuilder();
+        if (c.getTitle() != null && !c.getTitle().isBlank()) {
+            sb.append("@title ").append(c.getTitle()).append('\n');
+        }
+        java.util.Set<String> used = new java.util.LinkedHashSet<>();
+        if (c.getEdges() != null) {
+            for (FlowConfig.Edge e : c.getEdges()) {
+                String from = nameOf.getOrDefault(e.getFrom(), String.valueOf(e.getFrom()));
+                String to = nameOf.getOrDefault(e.getTo(), String.valueOf(e.getTo()));
+                used.add(String.valueOf(e.getFrom()));
+                used.add(String.valueOf(e.getTo()));
+                sb.append(from).append(" -> ").append(to);
+                if (e.getLabel() != null && !e.getLabel().isBlank()) {
+                    sb.append(": ").append(e.getLabel());
+                }
+                sb.append('\n');
+            }
+        }
+        // 没有任何连线的节点也要输出, 否则文本往返会把它丢掉
+        if (c.getNodes() != null) {
+            for (FlowConfig.Node n : c.getNodes()) {
+                if (n.getId() != null && !used.contains(n.getId()) && n.getName() != null && !n.getName().isBlank()) {
+                    sb.append(n.getName()).append('\n');
+                }
+            }
+        }
+        return sb.toString();
+    }
+
+    // ==================== 架构图(ARCH) ====================
+
+    /** 行首缩进宽度: tab 记 2 格, 全角空格/普通空格都算 1 格 */
+    private int indentOf(String line) {
+        int n = 0;
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            if (c == '\t') {
+                n += 2;
+            } else if (c == ' ' || c == '\u3000' || c == '\u00a0') {
+                n += 1;
+            } else {
+                break;
+            }
+        }
+        return n;
+    }
+
+    private DslParseResult parseArch(String text) {
+        ArchitectureConfig cfg = new ArchitectureConfig();
+        List<ArchitectureConfig.LayerConfig> layers = new ArrayList<>();
+        ArchitectureConfig.LayerConfig current = null;
+        Integer childIndent = null;
+
+        String[] lines = text.split("\\R", -1);
+        for (int i = 0; i < lines.length; i++) {
+            int lineNo = i + 1;
+            String raw = lines[i];
+            int indent = indentOf(raw);
+            String line = normalizeLine(raw).trim();
+            if (line.isEmpty() || line.startsWith("#")) {
+                continue;
+            }
+            Matcher title = TITLE.matcher(line);
+            if (title.matches()) {
+                cfg.setSystemName(title.group(1));
+                continue;
+            }
+            if (indent == 0) {
+                ArchitectureConfig.LayerConfig layer = new ArchitectureConfig.LayerConfig();
+                layer.setName(cleanName(line));
+                layers.add(layer);
+                current = layer;
+                childIndent = null;
+                continue;
+            }
+            if (current == null) {
+                return DslParseResult.fail(lineNo, line, ARCH_HINT,
+                        "第 " + lineNo + " 行的组件没有归属：请先写层名，再把组件缩进写在它下面");
+            }
+            if (childIndent == null) {
+                childIndent = indent;
+            } else if (indent != childIndent) {
+                return DslParseResult.fail(lineNo, line, ARCH_HINT,
+                        "第 " + lineNo + " 行缩进与同层其他组件不一致（本层组件都缩进 " + childIndent
+                                + " 格，这行是 " + indent + " 格）");
+            }
+            ArchitectureConfig.ComponentConfig comp = new ArchitectureConfig.ComponentConfig();
+            comp.setName(cleanName(line));
+            current.getComponents().add(comp);
+        }
+
+        if (layers.isEmpty()) {
+            return DslParseResult.fail(0, "", ARCH_HINT, "请至少写一个层，如「表现层」");
+        }
+        cfg.setLayers(layers);
+        return DslParseResult.success(cfg);
+    }
+
+    private String renderArch(ArchitectureConfig c) {
+        StringBuilder sb = new StringBuilder();
+        if (c.getSystemName() != null && !c.getSystemName().isBlank()) {
+            sb.append("@title ").append(c.getSystemName()).append('\n');
+        }
+        if (c.getLayers() != null) {
+            for (ArchitectureConfig.LayerConfig layer : c.getLayers()) {
+                if (layer.getName() == null || layer.getName().isBlank()) {
+                    continue;
+                }
+                sb.append(layer.getName()).append('\n');
+                if (layer.getComponents() != null) {
+                    for (ArchitectureConfig.ComponentConfig comp : layer.getComponents()) {
+                        if (comp.getName() == null || comp.getName().isBlank()) {
+                            continue;
+                        }
+                        sb.append("  ").append(comp.getName()).append('\n');
+                    }
+                }
+            }
+        }
+        return sb.toString();
     }
 }

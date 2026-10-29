@@ -7,6 +7,7 @@ import com.graduate.thesis.dto.ActivityConfig;
 import com.graduate.thesis.dto.ArchitectureConfig;
 import com.graduate.thesis.dto.ClassConfig;
 import com.graduate.thesis.dto.DiagramVO;
+import com.graduate.thesis.dto.FlowConfig;
 import com.graduate.thesis.dto.SequenceConfig;
 import com.graduate.thesis.dto.SwimlaneConfig;
 import com.graduate.thesis.dto.UseCaseConfig;
@@ -14,6 +15,7 @@ import com.graduate.thesis.service.ActivityDiagramRuleEngine;
 import com.graduate.thesis.service.ArchitectureRuleEngine;
 import com.graduate.thesis.service.ClassDiagramRuleEngine;
 import com.graduate.thesis.service.DiagramGenerator;
+import com.graduate.thesis.service.FlowRuleEngine;
 import com.graduate.thesis.service.SequenceRuleEngine;
 import com.graduate.thesis.service.SwimlaneRuleEngine;
 import com.graduate.thesis.service.UseCaseRuleEngine;
@@ -49,6 +51,7 @@ public class DiagramController {
     private final SequenceRuleEngine sequenceEngine;
     private final ClassDiagramRuleEngine classEngine;
     private final ActivityDiagramRuleEngine activityEngine;
+    private final FlowRuleEngine flowEngine;
     private final DiagramDslService dslService;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Path root;
@@ -61,6 +64,7 @@ public class DiagramController {
                              SequenceRuleEngine sequenceEngine,
                              ClassDiagramRuleEngine classEngine,
                              ActivityDiagramRuleEngine activityEngine,
+                             FlowRuleEngine flowEngine,
                              DiagramDslService dslService) {
         this.root = Paths.get(storageDir).toAbsolutePath().normalize().resolve("diagrams");
         this.diagramGenerator = diagramGenerator;
@@ -70,6 +74,7 @@ public class DiagramController {
         this.sequenceEngine = sequenceEngine;
         this.classEngine = classEngine;
         this.activityEngine = activityEngine;
+        this.flowEngine = flowEngine;
         this.dslService = dslService;
     }
 
@@ -89,10 +94,21 @@ public class DiagramController {
             }
             if (pr.getConfig() instanceof SequenceConfig) {
                 dto.setSequence((SequenceConfig) pr.getConfig());
+            } else if (pr.getConfig() instanceof FlowConfig) {
+                dto.setFlow((FlowConfig) pr.getConfig());
+            } else if (pr.getConfig() instanceof ArchitectureConfig) {
+                dto.setConfig((ArchitectureConfig) pr.getConfig());
             }
         }
+        if ("FLOW".equalsIgnoreCase(dto.getType()) && dto.getFlow() != null) {
+            Object result = flowEngine.build(dto.getFlow());
+            attachDslInfo(result, dto, dto.getFlow());
+            return Result.ok(result);
+        }
         if ("ARCH".equalsIgnoreCase(dto.getType()) && dto.getConfig() != null) {
-            return Result.ok(ruleEngine.build(dto.getConfig()));
+            Object result = ruleEngine.build(dto.getConfig());
+            attachDslInfo(result, dto, dto.getConfig());
+            return Result.ok(result);
         }
         if ("SWIMLANE".equalsIgnoreCase(dto.getType()) && dto.getSwimlane() != null) {
             return Result.ok(swimlaneEngine.build(dto.getSwimlane()));
@@ -102,14 +118,7 @@ public class DiagramController {
         }
         if ("SEQUENCE".equalsIgnoreCase(dto.getType()) && dto.getSequence() != null) {
             Object result = sequenceEngine.build(dto.getSequence());
-            // DSL 生成成功时把解析后的配置随结果带回，前端回填「精确调整」表单
-            if (result instanceof DiagramVO) {
-                DiagramVO vo = (DiagramVO) result;
-                if (dto.getDsl() != null && !dto.getDsl().isBlank()) {
-                    vo.setDsl(dto.getDsl());
-                    vo.setConfig(dto.getSequence());
-                }
-            }
+            attachDslInfo(result, dto, dto.getSequence());
             return Result.ok(result);
         }
         if ("CLASS".equalsIgnoreCase(dto.getType()) && dto.getClassConfig() != null) {
@@ -119,6 +128,22 @@ public class DiagramController {
             return Result.ok(activityEngine.build(dto.getActivity()));
         }
         return Result.ok(diagramGenerator.generate(dto.getType(), dto.getDescription()));
+    }
+
+    /**
+     * 文本生成成功时，把 DSL 原文与解析后的配置随结果带回，前端据此回填文本视图与表单。
+     * 非文本路径(纯表单/自然语言)不写，避免把表单状态覆盖成"看起来来自文本"。
+     */
+    private void attachDslInfo(Object result, GenDTO dto, Object config) {
+        if (!(result instanceof DiagramVO)) {
+            return;
+        }
+        if (dto.getDsl() == null || dto.getDsl().isBlank()) {
+            return;
+        }
+        DiagramVO vo = (DiagramVO) result;
+        vo.setDsl(dto.getDsl());
+        vo.setConfig(config);
     }
 
     /**
@@ -134,6 +159,16 @@ public class DiagramController {
                 throw new BusinessException(400, "缺少时序图配置");
             }
             config = objectMapper.convertValue(config, SequenceConfig.class);
+        } else if ("FLOW".equalsIgnoreCase(type)) {
+            if (config == null) {
+                throw new BusinessException(400, "缺少流程图配置");
+            }
+            config = objectMapper.convertValue(config, FlowConfig.class);
+        } else if ("ARCH".equalsIgnoreCase(type)) {
+            if (config == null) {
+                throw new BusinessException(400, "缺少架构图配置");
+            }
+            config = objectMapper.convertValue(config, ArchitectureConfig.class);
         }
         try {
             String text = dslService.render(type, config);
@@ -220,6 +255,7 @@ public class DiagramController {
         private SwimlaneConfig swimlane;
         private UseCaseConfig useCase;
         private SequenceConfig sequence;
+        private FlowConfig flow;
         private ClassConfig classConfig;
         private ActivityConfig activity;
 
@@ -237,6 +273,8 @@ public class DiagramController {
         public void setUseCase(UseCaseConfig useCase) { this.useCase = useCase; }
         public SequenceConfig getSequence() { return sequence; }
         public void setSequence(SequenceConfig sequence) { this.sequence = sequence; }
+        public FlowConfig getFlow() { return flow; }
+        public void setFlow(FlowConfig flow) { this.flow = flow; }
         public ClassConfig getClassConfig() { return classConfig; }
         public void setClassConfig(ClassConfig classConfig) { this.classConfig = classConfig; }
         public ActivityConfig getActivity() { return activity; }

@@ -7,6 +7,10 @@
       </div>
       <span v-if="mode === 'page'" class="mode-hint" :title="pageTitle">分页按分页符近似 · {{ pageLabel }}</span>
       <span v-if="fontSwaps.length" class="font-note" :title="fontSwaps.join('\n')">字体已替换：{{ fontSwaps.join('、') }}</span>
+      <span class="tip-note" :title="disclaimerTitle">
+        <span class="tip-long">预览有偏差 · 以实际下载为准</span>
+        <span class="tip-short">以实际下载为准</span>
+      </span>
       <div class="zoom">
         <el-button size="small" @click="zoomOut">-</el-button>
         <span class="zoom-val">{{ Math.round(scale * 100) }}%</span>
@@ -67,6 +71,13 @@ const pageLabel = computed(() => {
   const mm = px => Math.round(px / 96 * 25.4)
   return `${mm(w)}×${mm(h)}mm`
 })
+// 常态免责: 预览只是浏览器重排(不是 Word 排版引擎), 这几处已知的偏差写进 title, 避免用户拿预览当验收
+const disclaimerTitle = computed(() =>
+  '预览由浏览器渲染, 与下载的 .docx 可能存在偏差:\n' +
+  '· 纸张高度内的内容不会回流到下一页, 超出一页的部分直接铺在当前纸面上(页数与 Word 可能不同)\n' +
+  '· 本机缺失的字体按同族兜底显示\n' +
+  '· 复杂公式 / 表格 / 图片绕排以浏览器渲染为准\n' +
+  '验收请以实际下载的文档为准。')
 const pageTitle = computed(() =>
   '页面视图按文档里的分页设置切页（含每章「段前分页」）；纸张高度内的空白照实显示，' +
   '超出一页的内容不会自动接到下一页（浏览器预览不做纵向排版回流）。')
@@ -435,6 +446,14 @@ defineExpose({ scrollToText })
   padding: 8px 12px;
   border-bottom: 1px solid #E3E0D5;
   background: #F6F4EE;
+  /* 容器查询: 本组件在预览弹窗(宽)与对比视图栏(窄)里复用, 要按"所在容器"而不是视口来收放文案 */
+  container-type: inline-size;
+}
+/* 功能控件不可被压缩: 说明类文案再挤也不能把模式/缩放/按钮压没 */
+.mode-switch,
+.zoom,
+.toolbar > .el-button {
+  flex-shrink: 0;
 }
 .mode-switch {
   display: flex;
@@ -459,6 +478,8 @@ defineExpose({ scrollToText })
 .mode-hint {
   font-size: 12px;
   color: #8B968D;
+  flex-shrink: 2;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -470,10 +491,35 @@ defineExpose({ scrollToText })
   border: 1px solid #F0E0B8;
   border-radius: 3px;
   padding: 1px 6px;
-  max-width: 260px;
+  flex-shrink: 2;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+/* 常态免责: 用中性灰而不是告警黄 —— 它是"说明"不是"出错", 告警色留给字体缺失那类真异常。
+   空间不够时先由 mode-hint / font-note 让位(shrink:2), 再轮到它(shrink:1); 窄容器里换成短文案。 */
+.tip-note {
+  font-size: 12px;
+  color: #6B786F;
+  background: #EFF2F0;
+  border: 1px solid #D8DDD9;
+  border-radius: 3px;
+  padding: 1px 6px;
+  white-space: nowrap;
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: help;
+}
+.tip-short { display: none; }
+/* 窄容器(对比视图栏 ≈594px): 功能控件第一、免责提示第二, 其余说明让位 */
+@container (max-width: 640px) {
+  .mode-hint,
+  .font-note { display: none; }
+  .tip-long { display: none; }
+  .tip-short { display: inline; }
 }
 .zoom {
   margin-left: auto;

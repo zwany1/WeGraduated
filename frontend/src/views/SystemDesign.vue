@@ -19,12 +19,26 @@
         </el-radio-group>
       </div>
       <div class="actions">
+        <el-button size="small" plain @click="openSaved">打开</el-button>
         <el-button size="small" :disabled="!graphReady" @click="save">保存</el-button>
         <el-button size="small" plain :disabled="!graphReady" @click="downloadSvg">SVG</el-button>
         <el-button size="small" type="primary" plain :disabled="!graphReady" @click="downloadPng">导出 PNG</el-button>
         <el-button size="small" type="success" plain @click="exportMermaid">Mermaid</el-button>
       </div>
     </header>
+
+    <!-- 打开已保存的图(票06: 老图没有 DSL 文本时用配置反向回填) -->
+    <el-dialog v-model="savedOpen" title="打开已保存的图" width="560px">
+      <div v-if="savedLoading" class="saved-loading">加载中…</div>
+      <div v-else-if="savedList.length === 0" class="saved-empty">还没有保存过图</div>
+      <div v-else class="saved-list">
+        <div v-for="d in savedList" :key="d.id" class="saved-item" @click="loadSaved(d)">
+          <span class="saved-name">{{ d.name || d.type }}</span>
+          <span class="saved-type">{{ typeLabel(d.type) }}</span>
+          <span class="saved-meta">{{ d.dsl ? '含文本' : (d.config ? '可回填文本' : '仅图形') }}</span>
+        </div>
+      </div>
+    </el-dialog>
 
     <MermaidExportDialog ref="mmdDlg" />
 
@@ -741,7 +755,7 @@ import { ElMessage } from 'element-plus'
 import { Graph } from '@antv/x6'
 import { DagreLayout } from '@antv/layout'
 import html2canvas from 'html2canvas'
-import { generateDiagram, saveDiagram, renderDiagramDsl } from '../api/diagram'
+import { generateDiagram, saveDiagram, renderDiagramDsl, listDiagrams, loadDiagram } from '../api/diagram'
 import { getErGraph } from '../api/er'
 import { parseSql, generateTable3 } from '../api/table3'
 import { parseErSql } from '../api/er'
@@ -1671,7 +1685,6 @@ function nodeAttrs(node) {
   // action (圆角矩形)
   return { body: { fill: '#fff', stroke: color, strokeWidth: 1.5, rx: 10, ry: 10 }, label }
 }
-
 async function renderGraph(vo) {
   if (vo.type === 'ARCH') return // ARCH 用 HTML 渲染, 不用 X6
   graph.clearCells()
@@ -1683,7 +1696,8 @@ async function renderGraph(vo) {
     vo.lanes.forEach(l => {
       const id = 'lane_' + l.id
       laneIds.set(l.id, id)
-      const isActivity = vo.type === 'ACTIVITY'
+      // 泳道背景: 白底 + 极浅墨线 + 直角, 顶部一条表头细线, 标题居中
+      // (原来是淡蓝块 + 绿色虚线画刷感太重, 与纸面/墨色体系不搭)
       nodes.push({
         id,
         shape: 'rect',
@@ -1693,14 +1707,23 @@ async function renderGraph(vo) {
         height: l.height,
         zIndex: 0,
         attrs: {
-          body: isActivity
-            ? { fill: '#f7f9fc', stroke: '#8B968D', strokeWidth: 1.5, rx: 4, ry: 4 }
-            : { fill: '#f0f2f7', stroke: '#B3BCB2', strokeWidth: 1.5, strokeDasharray: '6 3', rx: 8, ry: 8 },
-          label: { text: l.name, fill: '#2F5D46', fontSize: 14, fontWeight: 700,
-                   textAnchor: isActivity ? 'middle' : 'start',
-                   textVerticalAnchor: 'top',
-                   refX: isActivity ? 0.5 : 12, refY: 8 }
+          body: { fill: '#ffffff', stroke: '#DDD9CE', strokeWidth: 1, rx: 0, ry: 0 },
+          label: { text: l.name, fill: '#0a0909', fontSize: 13, fontWeight: 700,
+                   letterSpacing: 1,
+                   textAnchor: 'middle', textVerticalAnchor: 'middle',
+                   refX: 0.5, refY: 20 }
         }
+      })
+      // 表头分隔线
+      nodes.push({
+        id: 'lanehdr_' + l.id,
+        shape: 'rect',
+        x: l.x,
+        y: l.y + 38,
+        width: l.width,
+        height: 1,
+        zIndex: 1,
+        attrs: { body: { fill: '#0a0909', stroke: 'none' } }
       })
     })
   }
@@ -1776,6 +1799,14 @@ async function renderGraph(vo) {
       zIndex: n.shape === 'system' ? 0 : 10,
       // 激活条是派生几何, 不能被拖走(拖参与者时会自动跟随)
       movable: n.shape !== 'activation'
+    }
+    // 泳道图/活动图: 节点改直角墨线, 与泳道表头的细线同一套语言
+    // (默认的 rx:10 圆角在白底方块上像聊天气泡, 与纸面/墨色体系不搭)
+    if ((vo.type === 'SWIMLANE' || vo.type === 'ACTIVITY') && node.shape === 'rect') {
+      node.attrs = {
+        body: { fill: '#ffffff', stroke: '#0a0909', strokeWidth: 1.4, rx: 0, ry: 0 },
+        label: { text: n.label, fill: '#0a0909', fontSize: 13, fontWeight: 600, textAnchor: 'middle', textVerticalAnchor: 'middle' }
+      }
     }
     // 活动图: 开始=实心黑圆, 结束=双圆叠加
     if (vo.type === 'ER') {
@@ -1895,6 +1926,8 @@ async function renderGraph(vo) {
   if (vo.type === 'SWIMLANE' || vo.type === 'ACTIVITY' || vo.type === 'USECASE' || vo.type === 'SEQUENCE' || vo.type === 'ER') {
     graph.fromJSON({ nodes, edges })
     if (vo.type === 'SEQUENCE') fitContent(1.35)
+    // 泳道/活动图通常比视口高: 允许缩小, 保证整张图(含泳道表头)都在视野里
+    else if (vo.type === 'SWIMLANE' || vo.type === 'ACTIVITY') fitContent(1, 0.45)
     else graph.centerContent()
     return
   }
@@ -1973,11 +2006,12 @@ async function renderGraph(vo) {
  * 让内容尽量铺满画布: 只放大不缩小(缩小会让小字更看不清), 上限 maxScale。
  * 时序图常见的 3~5 个参与者在大画布里会显得很小, 放大后读起来舒服得多。
  */
-function fitContent(maxScale = 1.3) {
+function fitContent(maxScale = 1.3, minScale = 1) {
   if (!graph) return
   try {
-    // minScale=1: 只放大不缩小, 避免大图被压成看不清的小字
-    graph.zoomToFit({ padding: 56, minScale: 1, maxScale })
+    // minScale 默认 1: 只放大不缩小, 避免大图被压成看不清的小字;
+    // 泳道/活动图会传更小的 minScale, 换取"整张图都在视野里"
+    graph.zoomToFit({ padding: 48, minScale, maxScale })
   } catch (e) {
     graph.centerContent()
   }
@@ -2520,6 +2554,113 @@ async function save() {
   }
 }
 
+// ==================== 打开已保存的图(票06: 存量兼容) ====================
+const savedOpen = ref(false)
+const savedLoading = ref(false)
+const savedList = ref([])
+
+const TYPE_LABELS = {
+  FLOW: '流程图', ARCH: '架构图', SWIMLANE: '泳道图', ACTIVITY: '活动图',
+  USECASE: '用例图', SEQUENCE: '时序图', CLASS: '类图', ER: 'ER图', TABLE3: '三线表'
+}
+function typeLabel(t) {
+  return TYPE_LABELS[t] || t || '未命名'
+}
+
+async function openSaved() {
+  savedOpen.value = true
+  savedLoading.value = true
+  try {
+    const list = await listDiagrams()
+    savedList.value = Array.isArray(list) ? list : []
+  } catch (e) {
+    ElMessage.error(e.message || '读取已保存的图失败')
+    savedList.value = []
+  } finally {
+    savedLoading.value = false
+  }
+}
+
+async function loadSaved(item) {
+  savedOpen.value = false
+  try {
+    const vo = await loadDiagram(item.id)
+    if (!vo.type) vo.type = item.type
+    await applyLoadedVo(vo)
+    ElMessage.success('已打开：' + (vo.name || typeLabel(vo.type)))
+  } catch (e) {
+    ElMessage.error(e.message || '打开失败')
+  }
+}
+
+/** 文本输入框按图类型取 ref */
+function dslRefOf(t) {
+  switch (t) {
+    case 'SEQUENCE': return seqDsl
+    case 'FLOW': return flowDsl
+    case 'ARCH': return archDsl
+    case 'CLASS': return clsDsl
+    case 'USECASE': return ucDsl
+    case 'SWIMLANE': return swimDsl
+    case 'ACTIVITY': return actDsl
+    case 'ER': return erDsl
+    default: return null
+  }
+}
+
+/** 图配置回填到「高级设置」里的表单 */
+function syncFormFromConfig(vo) {
+  if (!vo.config) return
+  if (vo.type === 'SEQUENCE') syncSeqConfig(vo.config)
+  else if (vo.type === 'ARCH') syncArchConfig(vo.config)
+  else if (vo.type === 'CLASS') syncClsConfig(vo.config)
+  else if (vo.type === 'USECASE') syncUcConfig(vo.config)
+  else if (vo.type === 'SWIMLANE') syncSwimConfig(vo.config)
+  else if (vo.type === 'ACTIVITY') syncActConfig(vo.config)
+}
+
+/**
+ * 打开一张图: 恢复类型/画布, 再尽力把文本视图填上。
+ * 文本来源优先级: 存下来的原文 > 用配置反向生成 > 留空(表单仍然可用, 绝不阻断编辑)
+ */
+async function applyLoadedVo(vo) {
+  type.value = vo.type
+  advancedOpen.value = false
+  dslError.value = null
+  inlineEdit.value = null
+  currentVO.value = vo
+  graphReady.value = true
+  await nextTick()
+  if (vo.type && vo.type !== 'ARCH' && vo.type !== 'TABLE3' && (vo.nodes || []).length) {
+    if (!graph) initGraph()
+    await renderGraph(vo)
+  }
+  await backfillDsl(vo)
+}
+
+async function backfillDsl(vo) {
+  const target = dslRefOf(vo.type)
+  if (!target) return
+  if (vo.dsl && String(vo.dsl).trim()) {
+    target.value = vo.dsl
+    syncFormFromConfig(vo)
+    return
+  }
+  if (vo.config) {
+    try {
+      const res = await renderDiagramDsl(vo.type, vo.config)
+      target.value = (res && res.dsl) || ''
+    } catch (e) {
+      // 配置残缺到无法反向生成: 留空即可, 表单照常可编辑
+      target.value = ''
+    }
+    syncFormFromConfig(vo)
+    return
+  }
+  // 改造前保存的图: 既没有原文也没有配置 —— 留空, 让用户用表单/画布继续
+  target.value = ''
+}
+
 // 内联图片资源缓存: 导出时把相对路径图片(如 /xiaoren.svg)替换为 data URL
 const svgImageCache = {}
 async function inlineSvgImages(svgClone) {
@@ -2943,8 +3084,29 @@ async function downloadArchSvg() {
   margin-top: 4px;
 }
 
-/* 画布内联编辑框: 浮在节点/连线原位, 回车提交, Esc 取消 */
-.inline-edit {
+/* 打开已保存图的列表 */
+.saved-loading,
+.saved-empty {
+  padding: 28px;
+  text-align: center;
+  font-size: 13px;
+  color: #8a8b8b;
+}
+.saved-list { max-height: 420px; overflow: auto; }
+.saved-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #eeece5;
+  cursor: pointer;
+}
+.saved-item:hover { background: #faf9f5; }
+.saved-name { flex: 1; font-size: 13px; color: #0a0909; }
+.saved-type { font-size: 12px; color: #6b6b6b; }
+.saved-meta { font-size: 11px; color: #9a958c; }
+
+/* 画布内联编辑框: 浮在节点/连线原位, 回车提交, Esc 取消 */.inline-edit {
   position: fixed;
   z-index: 3000;
   box-sizing: border-box;

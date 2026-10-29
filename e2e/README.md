@@ -43,6 +43,7 @@ node e2e/scenarios/sequence-canvas.mjs   # 时序图: 生成/表单回填/画布
 node e2e/scenarios/flow-arch.mjs         # 流程图+架构图: 判断菱形/分支标签/分层/错误定位
 node e2e/scenarios/class-usecase.mjs     # 类图+用例图: 成员结构/关系名与基数/include 与 extend/错误定位
 node e2e/scenarios/lane-activity-er.mjs  # 泳道/活动/ER + 8 种图全量冒烟
+node e2e/scenarios/compat-load.mjs       # 存量兼容: 打开老图回填文本 / 无配置留空不阻断 / 表单降级
 ```
 
 断言失败时进程退出码为 `3`，可以直接当门禁用。截图落在 `e2e/shot-*.png`。
@@ -93,6 +94,17 @@ node e2e/scenarios/lane-activity-er.mjs  # 泳道/活动/ER + 8 种图全量冒�
 | **8 种图示例文本逐一生成** | 票 05 验收 5（全量回归） |
 
 > 切 tab 后至少等 900ms 再点生成：否则 type 还没切完，生成用的仍是上一个图的文本（踩过）。
+
+### compat-load.mjs 覆盖什么
+
+| 断言 | 对应验收 |
+| --- | --- |
+| 清空文本后纯表单仍能生成 | 票 06 验收 3（降级通道） |
+| 保存的 JSON 带 config、不带 dsl | 票 06 验收 1 前提 |
+| 打开列表能列已保存的图 | 新增入口 |
+| 有配置无文本的图打开后被回填 | 票 06 验收 1 |
+| **手工造老格式 JSON（只有 nodes）打开不失败** | 票 06 验收 2/4 |
+| 非法 DSL 报错后表单仍可生成 | 票 06 验收 3 |
 
 ## 踩过的坑（改脚本前先看）
 

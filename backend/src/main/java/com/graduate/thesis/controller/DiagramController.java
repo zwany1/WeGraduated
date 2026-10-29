@@ -158,17 +158,21 @@ public class DiagramController {
     }
 
     /**
-     * 文本生成成功时，把 DSL 原文与解析后的配置随结果带回，前端据此回填文本视图与表单。
-     * 非文本路径(纯表单/自然语言)不写，避免把表单状态覆盖成"看起来来自文本"。
+     * 把结构化配置(以及文本路径下的 DSL 原文)随结果带回。
+     *
+     * <p>配置必须**无条件**挂上：图保存到磁盘后只留 DiagramVO，若不带 config，
+     * 老图再次打开时就没有任何办法反向生成文本（R5 兼容性就断了）。
+     * DSL 文本只在确实是文本生成时挂，避免纯表单路径被误认为"来自文本"。</p>
      */
     private void attachDslInfo(Object result, GenDTO dto, Object config) {
         if (!(result instanceof DiagramVO)) {
             return;
         }
+        DiagramVO vo = (DiagramVO) result;
+        vo.setConfig(config);
         if (dto.getDsl() == null || dto.getDsl().isBlank()) {
             return;
         }
-        DiagramVO vo = (DiagramVO) result;
         vo.setDsl(dto.getDsl());
         vo.setConfig(config);
     }

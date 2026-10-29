@@ -21,6 +21,7 @@ import org.mockito.Mockito;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -122,5 +123,8 @@ class DiagramControllerDslTest {
 
         assertEquals(200, r.getCode());
         assertSame(vo, r.getData(), "没传 dsl 时应完全走原结构化配置链路");
+        // 票06: 配置必须随图落盘, 否则老图再次打开时无法反向生成文本
+        assertSame(cfg, vo.getConfig(), "纯表单路径也要带上 config");
+        assertNull(vo.getDsl(), "没有文本时不应伪造 dsl 原文");
     }
 }

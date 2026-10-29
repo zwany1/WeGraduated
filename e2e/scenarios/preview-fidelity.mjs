@@ -39,7 +39,8 @@ const METRICS = `(() => {
   const cs = el => el ? getComputedStyle(el) : null;
   const textSpan = el => el ? (el.querySelector('span') || el) : null;
   const bodyP = ps.find(p => (p.innerText || '').trim().length > 30);
-  const headingP = ps.find(p => /docx_2\\b/.test(p.className || ''));
+  // 标题/题注必须带文字: 分页会在页尾留下空段落, 空段落若带同类样式会被误当成第一个标题
+  const headingP = ps.find(p => /docx_2\\b/.test(p.className || '') && (p.innerText || '').trim());
   const captionP = ps.find(p => /^(图|表)\\s*\\d/.test((p.innerText || '').trim()));
   // 取"真正承载文字"的叶子 span: 段落里可能还有一个空 wrapper span(带样式默认字号), 不能用它判字号
   const leaf = el => {
@@ -55,7 +56,19 @@ const METRICS = `(() => {
   };
   const dlg = body.closest('.el-dialog') || document;
   const onMode = dlg.querySelector('[data-mode].on');
+  // 「段前分页」是否生效: 每个一级标题应当是其所在页第一个有文字的段落
+  const allH1 = [...body.querySelectorAll('p.docx_2')];
+  const h1s = allH1.filter(p => (p.innerText || '').trim());
+  const h1 = { n: h1s.length, atTop: 0, miss: [], empty: allH1.length - h1s.length };
+  h1s.forEach(p => {
+    const sec = p.closest('section');
+    if (!sec) return;
+    const first = [...sec.querySelectorAll('p')].find(x => (x.innerText || '').trim());
+    if (first === p) h1.atTop++;
+    else h1.miss.push((p.innerText || '').replace(/\\s+/g, '').slice(0, 10));
+  });
   return {
+    h1,
     mode: onMode ? onMode.dataset.mode : 'continuous',
     sections: secs.length,
     sectionWidth: secs[0] ? Math.round(secs[0].getBoundingClientRect().width * 10) / 10 : 0,
@@ -196,6 +209,12 @@ check('页面视图: 纸张宽度 = A4 210mm',
 check('页面视图: 有分页块与页码角标',
   !!a4 && a4.sections >= 10 && a4.hasSheetNo,
   a4 ? `分页块 ${a4.sections}, 角标 ${a4.hasSheetNo}` : '未取到');
+
+check('页面视图: 段前分页生效(每个一级标题都另起一页)',
+  !!a4 && a4.h1.n >= 5 && a4.h1.atTop === a4.h1.n && a4.h1.empty === 0 && a4.sections >= 15,
+  a4 ? `一级标题 ${a4.h1.atTop}/${a4.h1.n} 在页顶, 分页块 ${a4.sections}` +
+       (a4.h1.empty ? `, 空标题段落 ${a4.h1.empty}` : '') +
+       (a4.h1.miss.length ? `, 未另起页: ${a4.h1.miss.join('、')}` : '') : '未取到');
 
 check('字体: 正文不再被强制成 Arial, 标题保留黑体',
   !!a4 && a4.body && !/Arial/i.test(a4.body.ff) && /宋体|Noto Serif/i.test(a4.body.ff)

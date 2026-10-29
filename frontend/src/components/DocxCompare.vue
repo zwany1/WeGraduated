@@ -40,7 +40,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { renderAsync } from 'docx-preview'
+import { renderAsync, parseAsync, renderDocument } from 'docx-preview'
 
 const props = defineProps({
   data: { type: Array, required: true },
@@ -68,14 +68,81 @@ const pageLabel = computed(() => {
   return `${mm(w)}×${mm(h)}mm`
 })
 const pageTitle = computed(() =>
-  '分页由文档中的分页符决定；章节的「段前分页」目前不会在预览中生效（docx-preview 只认样式里的分页设置），' +
-  '因此预览页数可能少于 Word 实际页数。')
+  '页面视图按文档里的分页设置切页（含每章「段前分页」）；纸张高度内的空白照实显示，' +
+  '超出一页的内容不会自动接到下一页（浏览器预览不做纵向排版回流）。')
+
+/** docx-preview 只从「样式定义」里读段前分页(splitBySection 查的是 findStyle(styleName).paragraphProps)，
+ *  段落直接格式的 <w:pageBreakBefore/> 会被丢掉 —— 而引擎写的正是段落级(摊平成 el.pageBreakBefore)。
+ *
+ *  做法: 把 page break 追加到**前一个段落最后一个 run 的后面**，splitBySection 就会在该段落结束后切页：
+ *    - 不能把 break 塞进标题段落开头 —— split 会把标题段落截成两半，在上一页末尾留下一个
+ *      仍带标题样式的空段落（会被当成第二个"一级标题"）；
+ *    - 也不能在标题前插一个只含 break 的空段落 —— 若前一段本身以节分隔(sectPr)结尾，
+ *      那个空段落会独占一整页（实测多出 11 个全白页）。
+ *  追加成一个独立 run(而不是塞进最后一个 run 的 children)是为了让 pBreakIndex 落在这个新 run 上，
+ *  这样 `pBreakIndex < children.length - 1` 为假，段落的其它 run 不会被搬到新段里去。
+ *  break 的 break==='page' 不会被 renderBreak 渲染(只认 textWrapping)，所以视觉上不多出任何东西。
+ *  只在页面视图调用。返回注入个数。 */
+function injectPageBreaks(doc) {
+  const body = doc && doc.documentPart && doc.documentPart.body
+  if (!body || !Array.isArray(body.children)) return 0
+  let n = 0
+  const breakRun = () => ({ type: 'run', children: [{ type: 'break', break: 'page' }] })
+  /**
+   * 在同一层的元素里处理; 返回新数组。prev 为空说明该段是这层的第一段 —— 它本来就在新页顶部,
+   * 无需分页(文档第一段、表格单元格第一段都属于这种情况)。
+   */
+  const visit = els => {
+    const out = []
+    for (const el of els) {
+      if (el.type === 'paragraph' && el.pageBreakBefore) {
+        const prev = out[out.length - 1]
+        if (prev && prev.type === 'paragraph' && !prev.__br) {
+          prev.children = prev.children || []
+          prev.children.push(breakRun())
+          prev.__br = true
+          n++
+        } else if (prev && prev.type !== 'paragraph') {
+          // 前一块是表格等: 补一个只含分页符的空段落收尾(与表格同节, 不会独占一页)
+          const tail = { type: 'paragraph', children: [breakRun()], cssStyle: {}, __br: true }
+          out.push(tail)
+          n++
+        }
+      } else if (el.type === 'table') {
+        for (const row of el.children || []) for (const cell of row.children || []) cell.children = visit(cell.children || [])
+      }
+      out.push(el)
+    }
+    return out
+  }
+  body.children = visit(body.children)
+  return n
+}
 
 // 缩放: 优先用 CSS zoom(重排布局, 放大不会把字切掉); 老浏览器回退到 transform
 const zoomSupported = typeof CSS !== 'undefined' && !!CSS.supports && CSS.supports('zoom', '1')
 const bodyStyle = computed(() => zoomSupported
   ? { zoom: String(scale.value) }
   : { transform: `scale(${scale.value})`, transformOrigin: 'top center', transition: 'transform 0.15s ease' })
+
+/** 渲染入口: 页面视图走 parse -> 注入分页 -> render(两者都是 docx-preview 的公开导出,
+ *  等价于 renderAsync 内部流程, 只是中间多一步); 任何一环不可用就退回 renderAsync。 */
+async function renderDocx(blob, opts) {
+  if (mode.value === 'page' && typeof parseAsync === 'function' && typeof renderDocument === 'function') {
+    try {
+      const doc = await parseAsync(blob, opts)
+      window.__previewBreaks = injectPageBreaks(doc)
+      const nodes = await renderDocument(doc, opts)
+      bodyRef.value.innerHTML = ''
+      for (const node of nodes) bodyRef.value.appendChild(node)
+      return doc
+    } catch (e) {
+      delete window.__docxErr
+      window.__docxErr = '分页增强失败, 已回退: ' + (e && e.message ? e.message : e)
+    }
+  }
+  return await renderAsync(blob, bodyRef.value, null, opts)
+}
 
 /** 按当前模式渲染(切模式时重渲染) */
 async function render() {
@@ -99,7 +166,7 @@ async function render() {
     const opts = mode.value === 'page'
       ? { ...base, ignoreHeight: false, breakPages: true, renderHeaders: true, renderFooters: true }
       : { ...base, ignoreHeight: true, breakPages: false, renderHeaders: false, renderFooters: false }
-    currentDoc = await renderAsync(blob, bodyRef.value, null, opts)
+    currentDoc = await renderDocx(blob, opts)
     // 渲染模型留给 e2e / 排障用(只读, 不参与渲染逻辑)
     window.__previewDoc = currentDoc
     // 兜底: 某些文档经 docx-preview 渲染会出现"文字在 DOM 中(可复制)但不可见"的情况

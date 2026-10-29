@@ -34,6 +34,10 @@ vite.log.err
 # 测试数据与文档
 testdata/
 
+# e2e 本地产物(token 是自签的登录凭据, 不能进仓库; 截图只作本地排查)
+e2e/.token
+e2e/shot-*.png
+
 # 本地启动脚本
 start.bat
 build-backend.bat

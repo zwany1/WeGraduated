@@ -134,9 +134,35 @@
           </div>
         </template>
 
-        <!-- 泳道图: 结构化配置(泳道 + 节点 + 连线) -->
+        <!-- 泳道图: 文本 DSL(推荐) + 结构化配置(折叠) -->
         <template v-else-if="type === 'SWIMLANE'">
-          <div class="input-title">泳道图配置</div>
+          <div class="input-title">泳道图文本</div>
+          <el-input
+            v-model="swimDsl"
+            type="textarea"
+            :rows="9"
+            class="dsl-input"
+            placeholder="学生:&#10;  提交申请&#10;  查看进度&#10;教师:&#10;  审批申请&#10;提交申请 -> 审批申请"
+          />
+          <div class="dsl-row">
+            <el-button size="small" @click="fillSwimExample">填入示例</el-button>
+            <el-button size="small" type="primary" :loading="generating" @click="generate">生成泳道图</el-button>
+            <span class="tip">「泳道名:」顶格 + 缩进写节点，连线写在最后</span>
+          </div>
+          <div v-if="dslError" class="dsl-error">
+            <div class="dsl-error-line">
+              第 {{ dslError.line }} 行有问题<template v-if="dslError.snippet">：<code>{{ dslError.snippet }}</code></template>
+            </div>
+            <pre v-if="dslError.hint" class="dsl-hint">{{ dslError.hint }}</pre>
+          </div>
+
+          <div class="section-divider"></div>
+          <div class="adv-toggle" @click="advancedOpen = !advancedOpen">
+            <span class="adv-arrow" :class="{ open: advancedOpen }">›</span>
+            <span>高级设置（逐项配置）</span>
+            <span class="adv-note">填了文本就以文本为准</span>
+          </div>
+          <div v-show="advancedOpen" class="adv-body">
           <el-form label-width="70px" size="small">
             <el-form-item label="业务名称">
               <el-input v-model="swimConfig.flowName" placeholder="如：订单流程" />
@@ -182,11 +208,38 @@
             <el-button type="primary" :loading="generating" @click="generate">生成泳道图</el-button>
             <span class="tip">未配连线时按节点顺序自动连</span>
           </div>
+          </div>
         </template>
 
-        <!-- 活动图: 结构化配置(泳道 + 节点 + 连线) -->
+        <!-- 活动图: 文本 DSL(推荐) + 结构化配置(折叠) -->
         <template v-else-if="type === 'ACTIVITY'">
-          <div class="input-title">活动图配置</div>
+          <div class="input-title">活动图文本</div>
+          <el-input
+            v-model="actDsl"
+            type="textarea"
+            :rows="9"
+            class="dsl-input"
+            placeholder="开始 -> 提交申请&#10;提交申请 -> 是否完整?&#10;是否完整? -> 审批: 是&#10;是否完整? -> 补材料: 否&#10;补材料 -> 提交申请"
+          />
+          <div class="dsl-row">
+            <el-button size="small" @click="fillActExample">填入示例</el-button>
+            <el-button size="small" type="primary" :loading="generating" @click="generate">生成活动图</el-button>
+            <span class="tip">名字带 ? 是判断　「: 是/否」是分支条件</span>
+          </div>
+          <div v-if="dslError" class="dsl-error">
+            <div class="dsl-error-line">
+              第 {{ dslError.line }} 行有问题<template v-if="dslError.snippet">：<code>{{ dslError.snippet }}</code></template>
+            </div>
+            <pre v-if="dslError.hint" class="dsl-hint">{{ dslError.hint }}</pre>
+          </div>
+
+          <div class="section-divider"></div>
+          <div class="adv-toggle" @click="advancedOpen = !advancedOpen">
+            <span class="adv-arrow" :class="{ open: advancedOpen }">›</span>
+            <span>高级设置（逐项配置）</span>
+            <span class="adv-note">填了文本就以文本为准</span>
+          </div>
+          <div v-show="advancedOpen" class="adv-body">
           <el-form label-width="70px" size="small">
             <el-form-item label="图标题">
               <el-input v-model="actConfig.title" placeholder="如：借阅流程" />
@@ -238,6 +291,7 @@
 
           <div class="input-row">
             <el-button type="primary" :loading="generating" @click="generate">生成活动图</el-button>
+          </div>
           </div>
         </template>
 
@@ -413,6 +467,17 @@
             <pre v-if="dslError.hint" class="dsl-hint">{{ dslError.hint }}</pre>
           </div>
 
+          <div class="input-row" style="margin-bottom:10px">
+            <el-button size="small" @click="clsShowSql = !clsShowSql">{{ clsShowSql ? '收起 SQL 导入' : '从 SQL 导入' }}</el-button>
+            <span class="tip">按建表语句生成类：表→类、字段→属性、外键→关联</span>
+          </div>
+          <div v-if="clsShowSql">
+            <el-input v-model="clsSql" type="textarea" :rows="6" placeholder="CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR(50));&#10;CREATE TABLE orders (id INT PRIMARY KEY, user_id INT, FOREIGN KEY (user_id) REFERENCES users(id));" />
+            <div class="input-row">
+              <el-button size="small" :loading="clsSqlLoading" @click="clsImportFromSql">解析 SQL 生成类</el-button>
+            </div>
+          </div>
+
           <div class="section-divider"></div>
           <div class="adv-toggle" @click="advancedOpen = !advancedOpen">
             <span class="adv-arrow" :class="{ open: advancedOpen }">›</span>
@@ -425,18 +490,6 @@
               <el-input v-model="clsConfig.title" placeholder="如：会员系统类图" />
             </el-form-item>
           </el-form>
-
-          <div class="input-row" style="margin-bottom:10px">
-            <el-button size="small" @click="clsShowSql = !clsShowSql">{{ clsShowSql ? '收起 SQL 导入' : '从 SQL 导入' }}</el-button>
-            <span class="tip">按建表语句生成类：表→类、字段→属性、外键→关联</span>
-          </div>
-          <div v-if="clsShowSql">
-            <el-input v-model="clsSql" type="textarea" :rows="6" placeholder="CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR(50));&#10;CREATE TABLE orders (id INT PRIMARY KEY, user_id INT, FOREIGN KEY (user_id) REFERENCES users(id));" />
-            <div class="input-row">
-              <el-button size="small" :loading="clsSqlLoading" @click="clsImportFromSql">解析 SQL 生成类</el-button>
-            </div>
-            <div class="section-divider"></div>
-          </div>
 
           <div class="section-divider"></div>
           <div class="input-title">类</div>
@@ -501,9 +554,29 @@
           </div>
         </template>
 
-        <!-- ER 图: 实体 + 关系 -->
+        <!-- ER 图: 文本 DSL(推荐) + 实体/关系配置(折叠) -->
         <template v-else-if="type === 'ER'">
-          <div class="input-title">ER 图配置</div>
+          <div class="input-title">ER 图文本</div>
+          <el-input
+            v-model="erDsl"
+            type="textarea"
+            :rows="8"
+            class="dsl-input"
+            placeholder="学生 (学号*, 姓名)&#10;论文 (论文编号*, 标题)&#10;学生 1--N 论文: 撰写"
+          />
+          <div class="dsl-row">
+            <el-button size="small" @click="fillErExample">填入示例</el-button>
+            <el-button size="small" type="primary" :loading="generating" @click="generate">生成ER图</el-button>
+            <span class="tip">属性带 * 是主键　1--N 表示一对多</span>
+          </div>
+          <div v-if="dslError" class="dsl-error">
+            <div class="dsl-error-line">
+              第 {{ dslError.line }} 行有问题<template v-if="dslError.snippet">：<code>{{ dslError.snippet }}</code></template>
+            </div>
+            <pre v-if="dslError.hint" class="dsl-hint">{{ dslError.hint }}</pre>
+          </div>
+
+          <div class="section-divider"></div>
           <div class="input-row" style="margin-bottom:10px">
             <el-button size="small" @click="erShowSql = !erShowSql">{{ erShowSql ? '收起 SQL 导入' : '从 SQL 生成' }}</el-button>
             <span class="tip">支持多张建表语句与外键关系</span>
@@ -513,9 +586,15 @@
             <div class="input-row">
               <el-button size="small" :loading="erSqlLoading" @click="erImportFromSql">解析 SQL 生成实体</el-button>
             </div>
-            <div class="section-divider"></div>
           </div>
 
+          <div class="section-divider"></div>
+          <div class="adv-toggle" @click="advancedOpen = !advancedOpen">
+            <span class="adv-arrow" :class="{ open: advancedOpen }">›</span>
+            <span>高级设置（逐实体配置）</span>
+            <span class="adv-note">填了文本就以文本为准</span>
+          </div>
+          <div v-show="advancedOpen" class="adv-body">
           <div class="input-title">实体</div>
           <div v-for="(e, ei) in erConfig.entities" :key="ei" class="cls-card">
             <div class="cls-head">
@@ -556,6 +635,7 @@
 
           <div class="input-row">
             <el-button type="primary" :loading="generating" @click="generate">生成 ER 图</el-button>
+          </div>
           </div>
         </template>
 
@@ -788,6 +868,9 @@ const flowDsl = ref('')
 const archDsl = ref('')
 const clsDsl = ref('')
 const ucDsl = ref('')
+const swimDsl = ref('')
+const actDsl = ref('')
+const erDsl = ref('')
 /** DSL 解析失败的结构化错误: { line, snippet, hint, message } */
 const dslError = ref(null)
 
@@ -1011,6 +1094,50 @@ function syncUcConfig(cfg) {
     ucConfig.value.relations = cfg.relations
       .filter(r => r && r.source && r.target)
       .map(r => ({ type: r.type || 'association', source: r.source, target: r.target }))
+  }
+}
+
+// 泳道图
+function syncSwimConfig(cfg) {
+  if (cfg.flowName) swimConfig.value.flowName = cfg.flowName
+  if (Array.isArray(cfg.lanes)) {
+    swimConfig.value.lanes = cfg.lanes.filter(l => l && l.name).map((l, i) => ({
+      id: l.id || 'L' + (i + 1),
+      name: l.name,
+      nodes: []
+    }))
+  }
+  const laneById = {}
+  swimConfig.value.lanes.forEach(l => { laneById[l.id] = l })
+  if (Array.isArray(cfg.nodes)) {
+    cfg.nodes.filter(n => n && n.name).forEach((n, i) => {
+      const lane = laneById[n.laneId]
+      const node = { id: n.id || 'N' + (i + 1), name: n.name, type: n.type || 'task' }
+      if (lane) lane.nodes.push(node)
+    })
+  }
+  if (Array.isArray(cfg.edges)) {
+    swimConfig.value.edges = cfg.edges
+      .filter(e => e && e.source && e.target)
+      .map(e => ({ source: e.source, target: e.target, label: e.label || '' }))
+  }
+}
+
+// 活动图
+function syncActConfig(cfg) {
+  if (cfg.title) actConfig.value.title = cfg.title
+  if (Array.isArray(cfg.lanes)) {
+    actConfig.value.lanes = cfg.lanes.filter(l => l && l.name).map((l, i) => ({ id: l.id || 'L' + (i + 1), name: l.name }))
+  }
+  if (Array.isArray(cfg.nodes)) {
+    actConfig.value.nodes = cfg.nodes
+      .filter(n => n && n.text && n.laneId)
+      .map((n, i) => ({ id: n.id || 'N' + (i + 1), text: n.text, type: n.type || 'ACTION', laneId: n.laneId }))
+  }
+  if (Array.isArray(cfg.edges)) {
+    actConfig.value.edges = cfg.edges
+      .filter(e => e && e.source && e.target)
+      .map(e => ({ source: e.source, target: e.target, label: e.label || '' }))
   }
 }
 
@@ -1941,6 +2068,56 @@ function fillUcExample() {
   dslError.value = null
 }
 
+const SWIM_EXAMPLE = [
+  '@title 请假流程',
+  '学生:',
+  '  提交申请',
+  '  查看进度',
+  '教师:',
+  '  审批申请',
+  '提交申请 -> 审批申请',
+  '审批申请 -> 查看进度: 通过'
+].join('\n')
+
+const ACT_EXAMPLE = [
+  '@title 请假审批',
+  '学生:',
+  '  开始',
+  '  提交申请',
+  '  是否完整?',
+  '教师:',
+  '  补材料',
+  '  审批',
+  '  结束',
+  '开始 -> 提交申请',
+  '提交申请 -> 是否完整?',
+  '是否完整? -> 审批: 是',
+  '是否完整? -> 补材料: 否',
+  '补材料 -> 提交申请',
+  '审批 -> 结束'
+].join('\n')
+
+const ER_EXAMPLE = [
+  '学生 (学号*, 姓名)',
+  '论文 (论文编号*, 标题, 状态)',
+  '学生 1--N 论文: 撰写'
+].join('\n')
+
+function fillSwimExample() {
+  swimDsl.value = SWIM_EXAMPLE
+  dslError.value = null
+}
+
+function fillActExample() {
+  actDsl.value = ACT_EXAMPLE
+  dslError.value = null
+}
+
+function fillErExample() {
+  erDsl.value = ER_EXAMPLE
+  dslError.value = null
+}
+
 async function generate() {
   let payload
   if (type.value === 'ARCH' && archDsl.value.trim()) {
@@ -1959,6 +2136,8 @@ async function generate() {
   } else if (type.value === 'FLOW' && flowDsl.value.trim()) {
     // 文本优先; 文本为空时继续走下面的自然语言描述(旧入口)
     payload = { type: 'FLOW', dsl: flowDsl.value }
+  } else if (type.value === 'SWIMLANE' && swimDsl.value.trim()) {
+    payload = { type: 'SWIMLANE', dsl: swimDsl.value }
   } else if (type.value === 'SWIMLANE') {
     const swim = buildSwimlanePayload()
     if (swim.lanes.length === 0 || swim.nodes.length === 0) {
@@ -2000,6 +2179,8 @@ async function generate() {
       return
     }
     payload = { type: 'CLASS', classConfig: cls }
+  } else if (type.value === 'ACTIVITY' && actDsl.value.trim()) {
+    payload = { type: 'ACTIVITY', dsl: actDsl.value }
   } else if (type.value === 'ACTIVITY') {
     const act = buildActivityPayload()
     if (act.lanes.length === 0) {
@@ -2011,6 +2192,31 @@ async function generate() {
       return
     }
     payload = { type: 'ACTIVITY', activity: act }
+  } else if (type.value === 'ER' && erDsl.value.trim()) {
+    // 文本优先: 走 /diagram/generate 的 ER 分支(后端解析后复用 ERGraphService)
+    generating.value = true
+    try {
+      const vo = await generateDiagram({ type: 'ER', dsl: erDsl.value })
+      vo.type = 'ER'
+      vo.dsl = erDsl.value
+      currentVO.value = vo
+      graphReady.value = true
+      dslError.value = null
+      await nextTick()
+      if (!graph) initGraph()
+      renderGraph(vo)
+    } catch (e) {
+      const p = e && e.payload
+      if (p && typeof p === 'object' && 'line' in p) {
+        dslError.value = { line: p.line, snippet: p.snippet, hint: p.hint, message: e.message }
+      } else {
+        dslError.value = null
+        ElMessage.error(e.message || 'ER 图生成失败')
+      }
+    } finally {
+      generating.value = false
+    }
+    return
   } else if (type.value === 'ER') {
     const ents = erConfig.value.entities.filter(e => e.name && e.name.trim()).map(e => ({
       name: e.name.trim(),
@@ -2084,6 +2290,8 @@ async function generate() {
       else if (vo.type === 'ARCH') syncArchConfig(vo.config)
       else if (vo.type === 'CLASS') syncClsConfig(vo.config)
       else if (vo.type === 'USECASE') syncUcConfig(vo.config)
+      else if (vo.type === 'SWIMLANE') syncSwimConfig(vo.config)
+      else if (vo.type === 'ACTIVITY') syncActConfig(vo.config)
     }
     currentVO.value = vo
     graphReady.value = true

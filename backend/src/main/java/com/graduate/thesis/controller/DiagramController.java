@@ -7,6 +7,7 @@ import com.graduate.thesis.dto.ActivityConfig;
 import com.graduate.thesis.dto.ArchitectureConfig;
 import com.graduate.thesis.dto.ClassConfig;
 import com.graduate.thesis.dto.DiagramVO;
+import com.graduate.thesis.dto.ErDTO;
 import com.graduate.thesis.dto.FlowConfig;
 import com.graduate.thesis.dto.SequenceConfig;
 import com.graduate.thesis.dto.SwimlaneConfig;
@@ -15,6 +16,7 @@ import com.graduate.thesis.service.ActivityDiagramRuleEngine;
 import com.graduate.thesis.service.ArchitectureRuleEngine;
 import com.graduate.thesis.service.ClassDiagramRuleEngine;
 import com.graduate.thesis.service.DiagramGenerator;
+import com.graduate.thesis.service.ERGraphService;
 import com.graduate.thesis.service.FlowRuleEngine;
 import com.graduate.thesis.service.SequenceRuleEngine;
 import com.graduate.thesis.service.SwimlaneRuleEngine;
@@ -52,6 +54,7 @@ public class DiagramController {
     private final ClassDiagramRuleEngine classEngine;
     private final ActivityDiagramRuleEngine activityEngine;
     private final FlowRuleEngine flowEngine;
+    private final ERGraphService erGraphService;
     private final DiagramDslService dslService;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Path root;
@@ -65,6 +68,7 @@ public class DiagramController {
                              ClassDiagramRuleEngine classEngine,
                              ActivityDiagramRuleEngine activityEngine,
                              FlowRuleEngine flowEngine,
+                             ERGraphService erGraphService,
                              DiagramDslService dslService) {
         this.root = Paths.get(storageDir).toAbsolutePath().normalize().resolve("diagrams");
         this.diagramGenerator = diagramGenerator;
@@ -75,6 +79,7 @@ public class DiagramController {
         this.classEngine = classEngine;
         this.activityEngine = activityEngine;
         this.flowEngine = flowEngine;
+        this.erGraphService = erGraphService;
         this.dslService = dslService;
     }
 
@@ -102,6 +107,12 @@ public class DiagramController {
                 dto.setClassConfig((ClassConfig) pr.getConfig());
             } else if (pr.getConfig() instanceof UseCaseConfig) {
                 dto.setUseCase((UseCaseConfig) pr.getConfig());
+            } else if (pr.getConfig() instanceof SwimlaneConfig) {
+                dto.setSwimlane((SwimlaneConfig) pr.getConfig());
+            } else if (pr.getConfig() instanceof ActivityConfig) {
+                dto.setActivity((ActivityConfig) pr.getConfig());
+            } else if (pr.getConfig() instanceof ErDTO) {
+                dto.setEr((ErDTO) pr.getConfig());
             }
         }
         if ("FLOW".equalsIgnoreCase(dto.getType()) && dto.getFlow() != null) {
@@ -115,7 +126,9 @@ public class DiagramController {
             return Result.ok(result);
         }
         if ("SWIMLANE".equalsIgnoreCase(dto.getType()) && dto.getSwimlane() != null) {
-            return Result.ok(swimlaneEngine.build(dto.getSwimlane()));
+            Object result = swimlaneEngine.build(dto.getSwimlane());
+            attachDslInfo(result, dto, dto.getSwimlane());
+            return Result.ok(result);
         }
         if ("USECASE".equalsIgnoreCase(dto.getType()) && dto.getUseCase() != null) {
             Object result = useCaseEngine.build(dto.getUseCase());
@@ -133,7 +146,13 @@ public class DiagramController {
             return Result.ok(result);
         }
         if ("ACTIVITY".equalsIgnoreCase(dto.getType()) && dto.getActivity() != null) {
-            return Result.ok(activityEngine.build(dto.getActivity()));
+            Object result = activityEngine.build(dto.getActivity());
+            attachDslInfo(result, dto, dto.getActivity());
+            return Result.ok(result);
+        }
+        if ("ER".equalsIgnoreCase(dto.getType()) && dto.getEr() != null) {
+            // ER 走独立的图服务(Chen 记法: 实体矩形/属性椭圆/关系菱形), 与其它图不同的渲染模型
+            return Result.ok(erGraphService.build(dto.getEr()));
         }
         return Result.ok(diagramGenerator.generate(dto.getType(), dto.getDescription()));
     }
@@ -187,6 +206,21 @@ public class DiagramController {
                 throw new BusinessException(400, "缺少用例图配置");
             }
             config = objectMapper.convertValue(config, UseCaseConfig.class);
+        } else if ("SWIMLANE".equalsIgnoreCase(type)) {
+            if (config == null) {
+                throw new BusinessException(400, "缺少泳道图配置");
+            }
+            config = objectMapper.convertValue(config, SwimlaneConfig.class);
+        } else if ("ACTIVITY".equalsIgnoreCase(type)) {
+            if (config == null) {
+                throw new BusinessException(400, "缺少活动图配置");
+            }
+            config = objectMapper.convertValue(config, ActivityConfig.class);
+        } else if ("ER".equalsIgnoreCase(type)) {
+            if (config == null) {
+                throw new BusinessException(400, "缺少 ER 图配置");
+            }
+            config = objectMapper.convertValue(config, ErDTO.class);
         }
         try {
             String text = dslService.render(type, config);
@@ -274,6 +308,7 @@ public class DiagramController {
         private UseCaseConfig useCase;
         private SequenceConfig sequence;
         private FlowConfig flow;
+        private ErDTO er;
         private ClassConfig classConfig;
         private ActivityConfig activity;
 
@@ -293,6 +328,8 @@ public class DiagramController {
         public void setSequence(SequenceConfig sequence) { this.sequence = sequence; }
         public FlowConfig getFlow() { return flow; }
         public void setFlow(FlowConfig flow) { this.flow = flow; }
+        public ErDTO getEr() { return er; }
+        public void setEr(ErDTO er) { this.er = er; }
         public ClassConfig getClassConfig() { return classConfig; }
         public void setClassConfig(ClassConfig classConfig) { this.classConfig = classConfig; }
         public ActivityConfig getActivity() { return activity; }

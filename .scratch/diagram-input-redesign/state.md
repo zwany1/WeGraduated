@@ -94,7 +94,11 @@
   - CLASS：`class 论文 { - 标题: String / + 提交() }` + `A -- B [1 n]: 属于`（长箭头优先匹配）
   - USECASE：`(学生): 提交论文, 查看进度` + `-include->` / `-extend->`
   - 唯一模型改动：`ClassRelation` 增 `label`（关系名），引擎把「基数 基数 关系名」拼一起，前端分流到两端与中间
-- 票 05–06：pending
+- 票 05（泳道图 + 活动图 + ER 图方言）：**已完成** —— 8 种图文本入口全部打通
+  - SWIMLANE/ACTIVITY 共用「泳道块 + 连线」骨架；活动图可不分泳道、节点可由连线引入
+  - ER 走 ErDTO + ERGraphService（Chen 记法），不是 DiagramVO；`1--N` 拼成 `1:N`
+  - 8 种全实现后「尚未开放」分支对受支持类型不可达，三条旧测试改为「非法类型要被拒」
+- 票 06：pending（老图无 DSL 文本时用 render 反向回填）
 
 ### 执行中查到的事实（补充 Brainstorm 阶段未覆盖的）
 

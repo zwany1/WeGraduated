@@ -1,9 +1,12 @@
 package com.graduate.thesis.dsl;
 
+import com.graduate.thesis.dto.ActivityConfig;
 import com.graduate.thesis.dto.ArchitectureConfig;
 import com.graduate.thesis.dto.ClassConfig;
+import com.graduate.thesis.dto.ErDTO;
 import com.graduate.thesis.dto.FlowConfig;
 import com.graduate.thesis.dto.SequenceConfig;
+import com.graduate.thesis.dto.SwimlaneConfig;
 import com.graduate.thesis.dto.UseCaseConfig;
 import org.springframework.stereotype.Service;
 
@@ -29,8 +32,9 @@ public class DiagramDslService {
     private static final Set<String> SUPPORTED = Set.of(
             "FLOW", "ARCH", "SWIMLANE", "ACTIVITY", "USECASE", "SEQUENCE", "CLASS", "ER");
 
-    /** 已实现方言的图类型。票 01 时序图、票 03 流程图/架构图、票 04 类图/用例图，其余逐票补齐 */
-    private static final Set<String> IMPLEMENTED = Set.of("SEQUENCE", "FLOW", "ARCH", "CLASS", "USECASE");
+    /** 已实现方言的图类型。票 01 时序、03 流程/架构、04 类图/用例、05 泳道/活动/ER —— 8 种齐了 */
+    private static final Set<String> IMPLEMENTED = Set.of(
+            "SEQUENCE", "FLOW", "ARCH", "CLASS", "USECASE", "SWIMLANE", "ACTIVITY", "ER");
 
     private static final Pattern MSG = Pattern.compile(
             "^\\s*(.+?)\\s*(-->|->)\\s*(.+?)\\s*(?:[:：]\\s*(.*))?\\s*$");
@@ -81,6 +85,32 @@ public class DiagramDslService {
             "  学生 -> 提交论文             普通关联",
             "  @title 论文管理系统          可选，系统名");
 
+    private static final String SWIMLANE_HINT = String.join("\n",
+            "泳道图语法：",
+            "  学生:                       泳道名，冒号结尾",
+            "    提交申请                  缩进写该泳道的节点",
+            "  教师:",
+            "    审批申请",
+            "  提交申请 -> 审批申请         连线写在泳道块之后",
+            "  审批申请 -> 查看进度: 通过   可带条件标签",
+            "  名字带 ? 即判断节点；开始/结束 自动识别");
+
+    private static final String ACTIVITY_HINT = String.join("\n",
+            "活动图语法：",
+            "  学生:                       可以只写一条泳道，也可以不写（默认「主流程」）",
+            "    提交申请",
+            "  提交申请 -> 是否完整?        名字带 ? 即判断节点（菱形）",
+            "  是否完整? -> 补材料: 否      分支条件写在冒号后",
+            "  是否完整? -> 审核: 是",
+            "  补材料 -> 提交申请           多条入边即自动合并");
+
+    private static final String ER_HINT = String.join("\n",
+            "ER 图语法：",
+            "  论文 (论文编号*, 标题)       实体，括号里是属性，带 * 为主键",
+            "  学生 (学号*, 姓名)",
+            "  学生 1--N 论文: 撰写         关系，两端写基数(1 / N / M)，冒号后是关系名",
+            "  没有属性的实体只写名字即可");
+
     /**
      * 文本 → 图配置。
      *
@@ -113,6 +143,12 @@ public class DiagramDslService {
                 return parseClass(text);
             case "USECASE":
                 return parseUseCase(text);
+            case "SWIMLANE":
+                return parseSwimlane(text);
+            case "ACTIVITY":
+                return parseActivity(text);
+            case "ER":
+                return parseEr(text);
             default:
                 return DslParseResult.fail(0, "", "", "未实现");
         }
@@ -128,6 +164,12 @@ public class DiagramDslService {
                 return CLASS_HINT;
             case "USECASE":
                 return USECASE_HINT;
+            case "SWIMLANE":
+                return SWIMLANE_HINT;
+            case "ACTIVITY":
+                return ACTIVITY_HINT;
+            case "ER":
+                return ER_HINT;
             default:
                 return SEQ_HINT;
         }
@@ -165,6 +207,21 @@ public class DiagramDslService {
                     throw new IllegalArgumentException("配置类型与图类型不匹配: " + t);
                 }
                 return renderUseCase((UseCaseConfig) config);
+            case "SWIMLANE":
+                if (!(config instanceof SwimlaneConfig)) {
+                    throw new IllegalArgumentException("配置类型与图类型不匹配: " + t);
+                }
+                return renderSwimlane((SwimlaneConfig) config);
+            case "ACTIVITY":
+                if (!(config instanceof ActivityConfig)) {
+                    throw new IllegalArgumentException("配置类型与图类型不匹配: " + t);
+                }
+                return renderActivity((ActivityConfig) config);
+            case "ER":
+                if (!(config instanceof ErDTO)) {
+                    throw new IllegalArgumentException("配置类型与图类型不匹配: " + t);
+                }
+                return renderEr((ErDTO) config);
             default:
                 throw new IllegalArgumentException("该图类型暂不支持生成文本: " + type);
         }
@@ -1037,6 +1094,441 @@ public class DiagramDslService {
             String type = String.valueOf(r.getType()).toLowerCase();
             String arrow = "include".equals(type) ? " -include-> " : ("extend".equals(type) ? " -extend-> " : " -> ");
             sb.append(from).append(arrow).append(to).append('\n');
+        }
+        return sb.toString();
+    }
+
+    // ==================== 泳道图 / 活动图(共用「泳道块 + 连线」骨架) ====================
+
+    /** 泳道块的中间结果: 两种图只差在各自的 Config 与节点类型词表 */
+    private static final class LaneParse {
+        String title;
+        final List<String> laneNames = new ArrayList<>();
+        final List<String> nodeNames = new ArrayList<>();
+        final List<Integer> nodeLaneIdx = new ArrayList<>();
+        /** 每条边: {from, to, label} */
+        final List<String[]> edges = new ArrayList<>();
+        DslParseResult fail;
+    }
+
+    private LaneParse readLanes(String text, String hint, boolean laneRequired) {
+        LaneParse r = new LaneParse();
+        int currentLane = -1;
+        String[] lines = text.split("\\R", -1);
+        for (int i = 0; i < lines.length; i++) {
+            int lineNo = i + 1;
+            String raw = lines[i];
+            int indent = indentOf(raw);
+            String line = normalizeLine(raw).trim();
+            if (line.isEmpty() || line.startsWith("#")) {
+                continue;
+            }
+            Matcher title = TITLE.matcher(line);
+            if (title.matches()) {
+                r.title = title.group(1);
+                continue;
+            }
+            // 泳道: 顶格且以冒号结尾
+            if (indent == 0 && (line.endsWith(":") || line.endsWith("："))) {
+                String name = cleanName(line.substring(0, line.length() - 1));
+                if (name.isEmpty()) {
+                    r.fail = DslParseResult.fail(lineNo, line, hint, "第 " + lineNo + " 行泳道名是空的");
+                    return r;
+                }
+                if (r.laneNames.contains(name)) {
+                    r.fail = DslParseResult.fail(lineNo, line, hint, "第 " + lineNo + " 行泳道「" + name + "」重复了");
+                    return r;
+                }
+                r.laneNames.add(name);
+                currentLane = r.laneNames.size() - 1;
+                continue;
+            }
+            // 缩进: 泳道内的节点
+            if (indent > 0) {
+                if (currentLane < 0) {
+                    if (laneRequired) {
+                        r.fail = DslParseResult.fail(lineNo, line, hint,
+                                "第 " + lineNo + " 行的节点没有归属：请先写「泳道名:」再缩进写节点");
+                        return r;
+                    }
+                    // 活动图允许不分泳道, 隐式补一条
+                    r.laneNames.add("主流程");
+                    currentLane = 0;
+                }
+                r.nodeNames.add(line);
+                r.nodeLaneIdx.add(currentLane);
+                continue;
+            }
+            // 顶格连线
+            Matcher m = FLOW_EDGE.matcher(line);
+            if (m.matches()) {
+                String from = cleanName(stripBrackets(m.group(1)));
+                String to = cleanName(stripBrackets(m.group(3)));
+                String label = m.group(4) == null ? "" : cleanName(m.group(4));
+                r.edges.add(new String[]{from, to, label});
+                continue;
+            }
+            r.fail = DslParseResult.fail(lineNo, line, hint,
+                    "第 " + lineNo + " 行无法识别：泳道要写成「名字:」，节点要缩进，连线写「A -> B」"
+                            + suspiciousChars(raw));
+            return r;
+        }
+        if (laneRequired && r.laneNames.isEmpty()) {
+            r.fail = DslParseResult.fail(0, "", hint, "请至少写一条泳道，如「学生:」并缩进写节点");
+            return r;
+        }
+        if (r.laneNames.isEmpty() && r.nodeNames.isEmpty() && r.edges.isEmpty()) {
+            r.fail = DslParseResult.fail(0, "", hint, "请先写点内容，如「开始 -> 提交申请」");
+        }
+        return r;
+    }
+
+    private String swimlaneNodeType(String name) {
+        String t = inferFlowType(name, name.contains("?") || name.contains("？"));
+        switch (t) {
+            case "condition":
+                return "gateway";
+            case "start":
+                return "start";
+            case "end":
+                return "end";
+            default:
+                return "task";
+        }
+    }
+
+    private String activityNodeType(String name) {
+        String t = inferFlowType(name, name.contains("?") || name.contains("？"));
+        switch (t) {
+            case "condition":
+                return "DECISION";
+            case "start":
+                return "START";
+            case "end":
+                return "END";
+            default:
+                return "ACTION";
+        }
+    }
+
+    private DslParseResult parseSwimlane(String text) {
+        LaneParse p = readLanes(text, SWIMLANE_HINT, true);
+        if (p.fail != null) return p.fail;
+
+        SwimlaneConfig cfg = new SwimlaneConfig();
+        cfg.setFlowName(p.title);
+        java.util.Map<String, String> laneIds = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < p.laneNames.size(); i++) {
+            SwimlaneConfig.LaneConfig lane = new SwimlaneConfig.LaneConfig();
+            lane.setId("L" + (i + 1));
+            lane.setName(p.laneNames.get(i));
+            laneIds.put(lane.getName(), lane.getId());
+            cfg.getLanes().add(lane);
+        }
+        java.util.Map<String, String> nodeIds = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < p.nodeNames.size(); i++) {
+            String name = p.nodeNames.get(i);
+            if (nodeIds.containsKey(name)) {
+                return DslParseResult.fail(0, name, SWIMLANE_HINT, "节点「" + name + "」重复出现，同一张图里节点名要唯一");
+            }
+            SwimlaneConfig.NodeConfig node = new SwimlaneConfig.NodeConfig();
+            node.setId("N" + (i + 1));
+            node.setName(name);
+            node.setType(swimlaneNodeType(name));
+            node.setLaneId(laneIds.get(p.laneNames.get(p.nodeLaneIdx.get(i))));
+            nodeIds.put(name, node.getId());
+            cfg.getNodes().add(node);
+        }
+        for (String[] e : p.edges) {
+            String fid = nodeIds.get(e[0]);
+            String tid = nodeIds.get(e[1]);
+            if (fid == null || tid == null) {
+                return DslParseResult.fail(0, e[0] + " -> " + e[1], SWIMLANE_HINT,
+                        "连线「" + e[0] + " -> " + e[1] + "」里有节点没有出现在任何泳道下");
+            }
+            SwimlaneConfig.EdgeConfig edge = new SwimlaneConfig.EdgeConfig();
+            edge.setSource(fid);
+            edge.setTarget(tid);
+            edge.setLabel(e[2].isEmpty() ? null : e[2]);
+            cfg.getEdges().add(edge);
+        }
+        return DslParseResult.success(cfg);
+    }
+
+    private DslParseResult parseActivity(String text) {
+        LaneParse p = readLanes(text, ACTIVITY_HINT, false);
+        if (p.fail != null) return p.fail;
+
+        ActivityConfig cfg = new ActivityConfig();
+        cfg.setTitle(p.title);
+        // 没写泳道时给一条默认泳道(活动图本来就不要求分泳道)
+        if (p.laneNames.isEmpty()) {
+            ActivityConfig.LaneConfig lane = new ActivityConfig.LaneConfig();
+            lane.setId("L1");
+            lane.setName("主流程");
+            cfg.getLanes().add(lane);
+        } else {
+            for (int i = 0; i < p.laneNames.size(); i++) {
+                ActivityConfig.LaneConfig lane = new ActivityConfig.LaneConfig();
+                lane.setId("L" + (i + 1));
+                lane.setName(p.laneNames.get(i));
+                cfg.getLanes().add(lane);
+            }
+        }
+        String defaultLaneId = cfg.getLanes().get(0).getId();
+        java.util.Map<String, String> nodeIds = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < p.nodeNames.size(); i++) {
+            String name = p.nodeNames.get(i);
+            if (nodeIds.containsKey(name)) {
+                return DslParseResult.fail(0, name, ACTIVITY_HINT, "节点「" + name + "」重复出现，同一张图里节点名要唯一");
+            }
+            ActivityConfig.NodeConfig node = new ActivityConfig.NodeConfig();
+            node.setId("N" + (i + 1));
+            node.setText(name);
+            node.setType(activityNodeType(name));
+            node.setLaneId(p.laneNames.isEmpty()
+                    ? defaultLaneId
+                    : cfg.getLanes().get(p.nodeLaneIdx.get(i)).getId());
+            nodeIds.put(name, node.getId());
+            cfg.getNodes().add(node);
+        }
+        // 活动图可以像流程图那样只写连线(节点由连线引入), 缺的节点在这里补出来
+        for (String[] e : p.edges) {
+            for (String name : new String[]{e[0], e[1]}) {
+                if (name.isEmpty() || nodeIds.containsKey(name)) continue;
+                ActivityConfig.NodeConfig node = new ActivityConfig.NodeConfig();
+                node.setId("N" + (cfg.getNodes().size() + 1));
+                node.setText(name);
+                node.setType(activityNodeType(name));
+                node.setLaneId(defaultLaneId);
+                nodeIds.put(name, node.getId());
+                cfg.getNodes().add(node);
+            }
+        }
+        for (String[] e : p.edges) {
+            String fid = nodeIds.get(e[0]);
+            String tid = nodeIds.get(e[1]);
+            if (fid == null || tid == null) {
+                return DslParseResult.fail(0, e[0] + " -> " + e[1], ACTIVITY_HINT,
+                        "连线「" + e[0] + " -> " + e[1] + "」里有节点没有出现在任何泳道下");
+            }
+            ActivityConfig.EdgeConfig edge = new ActivityConfig.EdgeConfig();
+            edge.setSource(fid);
+            edge.setTarget(tid);
+            edge.setLabel(e[2].isEmpty() ? null : e[2]);
+            cfg.getEdges().add(edge);
+        }
+        return DslParseResult.success(cfg);
+    }
+
+    /** 泳道块 + 连线的公共渲染: 两种图的文本形态完全一样, 只是数据源不同 */
+    private String renderLaneBlocks(String title, List<String[]> laneNameAndId,
+                                    List<String[]> nodeNameAndLaneId, List<String[]> edges) {
+        StringBuilder sb = new StringBuilder();
+        if (title != null && !title.isBlank()) {
+            sb.append("@title ").append(title).append('\n');
+        }
+        for (String[] lane : laneNameAndId) {
+            sb.append(lane[1]).append(":\n");
+            for (String[] node : nodeNameAndLaneId) {
+                if (node[1].equals(lane[0])) {
+                    sb.append("  ").append(node[0]).append('\n');
+                }
+            }
+        }
+        for (String[] e : edges) {
+            sb.append(e[0]).append(" -> ").append(e[1]);
+            if (e[2] != null && !e[2].isBlank()) {
+                sb.append(": ").append(e[2]);
+            }
+            sb.append('\n');
+        }
+        return sb.toString();
+    }
+
+    private String renderSwimlane(SwimlaneConfig c) {
+        java.util.Map<String, String> nodeName = new java.util.HashMap<>();
+        if (c.getNodes() != null) {
+            for (SwimlaneConfig.NodeConfig n : c.getNodes()) {
+                if (n.getId() != null) nodeName.put(n.getId(), n.getName());
+            }
+        }
+        List<String[]> lanes = new ArrayList<>();
+        if (c.getLanes() != null) {
+            for (SwimlaneConfig.LaneConfig l : c.getLanes()) {
+                if (l.getId() != null && l.getName() != null) lanes.add(new String[]{l.getId(), l.getName()});
+            }
+        }
+        List<String[]> nodes = new ArrayList<>();
+        if (c.getNodes() != null) {
+            for (SwimlaneConfig.NodeConfig n : c.getNodes()) {
+                if (n.getName() != null && n.getLaneId() != null) nodes.add(new String[]{n.getName(), n.getLaneId()});
+            }
+        }
+        List<String[]> edges = new ArrayList<>();
+        if (c.getEdges() != null) {
+            for (SwimlaneConfig.EdgeConfig e : c.getEdges()) {
+                String from = nodeName.get(e.getSource());
+                String to = nodeName.get(e.getTarget());
+                if (from != null && to != null) edges.add(new String[]{from, to, e.getLabel()});
+            }
+        }
+        return renderLaneBlocks(c.getFlowName(), lanes, nodes, edges);
+    }
+
+    private String renderActivity(ActivityConfig c) {
+        java.util.Map<String, String> nodeName = new java.util.HashMap<>();
+        if (c.getNodes() != null) {
+            for (ActivityConfig.NodeConfig n : c.getNodes()) {
+                if (n.getId() != null) nodeName.put(n.getId(), n.getText());
+            }
+        }
+        List<String[]> lanes = new ArrayList<>();
+        if (c.getLanes() != null) {
+            for (ActivityConfig.LaneConfig l : c.getLanes()) {
+                if (l.getId() != null && l.getName() != null) lanes.add(new String[]{l.getId(), l.getName()});
+            }
+        }
+        List<String[]> nodes = new ArrayList<>();
+        if (c.getNodes() != null) {
+            for (ActivityConfig.NodeConfig n : c.getNodes()) {
+                if (n.getText() != null && n.getLaneId() != null) nodes.add(new String[]{n.getText(), n.getLaneId()});
+            }
+        }
+        List<String[]> edges = new ArrayList<>();
+        if (c.getEdges() != null) {
+            for (ActivityConfig.EdgeConfig e : c.getEdges()) {
+                String from = nodeName.get(e.getSource());
+                String to = nodeName.get(e.getTarget());
+                if (from != null && to != null) edges.add(new String[]{from, to, e.getLabel()});
+            }
+        }
+        return renderLaneBlocks(c.getTitle(), lanes, nodes, edges);
+    }
+
+    // ==================== ER 图 ====================
+
+    private static final Pattern ER_ENTITY = Pattern.compile("^(.+?)\\s*(?:\\(([^)]*)\\))?\\s*$");
+    private static final Pattern ER_RELATION = Pattern.compile(
+            "^(.+?)\\s+([0-9NnMm*]+)\\s*-{1,2}\\s*([0-9NnMm*]+)\\s+(.+?)(?:\\s*[:：]\\s*(.*))?$");
+
+    private DslParseResult parseEr(String text) {
+        ErDTO cfg = new ErDTO();
+        java.util.Map<String, ErDTO.ErEntity> byName = new java.util.LinkedHashMap<>();
+        java.util.List<ErDTO.ErRelation> relations = new ArrayList<>();
+
+        String[] lines = text.split("\\R", -1);
+        for (int i = 0; i < lines.length; i++) {
+            int lineNo = i + 1;
+            String line = normalizeLine(lines[i]).trim();
+            if (line.isEmpty() || line.startsWith("#")) {
+                continue;
+            }
+            if (line.startsWith("@title")) {
+                return DslParseResult.fail(lineNo, line, ER_HINT,
+                        "ER 图暂时没有标题字段，请去掉 @title（保存时用图名区分）");
+            }
+            Matcher rel = ER_RELATION.matcher(line);
+            if (line.contains("--") && rel.matches()) {
+                String from = cleanName(rel.group(1));
+                String to = cleanName(rel.group(4));
+                if (from.isEmpty() || to.isEmpty()) {
+                    return DslParseResult.fail(lineNo, line, ER_HINT, "第 " + lineNo + " 行关系两侧都要有实体名");
+                }
+                entityOf(byName, cfg, from);
+                entityOf(byName, cfg, to);
+                ErDTO.ErRelation r = new ErDTO.ErRelation();
+                r.setFrom(from);
+                r.setTo(to);
+                r.setCardinality(cardOf(rel.group(2)) + ":" + cardOf(rel.group(3)));
+                String label = rel.group(5) == null ? "" : cleanName(rel.group(5));
+                r.setLabel(label.isEmpty() ? null : label);
+                relations.add(r);
+                continue;
+            }
+            Matcher ent = ER_ENTITY.matcher(line);
+            if (ent.matches()) {
+                String name = cleanName(ent.group(1));
+                if (name.isEmpty()) {
+                    return DslParseResult.fail(lineNo, line, ER_HINT, "第 " + lineNo + " 行缺少实体名");
+                }
+                ErDTO.ErEntity entity = entityOf(byName, cfg, name);
+                String attrRaw = ent.group(2);
+                if (attrRaw != null && !attrRaw.isBlank()) {
+                    for (String part : attrRaw.split("[,，]")) {
+                        String a = cleanName(part);
+                        if (a.isEmpty()) continue;
+                        boolean key = a.endsWith("*");
+                        if (key) a = cleanName(a.substring(0, a.length() - 1));
+                        ErDTO.ErAttr attr = new ErDTO.ErAttr();
+                        attr.setName(a);
+                        attr.setKey(key);
+                        entity.getAttrs().add(attr);
+                    }
+                }
+                continue;
+            }
+            return DslParseResult.fail(lineNo, line, ER_HINT,
+                    "第 " + lineNo + " 行无法识别：实体写「实体名 (属性1, 属性2*)」，关系写「A 1--N B」"
+                            + suspiciousChars(lines[i]));
+        }
+
+        if (cfg.getEntities().isEmpty()) {
+            return DslParseResult.fail(0, "", ER_HINT, "请至少写一个实体，如「学生 (学号*, 姓名)」");
+        }
+        cfg.setRelations(relations);
+        return DslParseResult.success(cfg);
+    }
+
+    private String cardOf(String token) {
+        String t = token.trim();
+        if (t.equals("*")) return "N";
+        return t.toUpperCase();
+    }
+
+    private ErDTO.ErEntity entityOf(java.util.Map<String, ErDTO.ErEntity> byName, ErDTO cfg, String name) {
+        ErDTO.ErEntity e = byName.get(name);
+        if (e == null) {
+            e = new ErDTO.ErEntity();
+            e.setName(name);
+            byName.put(name, e);
+            cfg.getEntities().add(e);
+        }
+        return e;
+    }
+
+    private String renderEr(ErDTO c) {
+        StringBuilder sb = new StringBuilder();
+        if (c.getEntities() != null) {
+            for (ErDTO.ErEntity e : c.getEntities()) {
+                if (e.getName() == null || e.getName().isBlank()) continue;
+                sb.append(e.getName());
+                if (e.getAttrs() != null && !e.getAttrs().isEmpty()) {
+                    List<String> parts = new ArrayList<>();
+                    for (ErDTO.ErAttr a : e.getAttrs()) {
+                        if (a.getName() == null || a.getName().isBlank()) continue;
+                        parts.add(Boolean.TRUE.equals(a.getKey()) ? a.getName() + "*" : a.getName());
+                    }
+                    if (!parts.isEmpty()) {
+                        sb.append(" (").append(String.join(", ", parts)).append(')');
+                    }
+                }
+                sb.append('\n');
+            }
+        }
+        if (c.getRelations() != null) {
+            for (ErDTO.ErRelation r : c.getRelations()) {
+                if (r.getFrom() == null || r.getTo() == null) continue;
+                String card = r.getCardinality() == null || r.getCardinality().isBlank() ? "1:N" : r.getCardinality().trim();
+                String[] two = card.split(":");
+                String left = two.length > 0 ? two[0] : "1";
+                String right = two.length > 1 ? two[1] : "N";
+                sb.append(r.getFrom()).append(' ').append(left).append("--").append(right).append(' ').append(r.getTo());
+                if (r.getLabel() != null && !r.getLabel().isBlank()) {
+                    sb.append(": ").append(r.getLabel().trim());
+                }
+                sb.append('\n');
+            }
         }
         return sb.toString();
     }

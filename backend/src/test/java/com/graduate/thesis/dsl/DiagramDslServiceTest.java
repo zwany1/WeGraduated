@@ -158,16 +158,12 @@ class DiagramDslServiceTest {
     }
 
     @Test
-    void 尚未开放的图类型与非法类型区分对待() {
-        // FLOW 已在票 03 开放, 这里用还没做方言的泳道图代表"尚未开放"
-        DslParseResult notYet = svc.parse("SWIMLANE", "用户 -> 系统");
-        assertFalse(notYet.isOk());
-        assertTrue(notYet.getError().getMessage().contains("尚未开放"),
-                "未实现的图应说明尚未开放，实际: " + notYet.getError().getMessage());
-
+    void 非法图类型的报错与八种图区分开() {
+        // 8 种图在票 05 已全部实现, 这里只保证"根本不存在的类型"被明确拒绝
         DslParseResult unknown = svc.parse("NOT_A_DIAGRAM", "x");
         assertFalse(unknown.isOk());
-        assertNotNull(unknown.getError().getMessage());
+        assertTrue(unknown.getError().getMessage().contains("不支持"),
+                "非法类型应说明不支持，实际: " + unknown.getError().getMessage());
     }
 
     @Test

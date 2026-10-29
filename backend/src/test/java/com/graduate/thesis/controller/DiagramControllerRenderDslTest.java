@@ -7,6 +7,7 @@ import com.graduate.thesis.service.ActivityDiagramRuleEngine;
 import com.graduate.thesis.service.ArchitectureRuleEngine;
 import com.graduate.thesis.service.ClassDiagramRuleEngine;
 import com.graduate.thesis.service.DiagramGenerator;
+import com.graduate.thesis.service.ERGraphService;
 import com.graduate.thesis.service.FlowRuleEngine;
 import com.graduate.thesis.service.SequenceRuleEngine;
 import com.graduate.thesis.service.SwimlaneRuleEngine;
@@ -47,6 +48,7 @@ class DiagramControllerRenderDslTest {
                 Mockito.mock(ClassDiagramRuleEngine.class),
                 Mockito.mock(ActivityDiagramRuleEngine.class),
                 Mockito.mock(FlowRuleEngine.class),
+                Mockito.mock(ERGraphService.class),
                 new DiagramDslService());
     }
 
@@ -99,10 +101,10 @@ class DiagramControllerRenderDslTest {
     }
 
     @Test
-    void 尚未支持文本的图类型返回400而非500() {
-        // CLASS 已在票 04 开放, 这里用还没做方言的泳道图
+    void 非法图类型返回400而非500() {
+        // 8 种图在票 05 已全部支持反向生成文本, 只剩下"根本不存在的类型"该被拒
         DiagramController.RenderDslDTO dto = new DiagramController.RenderDslDTO();
-        dto.setType("SWIMLANE");
+        dto.setType("NOT_A_DIAGRAM");
         dto.setConfig(new LinkedHashMap<>());
 
         BusinessException e = assertThrows(BusinessException.class, () -> controller().renderDsl(dto));

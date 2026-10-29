@@ -9,6 +9,7 @@ import com.graduate.thesis.service.ActivityDiagramRuleEngine;
 import com.graduate.thesis.service.ArchitectureRuleEngine;
 import com.graduate.thesis.service.ClassDiagramRuleEngine;
 import com.graduate.thesis.service.DiagramGenerator;
+import com.graduate.thesis.service.ERGraphService;
 import com.graduate.thesis.service.FlowRuleEngine;
 import com.graduate.thesis.service.SequenceRuleEngine;
 import com.graduate.thesis.service.SwimlaneRuleEngine;
@@ -46,6 +47,7 @@ class DiagramControllerDslTest {
                 Mockito.mock(ClassDiagramRuleEngine.class),
                 Mockito.mock(ActivityDiagramRuleEngine.class),
                 Mockito.mock(FlowRuleEngine.class),
+                Mockito.mock(ERGraphService.class),
                 new DiagramDslService());
     }
 
@@ -97,13 +99,13 @@ class DiagramControllerDslTest {
     }
 
     @Test
-    void 未开放方言的图类型提示尚未开放而非报错崩溃() {
-        // CLASS 已在票 04 开放, 用还没做方言的泳道图代表"尚未开放"
+    void 非法图类型被拒绝而不是走到通用生成() {
+        // 8 种图已全部支持文本; 这里锁住"根本不存在的类型"不会被当成通用描述图
         Result<Object> r = controller(Mockito.mock(SequenceRuleEngine.class))
-                .generate(dto("SWIMLANE", "用户 -> 系统: 提交"));
+                .generate(dto("NOT_A_DIAGRAM", "用户 -> 系统: 提交"));
 
         assertEquals(400, r.getCode());
-        assertTrue(r.getMessage().contains("尚未开放"), "实际: " + r.getMessage());
+        assertTrue(r.getMessage().contains("不支持"), "实际: " + r.getMessage());
     }
 
     @Test

@@ -42,6 +42,7 @@ E2E_TOKEN=<token> node e2e/scenarios/sequence-canvas.mjs
 node e2e/scenarios/sequence-canvas.mjs   # 时序图: 生成/表单回填/画布编辑/持久化
 node e2e/scenarios/flow-arch.mjs         # 流程图+架构图: 判断菱形/分支标签/分层/错误定位
 node e2e/scenarios/class-usecase.mjs     # 类图+用例图: 成员结构/关系名与基数/include 与 extend/错误定位
+node e2e/scenarios/lane-activity-er.mjs  # 泳道/活动/ER + 8 种图全量冒烟
 ```
 
 断言失败时进程退出码为 `3`，可以直接当门禁用。截图落在 `e2e/shot-*.png`。
@@ -80,6 +81,18 @@ node e2e/scenarios/class-usecase.mjs     # 类图+用例图: 成员结构/关系
 | 参与者与用例都上图 | 票 04 验收 2 |
 | `«include»` / `«extend»` 标签 | 票 04 验收 2 |
 | 用例图无法识别的行指到行 | 错误定位 |
+
+### lane-activity-er.mjs 覆盖什么
+
+| 断言 | 对应验收 |
+| --- | --- |
+| 泳道内节点与连线条件上图 | 票 05 验收 1 |
+| 活动图判断节点为菱形、分支条件上屏 | 票 05 验收 2 |
+| ER 实体/属性/主键上图，基数 1/N 上屏 | 票 05 验收 3 |
+| ER 遇 @title 明确报错 | 边界 |
+| **8 种图示例文本逐一生成** | 票 05 验收 5（全量回归） |
+
+> 切 tab 后至少等 900ms 再点生成：否则 type 还没切完，生成用的仍是上一个图的文本（踩过）。
 
 ## 踩过的坑（改脚本前先看）
 

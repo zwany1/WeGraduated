@@ -263,7 +263,12 @@
           </div>
 
           <div class="section-divider"></div>
-          <div class="input-title">时序图配置（精确调整）</div>
+          <div class="adv-toggle" @click="advancedOpen = !advancedOpen">
+            <span class="adv-arrow" :class="{ open: advancedOpen }">›</span>
+            <span>高级设置（精确调整）</span>
+            <span class="adv-note">画布上也能直接改：拖节点改位置、双击改文字</span>
+          </div>
+          <div v-show="advancedOpen" class="adv-body">
           <el-form label-width="70px" size="small">
             <el-form-item label="图标题">
               <el-input v-model="seqConfig.title" placeholder="如：用户登录流程" />
@@ -298,6 +303,7 @@
           </div>
           <el-button size="small" class="add-comp-btn" @click="addSeqMessage">+ 添加消息</el-button>
           <div class="tip" style="margin-top:6px">消息按添加顺序纵向排列；请求=实线，返回=虚线</div>
+          </div>
 
           <div class="input-row">
             <el-button type="primary" :loading="generating" @click="generate">生成时序图</el-button>
@@ -507,6 +513,17 @@
         </div>
         <!-- FLOW/SWIMLANE/USECASE: X6 画布 -->
         <div v-show="graphReady && currentVO && currentVO.type !== 'ARCH'" ref="container" class="x6-container"></div>
+        <!-- 画布内联编辑框(双击节点/连线出现) -->
+        <input
+          v-if="inlineEdit"
+          ref="inlineInput"
+          v-model="inlineEdit.value"
+          class="inline-edit"
+          :style="{ left: inlineEdit.left + 'px', top: inlineEdit.top + 'px', width: inlineEdit.width + 'px', height: inlineEdit.height + 'px' }"
+          @keyup.enter="commitInlineEdit"
+          @keyup.esc="inlineEdit = null"
+          @blur="commitInlineEdit"
+        />
         <!-- 三线表: 右侧大框实时预览 -->
         <div v-if="type === 'TABLE3'" class="t3-stage">
           <div class="t3-caption">{{ t3.title || '表题' }}</div>
@@ -536,7 +553,7 @@ import { ElMessage } from 'element-plus'
 import { Graph } from '@antv/x6'
 import { DagreLayout } from '@antv/layout'
 import html2canvas from 'html2canvas'
-import { generateDiagram, saveDiagram } from '../api/diagram'
+import { generateDiagram, saveDiagram, renderDiagramDsl } from '../api/diagram'
 import { getErGraph } from '../api/er'
 import { parseSql, generateTable3 } from '../api/table3'
 import { parseErSql } from '../api/er'
@@ -1405,6 +1422,7 @@ async function renderGraph(vo) {
       width: Math.max(240, (vo.width || 600) - 160),
       height: 28,
       zIndex: 5,
+      movable: false,
       attrs: {
         body: { fill: 'transparent', stroke: 'none' },
         label: { text: vo.name, fill: '#0a0909', fontSize: 15, fontWeight: 700, textAnchor: 'start', textVerticalAnchor: 'middle', refX: 0 }
@@ -1423,6 +1441,7 @@ async function renderGraph(vo) {
         width: 1.5,
         height: l.height,
         zIndex: 0,
+        movable: false,
         attrs: {
           body: { fill: '#8f8b82', stroke: 'none' }
         }
@@ -1462,7 +1481,9 @@ async function renderGraph(vo) {
       width: w,
       height: h,
       attrs: nodeAttrs(n),
-      zIndex: n.shape === 'system' ? 0 : 10
+      zIndex: n.shape === 'system' ? 0 : 10,
+      // 激活条是派生几何, 不能被拖走(拖参与者时会自动跟随)
+      movable: n.shape !== 'activation'
     }
     // 活动图: 开始=实心黑圆, 结束=双圆叠加
     if (vo.type === 'ER') {
@@ -1833,6 +1854,174 @@ async function generate() {
   }
 }
 
+// ==================== 画布直接编辑(票 02) ====================
+// 面板默认折叠: 文本是主入口, 表单降为「精确调整」
+const advancedOpen = ref(false)
+// 双击节点/连线时的内联编辑框
+const inlineEdit = ref(null)
+const inlineInput = ref(null)
+
+/** 双击节点/连线 -> 在原位置浮出一个输入框(不改画布, 不弹模态) */
+function startInlineEdit(cell, kind) {
+  if (!graph || !currentVO.value) return
+  const vo = currentVO.value
+  if (kind === 'node') {
+    const model = vo.nodes.find(n => n.id === cell.id)
+    if (!model) return
+    if (model.shape === 'activation') return                     // 激活条没有文案
+    if (vo.type === 'CLASS' && model.shape === 'classNode') return // 类图用 HTML 渲染, 走表单改
+  }
+  const view = graph.findViewByCell(cell)
+  if (!view) return
+  const rect = view.container.getBoundingClientRect()
+  let value = ''
+  if (kind === 'node') value = cell.attr('label/text') || ''
+  else {
+    const labels = cell.getLabels ? cell.getLabels() : []
+    value = (labels[0] && labels[0].attrs && labels[0].attrs.label && labels[0].attrs.label.text) || ''
+  }
+  inlineEdit.value = {
+    id: cell.id,
+    kind,
+    value,
+    left: rect.left,
+    top: rect.top,
+    width: Math.max(96, rect.width),
+    height: Math.max(26, rect.height)
+  }
+  nextTick(() => {
+    const el = inlineInput.value
+    if (el) { el.focus(); el.select() }
+  })
+}
+
+/** 提交内联编辑: 改画布 + 改模型 + (时序图)回写文本 */
+async function commitInlineEdit() {
+  const edit = inlineEdit.value
+  if (!edit) return
+  const text = (edit.value || '').trim()
+  inlineEdit.value = null
+  if (!text) return
+  const vo = currentVO.value
+  if (!vo || !graph) return
+  const cell = graph.getCellById(edit.id)
+  if (!cell) return
+
+  if (edit.kind === 'node') {
+    const model = vo.nodes.find(n => n.id === edit.id)
+    if (!model) return
+    model.label = text
+    if (edit.id === 'seq_title') {
+      // 图标题: 同时改图名与表单标题
+      vo.name = text
+      if (vo.type === 'SEQUENCE') { seqConfig.value.title = text; scheduleDslSync() }
+      cell.attr('label/text', text)
+      return
+    }
+    cell.attr('label/text', text)
+    if (vo.type === 'SEQUENCE' && model.shape === 'participant') {
+      const idx = vo.nodes.filter(n => n.shape === 'participant').findIndex(n => n.id === model.id)
+      const p = seqConfig.value.participants[idx]
+      if (p) p.name = text
+      scheduleDslSync()
+    }
+  } else {
+    const model = vo.edges.find(e => e.id === edit.id)
+    if (model) model.label = text
+    cell.setLabels([{
+      attrs: { label: { text, fill: '#333', fontSize: 12, fontWeight: 500 } },
+      position: { distance: 0.5, offset: { y: -11 } }
+    }])
+    if (vo.type === 'SEQUENCE' && model) {
+      const idx = vo.edges.findIndex(e => e.id === model.id)
+      const m = seqConfig.value.messages[idx]
+      if (m) m.text = text
+      scheduleDslSync()
+    }
+  }
+}
+
+/** 拖动结束: 位置写回模型; 时序图参与者还会带动生命线/激活条/消息端点 */
+function onNodeMoved(node) {
+  const vo = currentVO.value
+  if (!vo) return
+  const model = vo.nodes.find(n => n.id === node.id)
+  if (!model) return
+  const pos = node.position()
+  if (vo.type === 'SEQUENCE' && model.shape === 'participant') {
+    model.x = pos.x
+    if (pos.y !== model.y) node.position(pos.x, model.y)  // 参与者只在顶部横排, 纵向弹回
+    syncSequenceGeometry()
+  } else {
+    model.x = pos.x
+    model.y = pos.y
+  }
+}
+
+/** 时序图几何跟随: 参与者横向移动后, 生命线/激活条/消息端点重新对齐 */
+function syncSequenceGeometry() {
+  const vo = currentVO.value
+  if (!graph || !vo || vo.type !== 'SEQUENCE') return
+  const parts = vo.nodes.filter(n => n.shape === 'participant')
+  const centerOf = id => {
+    const p = parts.find(x => x.id === id)
+    return p ? p.x + (p.width || 96) / 2 : null
+  }
+  vo.lanes.forEach((lane, i) => {
+    const p = parts[i]
+    if (!p) return
+    lane.x = p.x + (p.width || 96) / 2
+    const cell = graph.getCellById('line_' + lane.id)
+    if (cell) cell.position(lane.x - 0.75, lane.y)
+  })
+  vo.nodes.filter(n => n.shape === 'activation').forEach(act => {
+    const c = centerOf(String(act.id).replace(/^act_/, ''))
+    if (c == null) return
+    act.x = c - (act.width || 10) / 2
+    const cell = graph.getCellById(act.id)
+    if (cell) cell.position(act.x, act.y)
+  })
+  vo.edges.forEach(e => {
+    const c1 = centerOf(e.source)
+    const c2 = centerOf(e.target)
+    if (c1 == null || c2 == null) return
+    const dx = c2 - c1
+    const x1 = dx === 0 ? c1 : c1 + Math.sign(dx) * 5
+    const x2 = dx === 0 ? c2 : c2 - Math.sign(dx) * 5
+    e.sourceX = x1
+    e.targetX = x2
+    const cell = graph.getCellById(e.id)
+    if (!cell) return
+    if (e.source === e.target) {
+      cell.setSource({ x: x1, y: e.sourceY })
+      cell.setTarget({ x: x1 + 5, y: e.targetY + 26 })
+      cell.setVertices([{ x: x1 + 44, y: e.sourceY }, { x: x1 + 44, y: e.sourceY + 26 }])
+    } else {
+      cell.setSource({ x: x1, y: e.sourceY })
+      cell.setTarget({ x: x2, y: e.targetY })
+    }
+  })
+}
+
+/** 画布改动 -> 结构化配置 -> 后端反向生成 -> 文本视图(R4 的前端侧) */
+let dslSyncTimer = null
+function scheduleDslSync() {
+  if (type.value !== 'SEQUENCE') return
+  clearTimeout(dslSyncTimer)
+  dslSyncTimer = setTimeout(async () => {
+    try {
+      const res = await renderDiagramDsl('SEQUENCE', {
+        title: seqConfig.value.title,
+        participants: seqConfig.value.participants.map(p => ({ id: p.id, name: p.name })),
+        messages: seqConfig.value.messages.map(m => ({ id: m.id, from: m.from, to: m.to, text: m.text, type: m.type }))
+      })
+      if (res && res.dsl) seqDsl.value = res.dsl
+    } catch (e) {
+      ElMessage.warning('文本同步失败：' + (e.message || '未知错误'))
+    }
+  }, 300)
+}
+
 function initGraph() {
   graph = new Graph({
     container: container.value,
@@ -1842,8 +2031,19 @@ function initGraph() {
     grid: { size: 10, visible: true },
     panning: true,
     mousewheel: { enabled: true, modifiers: ['ctrl'] },
-    autoResize: true
+    autoResize: true,
+    // 开启画布直接编辑: 节点可拖; 连线不可拖(时序图的消息是坐标定位, 拖动无意义)
+    interacting: {
+      nodeMovable: true,
+      edgeMovable: false,
+      edgeLabelMovable: false,
+      arrowheadMovable: false,
+      vertexMovable: false
+    }
   })
+  graph.on('node:moved', ({ node }) => onNodeMoved(node))
+  graph.on('node:dblclick', ({ node }) => startInlineEdit(node, 'node'))
+  graph.on('edge:dblclick', ({ edge }) => startInlineEdit(edge, 'edge'))
 }
 
 async function save() {
@@ -2248,6 +2448,56 @@ async function downloadArchSvg() {
   font-family: 'Consolas', 'Monaco', monospace;
   font-size: 12px;
   color: #6b5b5b;
+}
+
+/* 高级设置(精确调整)折叠头 */
+.adv-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+  padding: 6px 0 2px;
+  font-size: 13px;
+  color: #2b2b2b;
+  font-weight: 600;
+}
+.adv-toggle:hover { color: #b3261e; }
+.adv-arrow {
+  display: inline-block;
+  transition: transform 0.15s ease;
+  font-size: 15px;
+  line-height: 1;
+  color: #8a8b8b;
+}
+.adv-arrow.open { transform: rotate(90deg); }
+.adv-note {
+  font-size: 11px;
+  font-weight: 400;
+  color: #9a958c;
+  margin-left: auto;
+}
+.adv-body {
+  padding-top: 4px;
+  border-top: 1px solid #eceae3;
+  margin-top: 4px;
+}
+
+/* 画布内联编辑框: 浮在节点/连线原位, 回车提交, Esc 取消 */
+.inline-edit {
+  position: fixed;
+  z-index: 3000;
+  box-sizing: border-box;
+  padding: 2px 8px;
+  border: 1.5px solid #b3261e;
+  border-radius: 2px;
+  background: #fff;
+  font-size: 13px;
+  font-family: inherit;
+  color: #0a0909;
+  outline: none;
+  text-align: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
 }
 .tip {
   font-size: 11px;

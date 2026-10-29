@@ -24,6 +24,9 @@ class StructureDebugTest {
         ZipSecureFile.setMinInflateRatio(0.001);
         File original = new File("d:/project/Graduated/backend/data/storage/upload/20260821/ceb1ec13dfe5476bbf04280d2edecc5b.docx");
         File formatted = new File("d:/project/Graduated/backend/data/storage/result/20260821/result_17_4dd69b45bf0e.docx");
+        // 依赖本地某次上传的样本文件; 样本被清理(上传保留策略)后应当跳过, 而不是让整个测试集变红
+        org.junit.jupiter.api.Assumptions.assumeTrue(original.exists() && formatted.exists(),
+                "缺少调试样本文件, 跳过: " + original.getPath());
         try (PrintWriter out = new PrintWriter(new OutputStreamWriter(
                 Files.newOutputStream(Paths.get("target/diff-out.txt")), StandardCharsets.UTF_8));
              XWPFDocument o = new XWPFDocument(new FileInputStream(original));

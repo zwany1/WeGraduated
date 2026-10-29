@@ -121,9 +121,32 @@ public class DiagramController {
         return Result.ok(diagramGenerator.generate(dto.getType(), dto.getDescription()));
     }
 
+    /**
+     * 结构化配置 -> 文本 DSL(反向生成)。
+     * 画布上改名/改文案后, 前端把改过的配置发过来换成文本, 保证文本视图与画布不脱节(R4)。
+     */
+    @PostMapping("/dsl/render")
+    public Result<Object> renderDsl(@RequestBody RenderDslDTO dto) {
+        String type = dto.getType() == null ? "" : dto.getType().trim();
+        Object config = dto.getConfig();
+        if ("SEQUENCE".equalsIgnoreCase(type)) {
+            if (config == null) {
+                throw new BusinessException(400, "缺少时序图配置");
+            }
+            config = objectMapper.convertValue(config, SequenceConfig.class);
+        }
+        try {
+            String text = dslService.render(type, config);
+            java.util.Map<String, Object> data = new java.util.HashMap<>();
+            data.put("dsl", text);
+            return Result.ok(data);
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException(400, e.getMessage());
+        }
+    }
+
     @PostMapping("/save")
-    public Result<DiagramVO> save(@RequestBody DiagramVO dto) {
-        Long userId = UserContext.get();
+    public Result<DiagramVO> save(@RequestBody DiagramVO dto) {        Long userId = UserContext.get();
         try {
             Files.createDirectories(root);
             if (dto.getId() == null) {
@@ -218,5 +241,16 @@ public class DiagramController {
         public void setClassConfig(ClassConfig classConfig) { this.classConfig = classConfig; }
         public ActivityConfig getActivity() { return activity; }
         public void setActivity(ActivityConfig activity) { this.activity = activity; }
+    }
+
+    /** 反向生成请求: 结构化配置 -> 文本 DSL。config 用 Object 接收, 按 type 再转成具体 Config。 */
+    public static class RenderDslDTO {
+        private String type;
+        private Object config;
+
+        public String getType() { return type; }
+        public void setType(String type) { this.type = type; }
+        public Object getConfig() { return config; }
+        public void setConfig(Object config) { this.config = config; }
     }
 }

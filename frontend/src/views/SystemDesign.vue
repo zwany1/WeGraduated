@@ -8,16 +8,13 @@
       </div>
       <nav class="type-tabs" aria-label="图类型">
         <button
-          v-for="(t, i) in diagramTypes"
+          v-for="t in diagramTypes"
           :key="t.value"
           type="button"
           class="type-tab"
           :class="{ on: type === t.value }"
           @click="type = t.value; onTypeChange()"
-        >
-          <span class="t-no">{{ String(i + 1).padStart(2, '0') }}</span>
-          <span class="t-label">{{ t.label }}</span>
-        </button>
+        >{{ t.label }}</button>
       </nav>
       <div class="actions">
         <button type="button" class="act" @click="openSaved">打开</button>
@@ -2912,42 +2909,55 @@ async function downloadArchSvg() {
   white-space: nowrap;
 }
 
-/* 类型编号轨 */
+/* 类型切换 */
 .type-tabs {
   flex: 1;
   display: flex;
   align-items: stretch;
-  gap: 0;
   height: 100%;
   overflow-x: auto;
   scrollbar-width: none;
 }
 .type-tabs::-webkit-scrollbar { display: none; }
 .type-tab {
+  position: relative;
   display: flex;
-  align-items: baseline;
-  gap: 5px;
-  padding: 0 10px;
+  align-items: center;
+  padding: 0 15px;
   background: none;
   border: none;
-  border-bottom: 3px solid transparent;
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(255, 255, 255, 0.5);
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 400;
+  letter-spacing: 0.02em;
   white-space: nowrap;
   cursor: pointer;
-  transition: color 0.2s, border-color 0.2s;
+  transition: color 0.18s;
 }
-.type-tab:hover { color: #fff; }
-.type-tab.on { color: #fff; font-weight: 700; border-bottom-color: var(--red); }
-.t-no {
-  font-size: 10px;
+.type-tab + .type-tab::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1px;
+  height: 12px;
+  background: rgba(255, 255, 255, 0.14);
+}
+.type-tab:hover { color: rgba(255, 255, 255, 0.85); }
+.type-tab.on {
+  color: #fff;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.32);
-  font-variant-numeric: tabular-nums;
 }
-.type-tab.on .t-no { color: var(--red); }
-.t-label { line-height: 1; }
+.type-tab.on::after {
+  content: '';
+  position: absolute;
+  left: 15px;
+  right: 15px;
+  bottom: 0;
+  height: 3px;
+  background: var(--red);
+}
 
 /* 动作组 */
 .actions {
@@ -3423,8 +3433,7 @@ async function downloadArchSvg() {
 
 @media (max-width: 1180px) {
   .body { grid-template-columns: 320px 1fr; }
-  .type-tab { padding: 0 7px; }
-  .t-label { font-size: 12px; }
+  .type-tab { padding: 0 11px; }
   .bar { gap: 12px; }
 }
 @media (max-width: 860px) {
@@ -3448,7 +3457,6 @@ async function downloadArchSvg() {
     flex: 0 0 auto;
     height: 38px;
   }
-  .type-tab { padding: 0 8px; }
-  .t-label { font-size: 12px; }
+  .type-tab { padding: 0 12px; }
 }
 </style>

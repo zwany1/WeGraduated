@@ -100,8 +100,9 @@ class DiagramControllerRenderDslTest {
 
     @Test
     void 尚未支持文本的图类型返回400而非500() {
+        // CLASS 已在票 04 开放, 这里用还没做方言的泳道图
         DiagramController.RenderDslDTO dto = new DiagramController.RenderDslDTO();
-        dto.setType("CLASS");
+        dto.setType("SWIMLANE");
         dto.setConfig(new LinkedHashMap<>());
 
         BusinessException e = assertThrows(BusinessException.class, () -> controller().renderDsl(dto));

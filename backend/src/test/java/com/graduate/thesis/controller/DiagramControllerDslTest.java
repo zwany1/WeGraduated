@@ -98,8 +98,9 @@ class DiagramControllerDslTest {
 
     @Test
     void 未开放方言的图类型提示尚未开放而非报错崩溃() {
+        // CLASS 已在票 04 开放, 用还没做方言的泳道图代表"尚未开放"
         Result<Object> r = controller(Mockito.mock(SequenceRuleEngine.class))
-                .generate(dto("CLASS", "class 论文 { }"));
+                .generate(dto("SWIMLANE", "用户 -> 系统: 提交"));
 
         assertEquals(400, r.getCode());
         assertTrue(r.getMessage().contains("尚未开放"), "实际: " + r.getMessage());

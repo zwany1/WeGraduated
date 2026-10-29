@@ -51,10 +51,12 @@ public class ClassConfig {
     public static class ClassRelation {
         private String source;
         private String target;
-        /** association / inheritance / composition */
+        /** association / inheritance / composition / aggregation */
         private String type;
         /** 基数: 1 / n / * */
         private String left;
         private String right;
+        /** 关系名(如「属于」「拥有」), 可空; 文本 DSL 用「A -- B: 属于」表达 */
+        private String label;
     }
 }

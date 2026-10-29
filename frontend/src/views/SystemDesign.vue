@@ -241,9 +241,35 @@
           </div>
         </template>
 
-        <!-- 用例图: 结构化配置(参与者 + 用例 + 关系) -->
+        <!-- 用例图: 文本 DSL(推荐) + 结构化配置(折叠) -->
         <template v-else-if="type === 'USECASE'">
-          <div class="input-title">用例图配置</div>
+          <div class="input-title">用例图文本</div>
+          <el-input
+            v-model="ucDsl"
+            type="textarea"
+            :rows="7"
+            class="dsl-input"
+            placeholder="(学生): 提交论文, 查看进度&#10;提交论文 -include-> 格式校验"
+          />
+          <div class="dsl-row">
+            <el-button size="small" @click="fillUcExample">填入示例</el-button>
+            <el-button size="small" type="primary" :loading="generating" @click="generate">生成用例图</el-button>
+            <span class="tip">(参与者): 用例1, 用例2　-include-> / -extend-></span>
+          </div>
+          <div v-if="dslError" class="dsl-error">
+            <div class="dsl-error-line">
+              第 {{ dslError.line }} 行有问题<template v-if="dslError.snippet">：<code>{{ dslError.snippet }}</code></template>
+            </div>
+            <pre v-if="dslError.hint" class="dsl-hint">{{ dslError.hint }}</pre>
+          </div>
+
+          <div class="section-divider"></div>
+          <div class="adv-toggle" @click="advancedOpen = !advancedOpen">
+            <span class="adv-arrow" :class="{ open: advancedOpen }">›</span>
+            <span>高级设置（逐项配置）</span>
+            <span class="adv-note">填了文本就以文本为准</span>
+          </div>
+          <div v-show="advancedOpen" class="adv-body">
           <el-form label-width="70px" size="small">
             <el-form-item label="系统名称">
               <el-input v-model="ucConfig.system" placeholder="如：人事管理系统" />
@@ -290,6 +316,7 @@
 
           <div class="input-row">
             <el-button type="primary" :loading="generating" @click="generate">生成用例图</el-button>
+          </div>
           </div>
         </template>
 
@@ -366,7 +393,33 @@
 
         <!-- 类图: 结构化配置(类 + 属性/方法 + 关系) -->
         <template v-else-if="type === 'CLASS'">
-          <div class="input-title">类图配置</div>
+          <div class="input-title">类图文本</div>
+          <el-input
+            v-model="clsDsl"
+            type="textarea"
+            :rows="9"
+            class="dsl-input"
+            placeholder="class 论文 {&#10;  - 标题: String&#10;  + 提交()&#10;}&#10;论文 -- 学生: 属于"
+          />
+          <div class="dsl-row">
+            <el-button size="small" @click="fillClsExample">填入示例</el-button>
+            <el-button size="small" type="primary" :loading="generating" @click="generate">生成类图</el-button>
+            <span class="tip">- / + / # 是可见性　-- 关联　&lt;|-- 继承</span>
+          </div>
+          <div v-if="dslError" class="dsl-error">
+            <div class="dsl-error-line">
+              第 {{ dslError.line }} 行有问题<template v-if="dslError.snippet">：<code>{{ dslError.snippet }}</code></template>
+            </div>
+            <pre v-if="dslError.hint" class="dsl-hint">{{ dslError.hint }}</pre>
+          </div>
+
+          <div class="section-divider"></div>
+          <div class="adv-toggle" @click="advancedOpen = !advancedOpen">
+            <span class="adv-arrow" :class="{ open: advancedOpen }">›</span>
+            <span>高级设置（逐类配置）</span>
+            <span class="adv-note">填了文本就以文本为准</span>
+          </div>
+          <div v-show="advancedOpen" class="adv-body">
           <el-form label-width="70px" size="small">
             <el-form-item label="图标题">
               <el-input v-model="clsConfig.title" placeholder="如：会员系统类图" />
@@ -444,6 +497,7 @@
 
           <div class="input-row">
             <el-button type="primary" :loading="generating" @click="generate">生成类图</el-button>
+          </div>
           </div>
         </template>
 
@@ -732,6 +786,8 @@ const currentVO = ref(null)
 const seqDsl = ref('')
 const flowDsl = ref('')
 const archDsl = ref('')
+const clsDsl = ref('')
+const ucDsl = ref('')
 /** DSL 解析失败的结构化错误: { line, snippet, hint, message } */
 const dslError = ref(null)
 
@@ -915,6 +971,46 @@ function syncArchConfig(cfg) {
         name: l.name,
         components: (l.components || []).filter(c => c && c.name).map(c => ({ name: c.name }))
       }))
+  }
+}
+
+// 类图: 文本生成后覆盖逐类配置, 保证「高级设置」和文本说的是同一件事
+function syncClsConfig(cfg) {
+  if (cfg.title) clsConfig.value.title = cfg.title
+  if (Array.isArray(cfg.classes)) {
+    clsConfig.value.classes = cfg.classes.filter(c => c && c.name).map((c, i) => ({
+      id: c.id || 'C' + (i + 1),
+      name: c.name,
+      attributes: (c.attributes || []).filter(a => a && a.name).map(a => ({
+        visibility: a.visibility || '+', name: a.name, type: a.type || ''
+      })),
+      methods: (c.methods || []).filter(m => m && m.name).map(m => ({
+        visibility: m.visibility || '+', name: m.name, returnType: m.returnType || ''
+      }))
+    }))
+  }
+  if (Array.isArray(cfg.relations)) {
+    clsConfig.value.relations = cfg.relations
+      .filter(r => r && r.source && r.target)
+      .map(r => ({ source: r.source, target: r.target, type: r.type || 'association', left: r.left || '', right: r.right || '' }))
+  }
+}
+
+// 用例图: 同理
+function syncUcConfig(cfg) {
+  if (cfg.system) ucConfig.value.system = cfg.system
+  if (Array.isArray(cfg.actors)) {
+    ucConfig.value.actors = cfg.actors.filter(a => a && a.name).map((a, i) => ({ id: a.id || 'A' + (i + 1), name: a.name }))
+  }
+  if (Array.isArray(cfg.usecases)) {
+    ucConfig.value.usecases = cfg.usecases
+      .filter(u => u && u.name)
+      .map((u, i) => ({ id: u.id || 'U' + (i + 1), name: u.name, module: u.module || '' }))
+  }
+  if (Array.isArray(cfg.relations)) {
+    ucConfig.value.relations = cfg.relations
+      .filter(r => r && r.source && r.target)
+      .map(r => ({ type: r.type || 'association', source: r.source, target: r.target }))
   }
 }
 
@@ -1635,17 +1731,23 @@ async function renderGraph(vo) {
         : { stroke: '#0a0909', strokeWidth: 1.6, targetMarker: 'block' }
     }
     if (e.label) {
-      if (vo.type === 'CLASS' && e.label.includes(' ')) {
-        // 基数标签放两端: 左基数靠近源节点, 右基数靠近目标节点
-        const parts = e.label.trim().split(/\s+/)
+      if (vo.type === 'CLASS') {
+        // 引擎把「左基数 右基数 关系名」拼在一个字符串里: 基数放两端, 剩下的当关系名放中间
+        const toks = e.label.trim().split(/\s+/).filter(Boolean)
+        const isCard = t => /^(\*|\d+(\.[\d*]+)?|[nm])$/.test(t)
+        const cards = toks.filter(isCard)
+        const name = toks.filter(t => !isCard(t)).join(' ')
         const labels = []
-        if (parts[0]) {
-          labels.push({ attrs: { label: { text: parts[0], fill: '#333', fontSize: 11, fontWeight: 700 } }, position: { distance: 20 } })
+        if (cards[0]) {
+          labels.push({ attrs: { label: { text: cards[0], fill: '#333', fontSize: 11, fontWeight: 700 } }, position: { distance: 20 } })
         }
-        if (parts[1]) {
-          labels.push({ attrs: { label: { text: parts[1], fill: '#333', fontSize: 11, fontWeight: 700 } }, position: { distance: -20 } })
+        if (cards[1]) {
+          labels.push({ attrs: { label: { text: cards[1], fill: '#333', fontSize: 11, fontWeight: 700 } }, position: { distance: -20 } })
         }
-        edge.labels = labels
+        if (name) {
+          labels.push({ attrs: { label: { text: name, fill: '#333', fontSize: 11 } }, position: { distance: 0.5, offset: { y: -10 } } })
+        }
+        if (labels.length) edge.labels = labels
       } else if (vo.type === 'SEQUENCE') {
         // 消息文字浮在箭头上方, 不压线; 自环消息文字放回环右侧
         const isSelf = Math.abs(e.sourceX - e.targetX) < 1 && Math.abs(e.sourceY - e.targetY) < 1
@@ -1807,6 +1909,38 @@ function fillArchExample() {
   dslError.value = null
 }
 
+const CLASS_EXAMPLE = [
+  '@title 论文管理类图',
+  'class 论文 {',
+  '  - 标题: String',
+  '  - 状态: String',
+  '  + 提交()',
+  '  + 审核(): boolean',
+  '}',
+  'class 学生 {',
+  '  - 学号: String',
+  '}',
+  '论文 -- 学生 [1 n]: 属于'
+].join('\n')
+
+const USECASE_EXAMPLE = [
+  '@title 论文管理系统',
+  '(学生): 提交论文, 查看进度',
+  '(教师): 审核论文',
+  '提交论文 -include-> 格式校验',
+  '审核论文 -extend-> 提交论文'
+].join('\n')
+
+function fillClsExample() {
+  clsDsl.value = CLASS_EXAMPLE
+  dslError.value = null
+}
+
+function fillUcExample() {
+  ucDsl.value = USECASE_EXAMPLE
+  dslError.value = null
+}
+
 async function generate() {
   let payload
   if (type.value === 'ARCH' && archDsl.value.trim()) {
@@ -1832,6 +1966,8 @@ async function generate() {
       return
     }
     payload = { type: 'SWIMLANE', swimlane: swim }
+  } else if (type.value === 'USECASE' && ucDsl.value.trim()) {
+    payload = { type: 'USECASE', dsl: ucDsl.value }
   } else if (type.value === 'USECASE') {
     const uc = buildUseCasePayload()
     if (uc.usecases.length === 0) {
@@ -1855,6 +1991,8 @@ async function generate() {
       }
       payload = { type: 'SEQUENCE', sequence: sq }
     }
+  } else if (type.value === 'CLASS' && clsDsl.value.trim()) {
+    payload = { type: 'CLASS', dsl: clsDsl.value }
   } else if (type.value === 'CLASS') {
     const cls = buildClassPayload()
     if (cls.classes.length === 0) {
@@ -1944,6 +2082,8 @@ async function generate() {
     if (payload.dsl && vo.config) {
       if (vo.type === 'SEQUENCE') syncSeqConfig(vo.config)
       else if (vo.type === 'ARCH') syncArchConfig(vo.config)
+      else if (vo.type === 'CLASS') syncClsConfig(vo.config)
+      else if (vo.type === 'USECASE') syncUcConfig(vo.config)
     }
     currentVO.value = vo
     graphReady.value = true

@@ -1,8 +1,10 @@
 package com.graduate.thesis.dsl;
 
 import com.graduate.thesis.dto.ArchitectureConfig;
+import com.graduate.thesis.dto.ClassConfig;
 import com.graduate.thesis.dto.FlowConfig;
 import com.graduate.thesis.dto.SequenceConfig;
+import com.graduate.thesis.dto.UseCaseConfig;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -27,8 +29,8 @@ public class DiagramDslService {
     private static final Set<String> SUPPORTED = Set.of(
             "FLOW", "ARCH", "SWIMLANE", "ACTIVITY", "USECASE", "SEQUENCE", "CLASS", "ER");
 
-    /** 已实现方言的图类型。票 01 时序图、票 03 流程图与架构图，其余逐票补齐 */
-    private static final Set<String> IMPLEMENTED = Set.of("SEQUENCE", "FLOW", "ARCH");
+    /** 已实现方言的图类型。票 01 时序图、票 03 流程图/架构图、票 04 类图/用例图，其余逐票补齐 */
+    private static final Set<String> IMPLEMENTED = Set.of("SEQUENCE", "FLOW", "ARCH", "CLASS", "USECASE");
 
     private static final Pattern MSG = Pattern.compile(
             "^\\s*(.+?)\\s*(-->|->)\\s*(.+?)\\s*(?:[:：]\\s*(.*))?\\s*$");
@@ -60,6 +62,25 @@ public class DiagramDslService {
             "  @title 系统架构             可选，系统名",
             "  同一层下的组件缩进要一致；只支持「层 → 组件」两层");
 
+    private static final String CLASS_HINT = String.join("\n",
+            "类图语法：",
+            "  class 论文 {                开一个类",
+            "    - 标题: String            属性：可见性(- / + / #) + 名字 + 类型",
+            "    + 提交()                  方法：可见性 + 名字 + ()",
+            "  }                           关掉类",
+            "  论文 -- 学生 [1 n]: 属于     关系：-- 关联 / <|-- 继承 / *-- 组合 / o-- 聚合",
+            "                               [1 n] 可选基数，: 后面是关系名",
+            "  @title 论文管理类图          可选，图标题");
+
+    private static final String USECASE_HINT = String.join("\n",
+            "用例图语法：",
+            "  (学生): 提交论文, 查看进度    参与者及其用例",
+            "  (教师)                      只有参与者、没有用例也可以",
+            "  提交论文 -include-> 格式校验  包含关系",
+            "  审核论文 -extend-> 提交论文   扩展关系",
+            "  学生 -> 提交论文             普通关联",
+            "  @title 论文管理系统          可选，系统名");
+
     /**
      * 文本 → 图配置。
      *
@@ -88,6 +109,10 @@ public class DiagramDslService {
                 return parseFlow(text);
             case "ARCH":
                 return parseArch(text);
+            case "CLASS":
+                return parseClass(text);
+            case "USECASE":
+                return parseUseCase(text);
             default:
                 return DslParseResult.fail(0, "", "", "未实现");
         }
@@ -99,6 +124,10 @@ public class DiagramDslService {
                 return FLOW_HINT;
             case "ARCH":
                 return ARCH_HINT;
+            case "CLASS":
+                return CLASS_HINT;
+            case "USECASE":
+                return USECASE_HINT;
             default:
                 return SEQ_HINT;
         }
@@ -126,6 +155,16 @@ public class DiagramDslService {
                     throw new IllegalArgumentException("配置类型与图类型不匹配: " + t);
                 }
                 return renderArch((ArchitectureConfig) config);
+            case "CLASS":
+                if (!(config instanceof ClassConfig)) {
+                    throw new IllegalArgumentException("配置类型与图类型不匹配: " + t);
+                }
+                return renderClass((ClassConfig) config);
+            case "USECASE":
+                if (!(config instanceof UseCaseConfig)) {
+                    throw new IllegalArgumentException("配置类型与图类型不匹配: " + t);
+                }
+                return renderUseCase((UseCaseConfig) config);
             default:
                 throw new IllegalArgumentException("该图类型暂不支持生成文本: " + type);
         }
@@ -556,6 +595,448 @@ public class DiagramDslService {
                     }
                 }
             }
+        }
+        return sb.toString();
+    }
+
+    // ==================== 类图(CLASS) ====================
+
+    private static final Pattern CLASS_DECL = Pattern.compile("^class\\s+(.+?)\\s*(\\{)?\\s*$");
+    private static final Pattern CLASS_MEMBER = Pattern.compile("^([-+#])\\s*(.+?)\\s*$");
+    /** 关系: A <箭头> B [基数] [: 关系名]。长箭头必须排前面, 否则 -- 会先把 <|-- 吃掉 */
+    private static final Pattern CLASS_REL = Pattern.compile(
+            "^(.+?)\\s*(<\\|--|--\\|>|\\*--|o--|--)\\s*(.+?)\\s*(?:\\[([^\\]]*)\\])?\\s*(?:[:：]\\s*(.*))?$");
+
+    private DslParseResult parseClass(String text) {
+        ClassConfig cfg = new ClassConfig();
+        List<ClassConfig.ClassItem> classes = new ArrayList<>();
+        java.util.Map<String, ClassConfig.ClassItem> byName = new java.util.LinkedHashMap<>();
+        List<ClassConfig.ClassRelation> relations = new ArrayList<>();
+        ClassConfig.ClassItem current = null;
+
+        String[] lines = text.split("\\R", -1);
+        for (int i = 0; i < lines.length; i++) {
+            int lineNo = i + 1;
+            String line = normalizeLine(lines[i]).trim();
+            if (line.isEmpty() || line.startsWith("#")) {
+                continue;
+            }
+            Matcher title = TITLE.matcher(line);
+            if (title.matches()) {
+                cfg.setTitle(title.group(1));
+                continue;
+            }
+            if ("}".equals(line)) {
+                if (current == null) {
+                    return DslParseResult.fail(lineNo, line, CLASS_HINT,
+                            "第 " + lineNo + " 行多了一个 }，前面没有开着的类");
+                }
+                current = null;
+                continue;
+            }
+
+            if (current != null) {
+                Matcher mm = CLASS_MEMBER.matcher(line);
+                if (!mm.matches()) {
+                    return DslParseResult.fail(lineNo, line, CLASS_HINT,
+                            "第 " + lineNo + " 行不是合法成员：属性/方法要以可见性符号开头"
+                                    + "（- 私有 / + 公有 / # 保护）；如果这是关系行，请先补 } 结束上一个类");
+                }
+                DslParseResult bad = addMember(current, mm.group(1), cleanName(mm.group(2)), lineNo, line);
+                if (bad != null) {
+                    return bad;
+                }
+                continue;
+            }
+
+            Matcher decl = CLASS_DECL.matcher(line);
+            if (decl.matches()) {
+                String name = cleanName(decl.group(1));
+                if (name.isEmpty()) {
+                    return DslParseResult.fail(lineNo, line, CLASS_HINT, "第 " + lineNo + " 行缺少类名");
+                }
+                ClassConfig.ClassItem item = classOf(byName, classes, name);
+                current = decl.group(2) != null ? item : null;
+                continue;
+            }
+
+            Matcher rel = CLASS_REL.matcher(line);
+            if (rel.matches()) {
+                String from = cleanName(rel.group(1));
+                String to = cleanName(rel.group(3));
+                if (from.isEmpty() || to.isEmpty()) {
+                    return DslParseResult.fail(lineNo, line, CLASS_HINT,
+                            "第 " + lineNo + " 行关系两侧都要有类名");
+                }
+                classOf(byName, classes, from);
+                classOf(byName, classes, to);
+                ClassConfig.ClassRelation r = new ClassConfig.ClassRelation();
+                r.setSource(byName.get(from).getId());
+                r.setTarget(byName.get(to).getId());
+                r.setType(relationTypeOf(rel.group(2)));
+                String cards = rel.group(4) == null ? "" : rel.group(4).trim();
+                if (!cards.isEmpty()) {
+                    String[] parts = cards.split("\\s+");
+                    r.setLeft(parts.length > 0 ? parts[0] : null);
+                    r.setRight(parts.length > 1 ? parts[1] : null);
+                }
+                String name = rel.group(5) == null ? "" : cleanName(rel.group(5));
+                r.setLabel(name.isEmpty() ? null : name);
+                relations.add(r);
+                continue;
+            }
+
+            return DslParseResult.fail(lineNo, line, CLASS_HINT,
+                    "第 " + lineNo + " 行无法识别：类用「class 名称 {」，关系用「A -- B」「A <|-- B」" + suspiciousChars(lines[i]));
+        }
+
+        if (current != null) {
+            // 少写了一个 } 也能用, 但要让用户知道
+            // (不当作错误: 缩进块写到文件末尾很常见)
+        }
+        if (classes.isEmpty()) {
+            return DslParseResult.fail(0, "", CLASS_HINT, "请至少写一个类，如「class 论文 { }」");
+        }
+        cfg.setClasses(classes);
+        cfg.setRelations(relations);
+        return DslParseResult.success(cfg);
+    }
+
+    /** 解析一行成员(属性或方法); 结构不合法时返回失败结果 */
+    private DslParseResult addMember(ClassConfig.ClassItem item, String vis, String body, int lineNo, String line) {
+        if (body.isEmpty()) {
+            return DslParseResult.fail(lineNo, line, CLASS_HINT, "第 " + lineNo + " 行只有可见性符号，缺少成员名");
+        }
+        int lp = body.indexOf('(');
+        if (lp >= 0) {
+            int rp = body.indexOf(')', lp);
+            if (rp < 0) {
+                return DslParseResult.fail(lineNo, line, CLASS_HINT, "第 " + lineNo + " 行的方法缺少右括号 )");
+            }
+            String name = cleanName(body.substring(0, lp));
+            String after = body.substring(rp + 1).trim();
+            String ret = "";
+            if (after.startsWith(":") || after.startsWith("：")) {
+                ret = cleanName(after.substring(1));
+            }
+            ClassConfig.Method m = new ClassConfig.Method();
+            m.setName(name);
+            m.setReturnType(ret.isEmpty() ? null : ret);
+            m.setVisibility(vis);
+            item.getMethods().add(m);
+            return null;
+        }
+        String name = body;
+        String type = "";
+        int colon = indexOfColon(body);
+        if (colon >= 0) {
+            name = cleanName(body.substring(0, colon));
+            type = cleanName(body.substring(colon + 1));
+        }
+        ClassConfig.Attribute a = new ClassConfig.Attribute();
+        a.setName(name);
+        a.setType(type.isEmpty() ? null : type);
+        a.setVisibility(vis);
+        item.getAttributes().add(a);
+        return null;
+    }
+
+    private int indexOfColon(String s) {
+        int c1 = s.indexOf(':');
+        int c2 = s.indexOf('：');
+        if (c1 < 0) return c2;
+        if (c2 < 0) return c1;
+        return Math.min(c1, c2);
+    }
+
+    private ClassConfig.ClassItem classOf(java.util.Map<String, ClassConfig.ClassItem> byName,
+                                          List<ClassConfig.ClassItem> classes, String name) {
+        ClassConfig.ClassItem item = byName.get(name);
+        if (item == null) {
+            item = new ClassConfig.ClassItem();
+            item.setId("C" + (classes.size() + 1));
+            item.setName(name);
+            byName.put(name, item);
+            classes.add(item);
+        }
+        return item;
+    }
+
+    private String relationTypeOf(String arrow) {
+        switch (arrow) {
+            case "<|--":
+            case "--|>":
+                return "inheritance";
+            case "*--":
+                return "composition";
+            case "o--":
+                return "aggregation";
+            default:
+                return "association";
+        }
+    }
+
+    private String arrowOf(String type) {
+        if (type == null) return "--";
+        switch (type.trim().toLowerCase()) {
+            case "inheritance":
+                return "<|--";
+            case "composition":
+                return "*--";
+            case "aggregation":
+                return "o--";
+            default:
+                return "--";
+        }
+    }
+
+    private String renderClass(ClassConfig c) {
+        java.util.Map<String, String> nameOf = new java.util.HashMap<>();
+        if (c.getClasses() != null) {
+            for (ClassConfig.ClassItem ci : c.getClasses()) {
+                if (ci.getId() != null) {
+                    nameOf.put(ci.getId(), ci.getName());
+                }
+            }
+        }
+        StringBuilder sb = new StringBuilder();
+        if (c.getTitle() != null && !c.getTitle().isBlank()) {
+            sb.append("@title ").append(c.getTitle()).append('\n');
+        }
+        if (c.getClasses() != null) {
+            for (ClassConfig.ClassItem ci : c.getClasses()) {
+                if (ci.getName() == null || ci.getName().isBlank()) {
+                    continue;
+                }
+                boolean hasAttrs = ci.getAttributes() != null && !ci.getAttributes().isEmpty();
+                boolean hasMethods = ci.getMethods() != null && !ci.getMethods().isEmpty();
+                if (!hasAttrs && !hasMethods) {
+                    sb.append("class ").append(ci.getName()).append('\n');
+                    continue;
+                }
+                sb.append("class ").append(ci.getName()).append(" {\n");
+                if (hasAttrs) {
+                    for (ClassConfig.Attribute a : ci.getAttributes()) {
+                        if (a.getName() == null || a.getName().isBlank()) continue;
+                        sb.append("  ").append(visOf(a.getVisibility())).append(' ').append(a.getName());
+                        if (a.getType() != null && !a.getType().isBlank()) {
+                            sb.append(": ").append(a.getType());
+                        }
+                        sb.append('\n');
+                    }
+                }
+                if (hasMethods) {
+                    for (ClassConfig.Method m : ci.getMethods()) {
+                        if (m.getName() == null || m.getName().isBlank()) continue;
+                        sb.append("  ").append(visOf(m.getVisibility())).append(' ').append(m.getName()).append("()");
+                        if (m.getReturnType() != null && !m.getReturnType().isBlank()) {
+                            sb.append(": ").append(m.getReturnType());
+                        }
+                        sb.append('\n');
+                    }
+                }
+                sb.append("}\n");
+            }
+        }
+        if (c.getRelations() != null) {
+            for (ClassConfig.ClassRelation r : c.getRelations()) {
+                String from = nameOf.getOrDefault(r.getSource(), String.valueOf(r.getSource()));
+                String to = nameOf.getOrDefault(r.getTarget(), String.valueOf(r.getTarget()));
+                sb.append(from).append(' ').append(arrowOf(r.getType())).append(' ').append(to);
+                StringBuilder cards = new StringBuilder();
+                if (r.getLeft() != null && !r.getLeft().isBlank()) cards.append(r.getLeft().trim());
+                if (r.getRight() != null && !r.getRight().isBlank()) {
+                    cards.append(cards.length() > 0 ? " " : "").append(r.getRight().trim());
+                }
+                if (cards.length() > 0) {
+                    sb.append(" [").append(cards).append(']');
+                }
+                if (r.getLabel() != null && !r.getLabel().isBlank()) {
+                    sb.append(": ").append(r.getLabel().trim());
+                }
+                sb.append('\n');
+            }
+        }
+        return sb.toString();
+    }
+
+    private String visOf(String vis) {
+        if (vis == null || vis.isBlank()) return "+";
+        String v = vis.trim();
+        return ("+" + "-" + "#").contains(v) ? v : "+";
+    }
+
+    // ==================== 用例图(USECASE) ====================
+
+    private static final Pattern UC_ACTOR = Pattern.compile("^\\((.+?)\\)\\s*(?:[:：]\\s*(.*))?$");
+    private static final Pattern UC_REL = Pattern.compile(
+            "^(.+?)\\s*(?:-(include|extend)->|->)\\s*(.+?)\\s*$");
+
+    private DslParseResult parseUseCase(String text) {
+        UseCaseConfig cfg = new UseCaseConfig();
+        List<UseCaseConfig.ActorConfig> actors = new ArrayList<>();
+        List<UseCaseConfig.UseCaseConfigItem> usecases = new ArrayList<>();
+        List<UseCaseConfig.RelationConfig> relations = new ArrayList<>();
+        java.util.Map<String, String> actorIds = new java.util.LinkedHashMap<>();
+        java.util.Map<String, String> ucIds = new java.util.LinkedHashMap<>();
+
+        String[] lines = text.split("\\R", -1);
+        for (int i = 0; i < lines.length; i++) {
+            int lineNo = i + 1;
+            String line = normalizeLine(lines[i]).trim();
+            if (line.isEmpty() || line.startsWith("#")) {
+                continue;
+            }
+            Matcher title = TITLE.matcher(line);
+            if (title.matches()) {
+                cfg.setSystem(title.group(1));
+                continue;
+            }
+
+            Matcher actor = UC_ACTOR.matcher(line);
+            if (actor.matches()) {
+                String name = cleanName(actor.group(1));
+                if (name.isEmpty()) {
+                    return DslParseResult.fail(lineNo, line, USECASE_HINT, "第 " + lineNo + " 行缺少参与者名");
+                }
+                String aid = actorId(actorIds, actors, name);
+                String rest = actor.group(2) == null ? "" : actor.group(2).trim();
+                for (String ucName : splitNames(rest)) {
+                    String uid = ucId(ucIds, usecases, ucName);
+                    UseCaseConfig.RelationConfig r = new UseCaseConfig.RelationConfig();
+                    r.setSource(aid);
+                    r.setTarget(uid);
+                    r.setType("association");
+                    relations.add(r);
+                }
+                continue;
+            }
+
+            Matcher rel = UC_REL.matcher(line);
+            if (rel.matches()) {
+                String from = cleanName(stripBrackets(rel.group(1)));
+                String to = cleanName(stripBrackets(rel.group(3)));
+                if (from.isEmpty() || to.isEmpty()) {
+                    return DslParseResult.fail(lineNo, line, USECASE_HINT,
+                            "第 " + lineNo + " 行关系两侧都要有名字");
+                }
+                String type = rel.group(2) == null ? "association" : rel.group(2);
+                UseCaseConfig.RelationConfig r = new UseCaseConfig.RelationConfig();
+                r.setSource(idOfAny(actorIds, ucIds, actors, usecases, from));
+                r.setTarget(idOfAny(actorIds, ucIds, actors, usecases, to));
+                r.setType(type);
+                relations.add(r);
+                continue;
+            }
+
+            return DslParseResult.fail(lineNo, line, USECASE_HINT,
+                    "第 " + lineNo + " 行无法识别：参与者写「(学生): 用例1, 用例2」，关系写「A -include-> B」"
+                            + suspiciousChars(lines[i]));
+        }
+
+        if (actors.isEmpty() && usecases.isEmpty()) {
+            return DslParseResult.fail(0, "", USECASE_HINT, "请至少写一个参与者，如「(学生): 提交论文」");
+        }
+        cfg.setActors(actors);
+        cfg.setUsecases(usecases);
+        cfg.setRelations(relations);
+        return DslParseResult.success(cfg);
+    }
+
+    private String actorId(java.util.Map<String, String> index, List<UseCaseConfig.ActorConfig> actors, String name) {
+        String id = index.get(name);
+        if (id == null) {
+            UseCaseConfig.ActorConfig a = new UseCaseConfig.ActorConfig();
+            a.setId("A" + (actors.size() + 1));
+            a.setName(name);
+            actors.add(a);
+            index.put(name, a.getId());
+            id = a.getId();
+        }
+        return id;
+    }
+
+    private String ucId(java.util.Map<String, String> index, List<UseCaseConfig.UseCaseConfigItem> usecases, String name) {
+        String id = index.get(name);
+        if (id == null) {
+            UseCaseConfig.UseCaseConfigItem u = new UseCaseConfig.UseCaseConfigItem();
+            u.setId("U" + (usecases.size() + 1));
+            u.setName(name);
+            usecases.add(u);
+            index.put(name, u.getId());
+            id = u.getId();
+        }
+        return id;
+    }
+
+    /** 关系端点可能是参与者, 也可能是用例: 已声明的优先按参与者, 其余当作用例 */
+    private String idOfAny(java.util.Map<String, String> actorIds, java.util.Map<String, String> ucIds,
+                           List<UseCaseConfig.ActorConfig> actors, List<UseCaseConfig.UseCaseConfigItem> usecases,
+                           String name) {
+        if (actorIds.containsKey(name)) {
+            return actorIds.get(name);
+        }
+        if (ucIds.containsKey(name)) {
+            return ucIds.get(name);
+        }
+        return ucId(ucIds, usecases, name);
+    }
+
+    private String renderUseCase(UseCaseConfig c) {
+        java.util.Map<String, String> actorName = new java.util.HashMap<>();
+        java.util.Map<String, String> ucName = new java.util.HashMap<>();
+        if (c.getActors() != null) {
+            for (UseCaseConfig.ActorConfig a : c.getActors()) {
+                if (a.getId() != null) actorName.put(a.getId(), a.getName());
+            }
+        }
+        if (c.getUsecases() != null) {
+            for (UseCaseConfig.UseCaseConfigItem u : c.getUsecases()) {
+                if (u.getId() != null) ucName.put(u.getId(), u.getName());
+            }
+        }
+        StringBuilder sb = new StringBuilder();
+        if (c.getSystem() != null && !c.getSystem().isBlank()) {
+            sb.append("@title ").append(c.getSystem()).append('\n');
+        }
+
+        List<UseCaseConfig.RelationConfig> relations = c.getRelations() == null ? List.of() : c.getRelations();
+        java.util.Set<Integer> consumed = new java.util.LinkedHashSet<>();
+
+        // 参与者行: 该参与者的关联用例合并成一行
+        if (c.getActors() != null) {
+            for (UseCaseConfig.ActorConfig a : c.getActors()) {
+                if (a.getName() == null || a.getName().isBlank()) continue;
+                List<String> linked = new ArrayList<>();
+                for (int i = 0; i < relations.size(); i++) {
+                    UseCaseConfig.RelationConfig r = relations.get(i);
+                    if (a.getId() != null && a.getId().equals(r.getSource())
+                            && "association".equalsIgnoreCase(String.valueOf(r.getType()))) {
+                        String name = ucName.get(r.getTarget());
+                        if (name != null && !name.isBlank()) {
+                            linked.add(name);
+                            consumed.add(i);
+                        }
+                    }
+                }
+                sb.append('(').append(a.getName()).append(')');
+                if (!linked.isEmpty()) {
+                    sb.append(": ").append(String.join(", ", linked));
+                }
+                sb.append('\n');
+            }
+        }
+
+        // 其余关系: include / extend 用专用记号, 其它按关联
+        for (int i = 0; i < relations.size(); i++) {
+            if (consumed.contains(i)) continue;
+            UseCaseConfig.RelationConfig r = relations.get(i);
+            String from = actorName.containsKey(r.getSource()) ? actorName.get(r.getSource()) : ucName.get(r.getSource());
+            String to = actorName.containsKey(r.getTarget()) ? actorName.get(r.getTarget()) : ucName.get(r.getTarget());
+            if (from == null || to == null) continue;
+            String type = String.valueOf(r.getType()).toLowerCase();
+            String arrow = "include".equals(type) ? " -include-> " : ("extend".equals(type) ? " -extend-> " : " -> ");
+            sb.append(from).append(arrow).append(to).append('\n');
         }
         return sb.toString();
     }

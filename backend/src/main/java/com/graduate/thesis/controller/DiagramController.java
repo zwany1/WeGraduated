@@ -98,6 +98,10 @@ public class DiagramController {
                 dto.setFlow((FlowConfig) pr.getConfig());
             } else if (pr.getConfig() instanceof ArchitectureConfig) {
                 dto.setConfig((ArchitectureConfig) pr.getConfig());
+            } else if (pr.getConfig() instanceof ClassConfig) {
+                dto.setClassConfig((ClassConfig) pr.getConfig());
+            } else if (pr.getConfig() instanceof UseCaseConfig) {
+                dto.setUseCase((UseCaseConfig) pr.getConfig());
             }
         }
         if ("FLOW".equalsIgnoreCase(dto.getType()) && dto.getFlow() != null) {
@@ -114,7 +118,9 @@ public class DiagramController {
             return Result.ok(swimlaneEngine.build(dto.getSwimlane()));
         }
         if ("USECASE".equalsIgnoreCase(dto.getType()) && dto.getUseCase() != null) {
-            return Result.ok(useCaseEngine.build(dto.getUseCase()));
+            Object result = useCaseEngine.build(dto.getUseCase());
+            attachDslInfo(result, dto, dto.getUseCase());
+            return Result.ok(result);
         }
         if ("SEQUENCE".equalsIgnoreCase(dto.getType()) && dto.getSequence() != null) {
             Object result = sequenceEngine.build(dto.getSequence());
@@ -122,7 +128,9 @@ public class DiagramController {
             return Result.ok(result);
         }
         if ("CLASS".equalsIgnoreCase(dto.getType()) && dto.getClassConfig() != null) {
-            return Result.ok(classEngine.build(dto.getClassConfig()));
+            Object result = classEngine.build(dto.getClassConfig());
+            attachDslInfo(result, dto, dto.getClassConfig());
+            return Result.ok(result);
         }
         if ("ACTIVITY".equalsIgnoreCase(dto.getType()) && dto.getActivity() != null) {
             return Result.ok(activityEngine.build(dto.getActivity()));
@@ -169,6 +177,16 @@ public class DiagramController {
                 throw new BusinessException(400, "缺少架构图配置");
             }
             config = objectMapper.convertValue(config, ArchitectureConfig.class);
+        } else if ("CLASS".equalsIgnoreCase(type)) {
+            if (config == null) {
+                throw new BusinessException(400, "缺少类图配置");
+            }
+            config = objectMapper.convertValue(config, ClassConfig.class);
+        } else if ("USECASE".equalsIgnoreCase(type)) {
+            if (config == null) {
+                throw new BusinessException(400, "缺少用例图配置");
+            }
+            config = objectMapper.convertValue(config, UseCaseConfig.class);
         }
         try {
             String text = dslService.render(type, config);

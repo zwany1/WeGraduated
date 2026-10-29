@@ -71,6 +71,10 @@ public class ClassDiagramRuleEngine {
             StringBuilder labels = new StringBuilder();
             if (r.getLeft() != null && !r.getLeft().isEmpty()) labels.append(r.getLeft());
             if (r.getRight() != null && !r.getRight().isEmpty()) labels.append(" ").append(r.getRight());
+            // 关系名放最后: 前端把前两个基数放在两端, 剩余的作为中间文字
+            if (r.getLabel() != null && !r.getLabel().trim().isEmpty()) {
+                labels.append(labels.length() > 0 ? " " : "").append(r.getLabel().trim());
+            }
             edge.setLabel(labels.toString().trim());
             vo.getEdges().add(edge);
         }

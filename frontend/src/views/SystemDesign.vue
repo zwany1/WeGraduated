@@ -2,28 +2,29 @@
   <div class="page">
     <header class="bar">
       <div class="brand">
-        <el-button text @click="backOrHome($router)">‹ 返回</el-button>
-        <span>系统图设计</span>
+        <button class="back" type="button" @click="backOrHome($router)">‹</button>
+        <span class="brand-sq" aria-hidden="true"></span>
+        <span class="brand-name">系统图设计</span>
       </div>
-      <div class="type-tabs">
-        <el-radio-group v-model="type" size="small" @change="onTypeChange">
-          <el-radio-button value="FLOW">流程图</el-radio-button>
-          <el-radio-button value="ARCH">架构图</el-radio-button>
-          <el-radio-button value="SWIMLANE">泳道图</el-radio-button>
-          <el-radio-button value="ACTIVITY">活动图</el-radio-button>
-          <el-radio-button value="USECASE">用例图</el-radio-button>
-          <el-radio-button value="SEQUENCE">时序图</el-radio-button>
-          <el-radio-button value="CLASS">类图</el-radio-button>
-          <el-radio-button value="ER">ER图</el-radio-button>
-          <el-radio-button value="TABLE3">三线表</el-radio-button>
-        </el-radio-group>
-      </div>
+      <nav class="type-tabs" aria-label="图类型">
+        <button
+          v-for="(t, i) in diagramTypes"
+          :key="t.value"
+          type="button"
+          class="type-tab"
+          :class="{ on: type === t.value }"
+          @click="type = t.value; onTypeChange()"
+        >
+          <span class="t-no">{{ String(i + 1).padStart(2, '0') }}</span>
+          <span class="t-label">{{ t.label }}</span>
+        </button>
+      </nav>
       <div class="actions">
-        <el-button size="small" plain @click="openSaved">打开</el-button>
-        <el-button size="small" :disabled="!graphReady" @click="save">保存</el-button>
-        <el-button size="small" plain :disabled="!graphReady" @click="downloadSvg">SVG</el-button>
-        <el-button size="small" type="primary" plain :disabled="!graphReady" @click="downloadPng">导出 PNG</el-button>
-        <el-button size="small" type="success" plain @click="exportMermaid">Mermaid</el-button>
+        <button type="button" class="act" @click="openSaved">打开</button>
+        <button type="button" class="act" :disabled="!graphReady" @click="save">保存</button>
+        <button type="button" class="act" :disabled="!graphReady" @click="downloadSvg">SVG</button>
+        <button type="button" class="act act-primary" :disabled="!graphReady" @click="downloadPng">PNG</button>
+        <button type="button" class="act" @click="exportMermaid">Mermaid</button>
       </div>
     </header>
 
@@ -692,7 +693,11 @@
       </section>
 
       <section class="canvas-wrap">
-        <div v-if="!graphReady && currentVO?.type !== 'ARCH' && type !== 'TABLE3'" class="canvas-empty">配置后点击「生成」预览</div>
+        <div v-if="!graphReady && currentVO?.type !== 'ARCH' && type !== 'TABLE3'" class="canvas-empty">
+          <span class="ce-kicker">CANVAS</span>
+          <span class="ce-title">配置后点击生成</span>
+          <span class="ce-hint">左侧写文本 → 生成 → 画布上可双击节点直接改字</span>
+        </div>
         <div v-if="graphReady && currentVO && currentVO.type === 'ARCH'" class="arch-box" ref="archRef">
           <div class="arch-outer">
             <div class="arch-title">{{ currentVO.name || '系统架构图' }}</div>
@@ -833,7 +838,7 @@ Graph.registerNode('classNode', {
       ? `<div style="padding:4px 10px;font-size:12px;color:#333;line-height:1.6;white-space:pre-wrap">${esc(methods)}</div>`
       : '<div style="padding:4px 10px;font-size:12px;color:#999">(无方法)</div>'
     return `<div style="width:100%;height:100%;display:flex;flex-direction:column;box-sizing:border-box;background:#fff;border:1.5px solid #333;overflow:hidden">
-      <div style="text-align:center;font-weight:bold;font-size:14px;padding:6px 8px;border-bottom:1.5px solid #333;background:#F6F4EE;color:#333">${esc(name)}</div>
+      <div style="text-align:center;font-weight:bold;font-size:14px;padding:6px 8px;border-bottom:1.5px solid #333;background:#fff;color:#0a0909">${esc(name)}</div>
       ${attrsHtml}
       <div style="border-top:1px solid #999"></div>
       ${methodsHtml}
@@ -871,6 +876,17 @@ const container = ref(null)
 const archRef = ref(null)
 const mmdDlg = ref(null)
 const type = ref('SWIMLANE')
+const diagramTypes = [
+  { value: 'FLOW', label: '流程图' },
+  { value: 'ARCH', label: '架构图' },
+  { value: 'SWIMLANE', label: '泳道图' },
+  { value: 'ACTIVITY', label: '活动图' },
+  { value: 'USECASE', label: '用例图' },
+  { value: 'SEQUENCE', label: '时序图' },
+  { value: 'CLASS', label: '类图' },
+  { value: 'ER', label: 'ER图' },
+  { value: 'TABLE3', label: '三线表' }
+]
 const description = ref('')
 const generating = ref(false)
 const graphReady = ref(false)
@@ -1977,7 +1993,7 @@ async function renderGraph(vo) {
           ? `<div style="padding:4px 10px;font-size:12px;color:#333;line-height:1.6;white-space:pre-wrap">${esc(methods)}</div>`
           : '<div style="padding:4px 10px;font-size:12px;color:#999">(无方法)</div>'
         const htmlStr = `<div style="width:100%;height:100%;display:flex;flex-direction:column;box-sizing:border-box;background:#fff;border:1.5px solid #333;overflow:hidden">
-          <div style="text-align:center;font-weight:bold;font-size:14px;padding:6px 8px;border-bottom:1.5px solid #333;background:#F6F4EE;color:#333">${esc(name)}</div>
+          <div style="text-align:center;font-weight:bold;font-size:14px;padding:6px 8px;border-bottom:1.5px solid #333;background:#fff;color:#0a0909">${esc(name)}</div>
           ${attrsHtml}
           <div style="border-top:1px solid #999"></div>
           ${methodsHtml}
@@ -2521,7 +2537,7 @@ function initGraph() {
     container: container.value,
     width: container.value.clientWidth || 800,
     height: container.value.clientHeight || 600,
-    background: { color: '#F6F4EE' },
+    background: { color: '#ffffff' },
     grid: { size: 10, visible: true },
     panning: true,
     mousewheel: { enabled: true, modifiers: ['ctrl'] },
@@ -2851,96 +2867,189 @@ async function downloadArchSvg() {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #F6F4EE;
+  background: #f7f6f6;
+  --ink: #0a0909;
+  --paper: #f7f6f6;
+  --red: #dd2627;
+  --hair: #c1c1c3;
+  --hair-2: #e4e4e4;
+  --gray: #6b6b6e;
 }
+/* ===== 顶栏(墨块) ===== */
 .bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px 20px;
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  gap: 20px;
+  padding: 0 18px;
+  height: 54px;
+  flex-shrink: 0;
+  background: var(--ink);
+  color: #fff;
   z-index: 10;
 }
 .brand {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-weight: 700;
-  color: #24312A;
+  gap: 9px;
+  flex-shrink: 0;
 }
+.back {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 20px;
+  line-height: 1;
+  padding: 0 2px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.back:hover { color: #fff; }
+.brand-sq { width: 10px; height: 10px; background: var(--red); }
+.brand-name {
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+/* 类型编号轨 */
 .type-tabs {
   flex: 1;
   display: flex;
-  justify-content: center;
+  align-items: stretch;
+  gap: 0;
+  height: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+.type-tabs::-webkit-scrollbar { display: none; }
+.type-tab {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 0 10px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+.type-tab:hover { color: #fff; }
+.type-tab.on { color: #fff; font-weight: 700; border-bottom-color: var(--red); }
+.t-no {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.32);
+  font-variant-numeric: tabular-nums;
+}
+.type-tab.on .t-no { color: var(--red); }
+.t-label { line-height: 1; }
+
+/* 动作组 */
 .actions {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
+.act {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  padding: 5px 11px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+.act:hover:not(:disabled) { border-color: #fff; color: #fff; background: rgba(255, 255, 255, 0.08); }
+.act:disabled { opacity: 0.35; cursor: not-allowed; }
+.act-primary {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+  font-weight: 700;
+}
+.act-primary:hover:not(:disabled) { background: #fff; border-color: #fff; color: var(--ink); }
+
 .body {
   flex: 1;
   display: grid;
-  grid-template-columns: 360px 1fr;
+  grid-template-columns: 372px 1fr;
   gap: 0;
   min-height: 0;
 }
+/* ===== 左输入栏(纸面) ===== */
 .input-panel {
-  background: #fff;
-  border-right: 1px solid #E3E0D5;
-  padding: 20px 16px;
+  background: var(--paper);
+  border-right: 1px solid var(--hair);
+  padding: 18px 18px 40px;
   overflow-y: auto;
 }
 .input-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #24312A;
-  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--ink);
+  margin-bottom: 12px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--hair);
+}
+.input-title::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  background: var(--red);
+  flex-shrink: 0;
 }
 .section-divider {
   height: 1px;
-  background: linear-gradient(to right, #dcdde0, #f0f1f3);
+  background: var(--hair-2);
   margin: 16px 0 12px;
 }
 .item-card {
-  border: 1px solid #E3E0D5;
-  border-radius: 8px;
-  padding: 10px 10px 4px;
+  border: 1px solid var(--hair);
+  border-radius: 0;
+  padding: 12px 10px 6px;
   margin-bottom: 10px;
-  background: #F6F4EE;
+  background: #fff;
   position: relative;
 }
 .item-card .item-num {
   position: absolute;
   top: -7px;
-  left: 10px;
-  font-size: 11px;
-  color: #2F5D46;
-  background: #fff;
+  left: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--gray);
+  background: var(--paper);
   padding: 0 6px;
-  border-radius: 8px;
-  border: 1px solid #d6e0ff;
+  border-radius: 0;
+  border: none;
 }
 .dsl-tip {
   font-size: 11px;
-  color: #8B968D;
-  line-height: 1.5;
+  color: var(--gray);
+  line-height: 1.6;
   margin-top: 6px;
-  background: #f8f9fb;
-  border: 1px dashed #E3E0D5;
-  border-radius: 6px;
-  padding: 6px 10px;
+  background: transparent;
+  border: 1px solid var(--hair-2);
+  border-radius: 0;
+  padding: 7px 10px;
 }
-.layer-config {
-  margin-top: 4px;
-}
+.layer-config { margin-top: 4px; }
 .layer-config-card {
-  border: 1px solid #E3E0D5;
-  border-radius: 8px;
+  border: 1px solid var(--hair);
+  border-radius: 0;
   padding: 10px;
   margin-bottom: 10px;
-  background: #F6F4EE;
+  background: #fff;
 }
 .layer-config-head {
   display: flex;
@@ -2948,34 +3057,27 @@ async function downloadArchSvg() {
   gap: 8px;
   margin-bottom: 8px;
 }
-.layer-name-input {
-  flex: 1;
-}
+.layer-name-input { flex: 1; }
 .layer-comp {
   display: flex;
   align-items: center;
   gap: 6px;
   margin-bottom: 6px;
 }
-.comp-type {
-  width: 90px;
-}
+.comp-type { width: 90px; }
 .lane-act {
   display: flex;
   align-items: center;
   gap: 6px;
   margin-bottom: 6px;
 }
-.act-type {
-  width: 86px;
-  flex-shrink: 0;
-}
+.act-type { width: 86px; flex-shrink: 0; }
 .cls-card {
-  border: 1px solid #E3E0D5;
-  border-radius: 8px;
+  border: 1px solid var(--hair);
+  border-radius: 0;
   padding: 10px;
   margin-bottom: 10px;
-  background: #F6F4EE;
+  background: #fff;
 }
 .cls-head {
   display: flex;
@@ -2983,14 +3085,13 @@ async function downloadArchSvg() {
   gap: 8px;
   margin-bottom: 6px;
 }
-.cls-name-input {
-  flex: 1;
-}
+.cls-name-input { flex: 1; }
 .cls-sub {
-  font-size: 12px;
-  color: #8B968D;
-  margin: 6px 0 4px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--gray);
+  margin: 8px 0 5px;
 }
 .cls-row {
   display: flex;
@@ -2998,16 +3099,9 @@ async function downloadArchSvg() {
   gap: 4px;
   margin-bottom: 6px;
 }
-.vis-sel {
-  width: 56px;
-  flex-shrink: 0;
-}
-.add-comp-btn {
-  width: 100%;
-}
-.add-layer-btn {
-  width: 100%;
-}
+.vis-sel { width: 56px; flex-shrink: 0; }
+.add-comp-btn { width: 100%; }
+.add-layer-btn { width: 100%; }
 .input-row {
   margin-top: 12px;
   display: flex;
@@ -3018,8 +3112,10 @@ async function downloadArchSvg() {
 /* --- 文本 DSL 输入区 --- */
 .dsl-input :deep(textarea) {
   font-family: 'Consolas', 'Monaco', monospace;
-  font-size: 13px;
-  line-height: 1.7;
+  font-size: 12.5px;
+  line-height: 1.75;
+  border-radius: 0;
+  background: #fff;
 }
 .dsl-row {
   margin-top: 8px;
@@ -3028,144 +3124,180 @@ async function downloadArchSvg() {
   gap: 8px;
   flex-wrap: wrap;
 }
+.dsl-row .el-button { margin-left: 0; }
+.dsl-row .el-button--primary { flex: 1; }
+.dsl-row .tip { width: 100%; margin-top: 2px; }
 .dsl-error {
   margin-top: 8px;
-  padding: 8px 10px;
-  border-left: 3px solid #d9534f;
-  background: #fdf2f2;
-  border-radius: 3px;
+  padding: 9px 11px;
+  border: 1px solid var(--red);
+  border-left: 3px solid var(--red);
+  background: #fdf3f3;
+  border-radius: 0;
   font-size: 12px;
-  color: #8a4b4b;
+  color: #8a2020;
 }
 .dsl-error-line code {
   background: #fff;
   padding: 1px 5px;
-  border-radius: 2px;
+  border-radius: 0;
   border: 1px solid #e8c7c7;
+  font-family: 'Consolas', 'Monaco', monospace;
 }
 .dsl-hint {
   margin: 6px 0 0;
   white-space: pre-wrap;
   font-family: 'Consolas', 'Monaco', monospace;
-  font-size: 12px;
-  color: #6b5b5b;
+  font-size: 11.5px;
+  color: #7a5a5a;
 }
 
-/* 高级设置(精确调整)折叠头 */
+/* 高级设置折叠头 */
 .adv-toggle {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  align-items: baseline;
+  gap: 7px;
   cursor: pointer;
   user-select: none;
-  padding: 6px 0 2px;
+  padding: 12px 0 8px;
   font-size: 13px;
-  color: #2b2b2b;
-  font-weight: 600;
+  font-weight: 700;
+  color: var(--ink);
+  border-top: 1px solid var(--hair-2);
 }
-.adv-toggle:hover { color: #b3261e; }
+.adv-toggle:hover { color: var(--red); }
 .adv-arrow {
   display: inline-block;
   transition: transform 0.15s ease;
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1;
-  color: #8a8b8b;
+  color: var(--gray);
 }
 .adv-arrow.open { transform: rotate(90deg); }
 .adv-note {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 400;
-  color: #9a958c;
+  color: var(--gray);
   margin-left: auto;
+  text-align: right;
 }
 .adv-body {
-  padding-top: 4px;
-  border-top: 1px solid #eceae3;
-  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--hair-2);
+  margin-top: 2px;
 }
 
-/* 打开已保存图的列表 */
+/* 打开已保存图 */
 .saved-loading,
 .saved-empty {
   padding: 28px;
   text-align: center;
   font-size: 13px;
-  color: #8a8b8b;
+  color: var(--gray);
 }
 .saved-list { max-height: 420px; overflow: auto; }
 .saved-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
-  border-bottom: 1px solid #eeece5;
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--hair-2);
   cursor: pointer;
+  transition: background 0.15s;
 }
-.saved-item:hover { background: #faf9f5; }
-.saved-name { flex: 1; font-size: 13px; color: #0a0909; }
-.saved-type { font-size: 12px; color: #6b6b6b; }
-.saved-meta { font-size: 11px; color: #9a958c; }
+.saved-item:hover { background: #fff; }
+.saved-name { flex: 1; font-size: 13px; color: var(--ink); font-weight: 500; }
+.saved-type { font-size: 11px; color: var(--gray); }
+.saved-meta { font-size: 10.5px; color: #a8a8ab; }
 
-/* 画布内联编辑框: 浮在节点/连线原位, 回车提交, Esc 取消 */.inline-edit {
+/* 画布内联编辑框 */
+.inline-edit {
   position: fixed;
   z-index: 3000;
   box-sizing: border-box;
   padding: 2px 8px;
-  border: 1.5px solid #b3261e;
-  border-radius: 2px;
+  border: 1.5px solid var(--red);
+  border-radius: 0;
   background: #fff;
   font-size: 13px;
   font-family: inherit;
-  color: #0a0909;
+  color: var(--ink);
   outline: none;
   text-align: center;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
 }
 .tip {
   font-size: 11px;
-  color: #8B968D;
-  line-height: 1.5;
+  color: var(--gray);
+  line-height: 1.6;
 }
 .examples {
-  margin-top: 20px;
-  border-top: 1px solid #EFEDE4;
+  margin-top: 18px;
+  border-top: 1px solid var(--hair-2);
   padding-top: 12px;
 }
 .ex-title {
-  font-size: 12px;
-  color: #8B968D;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--gray);
   margin-bottom: 8px;
 }
 .ex-item {
   font-size: 12px;
-  color: #5C6B60;
-  padding: 6px 8px;
-  border: 1px solid #E3E0D5;
-  border-radius: 6px;
+  color: var(--gray);
+  padding: 7px 9px;
+  border: 1px solid var(--hair-2);
+  border-radius: 0;
   margin-bottom: 6px;
   cursor: pointer;
   line-height: 1.5;
-  transition: all 0.15s;
+  transition: border-color 0.15s, color 0.15s;
 }
-.ex-item:hover {
-  border-color: #2F5D46;
-  color: #2F5D46;
-}
+.ex-item:hover { border-color: var(--ink); color: var(--ink); }
 .ex-tag {
   display: inline-block;
-  font-size: 11px;
-  color: #2F5D46;
-  background: #E8EFE6;
-  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--hair);
+  border-radius: 0;
   padding: 0 5px;
   margin-right: 6px;
 }
+
+/* ===== 画布区 ===== */
 .canvas-wrap {
   position: relative;
   height: 100%;
   min-height: 0;
   overflow: hidden;
+  background: var(--paper);
 }
+.canvas-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  pointer-events: none;
+  z-index: 1;
+}
+.ce-kicker {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  color: var(--gray);
+}
+.ce-title {
+  font-size: 34px;
+  font-weight: 900;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+.ce-hint { font-size: 12px; color: var(--gray); }
 .arch-export {
   margin-top: 12px;
   display: flex;
@@ -3176,27 +3308,27 @@ async function downloadArchSvg() {
   width: 100%;
   height: 100%;
   overflow: auto;
-  padding: 20px;
-  background: #F6F4EE;
+  padding: 24px;
+  background: var(--paper);
 }
 .arch-outer {
-  border: 1.5px solid #0a0909;
+  border: 1.5px solid var(--ink);
   padding: 0;
   background: #fff;
 }
 .arch-title {
   text-align: center;
   font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  color: #0a0909;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  color: var(--ink);
   padding: 14px 0;
-  border-bottom: 1px solid #0a0909;
+  border-bottom: 1px solid var(--ink);
 }
-/* 层与层之间: 浅实线。原来是 2px 黑色虚线, 与粗黑外框叠在一起像工程草稿 */
+/* 层与层之间: 浅实线 */
 .arch-divider {
   height: 0;
-  border-top: 1px solid #ddd8cb;
+  border-top: 1px solid var(--hair-2);
   margin: 0;
 }
 .arch-layer {
@@ -3212,9 +3344,9 @@ async function downloadArchSvg() {
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.5px;
-  color: #0a0909;
+  color: var(--ink);
   background: #fff;
-  border-right: 1px solid #ddd8cb;
+  border-right: 1px solid var(--hair-2);
   flex-shrink: 0;
   padding: 10px 6px;
   text-align: center;
@@ -3242,16 +3374,7 @@ async function downloadArchSvg() {
 .x6-container {
   width: 100%;
   height: 100%;
-}
-.canvas-empty {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #8B968D;
-  font-size: 14px;
-  background: #F6F4EE;
+  background: #fff;
 }
 .t3-stage {
   height: 100%;
@@ -3259,40 +3382,73 @@ async function downloadArchSvg() {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: 24px 32px;
+  padding: 32px 40px;
   overflow: auto;
 }
 .t3-caption {
   text-align: center;
-  font-weight: 600;
+  font-weight: 900;
   font-size: 14px;
-  color: #333;
-  margin-bottom: 8px;
+  color: #0a0909;
+  margin-bottom: 10px;
 }
 .t3-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
+  background: #fff;
 }
 .t3-table th,
 .t3-table td {
-  padding: 6px 10px;
+  padding: 7px 10px;
   text-align: center;
+  color: #0a0909;
 }
 .t3-table thead th {
   border-top: 1.5px solid #000;
   border-bottom: 0.75px solid #000;
-  font-weight: 600;
+  font-weight: 700;
 }
 .t3-table tbody tr:last-child td {
   border-bottom: 1.5px solid #000;
 }
 .t3-tip {
-  margin-top: 8px;
-  font-size: 12px;
-  color: #8B968D;
+  margin-top: 10px;
+  font-size: 11px;
+  color: #6b6b6e;
 }
 .t3-actions {
   margin-top: 16px;
+}
+
+@media (max-width: 1180px) {
+  .body { grid-template-columns: 320px 1fr; }
+  .type-tab { padding: 0 7px; }
+  .t-label { font-size: 12px; }
+  .bar { gap: 12px; }
+}
+@media (max-width: 860px) {
+  .body { grid-template-columns: 1fr; grid-template-rows: 46% 1fr; }
+  .input-panel { border-right: none; border-bottom: 1px solid var(--hair); padding-bottom: 18px; }
+  .brand-name { display: none; }
+  .ce-title { font-size: 26px; }
+  /* 顶栏折成两行: 第一行 返回+动作, 第二行 类型编号轨 */
+  .bar {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 8px 12px 0;
+    gap: 8px;
+  }
+  .brand { order: 1; }
+  .actions { order: 2; margin-left: auto; }
+  .act { padding: 4px 9px; font-size: 11.5px; }
+  .type-tabs {
+    order: 3;
+    width: 100%;
+    flex: 0 0 auto;
+    height: 38px;
+  }
+  .type-tab { padding: 0 8px; }
+  .t-label { font-size: 12px; }
 }
 </style>

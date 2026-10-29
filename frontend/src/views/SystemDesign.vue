@@ -3180,58 +3180,64 @@ async function downloadArchSvg() {
   background: #F6F4EE;
 }
 .arch-outer {
-  border: 2px solid #333;
+  border: 1.5px solid #0a0909;
   padding: 0;
   background: #fff;
 }
 .arch-title {
   text-align: center;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
-  color: #333;
-  padding: 12px 0;
-  border-bottom: 2px solid #333;
+  letter-spacing: 1px;
+  color: #0a0909;
+  padding: 14px 0;
+  border-bottom: 1px solid #0a0909;
 }
+/* 层与层之间: 浅实线。原来是 2px 黑色虚线, 与粗黑外框叠在一起像工程草稿 */
 .arch-divider {
   height: 0;
-  border-top: 2px dashed #333;
+  border-top: 1px solid #ddd8cb;
   margin: 0;
 }
 .arch-layer {
   display: flex;
   align-items: stretch;
-  min-height: 60px;
+  min-height: 64px;
 }
 .arch-layer-name {
-  width: 100px;
+  width: 96px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 13px;
-  font-weight: 600;
-  color: #333;
-  background: #f5f5f5;
-  border-right: 1px solid #ddd;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #0a0909;
+  background: #fff;
+  border-right: 1px solid #ddd8cb;
   flex-shrink: 0;
-  padding: 8px 4px;
+  padding: 10px 6px;
+  text-align: center;
 }
 .arch-layer-body {
   flex: 1;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: 10px;
+  padding: 14px 16px;
 }
 .arch-comp {
-  border: 1.5px solid #333;
-  border-radius: 6px;
-  padding: 8px 20px;
+  border: 1px solid #0a0909;
+  border-radius: 0;
+  padding: 8px 18px;
   font-size: 13px;
-  font-weight: 500;
-  color: #333;
+  font-weight: 600;
+  color: #0a0909;
   white-space: nowrap;
   background: #fff;
+  min-width: 108px;
+  text-align: center;
 }
 .x6-container {
   width: 100%;

@@ -212,6 +212,7 @@ public final class SqlTableParser {
                 boolean key = pks.contains(col.getName()) || COLUMN_PRIMARY_KEY.matcher(s).find();
                 Map<String, Object> attr = new HashMap<>();
                 attr.put("name", col.getName());
+                attr.put("type", col.getType());
                 attr.put("key", key);
                 attrs.add(attr);
                 if (key) {

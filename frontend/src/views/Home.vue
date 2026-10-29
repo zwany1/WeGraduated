@@ -2,6 +2,27 @@
   <div class="sw">
     <OnboardingDialog />
 
+    <!-- ================= 公告告示带 ================= -->
+    <div v-if="notices.length" class="notice-bar">
+      <span class="nb-mark" aria-hidden="true"></span>
+      <span class="nb-kicker">NOTICE</span>
+      <div class="nb-track">
+        <button
+          v-for="(n, i) in notices"
+          :key="n.id"
+          type="button"
+          class="nb-item"
+          :class="{ 'nb-more': i > 0 }"
+          :title="n.title"
+          @click="showNotice(n)"
+        >
+          <span class="nb-type" :class="{ ann: n.noticeType === '2' }">{{ n.noticeType === '2' ? '公告' : '通知' }}</span>
+          <span class="nb-text">{{ n.title }}</span>
+        </button>
+      </div>
+      <span v-if="notices.length > 1" class="nb-count">{{ notices.length }} 条</span>
+    </div>
+
     <!-- ================= 首屏：栅格即规则 ================= -->
     <section class="hero" id="top">
       <div class="grid-lines" aria-hidden="true"></div>
@@ -258,6 +279,22 @@
       <p class="foot-copy">© {{ new Date().getFullYear() }} 论文格式助手 · 为毕业论文排版而生</p>
     </footer>
 
+    <!-- 公告详情 -->
+    <el-dialog
+      v-model="noticeVisible"
+      :title="currentNotice ? currentNotice.title : ''"
+      width="560px"
+      destroy-on-close
+      class="nb-dialog"
+    >
+      <div v-if="currentNotice" class="nb-detail">
+        <div class="nb-detail-meta">
+          <span class="nb-type" :class="{ ann: currentNotice.noticeType === '2' }">{{ currentNotice.noticeType === '2' ? '公告' : '通知' }}</span>
+          <span class="nb-detail-time">{{ formatNoticeTime(currentNotice.createTime) }}</span>
+        </div>
+        <p class="nb-detail-body">{{ currentNotice.content }}</p>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -269,6 +306,7 @@ import { getProfile, logout } from '../api/user'
 import NotificationBell from '../components/NotificationBell.vue'
 import OnboardingDialog from '../components/OnboardingDialog.vue'
 import { clearAuth } from '../utils/perm'
+import { listPublicNotices } from '../api/admin'
 
 const router = useRouter()
 const route = useRoute()
@@ -278,6 +316,28 @@ const isAdmin = ref(false)
 const userName = ref('')
 const userAvatar = ref('')
 const avatarText = computed(() => (userName.value || 'U').slice(0, 1).toUpperCase())
+
+/* ---------------- 公告告示带 ---------------- */
+const notices = ref([])
+const noticeVisible = ref(false)
+const currentNotice = ref(null)
+
+function showNotice(n) {
+  currentNotice.value = n
+  noticeVisible.value = true
+}
+function formatNoticeTime(t) {
+  if (!t) return ''
+  return String(t).replace('T', ' ').substring(0, 16)
+}
+async function loadNotices() {
+  try {
+    const r = await listPublicNotices(3)
+    notices.value = Array.isArray(r) ? r : []
+  } catch (e) {
+    notices.value = []
+  }
+}
 
 const prefersReduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 let io = null
@@ -302,6 +362,7 @@ function initReveal() {
 
 onMounted(async () => {
   initReveal()
+  loadNotices()
   isLoggedIn.value = !!localStorage.getItem('token')
   isAdmin.value = localStorage.getItem('role') === 'ADMIN'
   if (!isAdmin.value) {
@@ -391,6 +452,121 @@ async function handleUserCommand(cmd) {
   color: var(--ink);
   font-family: var(--sans);
   -webkit-font-smoothing: antialiased;
+}
+
+/* ---------------- 公告告示带 ---------------- */
+.notice-bar {
+  position: relative;
+  z-index: 5;
+  width: 100%;
+  max-width: 1536px;
+  margin: 0 auto;
+  min-height: calc(46 * var(--u));
+  display: flex;
+  align-items: center;
+  gap: calc(13 * var(--u));
+  padding: calc(7 * var(--u)) calc(38 * var(--u));
+  box-sizing: border-box;
+  background: var(--paper);
+  border-bottom: calc(1 * var(--u)) solid var(--hair);
+}
+.nb-mark {
+  width: calc(9 * var(--u));
+  height: calc(9 * var(--u));
+  background: var(--red);
+  flex-shrink: 0;
+}
+.nb-kicker {
+  font-size: calc(11 * var(--u));
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--ink-3);
+  flex-shrink: 0;
+}
+.nb-track {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: calc(26 * var(--u));
+  overflow: hidden;
+}
+.nb-item {
+  display: flex;
+  align-items: baseline;
+  gap: calc(9 * var(--u));
+  min-width: 0;
+  max-width: calc(430 * var(--u));
+  padding: 0;
+  background: none;
+  border: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.nb-type {
+  flex-shrink: 0;
+  font-size: calc(11 * var(--u));
+  font-weight: 700;
+  line-height: 1.6;
+  padding: 0 calc(6 * var(--u));
+  color: var(--ink-3);
+  border: calc(1 * var(--u)) solid var(--hair);
+}
+.nb-type.ann {
+  color: var(--red);
+  border-color: var(--red);
+}
+.nb-text {
+  font-size: calc(14 * var(--u));
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-bottom: calc(2 * var(--u));
+  border-bottom: calc(2 * var(--u)) solid transparent;
+}
+.nb-item:hover .nb-text {
+  color: var(--red);
+  border-bottom-color: var(--red);
+}
+.nb-count {
+  flex-shrink: 0;
+  font-size: calc(12 * var(--u));
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 公告详情弹窗 */
+.nb-detail-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--hair-soft);
+}
+.nb-detail-time {
+  font-size: 12px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.nb-detail-body {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.85;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+}
+.nb-dialog :deep(.el-dialog__header) {
+  border-top: 3px solid var(--red);
+  padding-bottom: 12px;
+  margin-right: 0;
+}
+.nb-dialog :deep(.el-dialog__title) {
+  font-size: 17px;
+  font-weight: 900;
+  color: var(--ink);
 }
 
 .hero {
@@ -1232,6 +1408,14 @@ async function handleUserCommand(cmd) {
    ============================================================ */
 @media (max-width: 900px) {
   .sw { --u: 1px; }
+  .notice-bar {
+    padding: 8px 18px;
+    gap: 8px;
+  }
+  .nb-more,
+  .nb-count { display: none; }
+  .nb-item { max-width: none; }
+  .nb-text { font-size: 13px; }
   .hero {
     aspect-ratio: auto;
     padding: 18px 18px 40px;

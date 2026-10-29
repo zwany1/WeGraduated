@@ -6,7 +6,6 @@
         <button type="button" data-mode="continuous" :class="['mode-btn', { on: mode === 'continuous' }]" @click="setMode('continuous')">连续滚动</button>
       </div>
       <span v-if="mode === 'page'" class="mode-hint" :title="pageTitle">分页按分页符近似 · {{ pageLabel }}</span>
-      <span v-if="fontSwaps.length" class="font-note" :title="fontSwaps.join('\n')">字体已替换：{{ fontSwaps.join('、') }}</span>
       <span class="tip-note" :title="disclaimerTitle">
         <span class="tip-long">预览有偏差 · 以实际下载为准</span>
         <span class="tip-short">以实际下载为准</span>
@@ -60,8 +59,6 @@ const showToc = ref(false)
 /** 页面视图(默认, 真实纸张+分页) / 连续滚动(整篇快速浏览) */
 const mode = ref(localStorage.getItem('docxPreviewMode') === 'continuous' ? 'continuous' : 'page')
 const pageSize = ref({ w: 0, h: 0 })
-/** 本机缺失、已被兜底字体替换的字体清单(展示给用户, 不静默替换) */
-const fontSwaps = ref([])
 let currentDoc = null
 let lastText = ref('')
 
@@ -260,7 +257,6 @@ function firstFamily(stack) {
  *    预览就失去了"验收字体"的意义。 */
 function normalizeVisibility() {
   if (!bodyRef.value) return
-  const swapped = new Set()
   bodyRef.value.querySelectorAll('p, span').forEach(el => {
     const text = (el.textContent || '').trim()
     if (!text) return
@@ -281,12 +277,7 @@ function normalizeVisibility() {
     const rule = FONT_FALLBACK.find(r => r.re.test(fam))
     if (!rule || fontAvailable(fam)) return
     el.style.setProperty('font-family', `"${fam}", ${rule.fb}`, 'important')
-    swapped.add(`${fam} → ${rule.fb.split(',')[0].replace(/"/g, '')}`)
   })
-  if (swapped.size) {
-    const next = [...new Set([...fontSwaps.value, ...swapped])]
-    if (next.length !== fontSwaps.value.length) fontSwaps.value = next
-  }
   relaxJustify()
 }
 
@@ -484,21 +475,8 @@ defineExpose({ scrollToText })
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.font-note {
-  font-size: 12px;
-  color: #8A6D3B;
-  background: #FCF8E3;
-  border: 1px solid #F0E0B8;
-  border-radius: 3px;
-  padding: 1px 6px;
-  flex-shrink: 2;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-/* 常态免责: 用中性灰而不是告警黄 —— 它是"说明"不是"出错", 告警色留给字体缺失那类真异常。
-   空间不够时先由 mode-hint / font-note 让位(shrink:2), 再轮到它(shrink:1); 窄容器里换成短文案。 */
+/* 常态免责: 用中性灰而不是告警黄 —— 它是"说明"不是"出错"。
+   空间不够时先由 mode-hint 让位(shrink:2), 再轮到它(shrink:1); 窄容器里换成短文案。 */
 .tip-note {
   font-size: 12px;
   color: #6B786F;
@@ -516,8 +494,7 @@ defineExpose({ scrollToText })
 .tip-short { display: none; }
 /* 窄容器(对比视图栏 ≈594px): 功能控件第一、免责提示第二, 其余说明让位 */
 @container (max-width: 640px) {
-  .mode-hint,
-  .font-note { display: none; }
+  .mode-hint { display: none; }
   .tip-long { display: none; }
   .tip-short { display: inline; }
 }

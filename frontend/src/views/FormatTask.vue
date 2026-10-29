@@ -237,12 +237,15 @@
                   <span class="diff-group-arrow">{{ collapsed[g.key] ? '▸' : '▾' }}</span>
                 </div>
                 <div v-show="!collapsed[g.key]" class="diff-group-items">
-                  <div v-for="d in g.items" :key="d.index" class="diff-item" :class="{ active: activeDiff === d.index }" @click="gotoDiff(d)">
+                  <div v-for="d in shownItems(g)" :key="d.index" class="diff-item" :class="{ active: activeDiff === d.index }" @click="gotoDiff(d)">
                     <div class="diff-item-top">
                       <span class="diff-index">#{{ d.index }}</span>
                     </div>
                     <div class="diff-change" v-if="d.change">{{ d.change }}</div>
                     <div class="diff-text">{{ d.text }}</div>
+                  </div>
+                  <div v-if="g.items.length > DIFF_PREVIEW" class="diff-more" @click="toggleExpand(g.key)">
+                    {{ expandedGroups[g.key] ? '收起' : `展开全部 ${g.items.length} 条` }}
                   </div>
                 </div>
               </div>
@@ -292,6 +295,31 @@
           </div>
           <div v-if="reportData.autoFixedHeadings" class="report-note ok-note">
             引擎已按无编号标题启发式自动识别 {{ reportData.autoFixedHeadings }} 处下级标题(如"研究背景"等短行)。
+          </div>
+          <!-- 自动识别的标题逐条列出, 作为可回溯的"改动清单"(只给数量无法核对改了哪几段) -->
+          <el-collapse v-if="reportData.autoFixedHeadingItems && reportData.autoFixedHeadingItems.length" class="auto-fixed-list">
+            <el-collapse-item :title="`查看被自动识别为标题的 ${reportData.autoFixedHeadingItems.length} 段(核对用)`">
+              <el-table :data="reportData.autoFixedHeadingItems" size="small" max-height="220">
+                <el-table-column prop="index" label="段落序号" width="90" />
+                <el-table-column prop="text" label="段落内容" min-width="260" show-overflow-tooltip />
+                <el-table-column label="识别级别" width="90">
+                  <template #default="{ row }">
+                    <el-tag size="small" type="info">{{ levelName(row.level) }}</el-tag>
+                  </template>
+                </el-table-column>
+              </el-table>
+              <div class="report-hint">若这些行其实是正文，请在模板配置页调整「标题正则」后重新排版。</div>
+            </el-collapse-item>
+          </el-collapse>
+          <!-- 无题注图表: 引擎不生成"只有编号没有题名"的裸题注, 需要作者补写题名 -->
+          <div v-if="reportData.uncaptionedFigures || reportData.uncaptionedTables || reportData.orphanCaptions" class="report-note warn-note">
+            <template v-if="reportData.uncaptionedFigures || reportData.uncaptionedTables">
+              有 {{ reportData.uncaptionedFigures || 0 }} 张图、{{ reportData.uncaptionedTables || 0 }} 张表没有自动编号：
+              引擎不再生成「图7-1」这类只有编号没有题名的题注，补写题名后再排版即可自动编号。
+            </template>
+            <template v-if="reportData.orphanCaptions">
+              另有 {{ reportData.orphanCaptions }} 处题注文字与对应图表之间隔了空行/段落，未参与编号（已按正文保留）。
+            </template>
           </div>
           <template v-if="reportData.suspects && reportData.suspects.length">
             <div class="report-note warn-note">
@@ -433,11 +461,28 @@ const docxAfterRef = ref(null)
 const selectedType = ref('')
 const collapsed = ref({})
 const typeOptions = computed(() => [...new Set(diffItems.value.map(d => d.type))])
+// 差异分组排序: 内容级(丢图/吞段)最先, 其后是影响观感的字号字体行距, 目录条目的对齐/间距放最后
+const DIFF_TYPE_ORDER = ['内容', '字号', '字体', '加粗', '行距', '对齐', '首行缩进', '段前距', '段后距']
+// 单组默认最多展示条数: 目录 78 条同类调整不该把整屏占满
+const DIFF_PREVIEW = 8
+const expandedGroups = ref({})
+function toggleExpand(key) {
+  expandedGroups.value[key] = !expandedGroups.value[key]
+}
+function shownItems(g) {
+  return expandedGroups.value[g.key] ? g.items : g.items.slice(0, DIFF_PREVIEW)
+}
 const diffGroups = computed(() => {
   const list = selectedType.value ? diffItems.value.filter(d => d.type === selectedType.value) : diffItems.value
   const map = {}
   list.forEach(d => { (map[d.type] = map[d.type] || []).push(d) })
-  return Object.keys(map).map(k => ({ key: k, items: map[k] }))
+  return Object.keys(map)
+    .sort((a, b) => {
+      const ia = DIFF_TYPE_ORDER.indexOf(a)
+      const ib = DIFF_TYPE_ORDER.indexOf(b)
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib)
+    })
+    .map(k => ({ key: k, items: map[k] }))
 })
 function toggleGroup(key) {
   collapsed.value[key] = !collapsed.value[key]
@@ -820,6 +865,7 @@ function onCompareClosed() {
   compareHeadings.value = []
   diffItems.value = []
   activeDiff.value = -1
+  expandedGroups.value = {}
 }
 
 function showError(row) {
@@ -848,7 +894,8 @@ const structureAlert = computed(() => {
 })
 
 function levelName(lv) {
-  return lv === 1 ? '一级' : lv === 2 ? '二级' : lv === 3 ? '三级' : (lv || '?') + ' 级'
+  const names = { 1: '一级', 2: '二级', 3: '三级', 4: '四级', 5: '五级' }
+  return names[lv] || (lv || '?') + ' 级'
 }
 
 function ruleTypeName(type) {
@@ -872,6 +919,17 @@ function exportReport() {
   lines.push(`  参考文献条目: ${r.referenceCount}    正文段落: ${r.bodyParagraphs}`)
   if (r.autoFixedHeadings) {
     lines.push(`  已按无编号标题启发式自动识别 ${r.autoFixedHeadings} 处下级标题`)
+    if (r.autoFixedHeadingItems && r.autoFixedHeadingItems.length) {
+      r.autoFixedHeadingItems.forEach(a => {
+        lines.push(`    - 第 ${a.index} 段 [${levelName(a.level)}] ${a.text}`)
+      })
+    }
+  }
+  if (r.uncaptionedFigures || r.uncaptionedTables) {
+    lines.push(`  无题注未编号: 图 ${r.uncaptionedFigures || 0} 张 / 表 ${r.uncaptionedTables || 0} 张(补写题名后可自动编号)`)
+  }
+  if (r.orphanCaptions) {
+    lines.push(`  题注未紧邻图表: ${r.orphanCaptions} 处(已按正文保留, 编号未重排)`)
   }
   lines.push('')
   if (r.suspects && r.suspects.length) {
@@ -1309,6 +1367,24 @@ function formatTime(t) {
   background: #fef0f0;
   box-shadow: 0 0 0 1px #f56c6c inset;
 }
+/* 组内默认只显示前 N 条(目录条目这类批量同类调整会占满整屏) */
+.diff-more {
+  text-align: center;
+  font-size: 12px;
+  color: #5C6B60;
+  background: #F6F4EE;
+  border: 1px dashed #D6D1C5;
+  border-radius: 6px;
+  padding: 5px 0;
+  margin-bottom: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+.diff-more:hover {
+  color: #24312A;
+  border-color: #B9B2A2;
+  background: #EFEBE1;
+}
 .diff-item-top {
   display: flex;
   align-items: center;
@@ -1445,6 +1521,17 @@ function formatTime(t) {
   border-radius: 6px;
   font-size: 13px;
   margin-bottom: 10px;
+}
+/* 被自动识别为标题的段落清单 */
+.auto-fixed-list {
+  margin-bottom: 10px;
+  border-top: none;
+}
+.report-hint {
+  font-size: 12px;
+  color: #8B968D;
+  padding: 6px 2px 0;
+  line-height: 1.6;
 }
 .structure-alert {
   margin: 12px 0;

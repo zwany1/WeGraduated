@@ -69,7 +69,8 @@ public class ActivityDiagramRuleEngine {
         }
 
         // 计算每个泳道宽度
-        int laneGap = 30;
+        // 泳道之间不留缝: 相邻泳道共用一条分隔线, 整张图像一张表格(留 30px 会露底色, 看着像断开的两个框)
+        int laneGap = 0;
         Map<String, Integer> laneWMap = new LinkedHashMap<>();
         int totalWidth = 0;
         for (ActivityConfig.LaneConfig lane : lanes) {

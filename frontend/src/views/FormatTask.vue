@@ -243,6 +243,7 @@
                   <div v-for="d in shownItems(g)" :key="d.index" class="diff-item" :class="{ active: activeDiff === d.index }" @click="gotoDiff(d)">
                     <div class="diff-item-top">
                       <span class="diff-index">#{{ d.index }}</span>
+                      <span v-if="d.where" class="diff-where">{{ d.where }}</span>
                     </div>
                     <div class="diff-change" v-if="d.change">{{ d.change }}</div>
                     <div class="diff-text">{{ d.text }}</div>
@@ -1423,6 +1424,17 @@ function formatTime(t) {
   background: #EFEDE4;
   padding: 1px 6px;
   border-radius: 4px;
+}
+/* 位置标识: 同名段落(多个"本章小结"、多个表格里的"10")靠它区分, 不能再让人以为是重复条目 */
+.diff-where {
+  font-size: 11px;
+  color: #9AA69C;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-left: 8px;
+  flex: 1;
+  text-align: right;
 }
 .diff-change {
   font-size: 12px;

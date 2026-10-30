@@ -99,8 +99,8 @@ public class DiffService {
      *  media 目录可能含未被引用的孤儿文件(实测有 1 个), 会把"没丢"误报成"丢了 1 张" */
     private int countImages(XWPFDocument doc) {
         int n = 0;
-        for (XWPFParagraph p : allParas(doc)) {
-            for (XWPFRun r : p.getRuns()) {
+        for (ParaRef ref : allParas(doc)) {
+            for (XWPFRun r : ref.p.getRuns()) {
                 try {
                     n += r.getEmbeddedPictures().size();
                 } catch (Exception ignore) {
@@ -113,19 +113,40 @@ public class DiffService {
 
     private int countTextParas(XWPFDocument doc) {
         int n = 0;
-        for (XWPFParagraph p : allParas(doc)) {
-            if (!clean(p.getText()).isEmpty()) n++;
+        for (ParaRef ref : allParas(doc)) {
+            if (!clean(ref.p.getText()).isEmpty()) n++;
         }
         return n;
     }
 
+    /** 段落在文档里的来源, 用于给差异项标注位置 */
+    private static final class ParaRef {
+        final XWPFParagraph p;
+        /** "正文第 208 段" 或 "表 2" */
+        final String where;
+
+        ParaRef(XWPFParagraph p, String where) {
+            this.p = p;
+            this.where = where;
+        }
+    }
+
     /** 正文段落 + 表格单元格内段落(三线表等表格格式的改动只有算进来才看得见) */
-    private List<XWPFParagraph> allParas(XWPFDocument doc) {
-        List<XWPFParagraph> list = new ArrayList<>(doc.getParagraphs());
+    private List<ParaRef> allParas(XWPFDocument doc) {
+        List<ParaRef> list = new ArrayList<>();
+        int no = 0;
+        for (XWPFParagraph p : doc.getParagraphs()) {
+            no++;
+            list.add(new ParaRef(p, "正文第 " + no + " 段"));
+        }
+        int tableNo = 0;
         for (XWPFTable t : doc.getTables()) {
+            tableNo++;
             for (XWPFTableRow r : t.getRows()) {
                 for (XWPFTableCell c : r.getTableCells()) {
-                    list.addAll(c.getParagraphs());
+                    for (XWPFParagraph p : c.getParagraphs()) {
+                        list.add(new ParaRef(p, "表 " + tableNo));
+                    }
                 }
             }
         }
@@ -135,25 +156,28 @@ public class DiffService {
     // ==================== 逐段格式 ====================
 
     private void paraDiffs(XWPFDocument od, XWPFDocument fd, List<DiffItem> items) {
-        Map<String, List<XWPFParagraph>> fmtIndex = new HashMap<>();
-        for (XWPFParagraph p : allParas(fd)) {
-            String t = clean(p.getText());
+        Map<String, List<ParaRef>> fmtIndex = new HashMap<>();
+        for (ParaRef ref : allParas(fd)) {
+            String t = clean(ref.p.getText());
             if (t.isEmpty()) continue;
-            fmtIndex.computeIfAbsent(t, k -> new ArrayList<>()).add(p);
+            fmtIndex.computeIfAbsent(t, k -> new ArrayList<>()).add(ref);
         }
         // 同文本段落按出现顺序逐个消费, 避免跨段落错配(如两行相同的签名行)
         Map<String, Integer> cursor = new HashMap<>();
-        for (XWPFParagraph op : allParas(od)) {
-            String t = clean(op.getText());
+        for (ParaRef op : allParas(od)) {
+            String t = clean(op.p.getText());
             if (t.isEmpty()) continue;
-            List<XWPFParagraph> cand = fmtIndex.get(t);
+            List<ParaRef> cand = fmtIndex.get(t);
             if (cand == null || cand.isEmpty()) continue;
             int c = cursor.getOrDefault(t, 0);
             if (c >= cand.size()) continue;
             cursor.put(t, c + 1);
-            List<String[]> fields = diffFields(od, op, fd, cand.get(c));
+            List<String[]> fields = diffFields(od, op.p, fd, cand.get(c).p);
             if (!fields.isEmpty()) {
-                items.add(new DiffItem(truncate(t), fields.get(0)[0], changeDesc(fields), 0));
+                DiffItem item = new DiffItem(truncate(t), fields.get(0)[0], changeDesc(fields), 0);
+                // 同名段落(7 个"本章小结"、多个表格里的"10")只靠文本摘要无法区分
+                item.setWhere(op.where);
+                items.add(item);
             }
         }
     }

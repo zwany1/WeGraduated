@@ -71,6 +71,9 @@ public class StructureDetector {
         boolean chapterStarted = false;
         boolean sawFront = false;
         boolean inToc = false;
+        // 目录区是否已经过去。用于兜底: 章节标题被打散/不规范时 chapterStarted 可能迟迟不为真,
+        // 若只按 chapterStarted 判前置区, 第一章之前的所有正文都会被当"前置内容"整段跳过排版
+        boolean afterToc = false;
         boolean inAbstract = false;
         int paraIdx = -1;
         for (XWPFParagraph paragraph : doc.getParagraphs()) {
@@ -87,6 +90,15 @@ public class StructureDetector {
             if (overrides != null && overrides.containsKey(paraIdx)) {
                 kind = headingKind(Math.min(Math.max(overrides.get(paraIdx), 1), 5));
             }
+            // 兜底: 文本形如「图3-1 标题」却被判成正文(常见于图注与图片之间被空段/分页隔开,
+            // 或原文顺序被打散) → 仍标记为题注, 否则会被正文规则套上首行缩进, 题注居中也被破坏
+            if (kind == ParagraphKind.BODY && text.length() <= 60) {
+                if (StructureHelper.FIGURE_CAPTION.matcher(text).matches()) {
+                    kind = ParagraphKind.FIGURE_CAPTION;
+                } else if (StructureHelper.TABLE_CAPTION.matcher(text).matches()) {
+                    kind = ParagraphKind.TABLE_CAPTION;
+                }
+            }
             DocItem item = new DocItem(paragraph, kind, text, containsImage);
 
             // 目录区检测: 只要文本是"目 录"(无论是否带样式), 即进入目录区.
@@ -101,6 +113,12 @@ public class StructureDetector {
                 // 目录结构(TOC域/toc样式)条目不触发关闭, 避免无页码目录条目被误判为正文标题提前关闭目录区
                 if (!tocStructure && (StructureHelper.headingLevel(paragraph, doc) > 0 || isBodyChapterTitle(text, ruleSet))) {
                     inToc = false;
+                    afterToc = true;
+                } else if (!tocStructure && !text.isEmpty() && !StructureHelper.isTocEntry(text)) {
+                    // 兜底: 目录区里出现"不像目录条目"的文字 → 目录已经结束(正文被打散时第一章可能还没出现)
+                    // 判据只要求"非空且不像目录条目": 目录条目一定以页码结尾, 已被 isTocEntry 排除
+                    inToc = false;
+                    afterToc = true;
                 } else {
                     kind = ParagraphKind.BODY; // 目录条目, 不识别为标题
                     item = new DocItem(paragraph, kind, text, containsImage);
@@ -169,7 +187,8 @@ public class StructureDetector {
             if (inAbstract && !chapterStarted) {
                 item.setAbstractSection(true);
             } else {
-                item.setFrontMatter(!chapterStarted);
+                // 目录已经过去(或章节已开始)就按正文处理; 只有真正的封面/摘要/目录才保持原样
+                item.setFrontMatter(!chapterStarted && !afterToc);
             }
             // 目录结构条目即使章节已开始也一律保持原样(防止目录区被提前关闭后误套用正文/标题规则)
             if (tocStructure) {

@@ -135,9 +135,14 @@ public class CaptionFormatter {
                     if (!figureEnabled) {
                         continue;
                     }
-                    // 与图片不相邻的"题注样"段落(正文里一句图号说明)不算题注, 不参与编号
+                    // 与图片不相邻的"题注样"段落不参与编号(可能是正文里一句图号说明, 也可能图注被空段隔开)
                     if (!adjacentToFigure(elements, i)) {
                         stats.orphanCaptions++;
+                        // 但样式仍按题注规则套一遍: 否则原稿残留的首行缩进会留着,
+                        // 出现"题注居中却缩进 2 字符"的怪状
+                        if (!containsEmbeddedObject(p)) {
+                            applyCaptionStyle(p, figureRule);
+                        }
                         continue;
                     }
                     // 题注位置: 引擎只对已有题注重编号, 不会移动段落(移动会打乱图文关系与分页),
@@ -170,6 +175,9 @@ public class CaptionFormatter {
                     // 表题注的编号由表格分支统一处理; 这里只统计"与表格不相邻"的游离题注
                     if (!adjacentToTable(elements, i)) {
                         stats.orphanCaptions++;
+                        if (tableRule != null && !containsEmbeddedObject(p)) {
+                            applyCaptionStyle(p, tableRule);
+                        }
                     } else if (tableRule != null) {
                         noteCaptionPosition(stats, tableRule, "表", text,
                                 isTableAt(elements, i + 1), isTableAt(elements, i - 1));
@@ -411,6 +419,11 @@ public class CaptionFormatter {
         paragraph.setAlignment(ParagraphAlignment.CENTER);
         // 题注居中前先清掉原稿的首行/左缩进, 否则"居中"会偏
         clearIndent(paragraph);
+        // 段前后距按规则显式覆盖: 题注原稿常带 8pt 段后距等残留值, 不覆盖就会与配置不一致
+        if (rule != null) {
+            if (rule.getSpaceBefore() != null) paragraph.setSpacingBefore(rule.getSpaceBefore() * 20);
+            if (rule.getSpaceAfter() != null) paragraph.setSpacingAfter(rule.getSpaceAfter() * 20);
+        }
         if (isExactSpacing(rule)) {
             // 校规普遍要求"行间距取固定值"(如桂林信息科技学院 20 磅), 不能一律写死 1.5 倍
             paragraph.setSpacingBetween(rule.getLineSpacingExact(), LineSpacingRule.EXACT);

@@ -122,6 +122,8 @@ public class FormatEngine {
                 report.setOrphanCaptions(captionStats.orphanCaptions);
                 report.setRenumberedCaptions(captionStats.renumberedCaptions);
                 report.setCaptionRenumberSamples(captionStats.captionRenumberSamples);
+                report.setCaptionPositionMismatches(captionStats.captionPositionMismatches);
+                report.setCaptionPositionSamples(captionStats.captionPositionSamples);
             }
             progress.accept(85);
 

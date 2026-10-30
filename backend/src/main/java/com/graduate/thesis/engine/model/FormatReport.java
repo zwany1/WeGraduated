@@ -57,6 +57,15 @@ public class FormatReport {
      */
     private List<String> captionRenumberSamples = new ArrayList<>();
 
+    /**
+     * 题注实际位置与模板 captionPosition(above/below) 不一致的数量。
+     * 引擎只对已有题注重编号、不移动段落(移动会打乱图文关系与分页), 所以这里只做提示。
+     */
+    private int captionPositionMismatches;
+
+    /** 位置不符的题注样例, 最多 5 条 */
+    private List<String> captionPositionSamples = new ArrayList<>();
+
     /** 未匹配标题正则、已按正文处理的疑似标题行 */
     private List<Suspect> suspects = new ArrayList<>();
 

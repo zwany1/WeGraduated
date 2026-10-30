@@ -308,6 +308,14 @@
               v-if="reportData.renumberedCaptions > reportData.captionRenumberSamples.length"> 等</span>）</span>。
             正文里"如图3-1所示"这类交叉引用<strong>不会自动更新</strong>，请逐处核对。
           </div>
+          <!-- 题注位置不符: 引擎只重编号不移动段落(移动会打乱图文关系与分页), 所以提示人工调整 -->
+          <div v-if="reportData.captionPositionMismatches" class="report-note warn-note">
+            有 {{ reportData.captionPositionMismatches }} 处图表题注的位置与模板设置不符<span
+              v-if="reportData.captionPositionSamples && reportData.captionPositionSamples.length"
+            >（{{ reportData.captionPositionSamples.join('、') }}<span
+              v-if="reportData.captionPositionMismatches > reportData.captionPositionSamples.length"> 等</span>）</span>。
+            引擎不会自动移动题注（会打乱图文关系与分页），请手动调整，或改方案里的「题注位置」。
+          </div>
           <!-- 自动识别的标题逐条列出, 作为可回溯的"改动清单"(只给数量无法核对改了哪几段) -->
           <el-collapse v-if="reportData.autoFixedHeadingItems && reportData.autoFixedHeadingItems.length" class="auto-fixed-list">
             <el-collapse-item :title="`查看被自动识别为标题的 ${reportData.autoFixedHeadingItems.length} 段(核对用)`">

@@ -53,6 +53,10 @@ public class CaptionFormatter {
         public int renumberedCaptions;
         /** 改号样例, 最多 5 条, 形如「图3-1 → 图5-1」 */
         public List<String> captionRenumberSamples = new ArrayList<>();
+        /** 题注实际位置与模板配置(captionPosition=above/below)不一致的数量 */
+        public int captionPositionMismatches;
+        /** 位置不符的题注样例, 最多 5 条 */
+        public List<String> captionPositionSamples = new ArrayList<>();
     }
 
     public Stats apply(XWPFDocument doc, List<DocItem> items, RuleSet ruleSet) {
@@ -136,6 +140,11 @@ public class CaptionFormatter {
                         stats.orphanCaptions++;
                         continue;
                     }
+                    // 题注位置: 引擎只对已有题注重编号, 不会移动段落(移动会打乱图文关系与分页),
+                    // 所以这里只核对"实际位置"与模板配置是否一致, 不一致就报给作者手工调整
+                    noteCaptionPosition(stats, figureRule, "图", text,
+                            isKindAt(elements, byParagraph, i + 1, ParagraphKind.IMAGE),
+                            isKindAt(elements, byParagraph, i - 1, ParagraphKind.IMAGE));
                     String title = extractTitle(text, true);
                     int[] nums = extractCaptionNumbers(text, true);
                     if (chapter > 0 && nums[0] > 0) {
@@ -161,6 +170,9 @@ public class CaptionFormatter {
                     // 表题注的编号由表格分支统一处理; 这里只统计"与表格不相邻"的游离题注
                     if (!adjacentToTable(elements, i)) {
                         stats.orphanCaptions++;
+                    } else if (tableRule != null) {
+                        noteCaptionPosition(stats, tableRule, "表", text,
+                                isTableAt(elements, i + 1), isTableAt(elements, i - 1));
                     }
                 }
             } else if (el instanceof XWPFTable) {
@@ -193,6 +205,37 @@ public class CaptionFormatter {
             }
         }
         return stats;
+    }
+
+    /** 相邻元素是否是指定类型(用于判断"图题在图上方还是下方") */
+    private static boolean isKindAt(List<IBodyElement> elements, Map<XWPFParagraph, DocItem> byParagraph,
+                                    int i, ParagraphKind want) {
+        if (i < 0 || i >= elements.size()) return false;
+        IBodyElement el = elements.get(i);
+        if (!(el instanceof XWPFParagraph)) return false;
+        DocItem it = byParagraph.get(el);
+        return it != null && it.getKind() == want;
+    }
+
+    /** 相邻元素是否是表格(表格不是段落, 不在 ParagraphKind 里) */
+    private static boolean isTableAt(List<IBodyElement> elements, int i) {
+        return i >= 0 && i < elements.size() && elements.get(i) instanceof XWPFTable;
+    }
+
+    /** 核对题注位置: above=在图表上方, below=在下方。引擎不移动已有题注, 不一致只记入报告。 */
+    private static void noteCaptionPosition(Stats stats, FormatRule rule, String kind, String text,
+                                            boolean aboveTarget, boolean belowTarget) {
+        if (!aboveTarget && !belowTarget) return;      // 判断不出位置(题注和图表同段等), 跳过
+        boolean actualAbove = aboveTarget;
+        boolean wantAbove = "above".equalsIgnoreCase(rule.getCaptionPosition());
+        if (wantAbove == actualAbove) return;
+        stats.captionPositionMismatches++;
+        if (stats.captionPositionSamples.size() < 5) {
+            String t = text == null ? "" : text.replaceAll("\\s", "");
+            if (t.length() > 14) t = t.substring(0, 14) + "…";
+            // 带上期望方向, 作者一眼能看出该怎么改
+            stats.captionPositionSamples.add(t + "(应在" + (wantAbove ? "上" : "下") + "方)");
+        }
     }
 
     /** 记录一次题注改号(新旧编号相同则忽略)。

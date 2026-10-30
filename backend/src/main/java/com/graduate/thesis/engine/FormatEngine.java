@@ -343,6 +343,10 @@ public class FormatEngine {
      */
     private void applyTableCells(XWPFDocument doc, RuleSet ruleSet) {
         FormatRule tableTextRule = ruleSet.rule("tableText");
+        // 校规没有规定表格内文字的字体字号, 模板可以不配这条规则; 未配置就不动表格文字
+        if (tableTextRule == null) {
+            return;
+        }
         for (org.apache.poi.xwpf.usermodel.IBodyElement el : doc.getBodyElements()) {
             if (el instanceof XWPFTable) {
                 for (XWPFTableRow row : ((XWPFTable) el).getRows()) {

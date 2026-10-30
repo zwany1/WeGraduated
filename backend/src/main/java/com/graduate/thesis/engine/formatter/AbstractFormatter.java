@@ -104,6 +104,9 @@ public class AbstractFormatter {
         if (bodyRule != null) {
             ParagraphFormatter.apply(p, bodyRule);
         }
+        // 校规范例里摘要内容只写"（内容采用小四号宋体）"，没有"首行缩进两个字"的要求
+        // (正文/附录都明确写了这一条) —— 所以摘要正文不缩进, 只沿用全局的固定行距 20 磅
+        ParagraphFormatter.setFirstLineIndent(p, 0);
         p.setAlignment(ParagraphAlignment.BOTH);
     }
 

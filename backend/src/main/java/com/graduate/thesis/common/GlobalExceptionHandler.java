@@ -48,6 +48,16 @@ public class GlobalExceptionHandler {
         return Result.fail(400, "请求数据格式错误");
     }
 
+    /**
+     * 路径/查询参数类型不对(如 /paper/diff/abc 要求 Long): 明确 400。
+     * 否则会落进下面的兜底, 把"参数写错"报成 500 "系统繁忙", 掩盖真实原因。
+     */
+    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+    public Result<Void> handleTypeMismatch(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException e) {
+        log.warn("参数类型错误 traceId={}: {}={}", org.slf4j.MDC.get("traceId"), e.getName(), e.getValue());
+        return Result.fail(400, "参数格式错误: " + e.getName());
+    }
+
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Result<Void> handleUnknown(Exception e) {

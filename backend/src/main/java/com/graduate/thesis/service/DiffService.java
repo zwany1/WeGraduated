@@ -142,10 +142,16 @@ public class DiffService {
         int tableNo = 0;
         for (XWPFTable t : doc.getTables()) {
             tableNo++;
+            int rowNo = 0;
             for (XWPFTableRow r : t.getRows()) {
+                rowNo++;
+                int colNo = 0;
                 for (XWPFTableCell c : r.getTableCells()) {
+                    colNo++;
                     for (XWPFParagraph p : c.getParagraphs()) {
-                        list.add(new ParaRef(p, "表 " + tableNo));
+                        // 精确到单元格: 表格里常有重复值(同一行多个"10"、多个"0"),
+                        // 只标"表 N"或"表 N 第 M 行"都仍会撞在一起
+                        list.add(new ParaRef(p, "表 " + tableNo + " 第 " + rowNo + " 行 第 " + colNo + " 列"));
                     }
                 }
             }

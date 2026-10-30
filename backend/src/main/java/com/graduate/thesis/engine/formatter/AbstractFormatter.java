@@ -46,7 +46,7 @@ public class AbstractFormatter {
                 continue;
             }
             if (KEYWORDS.matcher(text).matches()) {
-                setLabelBody(p, "关键词", c.getKeywordLabelFont(), c.getKeywordBodyFont(), c.getKeywordFontSize());
+                setLabelBody(p, "关键词", c.getKeywordLabelFont(), c.getKeywordBodyFont(), c.getKeywordFontSize(), bodyRule);
                 inZh = false;
                 inEn = false;
                 continue;
@@ -59,7 +59,7 @@ public class AbstractFormatter {
                 continue;
             }
             if (EN_KEYWORDS.matcher(text).matches()) {
-                setLabelBody(p, "Key words", c.getEnKeywordLabelFont(), c.getEnKeywordBodyFont(), c.getEnKeywordFontSize());
+                setLabelBody(p, "Key words", c.getEnKeywordLabelFont(), c.getEnKeywordBodyFont(), c.getEnKeywordFontSize(), bodyRule);
                 inEn = false;
                 inZh = false;
                 continue;
@@ -68,7 +68,9 @@ public class AbstractFormatter {
             if (item.isAbstractSection() && inZh && !text.isEmpty()) {
                 setBody(p, c.getZhBodyFont(), c.getZhBodyFontSize(), bodyRule);
             } else if (item.isAbstractSection() && inEn && !text.isEmpty()) {
-                setBody(p, c.getEnBodyFont(), c.getEnBodyFontSize(), null);
+                // 英文摘要正文也要套正文规则的段落属性(行距 20 磅固定 / 首行缩进两字);
+                // 之前传 null 导致英文摘要的行距缩进完全不受模板控制, 原稿怎么写就怎么留
+                setBody(p, c.getEnBodyFont(), c.getEnBodyFontSize(), bodyRule);
             }
         }
     }
@@ -88,7 +90,8 @@ public class AbstractFormatter {
         run.setBold(bold);
         p.setAlignment(ParagraphAlignment.CENTER);
         p.setSpacingBefore(0);
-        p.setSpacingAfter(0);
+        // 校规: 摘要/Abstract 标题"与内容空一行"。全文固定行距 20 磅, 空一行即 20 磅(400 twips)
+        p.setSpacingAfter(400);
         ParagraphFormatter.setOutlineLevel(p, 0);
     }
 
@@ -108,7 +111,8 @@ public class AbstractFormatter {
      * 标签+接排内容: 标签(关键词:/Key words:)加粗顶格, 内容普通字体接排
      */
     private static void setLabelBody(XWPFParagraph p, String fallbackLabel,
-                                     String boldFont, String bodyFont, int sizePt) {
+                                     String boldFont, String bodyFont, int sizePt,
+                                     FormatRule bodyRule) {
         String full = p.getText() == null ? "" : p.getText();
         int splitIdx = -1;
         for (int i = 0; i < full.length(); i++) {
@@ -143,6 +147,9 @@ public class AbstractFormatter {
         p.setAlignment(ParagraphAlignment.LEFT);
         p.setSpacingBefore(0);
         p.setSpacingAfter(0);
+        // 校规: 关键词/Key words "顶格" + 全文固定行距 20 磅
+        ParagraphFormatter.setFirstLineIndent(p, 0);
+        ParagraphFormatter.applyLineSpacing(p, bodyRule);
     }
 
     private static void clearRuns(XWPFParagraph p) {

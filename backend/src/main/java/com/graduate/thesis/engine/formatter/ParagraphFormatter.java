@@ -135,7 +135,7 @@ public final class ParagraphFormatter {
      * 首行缩进: 按字符数设置 w:firstLineChars 与 w:firstLine;
      * chars=0 时两者都写 0, 用于显式取消原稿遗留的缩进。
      */
-    private static void setFirstLineIndent(XWPFParagraph paragraph, int chars) {
+    public static void setFirstLineIndent(XWPFParagraph paragraph, int chars) {
         CTPPr pPr = paragraph.getCTP().isSetPPr() ? paragraph.getCTP().getPPr() : paragraph.getCTP().addNewPPr();
         CTInd ind = pPr.isSetInd() ? pPr.getInd() : pPr.addNewInd();
         ind.setFirstLineChars(BigInteger.valueOf(chars * 100L));

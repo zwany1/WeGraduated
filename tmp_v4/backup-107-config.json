@@ -1,0 +1,21 @@
+{
+ "id": 107,
+ "userId": 42,
+ "teamId": null,
+ "name": "桂林信息科技学院毕业论文格式",
+ "pageConfig": "{\"paper\":\"A4\",\"margin\":{\"top\":2.5,\"bottom\":2.5,\"left\":2.5,\"right\":2.5},\"header\":{\"height\":1.5,\"text\":\"\"},\"footer\":{\"pageNumber\":\"center\",\"font\":\"宋体\",\"fontSize\":10.5,\"skipFirst\":false,\"format\":\"decimal\"},\"abstract\":{\"zhTitleFont\":\"黑体\",\"zhTitleFontSize\":16,\"zhTitleBold\":true,\"zhTitleText\":\"摘  要\",\"zhBodyFont\":\"宋体\",\"zhBodyFontSize\":12,\"keywordLabelFont\":\"黑体\",\"keywordBodyFont\":\"宋体\",\"keywordFontSize\":12,\"enTitleFont\":\"Times New Roman\",\"enTitleFontSize\":16,\"enTitleBold\":true,\"enBodyFont\":\"Times New Roman\",\"enBodyFontSize\":12,\"enKeywordLabelFont\":\"Times New Roman\",\"enKeywordBodyFont\":\"Times New Roman\",\"enKeywordFontSize\":12,\"titlePageBreak\":true},\"section\":{\"font\":\"黑体\",\"fontSize\":14,\"bold\":true,\"pageBreakBefore\":true,\"outlineLevel\":0,\"xieCi\":\"谢  辞\",\"references\":\"参考文献\",\"appendix\":\"附  录\",\"xieCiAlign\":\"center\",\"referencesAlign\":\"left\",\"appendixAlign\":\"center\"}}",
+ "headingPatterns": "{\"heading1\":\"^\\\\d+\",\"heading2\":\"^\\\\d+\\\\.\\\\d+\",\"heading3\":\"^\\\\d+\\\\.\\\\d+\\\\.\\\\d+\"}",
+ "generateToc": true,
+ "generateAbstract": true,
+ "referenceConfig": "{\"enabled\":true,\"title\":\"参考文献\",\"titleFont\":\"黑体\",\"titleFontSize\":14,\"itemFont\":\"宋体\",\"itemFontLatin\":\"Times New Roman\",\"itemFontSize\":10.5,\"removeDoi\":true,\"maxAuthors\":3,\"renumber\":true,\"hangingIndentTwips\":640,\"lineSpacing\":1.5}",
+ "tocConfig": "{\"lineSpacing\":1.5,\"leader\":\"dot\",\"toc1\":{\"font\":\"黑体\",\"fontLatin\":\"Times New Roman\",\"fontSize\":14},\"toc2\":{\"font\":\"黑体\",\"fontLatin\":\"Times New Roman\",\"fontSize\":12},\"toc3\":{\"font\":\"楷体\",\"fontLatin\":\"Times New Roman\",\"fontSize\":12}}",
+ "isPublic": false,
+ "recommended": false,
+ "publicTime": null,
+ "category": null,
+ "sourceTemplateId": null,
+ "ratingAvg": 0,
+ "ratingCount": 0,
+ "createTime": "2026-10-29T18:17:06",
+ "updateTime": "2026-10-29T18:17:06"
+}

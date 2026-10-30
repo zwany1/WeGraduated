@@ -17,13 +17,13 @@ const WANT_SHOTS = process.argv.includes('--shots');
 
 // 三份固定样本: 文件名 + 格式方案名(与 ru 账号下任务一致)
 const SAMPLES = {
-  a4: { file: 'orig.docx', tpl: '桂林信息科技学院毕业论文格式', label: 'A4/校规' },
+  a4: { file: 's1_chapter_shuffle.docx', tpl: '桂林信息科技学院毕业论文格式', label: 'A4/校规' },
   b5: { file: 's1_chapter_shuffle.docx', tpl: '测试版式B·B5-仿宋-1.5倍', label: 'B5/仿宋' },
   a4s: { file: 's1_chapter_shuffle.docx', tpl: '测试版式C·A4-宋体五号-单倍', label: 'A4/五号单倍' }
 };
 
-// A4 210mm ≈ 793.7px(96dpi); 本仓 B5 模板写的是 8293×11810 twips ≈ 146×208mm(≈A5, 见场景末尾告警)
-const PAPER = { A4: 794, B5: 553 };
+// A4 210mm ≈ 793.7px(96dpi); ISO B5 176mm ≈ 665px(96dpi)
+const PAPER = { A4: 794, B5: 665 };
 
 const cdp = await openPage(9333);
 await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1600, height: 1000, deviceScaleFactor: 1, mobile: false });
@@ -38,7 +38,8 @@ const METRICS = `(() => {
   const ps = [...body.querySelectorAll('p')];
   const cs = el => el ? getComputedStyle(el) : null;
   const textSpan = el => el ? (el.querySelector('span') || el) : null;
-  const bodyP = ps.find(p => (p.innerText || '').trim().length > 30);
+  const _h1 = ps.findIndex(p => /docx_2\\b/.test(p.className || ''));
+  const bodyP = ps.slice(_h1 > 0 ? _h1 : 0).find(p => (p.innerText || '').trim().length > 30);
   // 标题/题注必须带文字: 分页会在页尾留下空段落, 空段落若带同类样式会被误当成第一个标题
   const headingP = ps.find(p => /docx_2\\b/.test(p.className || '') && (p.innerText || '').trim());
   const captionP = ps.find(p => /^(图|表)\\s*\\d/.test((p.innerText || '').trim()));
@@ -63,7 +64,9 @@ const METRICS = `(() => {
   h1s.forEach(p => {
     const sec = p.closest('section');
     if (!sec) return;
-    const first = [...sec.querySelectorAll('p')].find(x => (x.innerText || '').trim());
+    // 每页都有页眉(<header>), 只比较 <article> 内的第一个正文段
+    const art = sec.querySelector('article') || sec;
+    const first = [...art.querySelectorAll('p')].find(x => (x.innerText || '').trim());
     if (first === p) h1.atTop++;
     else h1.miss.push((p.innerText || '').replace(/\\s+/g, '').slice(0, 10));
   });

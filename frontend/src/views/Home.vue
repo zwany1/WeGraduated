@@ -465,7 +465,7 @@ async function handleUserCommand(cmd) {
   display: flex;
   align-items: center;
   gap: calc(13 * var(--u));
-  padding: calc(7 * var(--u)) calc(38 * var(--u));
+  padding: calc(7 * var(--u)) calc(48 * var(--u));
   box-sizing: border-box;
   background: var(--paper);
   border-bottom: calc(1 * var(--u)) solid var(--hair);
@@ -592,16 +592,19 @@ async function handleUserCommand(cmd) {
   );
 }
 
-/* ---------------- 导航 ---------------- */
+/* ---------------- 导航 ----------------
+   规格与组件 SiteHeader 严格对齐：72 高 / 品牌 20·900 / 链接 14·间距28 /
+   品牌到链接 20 / 右侧间距 18。首页导航是海报构成的一部分（绝对定位在 hero 内，
+   红圆弧挂在它下沿），因此不共用组件，只共用数值——改这里请同步 SiteHeader。 */
 .nav {
   position: absolute;
   left: 0;
   top: 0;
   width: 100%;
-  height: calc(80 * var(--u));
+  height: calc(72 * var(--u));
   display: flex;
   align-items: center;
-  padding: 0 calc(38 * var(--u));
+  padding: 0 calc(48 * var(--u));
   box-sizing: border-box;
   border-bottom: calc(1 * var(--u)) solid var(--hair);
   gap: calc(28 * var(--u));
@@ -609,7 +612,7 @@ async function handleUserCommand(cmd) {
   z-index: 3;
 }
 .brand {
-  font-size: calc(25 * var(--u));
+  font-size: calc(20 * var(--u));
   font-weight: 900;
   letter-spacing: -0.01em;
   cursor: pointer;
@@ -618,11 +621,11 @@ async function handleUserCommand(cmd) {
 .links {
   display: flex;
   align-items: center;
-  gap: calc(46 * var(--u));
-  margin-left: calc(76 * var(--u));
+  gap: calc(28 * var(--u));
+  margin-left: calc(20 * var(--u));
 }
 .nav-link {
-  font-size: calc(15 * var(--u));
+  font-size: calc(14 * var(--u));
   color: var(--ink);
   cursor: pointer;
   padding-bottom: calc(3 * var(--u));
@@ -637,10 +640,10 @@ async function handleUserCommand(cmd) {
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: calc(26 * var(--u));
+  gap: calc(18 * var(--u));
 }
 .login {
-  font-size: calc(15 * var(--u));
+  font-size: calc(14 * var(--u));
   color: var(--ink);
   cursor: pointer;
   white-space: nowrap;
@@ -653,15 +656,19 @@ async function handleUserCommand(cmd) {
   align-items: center;
   gap: calc(8 * var(--u));
   background: none;
-  border: 0;
-  padding: 0;
+  border: calc(1 * var(--u)) solid var(--hair);
+  padding: calc(4 * var(--u)) calc(10 * var(--u)) calc(4 * var(--u)) calc(4 * var(--u));
   cursor: pointer;
   font-family: inherit;
+  transition: border-color 0.2s;
+}
+.user-chip:hover {
+  border-color: var(--ink);
 }
 .avatar,
 .avatar-img {
-  width: calc(28 * var(--u));
-  height: calc(28 * var(--u));
+  width: calc(26 * var(--u));
+  height: calc(26 * var(--u));
   display: grid;
   place-items: center;
   background: var(--ink);
@@ -669,14 +676,21 @@ async function handleUserCommand(cmd) {
   font-size: calc(13 * var(--u));
   font-weight: 700;
   object-fit: cover;
+  flex-shrink: 0;
 }
 .username {
-  font-size: calc(14 * var(--u));
+  font-size: calc(13 * var(--u));
   color: var(--ink);
   max-width: calc(120 * var(--u));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* 导航内的 CTA 与其他页 header 同尺寸（下方 hero 大按钮不受影响） */
+.nav-actions .btn-solid {
+  height: calc(38 * var(--u));
+  font-size: calc(14 * var(--u));
+  padding: 0 calc(18 * var(--u));
 }
 
 /* ---------------- 按钮 ---------------- */
@@ -1424,17 +1438,30 @@ async function handleUserCommand(cmd) {
     gap: 18px;
   }
   .grid-lines { display: none; }
+  /* 移动端导航与 SiteHeader 同规则：品牌行 + 链接条第二行（可横滑） */
   .nav {
     position: static;
     height: auto;
-    padding: 0 0 14px;
-    border-bottom: 1px solid var(--ink);
+    padding: 12px 18px;
+    flex-wrap: wrap;
+    gap: 12px;
+    border-bottom: 1px solid var(--hair);
     animation: none;
   }
-  .links { display: none; }
-  .brand { font-size: 19px; }
-  .nav-actions { gap: 12px; }
+  .links {
+    order: 3;
+    width: 100%;
+    margin-left: 0;
+    gap: 18px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .links::-webkit-scrollbar { display: none; }
+  .brand { font-size: 17px; }
+  .nav-actions { gap: 10px; }
   .btn-solid { height: 40px; font-size: 14px; padding: 0 16px; }
+  .nav-actions .btn-solid { height: 34px; font-size: 13px; padding: 0 12px; }
+  .username { display: none; }
   .hero-title {
     position: static;
     width: auto;

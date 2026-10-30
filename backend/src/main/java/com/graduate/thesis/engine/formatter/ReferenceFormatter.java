@@ -6,6 +6,7 @@ import com.graduate.thesis.engine.StructureHelper;
 import com.graduate.thesis.engine.model.ReferenceConfig;
 import com.graduate.thesis.engine.model.RuleSet;
 import com.graduate.thesis.engine.model.SectionConfig;
+import com.graduate.thesis.entity.FormatRule;
 import org.apache.poi.xwpf.usermodel.IBodyElement;
 import org.apache.poi.xwpf.usermodel.ParagraphAlignment;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
@@ -162,7 +163,7 @@ public class ReferenceFormatter {
             String cleaned = formatItem(sb.toString(), config);
             String label = config.isRenumber() ? formatNumber(no, numberingStyle) + "  " : "";
             setItemText(p, label + cleaned, config);
-            applyHangingIndent(p, config);
+            applyHangingIndent(p, config, ruleSet);
             no++;
             i = Math.max(j, i + 1);
         }
@@ -442,12 +443,19 @@ public class ReferenceFormatter {
     /**
      * 悬挂缩进: 序号与文字空两格, 换行第二行对齐序号后(缩进宽度与行距由配置控制)
      */
-    private void applyHangingIndent(XWPFParagraph p, ReferenceConfig config) {
+    private void applyHangingIndent(XWPFParagraph p, ReferenceConfig config, RuleSet ruleSet) {
         p.setAlignment(ParagraphAlignment.LEFT);
         int indent = config.getHangingIndentTwips() > 0 ? config.getHangingIndentTwips() : 640;
         p.setIndentationLeft(indent);
         p.setFirstLineIndent(-indent);
-        p.setSpacingBetween(config.getLineSpacing());
+        // 校规要求全文行距固定 20 磅; 正文规则配了固定值就跟随正文, 否则退回配置的倍数
+        FormatRule body = ruleSet == null ? null : ruleSet.rule("body");
+        if (body != null && "exact".equals(body.getLineSpacingType())
+                && body.getLineSpacingExact() != null && body.getLineSpacingExact() > 0) {
+            ParagraphFormatter.applyLineSpacing(p, body);
+        } else {
+            p.setSpacingBetween(config.getLineSpacing());
+        }
     }
 
     private boolean isRefTitle(String text) {

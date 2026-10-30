@@ -84,7 +84,9 @@ public final class PageFormatter {
             return new long[]{8391L, 11906L};
         }
         if ("B5".equalsIgnoreCase(paper)) {
-            return new long[]{8293L, 11810L};
+            // ISO B5 = 176×250mm。原先写的 8293×11810(≈146×208mm) 其实是 A5 一档的成品尺寸,
+            // 选"B5"却排出接近 A5 的页面, 打印装订规格会错
+            return new long[]{9978L, 14173L};
         }
         if ("Letter".equalsIgnoreCase(paper)) {
             return new long[]{12240L, 15840L};

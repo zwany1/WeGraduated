@@ -48,6 +48,15 @@ public class FormatReport {
     /** 有题注文字但与图表不相邻(被空行/段落隔开)、已按正文保留的题注数量 */
     private int orphanCaptions;
 
+    /** 题注编号因章节顺序/合并变化而被重新编排的数量(章号或序号与原稿不同) */
+    private int renumberedCaptions;
+
+    /**
+     * 题注改号样例, 最多 5 条, 形如「图3-1 → 图5-1」。
+     * 正文里的「如图3-1所示」这类交叉引用不会自动更新, 前端据此提示用户核对。
+     */
+    private List<String> captionRenumberSamples = new ArrayList<>();
+
     /** 未匹配标题正则、已按正文处理的疑似标题行 */
     private List<Suspect> suspects = new ArrayList<>();
 

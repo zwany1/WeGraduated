@@ -180,6 +180,8 @@ async function render() {
     // 兜底: 某些文档经 docx-preview 渲染会出现"文字在 DOM 中(可复制)但不可见"的情况
     normalizeVisibility()
     setTimeout(() => normalizeVisibility(), 300)
+    // 必须在编号页码之前清空白页, 否则「共 N 页」和页码会算进多余的那张
+    if (mode.value === 'page') window.__blankDropped = dropBlankPages()
     markSheets()
     loading.value = false
   } catch (e) {
@@ -193,6 +195,28 @@ function setMode(next) {
   mode.value = next
   localStorage.setItem('docxPreviewMode', next)
   render()
+}
+
+/** 摘掉 docx-preview 多切出来的空白页。
+ *  成因: splitBySection 按段落 sectPr 分节, 而 groupByPageBreaks 里
+ *  isPageBreakSection(prev, next) 在相邻 section 的 pageSize「有/无」不一致时会再切一次,
+ *  于是一个"只含节属性的空段落"就独占了一整张纸 —— Word 里并没有这张白页。
+ *  判据: article 内既无文字, 也无图片/表格/公式。返回摘掉的页数。 */
+function dropBlankPages() {
+  const wrapper = bodyRef.value && bodyRef.value.querySelector('.docx-wrapper')
+  if (!wrapper) return 0
+  let dropped = 0
+  wrapper.querySelectorAll('section').forEach(s => {
+    const art = s.querySelector('article')
+    if (!art) return
+    const hasText = (art.textContent || '').replace(/\u00a0/g, '').trim().length > 0
+    const hasMedia = !!art.querySelector('img, table, svg, math')
+    if (!hasText && !hasMedia) {
+      s.remove()
+      dropped++
+    }
+  })
+  return dropped
 }
 
 /** 页面视图: 记录纸张尺寸, 并在每页下方标「第 N 页 / 共 M 页」 */

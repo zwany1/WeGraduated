@@ -61,7 +61,7 @@ public class PageConfig {
         switch (paper == null ? "" : paper.toUpperCase()) {
             case "A3": return 16838L;
             case "A5": return 8391L;
-            case "B5": return 8293L;
+            case "B5": return 9978L;   // ISO B5 = 176mm 宽(原 8293 是 A5 一档)
             case "LETTER": return 12240L;
             case "A4":
             default: return 11906L;

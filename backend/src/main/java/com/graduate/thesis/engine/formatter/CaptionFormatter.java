@@ -49,6 +49,10 @@ public class CaptionFormatter {
         public int uncaptionedTables;
         /** 题注文字存在但没有紧邻图表(被空行/段落隔开), 已按正文保留 */
         public int orphanCaptions;
+        /** 编号因章节顺序变化而变化的题注数量 */
+        public int renumberedCaptions;
+        /** 改号样例, 最多 5 条, 形如「图3-1 → 图5-1」 */
+        public List<String> captionRenumberSamples = new ArrayList<>();
     }
 
     public Stats apply(XWPFDocument doc, List<DocItem> items, RuleSet ruleSet) {
@@ -142,6 +146,7 @@ public class CaptionFormatter {
                         }
                         figIndex++;
                         if (!containsEmbeddedObject(p)) {
+                            noteRenumber(stats, "图", nums[0], nums[1], chapter, figIndex);
                             setCaptionText(p, buildCaption(figureRule, chapter, figIndex, title));
                         }
                     } else if (chapter > 0) {
@@ -178,9 +183,9 @@ public class CaptionFormatter {
                     lastTableChapter = tableChapter;
                 }
                 if (prevIsCaption) {
-                    renumberTableCaption((XWPFParagraph) prev, tableRule, tableChapter, ++tblIndex);
+                    renumberTableCaption((XWPFParagraph) prev, tableRule, tableChapter, ++tblIndex, stats);
                 } else if (nextIsCaption) {
-                    renumberTableCaption((XWPFParagraph) next, tableRule, tableChapter, ++tblIndex);
+                    renumberTableCaption((XWPFParagraph) next, tableRule, tableChapter, ++tblIndex, stats);
                 } else {
                     // 无题注: 不生成只有编号没有题名的裸题注, 只记入报告由作者补题名
                     stats.uncaptionedTables++;
@@ -190,12 +195,25 @@ public class CaptionFormatter {
         return stats;
     }
 
+    /** 记录一次题注改号(新旧编号相同则忽略)。
+     *  正文里的「如图3-1所示」不会跟着变, 所以要出报告提示作者核对交叉引用。 */
+    private void noteRenumber(Stats stats, String kind, int oldChapter, int oldNo, int newChapter, int newNo) {
+        if (oldChapter == newChapter && oldNo == newNo) {
+            return;
+        }
+        stats.renumberedCaptions++;
+        if (stats.captionRenumberSamples.size() < 5) {
+            stats.captionRenumberSamples.add(kind + oldChapter + "-" + oldNo + " → " + kind + newChapter + "-" + newNo);
+        }
+    }
+
     /** 已有表题注: 按当前章号重编号并保留原题名 */
-    private void renumberTableCaption(XWPFParagraph p, FormatRule rule, int chapter, int no) {
+    private void renumberTableCaption(XWPFParagraph p, FormatRule rule, int chapter, int no, Stats stats) {
         String text = p.getText() == null ? "" : p.getText().trim();
         int[] nums = extractCaptionNumbers(text, false);
         if (chapter > 0 && nums[0] > 0 && !containsEmbeddedObject(p)) {
             String title = extractTitle(text, false);
+            noteRenumber(stats, "表", nums[0], nums[1], chapter, no);
             setCaptionText(p, buildCaption(rule, chapter, no, title));
         }
         applyCaptionStyle(p, rule);
@@ -295,8 +313,12 @@ public class CaptionFormatter {
             try { chapter = Integer.parseInt(parts[0].trim()); } catch (Exception ignore) {}
         }
         if (parts.length >= 2) {
-            String sub = parts[1].trim().split("\\s", 2)[0];
-            try { no = Integer.parseInt(sub); } catch (Exception ignore) {}
+            // 题注常常写成「图5-1程序执行流程图」(编号后没有空格), 此时 parts[1] 是 "1程序执行流程图",
+            // 直接 parseInt 会失败并得到 0 —— 取开头的连续数字即可
+            Matcher dm = Pattern.compile("^(\\d+)").matcher(parts[1].trim());
+            if (dm.find()) {
+                try { no = Integer.parseInt(dm.group(1)); } catch (Exception ignore) {}
+            }
         }
         return new int[]{chapter, no};
     }

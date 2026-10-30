@@ -120,6 +120,8 @@ public class FormatEngine {
                 report.setUncaptionedFigures(captionStats.uncaptionedFigures);
                 report.setUncaptionedTables(captionStats.uncaptionedTables);
                 report.setOrphanCaptions(captionStats.orphanCaptions);
+                report.setRenumberedCaptions(captionStats.renumberedCaptions);
+                report.setCaptionRenumberSamples(captionStats.captionRenumberSamples);
             }
             progress.accept(85);
 

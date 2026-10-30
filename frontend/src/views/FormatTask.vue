@@ -299,6 +299,14 @@
           <div v-if="reportData.autoFixedHeadings" class="report-note ok-note">
             引擎已按无编号标题启发式自动识别 {{ reportData.autoFixedHeadings }} 处下级标题(如"研究背景"等短行)。
           </div>
+          <!-- 题注改号: 编号随章节顺序变了, 但正文里手写的交叉引用不会跟着变 -->
+          <div v-if="reportData.renumberedCaptions" class="report-note warn-note">
+            有 {{ reportData.renumberedCaptions }} 个图表题注按新的章节顺序重新编号<span
+              v-if="reportData.captionRenumberSamples && reportData.captionRenumberSamples.length"
+            >（{{ reportData.captionRenumberSamples.join('、') }}<span
+              v-if="reportData.renumberedCaptions > reportData.captionRenumberSamples.length"> 等</span>）</span>。
+            正文里"如图3-1所示"这类交叉引用<strong>不会自动更新</strong>，请逐处核对。
+          </div>
           <!-- 自动识别的标题逐条列出, 作为可回溯的"改动清单"(只给数量无法核对改了哪几段) -->
           <el-collapse v-if="reportData.autoFixedHeadingItems && reportData.autoFixedHeadingItems.length" class="auto-fixed-list">
             <el-collapse-item :title="`查看被自动识别为标题的 ${reportData.autoFixedHeadingItems.length} 段(核对用)`">

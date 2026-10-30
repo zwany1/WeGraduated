@@ -5,16 +5,6 @@
       上传论文 → 选方案 → 批量排版，进度实时推送
     </template>
 
-    <template #actions>
-      <button class="wbtn ghost" type="button" :disabled="!selectedTasks.length || batchDownloading" @click="downloadBatch">
-        批量下载{{ selectedTasks.length ? `（${selectedTasks.length}）` : '' }}
-      </button>
-      <button class="wbtn ghost danger" type="button" :disabled="!selectedTasks.length || batchDeleting" @click="removeTasks">
-        批量删除{{ selectedTasks.length ? `（${selectedTasks.length}）` : '' }}
-      </button>
-      <button class="wbtn solid" type="button" @click="scrollToUpload">上传论文</button>
-    </template>
-
     <template #toolbar>
       <div class="flt">
         <div class="flt-chips">
@@ -41,6 +31,7 @@
 
         <div class="upload-drop">
           <el-upload
+            ref="uploadRef"
             drag
             multiple
             :auto-upload="false"
@@ -84,17 +75,29 @@
           </div>
         </div>
 
-        <ul v-if="selectedFiles.length" class="picked">
-          <li v-for="(f, i) in selectedFiles" :key="i">
+        <ul v-if="fileList.length" class="picked">
+          <li v-for="(f, i) in fileList" :key="f.uid || i">
             <span class="picked-name">{{ f.name || f.raw?.name }}</span>
             <span class="picked-size">{{ formatSize(f.size || f.raw?.size) }}</span>
             <span class="picked-state">待提交</span>
+            <button class="picked-del" type="button" title="从待提交列表移除" @click="removePicked(f)">✕</button>
           </li>
         </ul>
       </section>
 
       <section class="task-list">
-        <h2 class="sec-h">历史任务</h2>
+        <div class="sec-head">
+          <h2 class="sec-h">历史任务</h2>
+          <div class="sec-acts">
+            <button class="wbtn ghost" type="button" :disabled="!selectedTasks.length || batchDownloading" @click="downloadBatch">
+              批量下载{{ selectedTasks.length ? `（${selectedTasks.length}）` : '' }}
+            </button>
+            <button class="wbtn ghost danger" type="button" :disabled="!selectedTasks.length || batchDeleting" @click="removeTasks">
+              批量删除{{ selectedTasks.length ? `（${selectedTasks.length}）` : '' }}
+            </button>
+            <button class="wbtn solid" type="button" @click="scrollToUpload">上传论文</button>
+          </div>
+        </div>
         <el-table :data="pagedTasks" :span-method="taskSpan" @selection-change="handleSelectionChange">
           <template #empty>
             <div class="t-empty">
@@ -398,6 +401,7 @@ const teamMap = ref({})
 const fileList = ref([])
 const selectedFile = ref(null)
 const selectedFiles = ref([])
+const uploadRef = ref(null)
 const submitting = ref(false)
 const tasks = ref([])
 const files = ref([])
@@ -641,6 +645,20 @@ function onFileRemove(file, uploadFiles) {
   const files = uploadFiles || fileList.value
   fileList.value = files
   selectedFiles.value = files.map(f => f.raw || f)
+  selectedFile.value = selectedFiles.value[0] || null
+}
+
+/** 移除待提交列表里的某个文件(传错了可以直接撤掉, 不用刷新页面) */
+function removePicked(file) {
+  // 走 el-upload 的 handleRemove, 保证其内部列表同步, 下次选择文件时不会把已移除的文件带回来
+  if (uploadRef.value && typeof uploadRef.value.handleRemove === 'function') {
+    uploadRef.value.handleRemove(file)
+    // handleRemove 会触发 on-remove -> onFileRemove 完成列表同步
+    return
+  }
+  fileList.value = fileList.value.filter(f => f !== file)
+  selectedFiles.value = fileList.value.map(f => f.raw || f)
+  selectedFile.value = selectedFiles.value[0] || null
 }
 
 async function submit() {
@@ -1800,7 +1818,7 @@ function formatTime(t) {
 }
 .picked li {
   display: grid;
-  grid-template-columns: 1fr 120px 90px;
+  grid-template-columns: 1fr 120px 90px 32px;
   gap: 16px;
   align-items: baseline;
   padding: 12px 0;
@@ -1821,6 +1839,24 @@ function formatTime(t) {
   font-size: 12.5px;
   letter-spacing: 0.06em;
   text-align: right;
+}
+.picked-del {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--hair);
+  border-radius: 50%;
+  background: none;
+  color: var(--ink-3);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  align-self: center;
+  transition: color 0.15s, border-color 0.15s;
+}
+.picked-del:hover {
+  color: #c0392b;
+  border-color: #c0392b;
 }
 
 /* ---------------- 区块标题 ---------------- */
@@ -1850,6 +1886,22 @@ function formatTime(t) {
   font-size: 22px;
   font-weight: 900;
   letter-spacing: -0.01em;
+}
+.sec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.sec-head .sec-h {
+  margin: 0;
+}
+.sec-acts {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 .task-list,
 .file-list {
@@ -2070,7 +2122,7 @@ function formatTime(t) {
     justify-content: space-between;
   }
   .picked li {
-    grid-template-columns: 1fr 80px;
+    grid-template-columns: 1fr 80px 32px;
   }
   .picked-state {
     display: none;

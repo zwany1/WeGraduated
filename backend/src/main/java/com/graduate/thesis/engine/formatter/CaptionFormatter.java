@@ -12,11 +12,13 @@ import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.apache.poi.xwpf.usermodel.XWPFTable;
-import org.apache.xmlbeans.XmlCursor;
 import org.apache.xmlbeans.XmlException;
 import org.apache.xmlbeans.XmlObject;
-import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTP;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPPr;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTInd;
 
+import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,13 +27,32 @@ import java.util.regex.Pattern;
 
 /**
  * 图表编号格式化: 图/表按 章节号-序号 自动编号并排版题注
+ *
+ * 编号准则:
+ *   - 章号只取"当前所在章的一级标题"的显式编号; 参考文献/附录/致谢等非正文章节不参与递增,
+ *     取不到时沿用上一有效章号(并封顶), 避免出现"表10-1"这种不存在的章号;
+ *   - 已有题注按当前章号重编号, 同时保留原题名(不丢"PLC选型对比表"这类文字);
+ *   - 对象旁边没有题注时, 先尝试复用文档里游离的题注题名; 连题名都没有则不生成"裸编号",
+ *     只在报告里记为"未编号图表", 由作者补写题名。
  */
 public class CaptionFormatter {
 
     private static final Pattern FIGURE_CAPTION = StructureHelper.FIGURE_CAPTION;
     private static final Pattern TABLE_CAPTION = StructureHelper.TABLE_CAPTION;
 
-    public void apply(XWPFDocument doc, List<DocItem> items, RuleSet ruleSet) {
+    /** 章号上限: 防止把非章节标题的序号累加成不存在的章号 */
+    private static final int MAX_CHAPTER = 99;
+
+    /** 本次题注处理统计(写入排版报告) */
+    public static class Stats {
+        public int uncaptionedFigures;
+        public int uncaptionedTables;
+        /** 题注文字存在但没有紧邻图表(被空行/段落隔开), 已按正文保留 */
+        public int orphanCaptions;
+    }
+
+    public Stats apply(XWPFDocument doc, List<DocItem> items, RuleSet ruleSet) {
+        Stats stats = new Stats();
         Map<XWPFParagraph, DocItem> byParagraph = new HashMap<>();
         for (DocItem item : items) {
             byParagraph.put(item.getParagraph(), item);
@@ -42,14 +63,17 @@ public class CaptionFormatter {
         boolean figureEnabled = figureRule == null || !Boolean.FALSE.equals(figureRule.getCaptionEnabled());
         boolean tableEnabled = tableRule == null || !Boolean.FALSE.equals(tableRule.getCaptionEnabled());
 
+        List<IBodyElement> elements = doc.getBodyElements();
+        // 先整篇扫一遍一级标题, 得到"每个位置所属的章号", 避免编号依赖遍历中途才出现的章标题
+        // (打乱稿里正文块可能排在章标题之前, 边走边猜会得到一半旧编号一半新编号)
+        int[] chapterAt = computeChapters(elements, ruleSet);
+
         int figIndex = 0;
         int tblIndex = 0;
-        int lastChapter = -1;
         int lastFigChapter = -1;
         int lastTableChapter = -1;
         boolean inToc = false;
 
-        List<IBodyElement> elements = doc.getBodyElements();
         for (int i = 0; i < elements.size(); i++) {
             IBodyElement el = elements.get(i);
             if (el instanceof XWPFParagraph) {
@@ -71,8 +95,7 @@ public class CaptionFormatter {
                 }
 
                 if (StructureHelper.isHeading1(p, text, ruleSet)) {
-                    lastChapter = StructureHelper.chapterNo(text, lastChapter);
-                    continue;
+                    continue; // 章号已由 computeChapters 预先算好
                 }
 
                 DocItem item = byParagraph.get(p);
@@ -83,6 +106,7 @@ public class CaptionFormatter {
                     continue; // 封面/摘要/目录等前置内容不改图表题注
                 }
                 ParagraphKind kind = item.getKind();
+                int chapter = chapterAt[i];
                 if (kind == ParagraphKind.IMAGE) {
                     if (!figureEnabled) {
                         continue;
@@ -95,30 +119,47 @@ public class CaptionFormatter {
                             && StructureHelper.isFigureCaptionText(((XWPFParagraph) elements.get(i - 1)).getText());
                     // 图前或图后已有题注: 不再自动插入(题注段由 FIGURE_CAPTION 分支重编号)
                     if (!nextIsCaption && !prevIsCaption) {
-                        if (item.getChapterNo() != lastFigChapter) {
-                            figIndex = 0;
-                            lastFigChapter = item.getChapterNo();
-                        }
-                        figIndex++;
-                        String caption = buildCaption(figureRule, item.getChapterNo(), figIndex, "");
-                        insertParagraphAfter(doc, p, caption, figureRule);
+                        // 无题注时不再生成"图7-1"这种只有编号没有题名的裸题注(无法被引用),
+                        // 只记入报告由作者补写题名
+                        stats.uncaptionedFigures++;
                     }
                 } else if (kind == ParagraphKind.FIGURE_CAPTION) {
                     if (!figureEnabled) {
                         continue;
                     }
-                    // 已有题注: 保留原编号, 只统一格式; 同时提取编号顺延计数器
-                    applyCaptionStyle(p, figureRule);
+                    // 与图片不相邻的"题注样"段落(正文里一句图号说明)不算题注, 不参与编号
+                    if (!adjacentToFigure(elements, i)) {
+                        stats.orphanCaptions++;
+                        continue;
+                    }
+                    String title = extractTitle(text, true);
                     int[] nums = extractCaptionNumbers(text, true);
-                    if (nums[0] > 0 && nums[0] == item.getChapterNo()) {
+                    if (chapter > 0 && nums[0] > 0) {
+                        // 按当前章号重编号, 保留原题名
+                        if (chapter != lastFigChapter) {
+                            figIndex = 0;
+                            lastFigChapter = chapter;
+                        }
+                        figIndex++;
+                        if (!containsEmbeddedObject(p)) {
+                            setCaptionText(p, buildCaption(figureRule, chapter, figIndex, title));
+                        }
+                    } else if (chapter > 0) {
+                        if (chapter != lastFigChapter) {
+                            figIndex = 0;
+                            lastFigChapter = chapter;
+                        }
                         figIndex = Math.max(figIndex, nums[1]);
-                    } else if (nums[1] > 0) {
-                        lastFigChapter = item.getChapterNo();
-                        figIndex = nums[1];
+                    }
+                    applyCaptionStyle(p, figureRule);
+                } else if (kind == ParagraphKind.TABLE_CAPTION) {
+                    // 表题注的编号由表格分支统一处理; 这里只统计"与表格不相邻"的游离题注
+                    if (!adjacentToTable(elements, i)) {
+                        stats.orphanCaptions++;
                     }
                 }
             } else if (el instanceof XWPFTable) {
-                if (!tableEnabled || lastChapter < 0) {
+                if (!tableEnabled) {
                     continue; // 前置内容(第一章前)的表格不处理
                 }
                 XWPFTable table = (XWPFTable) el;
@@ -128,97 +169,106 @@ public class CaptionFormatter {
                         && StructureHelper.isTableCaptionText(((XWPFParagraph) prev).getText());
                 boolean nextIsCaption = next instanceof XWPFParagraph
                         && StructureHelper.isTableCaptionText(((XWPFParagraph) next).getText());
-                int tableChapter = lastChapter < 0 ? 0 : lastChapter;
+                int tableChapter = chapterAt[i];
+                if (tableChapter <= 0) {
+                    continue; // 还没有章号可用: 保留原稿题注不动
+                }
                 if (tableChapter != lastTableChapter) {
                     tblIndex = 0;
                     lastTableChapter = tableChapter;
                 }
                 if (prevIsCaption) {
-                    // 表前已有题注: 保留原编号, 统一格式 + 顺延计数器
-                    applyCaptionStyle((XWPFParagraph) prev, tableRule);
-                    String prevText = ((XWPFParagraph) prev).getText() == null ? "" : ((XWPFParagraph) prev).getText().trim();
-                    int[] nums = extractCaptionNumbers(prevText, false);
-                    if (nums[1] > 0) {
-                        lastTableChapter = tableChapter;
-                        tblIndex = Math.max(tblIndex, nums[1]);
-                    }
+                    renumberTableCaption((XWPFParagraph) prev, tableRule, tableChapter, ++tblIndex);
                 } else if (nextIsCaption) {
-                    // 表后已有题注: 保留原编号, 统一格式 + 顺延计数器
-                    applyCaptionStyle((XWPFParagraph) next, tableRule);
-                    String nextText = ((XWPFParagraph) next).getText() == null ? "" : ((XWPFParagraph) next).getText().trim();
-                    int[] nums = extractCaptionNumbers(nextText, false);
-                    if (nums[1] > 0) {
-                        lastTableChapter = tableChapter;
-                        tblIndex = Math.max(tblIndex, nums[1]);
-                    }
+                    renumberTableCaption((XWPFParagraph) next, tableRule, tableChapter, ++tblIndex);
                 } else {
-                    // 无题注: 自动补编号
-                    tblIndex++;
-                    String caption = buildCaption(tableRule, tableChapter, tblIndex, "");
-                    insertParagraphBefore(doc, table, caption, tableRule);
+                    // 无题注: 不生成只有编号没有题名的裸题注, 只记入报告由作者补题名
+                    stats.uncaptionedTables++;
                 }
             }
         }
+        return stats;
     }
 
-    private static void insertParagraphAfter(XWPFDocument doc, XWPFParagraph anchor, String caption, FormatRule rule) {
-        insertAfterNode(anchor.getCTP(), buildCaptionXml(rule, caption));
-    }
-
-    private static void insertParagraphBefore(XWPFDocument doc, XWPFTable table, String caption, FormatRule rule) {
-        insertBeforeNode(table.getCTTbl(), buildCaptionXml(rule, caption));
-    }
-
-    /**
-     * 在 anchor 节点之后插入新段落(DOM 方式, 绕开 POI insertNewParagraph 死循环 bug)
-     */
-    private static void insertAfterNode(org.apache.xmlbeans.XmlObject anchor, XmlObject newPara) {
-        org.w3c.dom.Node node = anchor.getDomNode();
-        org.w3c.dom.Node parent = node.getParentNode();
-        org.w3c.dom.Node imported = parent.getOwnerDocument().importNode(toElementNode(newPara), true);
-        parent.insertBefore(imported, node.getNextSibling());
-    }
-
-    /**
-     * 在 target 节点之前插入新段落
-     */
-    private static void insertBeforeNode(org.apache.xmlbeans.XmlObject target, XmlObject newPara) {
-        org.w3c.dom.Node node = target.getDomNode();
-        org.w3c.dom.Node parent = node.getParentNode();
-        org.w3c.dom.Node imported = parent.getOwnerDocument().importNode(toElementNode(newPara), true);
-        parent.insertBefore(imported, node);
-    }
-
-    private static org.w3c.dom.Node toElementNode(XmlObject obj) {
-        org.w3c.dom.Node node = obj.getDomNode();
-        if (node.getNodeType() == org.w3c.dom.Node.DOCUMENT_NODE) {
-            return ((org.w3c.dom.Document) node).getDocumentElement();
+    /** 已有表题注: 按当前章号重编号并保留原题名 */
+    private void renumberTableCaption(XWPFParagraph p, FormatRule rule, int chapter, int no) {
+        String text = p.getText() == null ? "" : p.getText().trim();
+        int[] nums = extractCaptionNumbers(text, false);
+        if (chapter > 0 && nums[0] > 0 && !containsEmbeddedObject(p)) {
+            String title = extractTitle(text, false);
+            setCaptionText(p, buildCaption(rule, chapter, no, title));
         }
-        return node;
+        applyCaptionStyle(p, rule);
     }
 
-    private static XmlObject buildCaptionXml(FormatRule rule, String caption) {
-        String cn = (rule != null && rule.getFont() != null) ? rule.getFont() : "宋体";
-        String latin = (rule != null && rule.getFontLatin() != null && !rule.getFontLatin().isEmpty())
-                ? rule.getFontLatin() : TextFormatter.DEFAULT_LATIN;
-        int sizeHalfPoints = (rule != null && rule.getFontSize() != null && rule.getFontSize() > 0)
-                ? (int) Math.round(rule.getFontSize() * 2) : 21;
-        String xml = "<w:p xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">"
-                + "<w:pPr><w:jc w:val=\"center\"/>"
-                + spacingXml(rule) + "</w:pPr>"
-                + "<w:r><w:rPr><w:rFonts w:ascii=\"" + latin + "\" w:hAnsi=\"" + latin
-                + "\" w:eastAsia=\"" + cn + "\"/>"
-                + "<w:sz w:val=\"" + sizeHalfPoints + "\"/><w:szCs w:val=\"" + sizeHalfPoints + "\"/></w:rPr>"
-                + "<w:t>" + escapeXml(caption) + "</w:t></w:r></w:p>";
+    /**
+     * 预先算出"每个 body 元素所属的章号": 遇到一级标题就更新当前章号, 其余元素沿用当前章号。
+     * 章号只取一级标题里的显式编号; 参考文献/附录/致谢等非正文章节不递增; 尚未出现章标题的位置为 0。
+     */
+    private static int[] computeChapters(List<IBodyElement> elements, RuleSet ruleSet) {
+        int[] result = new int[elements.size()];
+        int current = 0;
+        boolean inToc = false;
+        for (int i = 0; i < elements.size(); i++) {
+            IBodyElement el = elements.get(i);
+            if (el instanceof XWPFParagraph) {
+                XWPFParagraph p = (XWPFParagraph) el;
+                String text = p.getText() == null ? "" : p.getText().trim();
+                if (StructureHelper.isTocTitle(text)) {
+                    inToc = true;
+                } else if (inToc) {
+                    if (StructureHelper.headingLevel(p) > 0
+                            || (StructureHelper.isHeading1(p, text, ruleSet) && !StructureHelper.isTocEntry(text))) {
+                        inToc = false;
+                    }
+                }
+                if (!inToc && StructureHelper.isHeading1(p, text, ruleSet)) {
+                    current = nextChapter(text, current);
+                }
+            }
+            result[i] = current;
+        }
+        return result;
+    }
+
+    /**
+     * 章号推算: 有一级标题里的显式编号就用它; 参考文献/附录/致谢等非正文章节不递增;
+     * 其余无编号章标题(如"绪论")按顺序递增。
+     */
+    static int nextChapter(String text, int prev) {
+        int explicit = StructureHelper.extractChapter(text);
+        if (explicit > 0) {
+            return Math.min(explicit, MAX_CHAPTER);
+        }
+        if (isNonChapterSection(text)) {
+            return prev;
+        }
+        return Math.min(prev + 1, MAX_CHAPTER);
+    }
+
+    /** 非正文章节(参考文献/附录/致谢/声明/摘要/目录等), 不参与章号递增 */
+    private static boolean isNonChapterSection(String text) {
+        if (text == null) {
+            return true;
+        }
+        String t = text.replaceAll("\\s+", "");
+        return t.startsWith("参考文献") || t.startsWith("附录") || t.startsWith("附録")
+                || t.startsWith("致谢") || t.startsWith("谢辞")
+                || t.startsWith("摘要") || t.equalsIgnoreCase("Abstract")
+                || t.startsWith("Abstract") || t.equals("目录") || t.equals("目録")
+                || t.startsWith("独创性声明") || t.startsWith("学位论文")
+                || t.startsWith("攻读") || t.startsWith("个人简历")
+                || t.startsWith("学术论文") || t.startsWith("学位期间");
+    }
+
+    /** 段落里是否嵌了图片/公式(有则不改写文字, 免得破坏对象) */
+    private static boolean containsEmbeddedObject(XWPFParagraph p) {
         try {
-            return XmlObject.Factory.parse(xml);
-        } catch (XmlException e) {
-            throw new IllegalStateException("题注XML构造失败", e);
+            String xml = p.getCTP().xmlText();
+            return xml.contains("<w:drawing") || xml.contains("<w:pict") || xml.contains("<m:oMath");
+        } catch (Exception e) {
+            return true;
         }
-    }
-
-    private static String escapeXml(String s) {
-        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
     }
 
     private static String extractTitle(String text, boolean figure) {
@@ -254,7 +304,11 @@ public class CaptionFormatter {
     private static String buildCaption(FormatRule rule, int chapter, int no, String title) {
         String pattern = (rule != null && rule.getNumberingPattern() != null && !rule.getNumberingPattern().isEmpty())
                 ? rule.getNumberingPattern()
-                : (rule != null && "table".equals(rule.getRuleType()) ? "表{chapter}.{no}" : "图{chapter}.{no}");
+                : null;
+        // 配了 "auto" 或其它不含占位符的格式时回落到默认格式, 否则题注会变成"auto 标题"这种没有编号的文字
+        if (pattern == null || !pattern.contains("{chapter}") || !pattern.contains("{no}")) {
+            pattern = (rule != null && "table".equals(rule.getRuleType())) ? "表{chapter}-{no}" : "图{chapter}-{no}";
+        }
         String caption = pattern
                 .replace("{chapter}", String.valueOf(chapter))
                 .replace("{no}", String.valueOf(no));
@@ -290,6 +344,8 @@ public class CaptionFormatter {
 
     private static void applyCaptionStyle(XWPFParagraph paragraph, FormatRule rule) {
         paragraph.setAlignment(ParagraphAlignment.CENTER);
+        // 题注居中前先清掉原稿的首行/左缩进, 否则"居中"会偏
+        clearIndent(paragraph);
         if (isExactSpacing(rule)) {
             // 校规普遍要求"行间距取固定值"(如桂林信息科技学院 20 磅), 不能一律写死 1.5 倍
             paragraph.setSpacingBetween(rule.getLineSpacingExact(), LineSpacingRule.EXACT);
@@ -304,6 +360,37 @@ public class CaptionFormatter {
             String font = (rule != null && rule.getFont() != null) ? rule.getFont() : "宋体";
             TextFormatter.setFont(run, font);
             run.setFontSize(sizePt);
+        }
+    }
+
+    private static void clearIndent(XWPFParagraph paragraph) {
+        CTPPr pPr = paragraph.getCTP().isSetPPr() ? paragraph.getCTP().getPPr() : paragraph.getCTP().addNewPPr();
+        CTInd ind = pPr.isSetInd() ? pPr.getInd() : pPr.addNewInd();
+        ind.setFirstLine(BigInteger.ZERO);
+        ind.setFirstLineChars(BigInteger.ZERO);
+        ind.setLeft(BigInteger.ZERO);
+        ind.setLeftChars(BigInteger.ZERO);
+    }
+
+    private static boolean adjacentToFigure(List<IBodyElement> elements, int i) {
+        return (i > 0 && containsDrawing(elements.get(i - 1)))
+                || (i + 1 < elements.size() && containsDrawing(elements.get(i + 1)));
+    }
+
+    private static boolean adjacentToTable(List<IBodyElement> elements, int i) {
+        return (i > 0 && elements.get(i - 1) instanceof XWPFTable)
+                || (i + 1 < elements.size() && elements.get(i + 1) instanceof XWPFTable);
+    }
+
+    private static boolean containsDrawing(IBodyElement el) {
+        if (!(el instanceof XWPFParagraph)) {
+            return false;
+        }
+        try {
+            String xml = ((XWPFParagraph) el).getCTP().xmlText();
+            return xml.contains("<w:drawing") || xml.contains("<w:pict");
+        } catch (Exception e) {
+            return false;
         }
     }
 }

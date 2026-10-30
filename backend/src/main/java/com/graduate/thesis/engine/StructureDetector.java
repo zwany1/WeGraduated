@@ -41,7 +41,9 @@ public class StructureDetector {
             "本", "该", "这", "通过", "根据", "为了", "因此", "所以", "总之", "综上",
             "由", "在", "对", "为", "从", "使", "将", "被", "能", "会", "已", "可以",
             "应该", "需要", "实现", "设计", "分析", "本文", "此外", "同时", "另外",
-            "然而", "但是", "并且", "以及", "以下", "如下", "以上", "首先", "其次", "最后"
+            "然而", "但是", "并且", "以及", "以下", "如下", "以上", "首先", "其次", "最后",
+            // 交叉引用句(如图3-1所示/如表2-1所示): 是正文说明, 不是标题
+            "如图", "如表", "见图", "见表", "参见", "详见"
     };
 
     /**
@@ -351,7 +353,7 @@ public class StructureDetector {
     private boolean isHeuristicSubHeading(String trimmed, int currentLevel) {
         if (currentLevel >= 5) return false;           // 已是五级标题，不再降级
         if (trimmed.length() < 2 || trimmed.length() > 18) return false; // 太短或太长
-        if (trimmed.matches(".*[。；：！？、，）]")) return false; // 有句中/句末标点，是句子不是标题
+        if (trimmed.matches(".*[。；：！？、，）:∶].*")) return false; // 句中/句末标点(含半角冒号): 是句子不是标题
         for (String prefix : HEURISTIC_BODY_PREFIXES) {
             if (trimmed.startsWith(prefix)) return false; // 以正文常见词开头
         }

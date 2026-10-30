@@ -65,6 +65,8 @@ public final class HeaderFooterFormatter {
             XWPFRun run = hp.createRun();
             run.setText(page.getHeader().getText());
         }
+        // 模板页眉文字为空时不动任何页眉: 原文档各节的 headerReference 保持原样,
+        // 成品沿用原页眉(如"XX学院毕业设计(论文)说明书 第X页 共Y页"), 不会被清空。
     }
 
     private static void setAlign(XWPFParagraph p, String type) {

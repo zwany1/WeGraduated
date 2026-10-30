@@ -3,12 +3,14 @@ package com.graduate.thesis.engine;
 import com.graduate.thesis.common.BusinessException;
 import com.graduate.thesis.engine.formatter.AbstractFormatter;
 import com.graduate.thesis.engine.formatter.CaptionFormatter;
+import com.graduate.thesis.engine.formatter.CaptionSplitter;
 import com.graduate.thesis.engine.formatter.HeaderFooterFormatter;
 import com.graduate.thesis.engine.formatter.HeadingFormatter;
 import com.graduate.thesis.engine.formatter.PageFormatter;
 import com.graduate.thesis.engine.formatter.ParagraphFormatter;
 import com.graduate.thesis.engine.formatter.ReferenceFormatter;
 import com.graduate.thesis.engine.formatter.SectionFormatter;
+import com.graduate.thesis.engine.formatter.TableFormatter;
 import com.graduate.thesis.engine.formatter.TextFormatter;
 import com.graduate.thesis.engine.formatter.TocFormatter;
 import com.graduate.thesis.engine.model.RuleSet;
@@ -68,12 +70,24 @@ public class FormatEngine {
             throw new BusinessException(500, "创建临时文件失败");
         }
         // 放宽 ZIP 压缩比限制已由 PoiSecurityConfig 在启动时统一设置
-        try (XWPFDocument doc = new XWPFDocument(new FileInputStream(source))) {
+        XWPFDocument doc = null;
+        try {
+            doc = new XWPFDocument(new FileInputStream(source));
             // 超大文档保护: 段落数过多说明文档极其复杂, 避免排版时间过长/内存溢出
             if (doc.getParagraphs().size() > 20000) {
                 throw new BusinessException(400, "文档内容过多(超过 20000 段)，请拆分后重试");
             }
             progress.accept(10);
+
+            // 图文同段的段落先拆成「图片段 + 题注段」, 让题注能按题注规则编号/居中。
+            // 拆分直接改 XML 节点, POI 的段落列表不会刷新, 因此拆分后重载一次文档。
+            if (CaptionSplitter.split(doc) > 0) {
+                java.io.ByteArrayOutputStream buf = new java.io.ByteArrayOutputStream(1 << 20);
+                doc.write(buf);
+                doc.close();
+                doc = new XWPFDocument(new java.io.ByteArrayInputStream(buf.toByteArray()));
+                System.out.println("[排版] 图文同段已拆分, 文档已重新载入");
+            }
 
             List<DocItem> items = structureDetector.detect(doc, ruleSet, report, ruleSet.getHeadingOverrides());
             if (report != null) {
@@ -94,12 +108,18 @@ public class FormatEngine {
             HeadingFormatter.apply(doc, items, ruleSet);
             applyBody(doc, items, ruleSet);
             applyTableCells(doc, ruleSet); // 表格单元格内文字应用正文样式
+            TableFormatter.apply(doc, items); // 三线表: 顶线/底线 1.5pt + 表头栏目线 0.75pt
             progress.accept(65);
 
-            new CaptionFormatter().apply(doc, items, ruleSet);
-            new ReferenceFormatter().apply(doc, ruleSet.getReferenceConfig());
+            CaptionFormatter.Stats captionStats = new CaptionFormatter().apply(doc, items, ruleSet);
+            new ReferenceFormatter().apply(doc, items, ruleSet);
             if (ruleSet.isGenerateToc()) {
                 new TocFormatter().apply(doc, items, ruleSet);
+            }
+            if (report != null) {
+                report.setUncaptionedFigures(captionStats.uncaptionedFigures);
+                report.setUncaptionedTables(captionStats.uncaptionedTables);
+                report.setOrphanCaptions(captionStats.orphanCaptions);
             }
             progress.accept(85);
 
@@ -113,6 +133,11 @@ public class FormatEngine {
             // 排版校验: 补充标题大纲级别(供 Word 目录收录)等, 跳过 frontMatter
             validateResult(doc, items);
             progress.accept(98);
+
+            // 报告计数以"产物实际内容"为准(此前按识别结果统计, 与产物不一致)
+            if (report != null) {
+                recountReport(report, doc);
+            }
 
             try (FileOutputStream fos = new FileOutputStream(temp)) {
                 doc.write(fos);
@@ -128,7 +153,18 @@ public class FormatEngine {
             if (temp != null) {
                 temp.delete();
             }
+            // 保留完整堆栈到日志: 用户只看到友好文案, 排查必须靠日志里的根因
+            System.err.println("[排版失败] " + e.getClass().getName() + ": " + e.getMessage());
+            e.printStackTrace(System.err);
             throw new BusinessException(500, friendlyError(e));
+        } finally {
+            if (doc != null) {
+                try {
+                    doc.close();
+                } catch (IOException ignore) {
+                    // 关闭失败不影响产物
+                }
+            }
         }
     }
 
@@ -158,13 +194,12 @@ public class FormatEngine {
 
     /** 按结构识别结果填充报告计数 */
     private void fillReport(com.graduate.thesis.engine.model.FormatReport report, List<DocItem> items) {
-        boolean inRefs = false;
-        int refs = 0;
+        int idx = -1;
         for (DocItem item : items) {
+            idx++;
             switch (item.getKind()) {
                 case HEADING1:
                     report.setChapterCount(report.getChapterCount() + 1);
-                    inRefs = "参考文献".equals(item.getText().trim());
                     break;
                 case HEADING2:
                 case HEADING3:
@@ -173,32 +208,62 @@ public class FormatEngine {
                     // 无编号短行的启发式提升在 detect 阶段已完成, 此处 kind 已是标题
                     if (item.isAutoPromoted()) {
                         report.setAutoFixedHeadings(report.getAutoFixedHeadings() + 1);
+                        // 记录"改了哪一段", 让自动识别可回溯(此前只有一个数字, 无法核对)
+                        report.getAutoFixedHeadingItems().add(
+                                new com.graduate.thesis.engine.model.FormatReport.AutoFixed(
+                                        idx, item.getText(), headingLevelOf(item.getKind())));
                     }
                     report.setSectionCount(report.getSectionCount() + 1);
-                    inRefs = false;
-                    break;
-                case FIGURE_CAPTION:
-                    report.setFigureCount(report.getFigureCount() + 1);
-                    break;
-                case TABLE_CAPTION:
-                    report.setTableCount(report.getTableCount() + 1);
                     break;
                 case BODY:
                     if (!item.getText().isEmpty()) {
                         report.setBodyParagraphs(report.getBodyParagraphs() + 1);
                     }
-                    // GB/T 7714 常见编号: [1] / (1) / 1. / 1、
-                    if (inRefs && item.getText().matches("^\\[?\\d+\\]?[、.)]?\\s*\\S+.*")) {
-                        refs++;
-                    }
-                    break;
-                case SECTION_TITLE:
-                    inRefs = item.getText().trim().startsWith("参考文献");
                     break;
                 default:
                     break;
             }
         }
+    }
+
+    /** 标题级别(1-5), 供报告展示 */
+    private static int headingLevelOf(ParagraphKind kind) {
+        switch (kind) {
+            case HEADING1: return 1;
+            case HEADING2: return 2;
+            case HEADING3: return 3;
+            case HEADING4: return 4;
+            case HEADING5: return 5;
+            default: return 0;
+        }
+    }
+
+    /**
+     * 用"产物实际内容"重算报告计数: 图/表题注数、参考文献条目数。
+     * 识别结果统计会因为"自动插入的题注""无编号文献条目"而与产物对不上,
+     * 报告必须反映产物, 否则会掩盖丢图等问题。
+     */
+    private void recountReport(com.graduate.thesis.engine.model.FormatReport report, XWPFDocument doc) {
+        int figures = 0;
+        int tables = 0;
+        int refs = 0;
+        for (XWPFParagraph p : doc.getParagraphs()) {
+            String text = p.getText() == null ? "" : p.getText().trim();
+            if (text.isEmpty() || StructureHelper.isTocEntry(text)) {
+                continue; // 目录条目不是图表题注/文献条目
+            }
+            if (StructureHelper.FIGURE_CAPTION.matcher(text).matches()) {
+                figures++;
+            } else if (StructureHelper.TABLE_CAPTION.matcher(text).matches()) {
+                tables++;
+            } else if (text.matches("^\\[\\d+\\]\\s*\\S.*") || ReferenceFormatter.looksLikeCitation(text)) {
+                // 文献条目按"像不像一条著录"统计, 不依赖条目是否紧跟在"参考文献"标题后面
+                // (原稿条目常无编号, 打乱稿里条目还可能散落在别处)
+                refs++;
+            }
+        }
+        report.setFigureCount(figures);
+        report.setTableCount(tables);
         report.setReferenceCount(refs);
     }
 
@@ -254,7 +319,12 @@ public class FormatEngine {
             DocItem item = items.get(i);
             if (item.getKind() == ParagraphKind.EMPTY && !item.isFrontMatter() && !item.isAbstractSection()) {
                 String pXml = item.getParagraph().getCTP().xmlText();
-                if (pXml.contains("<w:br") || pXml.contains("<w:drawing") || pXml.contains("<m:oMath")) continue;
+                // 带分节符的空段落是"节"的分界, 删掉会把后面的节合并到前一节,
+                // 页眉/纸张/页码随之丢失(成品 6 节变 3 节、页眉消失的原因)
+                if (pXml.contains("<w:br") || pXml.contains("<w:drawing") || pXml.contains("<m:oMath")
+                        || pXml.contains("<w:sectPr")) {
+                    continue;
+                }
                 int pos = bodyElements.indexOf(item.getParagraph());
                 if (pos >= 0) {
                     doc.removeBodyElement(pos);

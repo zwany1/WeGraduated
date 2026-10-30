@@ -2,13 +2,20 @@ package com.graduate.thesis.engine.formatter;
 
 import com.graduate.thesis.engine.model.PageConfig;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTBody;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPPr;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPageMar;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPageSz;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTSectPr;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.STPageOrientation;
 
 /**
- * 页面设置: 纸张类型/页边距/页眉页脚距离
+ * 页面设置: 纸张类型/页边距/页眉页脚距离。
+ *
+ * 文档可以有多节(封面、摘要、目录、横向大表、正文…), 每节都有自己的 sectPr。
+ * 原先只改最后一节, 一旦其它节的 sectPr 被保留下来, 就会出现"A4 与 B5 混排";
+ * 因此这里对全部 sectPr 统一套用纸张与页边距, 并保留原有的横向/纵向方向。
  */
 public final class PageFormatter {
 
@@ -16,7 +23,24 @@ public final class PageFormatter {
     }
 
     public static void apply(XWPFDocument doc, PageConfig page) {
-        CTSectPr sectPr = getSectPr(doc);
+        applyTo(getSectPr(doc), page);
+        // 段落级分节符(节与节之间的分界)
+        for (XWPFParagraph p : doc.getParagraphs()) {
+            try {
+                CTPPr pPr = p.getCTP().getPPr();
+                if (pPr != null && pPr.isSetSectPr()) {
+                    applyTo(pPr.getSectPr(), page);
+                }
+            } catch (Exception ignore) {
+                // 个别段落结构异常不影响整体排版
+            }
+        }
+    }
+
+    private static void applyTo(CTSectPr sectPr, PageConfig page) {
+        if (sectPr == null) {
+            return;
+        }
         applyPaper(sectPr, page.getPaper());
         applyMargin(sectPr, page);
     }
@@ -30,23 +54,42 @@ public final class PageFormatter {
     }
 
     private static void applyPaper(CTSectPr sectPr, String paper) {
-        CTPageSz pageSz = sectPr.isSetPgSz() ? sectPr.getPgSz() : sectPr.addNewPgSz();
-        if ("A4".equalsIgnoreCase(paper)) {
-            pageSz.setW(11906L);
-            pageSz.setH(16838L);
-        } else if ("A3".equalsIgnoreCase(paper)) {
-            pageSz.setW(16838L);
-            pageSz.setH(23811L);
-        } else if ("A5".equalsIgnoreCase(paper)) {
-            pageSz.setW(8391L);
-            pageSz.setH(11906L);
-        } else if ("B5".equalsIgnoreCase(paper)) {
-            pageSz.setW(8293L);
-            pageSz.setH(11810L);
-        } else if ("Letter".equalsIgnoreCase(paper)) {
-            pageSz.setW(12240L);
-            pageSz.setH(15840L);
+        long[] size = paperSize(paper);
+        if (size == null) {
+            return;
         }
+        CTPageSz pageSz = sectPr.isSetPgSz() ? sectPr.getPgSz() : sectPr.addNewPgSz();
+        boolean landscape = pageSz.isSetOrient() && pageSz.getOrient() == STPageOrientation.LANDSCAPE;
+        if (landscape) {
+            pageSz.setW(size[1]);
+            pageSz.setH(size[0]);
+        } else {
+            pageSz.setW(size[0]);
+            pageSz.setH(size[1]);
+        }
+    }
+
+    /** 纸张尺寸(twips): [宽, 高], 未知纸张返回 null(保持原样) */
+    private static long[] paperSize(String paper) {
+        if (paper == null) {
+            return null;
+        }
+        if ("A4".equalsIgnoreCase(paper)) {
+            return new long[]{11906L, 16838L};
+        }
+        if ("A3".equalsIgnoreCase(paper)) {
+            return new long[]{16838L, 23811L};
+        }
+        if ("A5".equalsIgnoreCase(paper)) {
+            return new long[]{8391L, 11906L};
+        }
+        if ("B5".equalsIgnoreCase(paper)) {
+            return new long[]{8293L, 11810L};
+        }
+        if ("Letter".equalsIgnoreCase(paper)) {
+            return new long[]{12240L, 15840L};
+        }
+        return null;
     }
 
     private static void applyMargin(CTSectPr sectPr, PageConfig page) {

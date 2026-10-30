@@ -55,6 +55,10 @@ public class TocFormatter {
         // 处理纯文本目录条目
         formatManualToc(items, tc, tabPos);
 
+        // 目录区兜底: 无论条目是否被识别为 toc 结构, 一律清掉"段前分页",
+        // 只在"目录"标题前保留一次分页(原稿目录条常自带分页, 会让成品目录一条一页)
+        clearTocPageBreaks(doc, items);
+
         log.info("[TocFormatter] apply: hasAutoToc={}, toc1.fontSize={}, toc2.fontSize={}, toc3.fontSize={}, lineSpacing={}, leader={}, tabPos={}",
                 hasAutoToc, tc.getToc1().getFontSize(), tc.getToc2().getFontSize(), tc.getToc3().getFontSize(), tc.getLineSpacing(), tc.getLeader(), tabPos);
 
@@ -147,6 +151,9 @@ public class TocFormatter {
     /** 自动目录条目段落: 直写行距与制表位前导符到 pPr(排版后即终态, 不依赖样式定义与域刷新) */
     private static void applyTocParagraphProps(XWPFParagraph p, TocConfig tc, long tabPos) {
         CTPPr pPr = p.getCTP().isSetPPr() ? p.getCTP().getPPr() : p.getCTP().addNewPPr();
+        // 目录条目绝不能带"段前分页": 原稿(多为 PDF 转 Word 产物)常把每条目录都标记为另起一页,
+        // 沿用会让成品目录被拉成 48 页。只在"目录"标题前保留一次分页(见 formatTocTitle)。
+        ParagraphFormatter.setPageBreakBefore(p, false);
         int line = Math.round(tc.getLineSpacing() * 240);
         CTSpacing spacing = pPr.isSetSpacing() ? pPr.getSpacing() : pPr.addNewSpacing();
         spacing.setLine(BigInteger.valueOf(line));
@@ -370,6 +377,39 @@ public class TocFormatter {
                     formatTocEntry(item.getParagraph(), levelForTocText(text, tc), tc, tabPos);
                 }
             }
+        }
+    }
+
+    /**
+     * 目录区段内统一清除"段前分页"。
+     * 从"目录"标题之后开始, 逐段判断是否仍属于目录条目(toc 结构或"标题+页码"形态),
+     * 属于则写 w:pageBreakBefore=0; 一旦遇到非目录条目(正文标题/摘要等)立即停止,
+     * 保证"目录标题前分一次页, 目录条目不分页"。
+     */
+    private static void clearTocPageBreaks(XWPFDocument doc, List<DocItem> items) {
+        if (items == null || items.isEmpty()) {
+            return;
+        }
+        boolean inToc = false;
+        for (DocItem item : items) {
+            if (item.getParagraph() == null) {
+                continue;
+            }
+            String text = item.getText() == null ? "" : item.getText().trim();
+            if (!inToc) {
+                if (StructureHelper.isTocTitle(text)) {
+                    inToc = true;
+                    // 目录标题本身保留一次分页
+                    ParagraphFormatter.setPageBreakBefore(item.getParagraph(), true);
+                }
+                continue;
+            }
+            boolean tocEntry = StructureDetector.isTocStructure(item.getParagraph(), doc)
+                    || StructureHelper.isTocEntry(text);
+            if (!tocEntry) {
+                return;
+            }
+            ParagraphFormatter.setPageBreakBefore(item.getParagraph(), false);
         }
     }
 

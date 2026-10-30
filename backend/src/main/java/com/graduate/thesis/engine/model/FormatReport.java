@@ -33,6 +33,21 @@ public class FormatReport {
     /** 无编号短行被启发式自动识别为标题的数量 */
     private int autoFixedHeadings;
 
+    /**
+     * 被自动识别为标题的段落清单(段落序号 + 文本 + 级别), 供作者回溯"改了哪几段"。
+     * 历史报告 JSON 没有该字段, 反序列化后为空列表。
+     */
+    private List<AutoFixed> autoFixedHeadingItems = new ArrayList<>();
+
+    /** 没有题注、因此未自动编号的图数量(避免生成只有编号没有题名的"裸题注") */
+    private int uncaptionedFigures;
+
+    /** 没有题注、因此未自动编号的表数量 */
+    private int uncaptionedTables;
+
+    /** 有题注文字但与图表不相邻(被空行/段落隔开)、已按正文保留的题注数量 */
+    private int orphanCaptions;
+
     /** 未匹配标题正则、已按正文处理的疑似标题行 */
     private List<Suspect> suspects = new ArrayList<>();
 
@@ -69,6 +84,28 @@ public class FormatReport {
         } else {
             structureLevel = "OK";
             structureMessage = null;
+        }
+    }
+
+    /**
+     * 被自动识别为标题的段落: index 为原文档段落序号
+     */
+    @Data
+    public static class AutoFixed {
+        /** 原文档段落序号(从 0 起) */
+        private int index;
+        /** 段落文本 */
+        private String text;
+        /** 识别出的标题级别(1-5) */
+        private int level;
+
+        public AutoFixed() {
+        }
+
+        public AutoFixed(int index, String text, int level) {
+            this.index = index;
+            this.text = text;
+            this.level = level;
         }
     }
 

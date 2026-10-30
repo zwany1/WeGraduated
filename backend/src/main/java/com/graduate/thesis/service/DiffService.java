@@ -82,8 +82,8 @@ public class DiffService {
                     : "(增加 " + (fp - op) + " 段)";
             items.add(new DiffItem("（整篇文档）", "内容", "非空段落 " + op + " → " + fp + " " + tail, 0));
         }
-        int oi = od.getAllPictures().size();
-        int fi = fd.getAllPictures().size();
+        int oi = countImages(od);
+        int fi = countImages(fd);
         if (oi != fi) {
             items.add(new DiffItem("（整篇文档）", "内容",
                     "图片 " + oi + " → " + fi + (fi < oi ? " (丢失 " + (oi - fi) + " 张)" : ""), 0));
@@ -93,6 +93,22 @@ public class DiffService {
         if (ot != ft) {
             items.add(new DiffItem("（整篇文档）", "内容", "表格 " + ot + " → " + ft, 0));
         }
+    }
+
+    /** 图片按"文档里的引用次数"统计, 不能用 getAllPictures().size():
+     *  media 目录可能含未被引用的孤儿文件(实测有 1 个), 会把"没丢"误报成"丢了 1 张" */
+    private int countImages(XWPFDocument doc) {
+        int n = 0;
+        for (XWPFParagraph p : allParas(doc)) {
+            for (XWPFRun r : p.getRuns()) {
+                try {
+                    n += r.getEmbeddedPictures().size();
+                } catch (Exception ignore) {
+                    // 某些畸形 run 读不出来就跳过, 不影响总数级判断
+                }
+            }
+        }
+        return n;
     }
 
     private int countTextParas(XWPFDocument doc) {

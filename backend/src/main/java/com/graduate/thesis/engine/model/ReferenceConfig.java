@@ -42,8 +42,11 @@ public class ReferenceConfig {
     /** 悬挂缩进宽度(twips, 默认640 ≈ 两个汉字) */
     private int hangingIndentTwips = 640;
 
-    /** 条目行距倍(默认 1.5) */
-    private float lineSpacing = 1.5f;
+    /**
+     * 条目行距倍数。0(默认) = 跟随正文规则的行距;
+     * 大于 0 时按该倍数(如 1.5)覆盖, 用于个别学校要求文献区单独设置的场景。
+     */
+    private float lineSpacing = 0f;
 
     public static ReferenceConfig parse(String json) {
         if (json == null || json.trim().isEmpty()) {

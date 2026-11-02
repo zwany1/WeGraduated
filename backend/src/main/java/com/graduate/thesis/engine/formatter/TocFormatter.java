@@ -70,6 +70,29 @@ public class TocFormatter {
         if (hasAutoToc) {
             formatAutoTocEntries(doc, tc, tabPos);
         }
+
+        // 兜底: 只要段落挂的是 toc 样式就统一编号后空格。
+        // 不走"像不像目录条目"的文本判定 —— 形如「5.3.1(FC1)控制逻辑 17」的条目判定会漏,
+        // 而样式是 Word 自己打的标记, 比文本特征可靠。
+        normalizeStyledEntries(doc);
+    }
+
+    /** 按 toc 样式识别目录条目并统一编号后空格 */
+    private static void normalizeStyledEntries(XWPFDocument doc) {
+        for (XWPFParagraph p : doc.getParagraphs()) {
+            try {
+                CTPPr pPr = p.getCTP().isSetPPr() ? p.getCTP().getPPr() : null;
+                if (pPr == null || !pPr.isSetPStyle() || pPr.getPStyle().getVal() == null) {
+                    continue;
+                }
+                if (tocLevelByName(doc, pPr.getPStyle().getVal()) < 1) {
+                    continue;
+                }
+                normalizeNumberSpacing(p);
+            } catch (Exception ignore) {
+                // 单个条目异常不影响整体排版
+            }
+        }
     }
 
     /**
@@ -108,6 +131,7 @@ public class TocFormatter {
                 }
             }
             applyTocParagraphProps(p, tc, tabPos);
+            normalizeNumberSpacing(p);
             changed++;
         }
         log.info("[TocFormatter] formatAutoTocEntries: changed={} paragraphs, runs={}, firstSz={}", changed, totalRuns, firstSz);
@@ -180,6 +204,90 @@ public class TocFormatter {
             tab.setLeader(org.openxmlformats.schemas.wordprocessingml.x2006.main.STTabTlc.Enum.forString(leader));
             tab.setPos(BigInteger.valueOf(tabPos));
         }
+    }
+
+    /** 编号 + 空白 + 标题: 只认行首的阿拉伯数字编号(1 / 1.1 / 1.1.1) */
+    private static final java.util.regex.Pattern TOC_NUMBER = java.util.regex.Pattern
+            .compile("^(\\d+(?:\\.\\d+){0,2})([ \\t]*)(\\S[\\s\\S]*)$");
+
+    /**
+     * 目录条目编号后的空格: 章行两格(「1  绪论」), 节与小节一格(「1.1 研究背景」「1.1.1 智能…」)。
+     *
+     * 校规写的是编号后的空格, 属于文本内容而不是段落缩进, 只能改 run 里的空白字符。
+     * 目录条目会把编号、标题、页码拆进不同 run("4" + ".1 系统硬件…" 这种), 所以按拼接后的
+     * 整段文本判定编号与空白位置, 再回写到对应的 w:t: 只替换空白那一段, 编号、标题、页码都不动。
+     */
+    private static void normalizeNumberSpacing(XWPFParagraph p) {
+        java.util.List<org.openxmlformats.schemas.wordprocessingml.x2006.main.CTText> nodes = textNodes(p);
+        if (nodes.isEmpty()) {
+            return;
+        }
+        StringBuilder sb = new StringBuilder();
+        for (org.openxmlformats.schemas.wordprocessingml.x2006.main.CTText n : nodes) {
+            sb.append(n.getStringValue() == null ? "" : n.getStringValue());
+        }
+        java.util.regex.Matcher m = TOC_NUMBER.matcher(sb.toString());
+        if (!m.matches()) {
+            return;
+        }
+        int numEnd = m.end(1);
+        int titleStart = m.start(3);
+        String want = m.group(1).split("\\.").length <= 1 ? "  " : " ";
+        if (titleStart - numEnd == want.length() && want.equals(sb.substring(numEnd, titleStart))) {
+            return; // 已经是目标形态, 不产生多余改动
+        }
+        int offset = 0;
+        boolean filled = false;
+        for (org.openxmlformats.schemas.wordprocessingml.x2006.main.CTText n : nodes) {
+            String s = n.getStringValue() == null ? "" : n.getStringValue();
+            int ns = offset;
+            int ne = offset + s.length();
+            offset = ne;
+            if (ne <= numEnd || ns >= titleStart) {
+                continue; // 完全落在编号内或标题内, 不动
+            }
+            int localStart = Math.max(ns, numEnd) - ns;
+            int localEnd = Math.min(ne, titleStart) - ns;
+            String rebuilt = s.substring(0, localStart) + (filled ? "" : want) + s.substring(localEnd);
+            if (!rebuilt.equals(s)) {
+                n.setStringValue(rebuilt);
+            }
+            filled = true;
+        }
+        if (!filled) {
+            // 编号与标题紧贴且恰好落在两个 run 的边界上(如 "5.3.1" + "(FC1)控制逻辑"):
+            // 空白区间长度为 0, 没有任何节点与之重叠, 直接补在标题所在节点的开头
+            offset = 0;
+            for (org.openxmlformats.schemas.wordprocessingml.x2006.main.CTText n : nodes) {
+                String s = n.getStringValue() == null ? "" : n.getStringValue();
+                int ns = offset;
+                offset += s.length();
+                if (ns == titleStart && !s.isEmpty()) {
+                    n.setStringValue(want + s);
+                    return;
+                }
+            }
+        }
+    }
+
+    /**
+     * 段落内按文档顺序排列的 w:t 节点。
+     * 用 XPath 取全部后代: 目录条目文字可能被包在 hyperlink、修订记录(w:ins)等容器里,
+     * 只遍历 ctp.getRList() 会漏掉这些节点, 导致空格改不到(或改错位置)。
+     */
+    private static java.util.List<org.openxmlformats.schemas.wordprocessingml.x2006.main.CTText> textNodes(XWPFParagraph p) {
+        java.util.List<org.openxmlformats.schemas.wordprocessingml.x2006.main.CTText> list = new java.util.ArrayList<>();
+        try {
+            for (org.apache.xmlbeans.XmlObject o : p.getCTP().selectPath(
+                    "declare namespace w='" + NS + "' .//w:t")) {
+                if (o instanceof org.openxmlformats.schemas.wordprocessingml.x2006.main.CTText) {
+                    list.add((org.openxmlformats.schemas.wordprocessingml.x2006.main.CTText) o);
+                }
+            }
+        } catch (Exception ignore) {
+            return list;
+        }
+        return list;
     }
 
     /** 段落目录级别 -> 对应级配置; 级别不明按一级 */
@@ -288,8 +396,7 @@ public class TocFormatter {
         sind.setFirstLineChars(BigInteger.ZERO);
     }
 
-    /** 目录条目级别: 样式 name "toc N" 取 N 优先, styleId 末位数字兜底, 大纲级别再兜底 */
-    private static int tocLevelOf(XWPFParagraph p, XWPFDocument doc) {
+    /** 目录条目级别: 样式 name "toc N" 取 N 优先, styleId 末位数字兜底, 大纲级别再兜底 */    private static int tocLevelOf(XWPFParagraph p, XWPFDocument doc) {
         try {
             CTPPr pPr = p.getCTP().isSetPPr() ? p.getCTP().getPPr() : null;
             if (pPr != null && pPr.isSetPStyle() && pPr.getPStyle().getVal() != null) {
@@ -393,6 +500,7 @@ public class TocFormatter {
                 }
                 if (!text.isEmpty() && StructureHelper.isTocEntry(text)) {
                     formatTocEntry(item.getParagraph(), levelForTocText(text, tc), tc, tabPos);
+                    normalizeNumberSpacing(item.getParagraph());
                 }
             }
         }

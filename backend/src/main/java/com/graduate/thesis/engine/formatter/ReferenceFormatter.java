@@ -12,7 +12,11 @@ import org.apache.poi.xwpf.usermodel.ParagraphAlignment;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTDecimalNumber;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTNumPr;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPPr;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -156,6 +160,7 @@ public class ReferenceFormatter {
                 }
                 sb.append(nextText);
                 setItemText(next, "", config); // 续行已并走, 清空避免内容重复
+                clearAutoNumbering(next); // 续行被清空后若仍挂着自动编号, 会留下一个孤立的序号
                 open = !isTerminated(nextText);
                 j++;
             }
@@ -163,6 +168,9 @@ public class ReferenceFormatter {
             String cleaned = formatItem(sb.toString(), config);
             String label = config.isRenumber() ? formatNumber(no, numberingStyle) + "  " : "";
             setItemText(p, label + cleaned, config);
+            // 序号已由文本提供, 必须同时关掉段落自带的自动编号,
+            // 否则 Word 会同时渲染"自动编号 + 文本序号", 出现 [1] [1] 双序号
+            clearAutoNumbering(p);
             applyHangingIndent(p, config, ruleSet);
             no++;
             i = Math.max(j, i + 1);
@@ -441,6 +449,25 @@ public class ReferenceFormatter {
     }
 
     /**
+     * 关闭段落自动编号(numId=0)。
+     *
+     * 原稿的文献条目常是 Word 自动编号列表, 引擎按 GB/T 7714 重写了"[1]  "这样的文本序号,
+     * 若不同时把 numPr 关掉, 打开文档就会看到"编号 + 文本序号"两份序号。
+     * 写 numId=0 而不是删掉 numPr: 条目若挂在带编号的样式上, 删掉会回落成样式编号。
+     */
+    private static void clearAutoNumbering(XWPFParagraph p) {
+        CTPPr pPr = p.getCTP().isSetPPr() ? p.getCTP().getPPr() : p.getCTP().addNewPPr();
+        CTNumPr numPr = pPr.isSetNumPr() ? pPr.getNumPr() : pPr.addNewNumPr();
+        if (numPr.isSetIlvl()) {
+            numPr.getIlvl().setVal(BigInteger.ZERO);
+        } else {
+            numPr.addNewIlvl().setVal(BigInteger.ZERO);
+        }
+        CTDecimalNumber numId = numPr.isSetNumId() ? numPr.getNumId() : numPr.addNewNumId();
+        numId.setVal(BigInteger.ZERO);
+    }
+
+    /**
      * 悬挂缩进: 序号与文字空两格, 换行第二行对齐序号后(缩进宽度与行距由配置控制)
      */
     private void applyHangingIndent(XWPFParagraph p, ReferenceConfig config, RuleSet ruleSet) {
@@ -448,13 +475,15 @@ public class ReferenceFormatter {
         int indent = config.getHangingIndentTwips() > 0 ? config.getHangingIndentTwips() : 640;
         p.setIndentationLeft(indent);
         p.setFirstLineIndent(-indent);
-        // 校规要求全文行距固定 20 磅; 正文规则配了固定值就跟随正文, 否则退回配置的倍数
-        FormatRule body = ruleSet == null ? null : ruleSet.rule("body");
-        if (body != null && "exact".equals(body.getLineSpacingType())
-                && body.getLineSpacingExact() != null && body.getLineSpacingExact() > 0) {
-            ParagraphFormatter.applyLineSpacing(p, body);
-        } else {
+        // 行距: 配置给了倍数就按配置(配置优先, 配置页里的值必须真实生效);
+        // 未配置(0/null)表示跟随正文, 正文规则是固定值时用固定值
+        if (config.getLineSpacing() > 0) {
             p.setSpacingBetween(config.getLineSpacing());
+            return;
+        }
+        FormatRule body = ruleSet == null ? null : ruleSet.rule("body");
+        if (body != null) {
+            ParagraphFormatter.applyLineSpacing(p, body);
         }
     }
 

@@ -1,5 +1,6 @@
 package com.graduate.thesis.controller;
 
+import com.graduate.thesis.common.BusinessException;
 import com.graduate.thesis.common.Result;
 import com.graduate.thesis.common.UserContext;
 import com.graduate.thesis.dto.ChangeEmailDTO;
@@ -65,8 +66,12 @@ public class UserController {
 
     /** 查询账号是否需要图形验证码(免登录, 供前端按需显示验证码) */
     @GetMapping("/need-captcha")
-    public Result<Boolean> needCaptcha(@RequestParam("account") String account) {
-        return Result.ok(userService.needCaptcha(account));
+    public Result<Boolean> needCaptcha(@RequestParam(value = "account", required = false) String account) {
+        // 缺参返回 400, 不能让它落到兜底异常处理器变成 500
+        if (account == null || account.trim().isEmpty()) {
+            throw new BusinessException(400, "请输入用户名或邮箱");
+        }
+        return Result.ok(userService.needCaptcha(account.trim()));
     }
 
     /** 发送邮箱验证码 */
@@ -129,7 +134,7 @@ public class UserController {
 
     /** 更新当前用户资料(昵称/头像/简介/性别/学校/学院/城市/电话) */
     @PutMapping("/profile")
-    public Result<UserProfileDTO> updateProfile(@RequestBody UserProfileDTO dto) {
+    public Result<UserProfileDTO> updateProfile(@Valid @RequestBody UserProfileDTO dto) {
         return Result.ok(userService.updateProfile(UserContext.get(), dto));
     }
 

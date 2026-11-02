@@ -1,5 +1,6 @@
 package com.graduate.thesis.controller;
 
+import com.graduate.thesis.common.BusinessException;
 import com.graduate.thesis.common.Result;
 import com.graduate.thesis.common.UserContext;
 import com.graduate.thesis.dto.ConfigSaveDTO;
@@ -15,6 +16,8 @@ import com.graduate.thesis.entity.FormatRule;
 import com.graduate.thesis.entity.FormatTemplate;
 import com.graduate.thesis.service.SpecExtractService;
 import com.graduate.thesis.service.TemplateService;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -43,6 +46,33 @@ public class TemplateController {
     public TemplateController(TemplateService templateService, SpecExtractService specExtractService) {
         this.templateService = templateService;
         this.specExtractService = specExtractService;
+    }
+
+    private static final ObjectMapper JSON = new ObjectMapper();
+
+    /**
+     * 配置项都是"以 JSON 字符串存库"的, 必须在这里校验:
+     * 否则一段非法 JSON 会直接落库, 之后所有用该模板的排版都拿到坏配置, 而且没有回滚。
+     */
+    private static void requireJsonObject(String json, String label) {
+        if (json == null || json.trim().isEmpty()) {
+            throw new BusinessException(400, label + "不能为空");
+        }
+        try {
+            JsonNode node = JSON.readTree(json);
+            if (node == null || !node.isObject()) {
+                throw new BusinessException(400, label + "必须是 JSON 对象");
+            }
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new BusinessException(400, label + "不是合法的 JSON");
+        }
+    }
+
+    /** 允许为空(部分保存场景), 有值时才校验 */
+    private static void requireJsonObjectIfPresent(String json, String label) {
+        if (json != null && !json.trim().isEmpty()) {
+            requireJsonObject(json, label);
+        }
     }
 
     /** 校规文档启发式抽取: 从《格式规范》docx 生成模板配置初稿(带原文摘录) */
@@ -162,6 +192,7 @@ public class TemplateController {
 
     @PutMapping("/{id}/page-config")
     public Result<Void> savePageConfig(@PathVariable Long id, @Valid @RequestBody PageConfigSaveDTO dto) {
+        requireJsonObject(dto.getPageConfig(), "页面配置");
         templateService.savePageConfig(id, UserContext.get(), dto.getPageConfig());
         return Result.ok();
     }
@@ -176,6 +207,9 @@ public class TemplateController {
     /** 一次性保存模板全部配置(单事务): 页面/标题正则/开关/参考文献/目录样式 + 全部格式规则 */
     @PutMapping("/{id}/config")
     public Result<Void> saveAllConfig(@PathVariable Long id, @Valid @RequestBody ConfigSaveDTO dto) {
+        requireJsonObjectIfPresent(dto.getPageConfig(), "页面配置");
+        requireJsonObjectIfPresent(dto.getReferenceConfig(), "参考文献配置");
+        requireJsonObjectIfPresent(dto.getTocConfig(), "目录配置");
         templateService.saveAllConfig(id, UserContext.get(), dto);
         return Result.ok();
     }
@@ -194,12 +228,14 @@ public class TemplateController {
 
     @PutMapping("/{id}/reference-config")
     public Result<Void> saveReferenceConfig(@PathVariable Long id, @RequestBody ReferenceConfigSaveDTO dto) {
+        requireJsonObject(dto.getReferenceConfig(), "参考文献配置");
         templateService.saveReferenceConfig(id, UserContext.get(), dto.getReferenceConfig());
         return Result.ok();
     }
 
     @PutMapping("/{id}/toc-config")
     public Result<Void> saveTocConfig(@PathVariable Long id, @RequestBody TocConfigSaveDTO dto) {
+        requireJsonObject(dto.getTocConfig(), "目录配置");
         templateService.saveTocConfig(id, UserContext.get(), dto.getTocConfig());
         return Result.ok();
     }

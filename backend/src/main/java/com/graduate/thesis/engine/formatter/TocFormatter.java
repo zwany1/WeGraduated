@@ -16,6 +16,7 @@ import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTHyperlink;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTP;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPPr;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPPrGeneral;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTInd;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTR;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTRPr;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTSpacing;
@@ -158,6 +159,16 @@ public class TocFormatter {
         CTSpacing spacing = pPr.isSetSpacing() ? pPr.getSpacing() : pPr.addNewSpacing();
         spacing.setLine(BigInteger.valueOf(line));
         spacing.setLineRule(STLineSpacingRule.AUTO);
+        // 目录条目一律顶格: 校规里"1（空两格）""1.1（空一格）"说的是编号后的空格,
+        // 不是段落缩进。这里显式写 0, 否则原稿遗留的 firstLine 会留下来,
+        // 同一份文档"格式被打乱过"与"原样"排出来的目录对不齐。
+        CTInd ind = pPr.isSetInd() ? pPr.getInd() : pPr.addNewInd();
+        ind.setLeft(BigInteger.ZERO);
+        // leftChars 必须一起清: OOXML 里字符缩进优先于绝对值缩进,
+        // 原稿的 toc 样式(id=14)自带 w:leftChars="400", 只清 left 无效(目录仍缩进 4 字符)
+        ind.setLeftChars(BigInteger.ZERO);
+        ind.setFirstLine(BigInteger.ZERO);
+        ind.setFirstLineChars(BigInteger.ZERO);
         String leader = tc.getLeader();
         if (leader != null && !leader.isEmpty()) {
             if (pPr.isSetTabs()) {
@@ -268,6 +279,13 @@ public class TocFormatter {
             tab.setLeader(STTabTlc.Enum.forString(leader));
             tab.setPos(BigInteger.valueOf(tabPos));
         }
+        // 样式定义里也要清零缩进: 原稿的 toc 样式自带 w:left="840" w:leftChars="400",
+        // 没加直接格式的条目会继承这份缩进(目录里只有 4.2.1、1.2.3 两条中招)
+        CTInd sind = pPr.isSetInd() ? pPr.getInd() : pPr.addNewInd();
+        sind.setLeft(BigInteger.ZERO);
+        sind.setLeftChars(BigInteger.ZERO);
+        sind.setFirstLine(BigInteger.ZERO);
+        sind.setFirstLineChars(BigInteger.ZERO);
     }
 
     /** 目录条目级别: 样式 name "toc N" 取 N 优先, styleId 末位数字兜底, 大纲级别再兜底 */
